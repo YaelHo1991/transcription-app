@@ -9,13 +9,13 @@ interface KeyboardShortcutsProps {
   onAction: (action: string) => void;
 }
 
-// Default shortcuts matching the original HTML player
+// Default shortcuts - EXACT COPY from original HTML player
 export const defaultShortcuts: KeyboardShortcut[] = [
-  // Playback Control Group
+  // Group 1: Playbook Control (בקרת הפעלה)
   { action: 'playPause', key: ' ', description: 'הפעל/השהה', enabled: true, group: 'בקרת הפעלה' },
   { action: 'stop', key: 'Escape', description: 'עצור', enabled: true, group: 'בקרת הפעלה' },
   
-  // Navigation Group
+  // Group 2: Navigation (ניווט)
   { action: 'rewind5', key: 'ArrowRight', description: 'קפוץ אחורה 5 שניות', enabled: true, group: 'ניווט' },
   { action: 'forward5', key: 'ArrowLeft', description: 'קפוץ קדימה 5 שניות', enabled: true, group: 'ניווט' },
   { action: 'rewind2_5', key: 'Shift+ArrowRight', description: 'קפוץ אחורה 2.5 שניות', enabled: true, group: 'ניווט' },
@@ -23,7 +23,7 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   { action: 'jumpToStart', key: 'Home', description: 'קפוץ להתחלה', enabled: true, group: 'ניווט' },
   { action: 'jumpToEnd', key: 'End', description: 'קפוץ לסוף', enabled: true, group: 'ניווט' },
   
-  // Volume & Speed Group
+  // Group 3: Volume & Speed (עוצמה ומהירות)
   { action: 'volumeUp', key: 'ArrowUp', description: 'הגבר עוצמה', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'volumeDown', key: 'ArrowDown', description: 'הנמך עוצמה', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'mute', key: 'm', description: 'השתק/בטל השתקה', enabled: true, group: 'עוצמה ומהירות' },
@@ -31,24 +31,14 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   { action: 'speedDown', key: '-', description: 'הנמך מהירות', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'speedReset', key: '0', description: 'אפס מהירות', enabled: true, group: 'עוצמה ומהירות' },
   
-  // Work Modes Group
+  // Group 4: Work Modes (מצבי עבודה) - ordered by tabs like original
   { action: 'toggleShortcuts', key: 'Ctrl+Shift+s', description: 'הפעל/כבה קיצורים', enabled: true, group: 'מצבי עבודה' },
   { action: 'togglePedal', key: 'p', description: 'הפעל/כבה דוושה', enabled: true, group: 'מצבי עבודה' },
-  { action: 'toggleAutoDetect', key: 'd', description: 'הפעל/כבה זיהוי אוטומטי', enabled: true, group: 'מצבי עבודה' },
+  { action: 'toggleAutoDetect', key: 'a', description: 'הפעל/כבה זיהוי אוטומטי', enabled: true, group: 'מצבי עבודה' },
+  { action: 'toggleMode', key: 'Ctrl+m', description: 'החלף מצב רגיל/משופר', enabled: true, group: 'מצבי עבודה' },
   
-  // Loop Controls Group
-  { action: 'setLoopStart', key: '[', description: 'הגדר התחלת לולאה', enabled: true, group: 'בקרת לולאה' },
-  { action: 'setLoopEnd', key: ']', description: 'הגדר סוף לולאה', enabled: true, group: 'בקרת לולאה' },
-  { action: 'toggleLoop', key: 'l', description: 'הפעל/כבה לולאה', enabled: true, group: 'בקרת לולאה' },
-  { action: 'clearLoop', key: 'Shift+l', description: 'נקה לולאה', enabled: true, group: 'בקרת לולאה' },
-  
-  // Video Mode Group
-  { action: 'toggleVideo', key: 'v', description: 'הפעל/כבה מצב וידאו', enabled: true, group: 'מצב וידאו' },
-  { action: 'toggleFullscreen', key: 'f', description: 'מסך מלא', enabled: true, group: 'מצב וידאו' },
-  
-  // Special Functions Group
-  { action: 'openSettings', key: 's', description: 'פתח הגדרות', enabled: true, group: 'פונקציות מיוחדות' },
-  { action: 'insertTimestamp', key: 't', description: 'הכנס חותמת זמן', enabled: true, group: 'פונקציות מיוחדות' },
+  // Group 5: Settings (הגדרות)
+  { action: 'toggleSettings', key: 's', description: 'פתח הגדרות', enabled: true, group: 'הגדרות' },
 ];
 
 export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: KeyboardShortcutsProps) {
@@ -69,11 +59,31 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in input/textarea
-      if (e.target instanceof HTMLInputElement || 
-          e.target instanceof HTMLTextAreaElement ||
-          (e.target as HTMLElement).contentEditable === 'true') {
-        return;
+      // Check if we're in text editor
+      const activeElement = e.target as HTMLElement;
+      const inTextEditor = 
+        activeElement instanceof HTMLInputElement || 
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement.contentEditable === 'true' ||
+        activeElement.closest('.transcription-textarea') ||
+        activeElement.closest('.text-editor-container') ||
+        activeElement.closest('.transcription-text');
+      
+      // Check if this is a key combination (not just a single key)
+      const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+      
+      // Check if it's an F-key
+      const isFKey = e.key.startsWith('F') && e.key.length <= 3;
+      
+      // Check if it's a numpad key
+      const isNumpadKey = e.code && e.code.startsWith('Numpad');
+      
+      // Special: Shift+Numpad should ALWAYS work, even in text editor
+      const isShiftNumpad = e.shiftKey && isNumpadKey;
+      
+      // Block single keys in text editor (except F-keys, numpad, combinations)
+      if (inTextEditor && !hasModifier && !isFKey && !isNumpadKey && !isShiftNumpad) {
+        return; // Block single keys that would type characters
       }
 
       const key = buildKeyString(e);

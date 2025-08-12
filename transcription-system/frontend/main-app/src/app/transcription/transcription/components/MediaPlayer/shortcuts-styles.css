@@ -1,0 +1,291 @@
+/* Shortcuts Tab Styles - EXACT COPY from original styles.css */
+
+/* Shortcuts Configuration */
+.shortcuts-config {
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, -apple-system, sans-serif;
+}
+
+.media-shortcuts-header {
+  margin-bottom: 25px;
+  text-align: center;
+  position: relative;
+}
+
+.media-shortcuts-header h3 {
+  color: #e0f7f7;  /* White like original */
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.shortcuts-hint {
+  color: #e0f7f7;  /* White like original */
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+
+/* Toggle Switch for shortcuts enabled - positioned on right */
+.media-shortcuts-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(108, 92, 231, 0.3);
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background: #20c997;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-label {
+  color: rgba(224, 247, 247, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Shortcuts List */
+.media-shortcuts-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.media-shortcut-group {
+  margin-bottom: 20px;
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 15px;
+  border: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.group-header {
+  color: #20c997;
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 16px;
+  border-bottom: 1px solid rgba(32, 201, 151, 0.3);
+  padding-bottom: 8px;
+}
+
+.media-shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: rgba(32, 201, 151, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(32, 201, 151, 0.2);
+  transition: all 0.2s ease;
+}
+
+.media-shortcut-item:hover {
+  background: rgba(32, 201, 151, 0.1);
+  border-color: rgba(32, 201, 151, 0.4);
+}
+
+.media-shortcut-label {
+  color: #e0f7f7;
+  font-size: 14px;
+  flex: 1;
+  text-align: right;
+}
+
+.media-shortcut-key {
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #1a5d5d 0%, #0f4c4c 100%);
+  color: #20c997;
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  max-width: 180px;
+  text-align: center;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  white-space: nowrap;
+  overflow: visible;
+  line-height: 1.2;
+  height: auto;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  word-break: keep-all;
+  margin: 0 8px;
+}
+
+.media-shortcut-key:hover {
+  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+  color: #0a2e2e;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3);
+}
+
+.media-shortcut-key.capturing {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  color: white;
+  animation: pulse 1s infinite;
+}
+
+/* Shortcut checkbox styling */
+.shortcut-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #20c997;
+  cursor: pointer;
+}
+
+/* Rewind on Pause Settings */
+.rewind-on-pause-section {
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  border: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.rewind-on-pause-section h4 {
+  color: #20c997;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rewind-on-pause-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.rewind-on-pause-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rewind-amount-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.rewind-amount-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.rewind-amount-input {
+  width: 80px;
+  padding: 6px 10px;
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.5);
+  border-radius: 6px;
+  color: #e0f7f7;
+  font-size: 14px;
+}
+
+.rewind-amount-input:focus {
+  outline: none;
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
+/* Footer */
+.shortcuts-footer {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(32, 201, 151, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reset-shortcuts-btn {
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #20c997 0%, #17a8a8 100%);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Segoe UI', Tahoma, -apple-system, sans-serif;
+}
+
+.reset-shortcuts-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(32, 201, 151, 0.4);
+}
+
+.media-shortcuts-status {
+  color: #20c997;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.media-shortcuts-status.visible {
+  opacity: 1;
+}
+
+/* Pulse animation for capturing state */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

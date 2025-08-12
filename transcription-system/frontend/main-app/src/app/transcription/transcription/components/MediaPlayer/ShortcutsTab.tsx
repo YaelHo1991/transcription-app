@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { KeyboardShortcut } from './types';
+import { defaultShortcuts } from './KeyboardShortcuts';
 
 interface ShortcutsTabProps {
   shortcuts: KeyboardShortcut[];
@@ -22,8 +23,17 @@ export default function ShortcutsTab({
 }: ShortcutsTabProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [tempKey, setTempKey] = useState('');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Group shortcuts by their group property
+  // Show status message like original
+  const showStatus = (message: string) => {
+    setStatusMessage(message);
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 3000);
+  };
+
+  // Group shortcuts by their group property - exactly like original
   const groupedShortcuts = shortcuts.reduce((groups, shortcut, index) => {
     const group = shortcut.group || 'אחר';
     if (!groups[group]) {
@@ -35,35 +45,107 @@ export default function ShortcutsTab({
 
   const handleKeyCapture = (index: number) => {
     setEditingIndex(index);
-    setTempKey('לחץ על מקש...');
+    setTempKey('לחץ מקש...');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
     
+    // Don't capture ESC - let user cancel
+    if (e.key === 'Escape') {
+      setEditingIndex(null);
+      setTempKey('');
+      return;
+    }
+    
+    // Check if this is a numpad key - critical for Shift+Numpad detection
+    const isNumpad = e.code && e.code.startsWith('Numpad');
+    
     const parts: string[] = [];
     if (e.ctrlKey) parts.push('Ctrl');
     if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('Shift');
+    
+    // Special handling for Shift+Numpad combinations
+    let shiftDetected = e.shiftKey;
+    
+    // If we have a numpad code but the key is a navigation key, Shift was pressed
+    if (isNumpad && !shiftDetected) {
+      const navigationKeys = ['End', 'ArrowDown', 'PageDown', 'ArrowLeft', 
+                             'Clear', 'ArrowRight', 'Home', 'ArrowUp', 'PageUp'];
+      if (navigationKeys.includes(e.key)) {
+        shiftDetected = true; // Shift was pressed but browser didn't report it
+      }
+    }
+    
+    if (shiftDetected) parts.push('Shift');
     if (e.metaKey) parts.push('Meta');
     
     let key = e.key;
-    if (key === ' ') key = 'רווח';
-    if (key === 'ArrowLeft') key = '←';
-    if (key === 'ArrowRight') key = '→';
-    if (key === 'ArrowUp') key = '↑';
-    if (key === 'ArrowDown') key = '↓';
-    if (key === 'Escape') key = 'Esc';
     
-    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+    // Skip modifier keys themselves
+    const modifierKeys = ['Control', 'Alt', 'Shift', 'Meta', 'Ctrl'];
+    if (modifierKeys.includes(key)) {
+      return; // Don't create shortcut for modifier keys alone
+    }
+    
+    // Special handling for numpad keys
+    if (isNumpad) {
+      // When Shift is pressed with numpad, we MUST use e.code
+      const numpadKey = e.code.substring(6); // Remove 'Numpad' prefix
+      key = 'Numpad' + numpadKey; // Create identifier like 'Numpad1', 'NumpadAdd'
+    } else if (key === ' ') {
+      key = ' '; // Keep space as-is for internal use
+    } else if (key === 'ArrowLeft') {
+      key = 'ArrowLeft';
+    } else if (key === 'ArrowRight') {
+      key = 'ArrowRight';
+    } else if (key === 'ArrowUp') {
+      key = 'ArrowUp';
+    } else if (key === 'ArrowDown') {
+      key = 'ArrowDown';
+    } else if (key === 'Escape') {
+      key = 'Escape';
+    } else if (key.length === 1) {
+      // For single character keys, keep lowercase to match defaults
+      key = key.toLowerCase();
+    }
+    
+    // Only add key if it's valid and not a modifier
+    if (key && !modifierKeys.includes(key)) {
       parts.push(key);
     }
     
+    // Only return a result if we have a non-modifier key
+    const hasNonModifier = parts.some(p => !['Ctrl', 'Alt', 'Shift', 'Meta'].includes(p));
+    if (!hasNonModifier) {
+      return; // Keep capturing mode active
+    }
+    
     const keyString = parts.join('+');
+    
+    // Check if it's the same key for the same action
+    if (shortcuts[index].key === keyString) {
+      showStatus('הקיצור כבר מוגדר למקש זה');
+      setEditingIndex(null);
+      setTempKey('');
+      return;
+    }
+    
+    // Check if key is already used by a different action
+    for (let i = 0; i < shortcuts.length; i++) {
+      if (i !== index && shortcuts[i].key === keyString) {
+        showStatus(`המקש ${formatKeyDisplay(keyString)} כבר בשימוש עבור ${shortcuts[i].description}`);
+        setEditingIndex(null);
+        setTempKey('');
+        return;
+      }
+    }
+    
     const updatedShortcuts = [...shortcuts];
     updatedShortcuts[index].key = keyString;
     onShortcutsChange(updatedShortcuts);
+    showStatus('הקיצור עודכן בהצלחה');
     setEditingIndex(null);
     setTempKey('');
   };
@@ -74,141 +156,153 @@ export default function ShortcutsTab({
     onShortcutsChange(updatedShortcuts);
   };
 
+  const resetShortcuts = () => {
+    // Reset to default shortcuts
+    onShortcutsChange([...defaultShortcuts]);
+    showStatus('הקיצורים אופסו לברירת המחדל');
+  };
+
   const getGroupIcon = (groupName: string) => {
     const icons: Record<string, string> = {
       'בקרת הפעלה': '🎵',
       'ניווט': '⏩',
       'עוצמה ומהירות': '🔊',
       'מצבי עבודה': '⚙️',
-      'בקרת לולאה': '🔄',
-      'מצב וידאו': '📹',
-      'פונקציות מיוחדות': '✨'
+      'הגדרות': '🔧'
     };
     return icons[groupName] || '📌';
   };
 
+  const formatKeyDisplay = (key: string) => {
+    // Format key for display like original
+    if (!key || typeof key !== 'string') return '';
+    
+    // Handle space key specially
+    if (key === ' ' || key === 'Space') return 'רווח';
+    
+    // Handle combination keys
+    if (key.includes('+')) {
+      const parts = key.split('+');
+      const formattedParts = parts.map(part => {
+        const cleanPart = part.trim();
+        
+        // Skip empty parts
+        if (!cleanPart) return '';
+        
+        // Handle special keys and modifiers
+        switch (cleanPart) {
+          case 'Ctrl': return 'Ctrl';
+          case 'Alt': return 'Alt';
+          case 'Shift': return 'Shift';
+          case 'Meta': return 'Win';
+          default:
+            // Handle Numpad keys specially
+            if (cleanPart.startsWith('Numpad')) {
+              const numpadPart = cleanPart.substring(6);
+              switch (numpadPart) {
+                case 'Add': return 'נומ +';
+                case 'Subtract': return 'נומ -';
+                case 'Multiply': return 'נומ *';
+                case 'Divide': return 'נומ /';
+                case 'Enter': return 'נומ Enter';
+                case 'Decimal': return 'נומ .';
+                default: return 'נומ ' + numpadPart;
+              }
+            }
+            // Handle arrow keys
+            if (cleanPart === 'ArrowRight' || cleanPart === '→') return '→';
+            if (cleanPart === 'ArrowLeft' || cleanPart === '←') return '←';
+            if (cleanPart === 'ArrowUp' || cleanPart === '↑') return '↑';
+            if (cleanPart === 'ArrowDown' || cleanPart === '↓') return '↓';
+            // For regular keys, just uppercase
+            return cleanPart.toUpperCase();
+        }
+      }).filter(p => p !== ''); // Remove empty parts
+      
+      return formattedParts.join('+');
+    }
+    
+    // Handle single keys
+    switch (key) {
+      case 'ArrowLeft': return '←';  
+      case 'ArrowRight': return '→';
+      case 'ArrowUp': return '↑';
+      case 'ArrowDown': return '↓';
+      case 'Escape': return 'Esc';
+      case 'Home': return 'Home';
+      case 'End': return 'End';
+      case ' ': return 'רווח';
+      default: 
+        // Handle Numpad keys specially
+        if (key.startsWith('Numpad')) {
+          const numpadPart = key.substring(6);
+          switch (numpadPart) {
+            case 'Add': return 'נומ +';
+            case 'Subtract': return 'נומ -';
+            case 'Multiply': return 'נומ *';
+            case 'Divide': return 'נומ /';
+            case 'Enter': return 'נומ Enter';
+            case 'Decimal': return 'נומ .';
+            default: return 'נומ ' + numpadPart;
+          }
+        }
+        return key.toUpperCase();
+    }
+  };
+
   return (
     <div className="shortcuts-config">
-      {/* Header with global toggle */}
-      <div className="media-shortcuts-header" style={{
-        marginBottom: '20px',
-        padding: '15px',
-        background: 'rgba(15, 76, 76, 0.3)',
-        borderRadius: '8px',
-        border: '1px solid rgba(32, 201, 151, 0.2)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3 style={{ color: '#20c997', margin: '0 0 5px 0', fontSize: '18px' }}>
-              ⌨️ קיצורי מקלדת
-            </h3>
-            <p style={{ color: 'rgba(224, 247, 247, 0.7)', fontSize: '13px', margin: 0 }}>
-              לחץ על קיצור כדי לשנות אותו
-            </p>
-          </div>
-          <div className="media-shortcuts-toggle" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <label className="toggle-switch" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={shortcutsEnabled}
-                onChange={(e) => onShortcutsEnabledChange(e.target.checked)}
-                style={{ marginLeft: '8px' }}
-              />
-              <span style={{ color: '#20c997', fontWeight: 500 }}>קיצורים פעילים</span>
-            </label>
-          </div>
+      {/* Header with global toggle - EXACT original structure */}
+      <div className="media-shortcuts-header">
+        <h3>⌨️ קיצורי מקלדת</h3>
+        <p className="shortcuts-hint">לחץ על קיצור כדי לשנות אותו</p>
+        <div className="media-shortcuts-toggle">
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              id="shortcutsEnabledToggle"
+              checked={shortcutsEnabled}
+              onChange={(e) => onShortcutsEnabledChange(e.target.checked)}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+          <span className="toggle-label">קיצורים פעילים</span>
         </div>
       </div>
 
-      {/* Shortcuts list grouped by category */}
-      <div className="media-shortcuts-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+      {/* Shortcuts list grouped by category - EXACT original structure */}
+      <div className="media-shortcuts-list">
         {Object.entries(groupedShortcuts).map(([groupName, groupShortcuts]) => (
-          <div key={groupName} className="media-shortcut-group" style={{
-            marginBottom: '20px',
-            padding: '15px',
-            background: 'rgba(15, 76, 76, 0.2)',
-            borderRadius: '8px',
-            border: '1px solid rgba(32, 201, 151, 0.15)'
-          }}>
-            <div className="group-header" style={{
-              color: '#20c997',
-              fontWeight: 600,
-              marginBottom: '12px',
-              fontSize: '15px',
-              borderBottom: '1px solid rgba(32, 201, 151, 0.2)',
-              paddingBottom: '8px'
-            }}>
-              {getGroupIcon(groupName)} {groupName}
-            </div>
+          <div key={groupName} className="media-shortcut-group">
+            <div className="group-header">{getGroupIcon(groupName)} {groupName}</div>
             
             {groupShortcuts.map(shortcut => (
-              <div key={shortcut.index} className="media-shortcut-item" style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                marginBottom: '6px',
-                background: shortcut.enabled ? 'rgba(32, 201, 151, 0.05)' : 'rgba(0, 0, 0, 0.2)',
-                borderRadius: '4px',
-                border: '1px solid rgba(32, 201, 151, 0.1)',
-                transition: 'all 0.2s ease'
-              }}>
-                <span className="media-shortcut-label" style={{
-                  color: shortcut.enabled ? '#e0f7f7' : 'rgba(224, 247, 247, 0.5)',
-                  fontSize: '14px',
-                  flex: 1
-                }}>
+              <div key={shortcut.index} className="media-shortcut-item">
+                <span className="media-shortcut-label">
                   {shortcut.description}
                 </span>
                 
                 {editingIndex === shortcut.index ? (
                   <input
                     type="text"
-                    value={tempKey}
+                    value={tempKey || ''}
+                    onChange={() => {}} // Controlled by keydown handler
                     onKeyDown={(e) => handleKeyPress(e, shortcut.index)}
                     onBlur={() => {
                       setEditingIndex(null);
                       setTempKey('');
                     }}
                     autoFocus
-                    style={{
-                      width: '120px',
-                      padding: '4px 8px',
-                      background: 'rgba(32, 201, 151, 0.1)',
-                      border: '2px solid #20c997',
-                      borderRadius: '4px',
-                      color: '#20c997',
-                      fontSize: '13px',
-                      textAlign: 'center',
-                      outline: 'none'
-                    }}
+                    className="media-shortcut-key capturing"
                   />
                 ) : (
                   <button
                     className="media-shortcut-key"
+                    data-action={shortcut.action}
+                    id={`shortcut-${shortcut.action}`}
                     onClick={() => handleKeyCapture(shortcut.index)}
-                    style={{
-                      minWidth: '120px',
-                      padding: '4px 12px',
-                      background: 'rgba(32, 201, 151, 0.1)',
-                      border: '1px solid rgba(32, 201, 151, 0.3)',
-                      borderRadius: '4px',
-                      color: '#20c997',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(32, 201, 151, 0.2)';
-                      e.currentTarget.style.borderColor = '#20c997';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(32, 201, 151, 0.1)';
-                      e.currentTarget.style.borderColor = 'rgba(32, 201, 151, 0.3)';
-                    }}
                   >
-                    {shortcut.key}
+                    {formatKeyDisplay(shortcut.key)}
                   </button>
                 )}
                 
@@ -216,12 +310,7 @@ export default function ShortcutsTab({
                   type="checkbox"
                   checked={shortcut.enabled}
                   onChange={() => handleToggle(shortcut.index)}
-                  style={{
-                    marginRight: '12px',
-                    cursor: 'pointer',
-                    width: '18px',
-                    height: '18px'
-                  }}
+                  className="shortcut-checkbox"
                 />
               </div>
             ))}
@@ -229,60 +318,51 @@ export default function ShortcutsTab({
         ))}
       </div>
 
-      {/* Rewind on Pause Section */}
-      <div className="rewind-on-pause-section" style={{
-        marginTop: '20px',
-        padding: '15px',
-        background: 'rgba(15, 76, 76, 0.3)',
-        borderRadius: '8px',
-        border: '1px solid rgba(32, 201, 151, 0.2)'
-      }}>
-        <h4 style={{ color: '#20c997', margin: '0 0 12px 0', fontSize: '15px' }}>
-          ⏪ חזור אחורה בעצירה
-        </h4>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={rewindOnPause.enabled}
-              onChange={(e) => onRewindOnPauseChange({
-                ...rewindOnPause,
-                enabled: e.target.checked
-              })}
-              style={{ marginLeft: '8px' }}
-            />
-            <span style={{ color: '#e0f7f7', fontSize: '14px' }}>
-              אפשר חזרה אחורה בעצירה
-            </span>
-          </label>
-          
-          {rewindOnPause.enabled && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ color: 'rgba(224, 247, 247, 0.7)', fontSize: '13px' }}>
-                כמות (שניות):
-              </label>
+      {/* Rewind on Pause Section - EXACT original structure */}
+      <div className="rewind-on-pause-section">
+        <h4>⏪ חזור אחורה בעצירה</h4>
+        <div className="rewind-on-pause-controls">
+          <div className="rewind-on-pause-toggle">
+            <label className="toggle-switch">
               <input
-                type="number"
-                min="0.5"
-                max="10"
-                step="0.5"
-                value={rewindOnPause.amount}
+                type="checkbox"
+                id="rewindOnPauseEnabled"
+                checked={rewindOnPause.enabled}
                 onChange={(e) => onRewindOnPauseChange({
                   ...rewindOnPause,
-                  amount: Number(e.target.value)
+                  enabled: e.target.checked
                 })}
-                style={{
-                  width: '80px',
-                  padding: '4px 8px',
-                  background: 'rgba(32, 201, 151, 0.1)',
-                  border: '1px solid rgba(32, 201, 151, 0.3)',
-                  borderRadius: '4px',
-                  color: '#20c997',
-                  fontSize: '13px'
-                }}
               />
-            </div>
-          )}
+              <span className="toggle-slider"></span>
+            </label>
+            <span>אפשר חזרה אחורה בעצירה</span>
+          </div>
+          <div className={`rewind-amount-container ${rewindOnPause.enabled ? '' : 'disabled'}`} id="rewindAmountContainer">
+            <label>כמות (שניות):</label>
+            <input
+              type="number"
+              id="rewindAmount"
+              className="rewind-amount-input"
+              min="0.1"
+              max="2.0"
+              step="0.1"
+              value={rewindOnPause.amount || 0.3}
+              onChange={(e) => onRewindOnPauseChange({
+                ...rewindOnPause,
+                amount: Number(e.target.value) || 0.3
+              })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer with reset button - EXACT original structure */}
+      <div className="shortcuts-footer">
+        <button className="reset-shortcuts-btn" onClick={resetShortcuts}>
+          אפס לברירת מחדל
+        </button>
+        <div className={`media-shortcuts-status ${statusMessage ? 'visible' : ''}`} id="mediaShortcutsStatus">
+          {statusMessage}
         </div>
       </div>
     </div>

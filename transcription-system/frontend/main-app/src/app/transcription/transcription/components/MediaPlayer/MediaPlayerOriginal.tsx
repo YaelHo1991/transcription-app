@@ -6,6 +6,7 @@ import { WorkerManager } from './workers/workerManager';
 import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import ShortcutsTab from './ShortcutsTab';
 import './MediaPlayer.css';
+import './shortcuts-styles.css';
 
 interface MediaPlayerProps {
   initialMedia?: MediaFile;
@@ -247,9 +248,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         // Will be implemented in Stage 3
         console.log('Auto-detect toggle - to be implemented in Stage 3');
         break;
+      case 'toggleMode':
+        // Will be implemented in Stage 3 - switch between regular and enhanced auto-detect modes
+        console.log('Auto-detect mode toggle - to be implemented in Stage 3');
+        break;
       
       // Special Functions
       case 'openSettings':
+      case 'toggleSettings':
         setShowSettings(true);
         break;
       case 'insertTimestamp':
