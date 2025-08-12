@@ -32,6 +32,8 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [globalStatus, setGlobalStatus] = useState<string | null>(null);
+  const previousVolumeRef = useRef(100); // Store volume before muting
   
   // Collapsible sections
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
@@ -55,6 +57,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   // Pedal settings
   const [pedalEnabled, setPedalEnabled] = useState(true);
 
+  // Show global status message
+  const showGlobalStatus = (message: string) => {
+    setGlobalStatus(message);
+    setTimeout(() => {
+      setGlobalStatus(null);
+    }, 3000);
+  };
+
   // Format time
   const formatTime = (time: number) => {
     const hours = Math.floor(time / 3600);
@@ -65,15 +75,21 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
   // Play/Pause
   const togglePlayPause = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      return;
+    }
     
-    if (isPlaying) {
+    // Check actual audio state, not React state
+    if (!audioRef.current.paused) {
       audioRef.current.pause();
-      setIsPlaying(false);
     } else {
       audioRef.current.play()
-        .then(() => setIsPlaying(true))
-        .catch(err => console.error('Play failed:', err));
+        .catch(err => {
+          // Ignore AbortError as it's just a play/pause conflict
+          if (err.name !== 'AbortError') {
+            console.error('Play failed:', err);
+          }
+        });
     }
   };
 
@@ -107,16 +123,27 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       audioRef.current.volume = newVolume / 100;
     }
     setIsMuted(newVolume === 0);
+    // Track non-zero volume for unmute
+    if (newVolume > 0) {
+      previousVolumeRef.current = newVolume;
+    }
   };
 
   const toggleMute = () => {
     if (!audioRef.current) return;
     
-    if (isMuted) {
-      audioRef.current.volume = volume / 100;
+    // Check actual audio volume instead of React state to avoid closure issues
+    if (audioRef.current.volume === 0) {
+      // Currently muted, unmute it
+      audioRef.current.volume = previousVolumeRef.current / 100;
+      setVolume(previousVolumeRef.current);
       setIsMuted(false);
     } else {
+      // Currently has volume, mute it
+      // Save current volume before muting
+      previousVolumeRef.current = audioRef.current.volume * 100;
       audioRef.current.volume = 0;
+      setVolume(0);
       setIsMuted(true);
     }
   };
@@ -166,12 +193,41 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
   // Handle keyboard shortcut actions
   const handleShortcutAction = useCallback((action: string) => {
-    if (!audioRef.current && action !== 'openSettings') return;
+    if (!audioRef.current && action !== 'openSettings' && action !== 'toggleSettings') {
+      return;
+    }
 
-    switch (action) {
+    // Map pedal actions to shortcut actions (note the dot vs underscore difference)
+    const actionMap: { [key: string]: string } = {
+      'skipBackward2.5': 'rewind2_5',
+      'skipForward2.5': 'forward2_5',
+      'skipBackward5': 'rewind5',
+      'skipForward5': 'forward5',
+      'skipBackward10': 'rewind10',
+      'skipForward10': 'forward10'
+    };
+    
+    // Use mapped action if available, otherwise use original
+    const mappedAction = actionMap[action] || action;
+
+    switch (mappedAction) {
       // Playback Control
       case 'playPause':
-        togglePlayPause();
+        if (!audioRef.current) {
+          return;
+        }
+        
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
+        } else {
+          audioRef.current.play()
+            .catch(err => {
+              // Ignore AbortError as it's just a play/pause conflict
+              if (err.name !== 'AbortError') {
+                console.error('Play failed:', err);
+              }
+            });
+        }
         break;
       case 'stop':
         if (audioRef.current) {
@@ -194,6 +250,12 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       case 'forward2_5':
         handleForward(2.5);
         break;
+      case 'rewind10':
+        handleRewind(10);
+        break;
+      case 'forward10':
+        handleForward(10);
+        break;
       case 'jumpToStart':
         if (audioRef.current) {
           audioRef.current.currentTime = 0;
@@ -207,17 +269,34 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       
       // Volume & Speed
       case 'volumeUp':
-        const newVolumeUp = Math.min(100, volume + 10);
+        if (!audioRef.current) return;
+        // Get current volume from audio element to avoid closure issues
+        const currentVolumeUp = Math.round(audioRef.current.volume * 100);
+        const newVolumeUp = Math.min(100, currentVolumeUp + 5); // Increase by 5%
         setVolume(newVolumeUp);
         if (audioRef.current) {
           audioRef.current.volume = newVolumeUp / 100;
         }
+        // Track non-zero volume for unmute
+        if (newVolumeUp > 0) {
+          previousVolumeRef.current = newVolumeUp;
+          setIsMuted(false);
+        }
         break;
       case 'volumeDown':
-        const newVolumeDown = Math.max(0, volume - 10);
+        if (!audioRef.current) return;
+        // Get current volume from audio element to avoid closure issues
+        const currentVolumeDown = Math.round(audioRef.current.volume * 100);
+        const newVolumeDown = Math.max(0, currentVolumeDown - 5); // Decrease by 5%
         setVolume(newVolumeDown);
         if (audioRef.current) {
           audioRef.current.volume = newVolumeDown / 100;
+        }
+        // Update mute state if volume reaches 0
+        setIsMuted(newVolumeDown === 0);
+        // Track non-zero volume for unmute
+        if (newVolumeDown > 0) {
+          previousVolumeRef.current = newVolumeDown;
         }
         break;
       case 'mute':
@@ -243,18 +322,26 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       
       // Work Modes
       case 'toggleShortcuts':
-        setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: !prev.shortcutsEnabled }));
+        setKeyboardSettings(prev => {
+          const newEnabled = !prev.shortcutsEnabled;
+          showGlobalStatus(`קיצורי מקלדת: ${newEnabled ? 'פעילים' : 'כבויים'}`);
+          return { ...prev, shortcutsEnabled: newEnabled };
+        });
         break;
       case 'togglePedal':
-        setPedalEnabled(prev => !prev);
+        setPedalEnabled(prev => {
+          const newEnabled = !prev;
+          showGlobalStatus(`דוושה: ${newEnabled ? 'פעילה' : 'כבויה'}`);
+          return newEnabled;
+        });
         break;
       case 'toggleAutoDetect':
         // Will be implemented in Stage 3
-        console.log('Auto-detect toggle - to be implemented in Stage 3');
+        showGlobalStatus('זיהוי אוטומטי: יושם בשלב 3');
         break;
       case 'toggleMode':
         // Will be implemented in Stage 3 - switch between regular and enhanced auto-detect modes
-        console.log('Auto-detect mode toggle - to be implemented in Stage 3');
+        showGlobalStatus('מצב עבודה: יושם בשלב 3');
         break;
       
       // Special Functions
@@ -278,10 +365,9 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         break;
       case 'toggleFullscreen':
         // Will be implemented in Stage 4
-        console.log('Fullscreen toggle - to be implemented in Stage 4');
         break;
     }
-  }, [togglePlayPause, handleRewind, handleForward, toggleMute, resetSpeed, formatTime, currentTime, duration, volume, playbackRate, onTimestampCopy]);
+  }, [audioRef, duration, volume, playbackRate, onTimestampCopy, currentTime, isPlaying]);
 
   // Handle speed icon click with double-click detection
   const speedClickTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -304,6 +390,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   useEffect(() => {
     if (initialMedia && audioRef.current) {
       audioRef.current.src = initialMedia.url;
+      audioRef.current.volume = volume / 100; // Initialize volume
       setShowVideo(initialMedia.type === 'video');
     }
   }, [initialMedia]);
@@ -312,6 +399,9 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    // Initialize audio volume
+    audio.volume = volume / 100;
 
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
@@ -322,6 +412,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       setCurrentTime(audio.currentTime);
       onTimeUpdate?.(audio.currentTime);
     };
+    
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
 
     const handleEnded = () => {
       setIsPlaying(false);
@@ -329,11 +427,15 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
   }, [onTimeUpdate]);
@@ -465,7 +567,9 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       />
       
       {/* Global Status Display */}
-      <div className="media-global-status" id="mediaGlobalStatus"></div>
+      <div className={`media-global-status ${globalStatus ? 'visible' : ''}`} id="mediaGlobalStatus">
+        {globalStatus}
+      </div>
       
       {/* Media Player Component */}
       <div className="media-player-container" id="mediaPlayerContainer">
@@ -761,6 +865,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
               <PedalTab
                 pedalEnabled={pedalEnabled}
                 onPedalEnabledChange={setPedalEnabled}
+                onPedalAction={handleShortcutAction}
               />
             </div>
             

@@ -56,8 +56,6 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
   }, [shortcuts]);
 
   useEffect(() => {
-    if (!enabled) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if we're in text editor
       const activeElement = e.target as HTMLElement;
@@ -96,9 +94,16 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
 
       const shortcut = activeShortcuts.current.get(key);
       if (shortcut && shortcut.enabled) {
-        e.preventDefault();
-        e.stopPropagation();
-        onAction(shortcut.action);
+        // Check if this is a toggle action (these always work)
+        const toggleActions = ['toggleShortcuts', 'toggleSettings', 'togglePedal', 'toggleAutoDetect', 'toggleMode'];
+        const isToggleAction = toggleActions.includes(shortcut.action);
+        
+        // If it's a toggle action OR shortcuts are enabled, execute it
+        if (isToggleAction || enabled) {
+          e.preventDefault();
+          e.stopPropagation();
+          onAction(shortcut.action);
+        }
       }
     };
 

@@ -12,6 +12,30 @@
             box-sizing: border-box;
         }
         
+        /* Global Status Display */
+        .media-global-status {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: linear-gradient(135deg, rgba(32, 201, 151, 0.95) 0%, rgba(26, 93, 93, 0.95) 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10000;
+            pointer-events: none;
+        }
+        
+        .media-global-status.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        
         /* Media Player Container - RTL by default */
         .media-player-container {
             direction: rtl;
