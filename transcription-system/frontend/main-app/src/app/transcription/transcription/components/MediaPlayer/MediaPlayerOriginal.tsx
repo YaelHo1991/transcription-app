@@ -928,6 +928,16 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                 {formatTime(duration)}
               </span>
             )}
+            
+            {/* Waveform Toggle Button */}
+            <button 
+              className="waveform-toggle-btn" 
+              id="waveformToggleBtn" 
+              title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
+              onClick={() => setWaveformEnabled(!waveformEnabled)}
+            >
+              {waveformEnabled ? "📊" : "▬"}
+            </button>
           </div>
         </div>
         
@@ -1008,16 +1018,6 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           </button>
         )}
         
-        {/* Waveform Toggle Button */}
-        <button 
-          className="settings-btn" 
-          id="waveformToggleBtn" 
-          title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
-          onClick={() => setWaveformEnabled(!waveformEnabled)}
-        >
-          {waveformEnabled ? "📊" : "▬"}
-        </button>
-
         {/* Settings Button */}
         <button 
           className="settings-btn" 

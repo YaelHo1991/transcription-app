@@ -2086,9 +2086,9 @@
         
         /* Media player container adjustment when video is active */
         .media-player-container.video-active {
-            width: calc(100% - 350px) !important; /* Leave space for video cube (320px + 30px gap) */
-            max-width: calc(100% - 350px) !important;
-            margin-right: 350px !important; /* Push container to the left, leave space on right */
+            width: calc(100% - 470px) !important; /* Leave space for video cube (420px + 50px gap) */
+            max-width: calc(100% - 470px) !important;
+            margin-right: 470px !important; /* Push container to the left, leave space on right */
             margin-left: 0 !important;
         }
         
@@ -2256,4 +2256,32 @@
             background: rgba(15, 76, 76, 0.1) !important;
             border: 1px solid rgba(32, 201, 151, 0.15) !important;
             border-radius: 4px !important;
+        }
+
+        /* Waveform toggle button in progress bar area */
+        .waveform-toggle-btn {
+            background: rgba(32, 201, 151, 0.2);
+            border: 1px solid rgba(32, 201, 151, 0.4);
+            border-radius: 4px;
+            color: #20c997;
+            padding: 4px 8px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            min-width: 30px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .waveform-toggle-btn:hover {
+            background: rgba(32, 201, 151, 0.3);
+            border-color: rgba(32, 201, 151, 0.6);
+            transform: scale(1.05);
+        }
+
+        .waveform-toggle-btn:active {
+            transform: scale(0.95);
         }
