@@ -14,18 +14,18 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [x] Initial git commit
 
 ### Stage 1: Keyboard Shortcuts ✅
-- [x] Import all shortcuts from original HTML
+- [x] Import all shortcuts from original HTML into React components
   - [x] Playback Control (Play/Pause, Stop)
   - [x] Navigation (Skip forward/backward 2.5s, 5s)
   - [x] Jump controls (Start, End)
   - [x] Volume controls (Up, Down, Mute)
   - [x] Speed controls (Up, Down, Reset)
   - [x] Mode toggles (Shortcuts, Pedal, AutoDetect)
-- [x] Implement global keyboard event handlers
-- [x] Add visual feedback for active shortcuts
-- [x] Enable/disable toggle functionality
-- [x] Custom key binding functionality
-- [x] Test all shortcuts
+- [x] Integrate KeyboardShortcuts React component into MediaPlayerOriginal
+- [x] Map keyboard actions to existing MediaPlayerOriginal functions
+- [x] Add keyboard settings state management
+- [x] Connect shortcut actions to play/pause, seek, volume, speed controls
+- [x] Test keyboard shortcuts integration with original player
 - [x] Git commit
 
 ### Stage 2: Pedal Integration

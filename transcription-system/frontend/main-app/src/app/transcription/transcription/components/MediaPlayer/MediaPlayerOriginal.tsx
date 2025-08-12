@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI } from './types';
 import { WorkerManager } from './workers/workerManager';
+import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import './MediaPlayer.css';
 
 interface MediaPlayerProps {
@@ -39,6 +40,12 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   // Video
   const [showVideo, setShowVideo] = useState(false);
   const [videoMinimized, setVideoMinimized] = useState(false);
+  
+  // Keyboard shortcuts settings
+  const [keyboardSettings, setKeyboardSettings] = useState({
+    shortcuts: defaultShortcuts,
+    shortcutsEnabled: true
+  });
 
   // Format time
   const formatTime = (time: number) => {
@@ -148,6 +155,121 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       audioRef.current.playbackRate = 1;
     }
   };
+
+  // Handle keyboard shortcut actions
+  const handleShortcutAction = useCallback((action: string) => {
+    if (!audioRef.current && action !== 'openSettings') return;
+
+    switch (action) {
+      // Playback Control
+      case 'playPause':
+        togglePlayPause();
+        break;
+      case 'stop':
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          setIsPlaying(false);
+        }
+        break;
+      
+      // Navigation
+      case 'rewind5':
+        handleRewind(5);
+        break;
+      case 'forward5':
+        handleForward(5);
+        break;
+      case 'rewind2_5':
+        handleRewind(2.5);
+        break;
+      case 'forward2_5':
+        handleForward(2.5);
+        break;
+      case 'jumpToStart':
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+        }
+        break;
+      case 'jumpToEnd':
+        if (audioRef.current) {
+          audioRef.current.currentTime = duration;
+        }
+        break;
+      
+      // Volume & Speed
+      case 'volumeUp':
+        const newVolumeUp = Math.min(100, volume + 10);
+        setVolume(newVolumeUp);
+        if (audioRef.current) {
+          audioRef.current.volume = newVolumeUp / 100;
+        }
+        break;
+      case 'volumeDown':
+        const newVolumeDown = Math.max(0, volume - 10);
+        setVolume(newVolumeDown);
+        if (audioRef.current) {
+          audioRef.current.volume = newVolumeDown / 100;
+        }
+        break;
+      case 'mute':
+        toggleMute();
+        break;
+      case 'speedUp':
+        const newSpeedUp = Math.min(2, playbackRate + 0.25);
+        setPlaybackRate(newSpeedUp);
+        if (audioRef.current) {
+          audioRef.current.playbackRate = newSpeedUp;
+        }
+        break;
+      case 'speedDown':
+        const newSpeedDown = Math.max(0.5, playbackRate - 0.25);
+        setPlaybackRate(newSpeedDown);
+        if (audioRef.current) {
+          audioRef.current.playbackRate = newSpeedDown;
+        }
+        break;
+      case 'speedReset':
+        resetSpeed();
+        break;
+      
+      // Work Modes
+      case 'toggleShortcuts':
+        setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: !prev.shortcutsEnabled }));
+        break;
+      case 'togglePedal':
+        // Will be implemented in Stage 2
+        console.log('Pedal toggle - to be implemented in Stage 2');
+        break;
+      case 'toggleAutoDetect':
+        // Will be implemented in Stage 3
+        console.log('Auto-detect toggle - to be implemented in Stage 3');
+        break;
+      
+      // Special Functions
+      case 'openSettings':
+        setShowSettings(true);
+        break;
+      case 'insertTimestamp':
+        const timestamp = formatTime(currentTime);
+        if (onTimestampCopy) {
+          onTimestampCopy(timestamp);
+        } else {
+          // Copy to clipboard
+          navigator.clipboard.writeText(timestamp);
+        }
+        break;
+      
+      // Video Mode
+      case 'toggleVideo':
+        setShowVideo(prev => !prev);
+        break;
+      case 'toggleFullscreen':
+        // Will be implemented in Stage 4
+        console.log('Fullscreen toggle - to be implemented in Stage 4');
+        break;
+    }
+  }, [togglePlayPause, handleRewind, handleForward, toggleMute, resetSpeed, formatTime, currentTime, duration, volume, playbackRate, onTimestampCopy]);
 
   // Handle speed icon click with double-click detection
   const speedClickTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -323,6 +445,13 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
   return (
     <>
+      {/* Keyboard Shortcuts Handler */}
+      <KeyboardShortcuts
+        shortcuts={keyboardSettings.shortcuts}
+        enabled={keyboardSettings.shortcutsEnabled}
+        onAction={handleShortcutAction}
+      />
+      
       {/* Global Status Display */}
       <div className="media-global-status" id="mediaGlobalStatus"></div>
       
