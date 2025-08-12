@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת CRM - עיצוב מודרני</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f6f0 0%, #ede8d3 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #b85042 0%, #a0453a 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .nav-bar {
+            background: linear-gradient(135deg, #e7e8d1 0%, #d4d5c0 100%);
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-item {
+            padding: 15px 30px;
+            color: #5a4a3a;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(184, 80, 66, 0.1);
+            border-bottom-color: #b85042;
+            color: #b85042;
+        }
+
+        .main-content {
+            padding: 30px;
+            background: #f8f9fa;
+            min-height: 600px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* קובייה ראשונה - אדום בהיר (לקוחות) */
+        .stat-card:nth-child(1) {
+            background: linear-gradient(135deg, #fef7f6 0%, #fdf0ef 100%);
+            border-left: 4px solid #e8a99b;
+        }
+
+        .stat-card:nth-child(1) h3 {
+            color: #a8453a;
+        }
+
+        .stat-card:nth-child(1) .stat-number {
+            color: #c55a4a;
+        }
+
+        .stat-card:nth-child(1)::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(200, 90, 74, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* קובייה שנייה - חום בהיר (עבודות) */
+        .stat-card:nth-child(2) {
+            background: linear-gradient(135deg, #fcfbf9 0%, #faf8f5 100%);
+            border-left: 4px solid #b8a082;
+        }
+
+        .stat-card:nth-child(2) h3 {
+            color: #6b5d47;
+        }
+
+        .stat-card:nth-child(2) .stat-number {
+            color: #8b7a5a;
+        }
+
+        .stat-card:nth-child(2)::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(139, 122, 90, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* קובייה שלישית - ירוק בהיר (מתמללים) */
+        .stat-card:nth-child(3) {
+            background: linear-gradient(135deg, #fbfcfb 0%, #f7f9f8 100%);
+            border-left: 4px solid #c2d0c6;
+        }
+
+        .stat-card:nth-child(3) h3 {
+            color: #6f8075;
+        }
+
+        .stat-card:nth-child(3) .stat-number {
+            color: #8fa098;
+        }
+
+        .stat-card:nth-child(3)::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(143, 160, 152, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* קובייה רביעית - כחול-אפור בהיר (דוחות) */
+        .stat-card:nth-child(4) {
+            background: linear-gradient(135deg, #fafbfc 0%, #f6f8fa 100%);
+            border-left: 4px solid #9db0c4;
+        }
+
+        .stat-card:nth-child(4) h3 {
+            color: #5a6b7a;
+        }
+
+        .stat-card:nth-child(4) .stat-number {
+            color: #7a8ea3;
+        }
+
+        .stat-card:nth-child(4)::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(122, 142, 163, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Management Cubes Styles */
+        .management-cubes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .cube-card {
+            border-radius: 20px;
+            padding: 0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border-top: 6px solid;
+        }
+
+        .cube-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .cube-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .cube-icon {
+            font-size: 32px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .cube-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .cube-content {
+            padding: 25px;
+        }
+
+        .cube-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .mini-stat {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .mini-stat:hover {
+            transform: translateY(-2px);
+        }
+
+        .mini-number {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .mini-label {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .recent-items {
+            margin-bottom: 25px;
+        }
+
+        .recent-items h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid;
+        }
+
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid;
+        }
+
+        .item:hover {
+            transform: translateX(5px);
+        }
+
+        .item-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .item-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .cube-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* עבודות - חום כהה */
+        .works-cube {
+            border-top-color: #8b6f47;
+            background: linear-gradient(135deg, #faf9f6 0%, #f5f3ee 100%);
+        }
+
+        .works-cube .cube-header {
+            background: linear-gradient(135deg, #8b6f47 0%, #785d3a 100%);
+            color: white;
+        }
+
+        .works-cube .cube-header h2 {
+            color: white;
+        }
+
+        .works-cube .cube-icon {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .works-cube .mini-stat {
+            background: rgba(139, 111, 71, 0.1);
+            border: 1px solid rgba(139, 111, 71, 0.2);
+        }
+
+        .works-cube .mini-stat:hover {
+            background: rgba(139, 111, 71, 0.15);
+        }
+
+        .works-cube .mini-number {
+            color: #8b6f47;
+        }
+
+        .works-cube .mini-label {
+            color: #5a4831;
+        }
+
+        .works-cube .recent-items h4 {
+            color: #5a4831;
+            border-bottom-color: rgba(139, 111, 71, 0.3);
+        }
+
+        .works-cube .item {
+            background: rgba(139, 111, 71, 0.08);
+            border-color: rgba(139, 111, 71, 0.15);
+        }
+
+        .works-cube .item:hover {
+            background: rgba(139, 111, 71, 0.15);
+        }
+
+        .works-cube .item-name {
+            color: #5a4831;
+        }
+
+        .works-cube .item-status.active {
+            background: rgba(139, 111, 71, 0.3);
+            color: #4a3526;
+        }
+
+        .works-cube .item-status.pending {
+            background: rgba(139, 111, 71, 0.2);
+            color: #5a4831;
+        }
+
+        .works-cube .item-status.completed {
+            background: rgba(139, 111, 71, 0.4);
+            color: #3d2a1c;
+        }
+
+        .works-cube .btn {
+            background: linear-gradient(135deg, #8b6f47, #785d3a);
+        }
+
+        /* דוחות - כחול-אפור */
+        .reports-cube {
+            border-top-color: #6b7c93;
+            background: linear-gradient(135deg, #f7f8fa 0%, #f2f4f7 100%);
+        }
+
+        .reports-cube .cube-header {
+            background: linear-gradient(135deg, #6b7c93 0%, #5a6b7f 100%);
+            color: white;
+        }
+
+        .reports-cube .cube-header h2 {
+            color: white;
+        }
+
+        .reports-cube .cube-icon {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .reports-cube .mini-stat {
+            background: rgba(107, 124, 147, 0.1);
+            border: 1px solid rgba(107, 124, 147, 0.2);
+        }
+
+        .reports-cube .mini-stat:hover {
+            background: rgba(107, 124, 147, 0.15);
+        }
+
+        .reports-cube .mini-number {
+            color: #6b7c93;
+        }
+
+        .reports-cube .mini-label {
+            color: #4a5562;
+        }
+
+        .reports-cube .recent-items h4 {
+            color: #4a5562;
+            border-bottom-color: rgba(107, 124, 147, 0.3);
+        }
+
+        .reports-cube .item {
+            background: rgba(107, 124, 147, 0.08);
+            border-color: rgba(107, 124, 147, 0.15);
+        }
+
+        .reports-cube .item:hover {
+            background: rgba(107, 124, 147, 0.15);
+        }
+
+        .reports-cube .item-name {
+            color: #4a5562;
+        }
+
+        .reports-cube .item-status.active {
+            background: rgba(107, 124, 147, 0.3);
+            color: #3d4651;
+        }
+
+        .reports-cube .item-status.pending {
+            background: rgba(107, 124, 147, 0.2);
+            color: #4a5562;
+        }
+
+        .reports-cube .item-status.completed {
+            background: rgba(107, 124, 147, 0.4);
+            color: #323a45;
+        }
+
+        .reports-cube .btn {
+            background: linear-gradient(135deg, #6b7c93, #5a6b7f);
+        }
+
+        /* לקוחות - אדום */
+        .clients-cube {
+            border-top-color: #b85042;
+            background: linear-gradient(135deg, #fdf8f7 0%, #faf4f3 100%);
+        }
+
+        .clients-cube .cube-header {
+            background: linear-gradient(135deg, #b85042 0%, #a0453a 100%);
+            color: white;
+        }
+
+        .clients-cube .cube-header h2 {
+            color: white;
+        }
+
+        .clients-cube .cube-icon {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .clients-cube .mini-stat {
+            background: rgba(184, 80, 66, 0.1);
+            border: 1px solid rgba(184, 80, 66, 0.2);
+        }
+
+        .clients-cube .mini-stat:hover {
+            background: rgba(184, 80, 66, 0.15);
+        }
+
+        .clients-cube .mini-number {
+            color: #b85042;
+        }
+
+        .clients-cube .mini-label {
+            color: #7a352c;
+        }
+
+        .clients-cube .recent-items h4 {
+            color: #7a352c;
+            border-bottom-color: rgba(184, 80, 66, 0.3);
+        }
+
+        .clients-cube .item {
+            background: rgba(184, 80, 66, 0.08);
+            border-color: rgba(184, 80, 66, 0.15);
+        }
+
+        .clients-cube .item:hover {
+            background: rgba(184, 80, 66, 0.15);
+        }
+
+        .clients-cube .item-name {
+            color: #7a352c;
+        }
+
+        .clients-cube .item-status.active {
+            background: rgba(184, 80, 66, 0.3);
+            color: #632a21;
+        }
+
+        .clients-cube .item-status.pending {
+            background: rgba(184, 80, 66, 0.2);
+            color: #7a352c;
+        }
+
+        .clients-cube .item-status.completed {
+            background: rgba(184, 80, 66, 0.4);
+            color: #4f1f18;
+        }
+
+        .clients-cube .btn {
+            background: linear-gradient(135deg, #b85042, #a0453a);
+        }
+
+        /* מתמללים - ירוק */
+        .transcribers-cube {
+            border-top-color: #a7beae;
+            background: linear-gradient(135deg, #f8faf9 0%, #f4f7f5 100%);
+        }
+
+        .transcribers-cube .cube-header {
+            background: linear-gradient(135deg, #a7beae 0%, #95a69b 100%);
+            color: white;
+        }
+
+        .transcribers-cube .cube-header h2 {
+            color: white;
+        }
+
+        .transcribers-cube .cube-icon {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .transcribers-cube .mini-stat {
+            background: rgba(167, 190, 174, 0.1);
+            border: 1px solid rgba(167, 190, 174, 0.2);
+        }
+
+        .transcribers-cube .mini-stat:hover {
+            background: rgba(167, 190, 174, 0.15);
+        }
+
+        .transcribers-cube .mini-number {
+            color: #a7beae;
+        }
+
+        .transcribers-cube .mini-label {
+            color: #6b7f73;
+        }
+
+        .transcribers-cube .recent-items h4 {
+            color: #6b7f73;
+            border-bottom-color: rgba(167, 190, 174, 0.3);
+        }
+
+        .transcribers-cube .item {
+            background: rgba(167, 190, 174, 0.08);
+            border-color: rgba(167, 190, 174, 0.15);
+        }
+
+        .transcribers-cube .item:hover {
+            background: rgba(167, 190, 174, 0.15);
+        }
+
+        .transcribers-cube .item-name {
+            color: #6b7f73;
+        }
+
+        .transcribers-cube .item-status.active {
+            background: rgba(167, 190, 174, 0.3);
+            color: #586559;
+        }
+
+        .transcribers-cube .item-status.pending {
+            background: rgba(167, 190, 174, 0.2);
+            color: #6b7f73;
+        }
+
+        .transcribers-cube .item-status.completed {
+            background: rgba(167, 190, 174, 0.4);
+            color: #4a5750;
+        }
+
+        .transcribers-cube .btn {
+            background: linear-gradient(135deg, #a7beae, #95a69b);
+        }
+
+        .floating-actions {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            z-index: 1000;
+        }
+
+        .fab {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #b85042, #a0453a);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            box-shadow: 0 5px 15px rgba(184, 80, 66, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 25px rgba(184, 80, 66, 0.4);
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .nav-bar {
+                flex-wrap: wrap;
+            }
+            
+            .nav-item {
+                padding: 12px 20px;
+            }
+
+            .management-cubes {
+                grid-template-columns: 1fr;
+            }
+
+            .cube-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .cube-actions {
+                flex-direction: column;
+            }
+
+            .cube-header {
+                padding: 15px;
+            }
+
+            .cube-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏢 מערכת CRM למתמלל - דף הבית</h1>
+            <div class="user-info">
+                <span>שלום user1751826351</span>
+                <div class="user-avatar">U</div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="nav-bar">
+            <a href="#" class="nav-item active">דף הבית</a>
+            <a href="#" class="nav-item">ניהול לקוחות</a>
+            <a href="#" class="nav-item">ניהול עבודות</a>
+            <a href="#" class="nav-item">ניהול מתמללים</a>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Dashboard Statistics -->
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <h3>לקוחות פעילים</h3>
+                    <div class="stat-number">4</div>
+                </div>
+                <div class="stat-card">
+                    <h3>עבודות בתהליך</h3>
+                    <div class="stat-number">8</div>
+                </div>
+                <div class="stat-card">
+                    <h3>מתמללים זמינים</h3>
+                    <div class="stat-number">4</div>
+                </div>
+                <div class="stat-card">
+                    <h3>הכנסות החודש</h3>
+                    <div class="stat-number">₪12.4K</div>
+                </div>
+            </div>
+
+            <!-- Management Cubes -->
+            <div class="management-cubes">
+                <!-- עבודות -->
+                <div class="cube-card works-cube">
+                    <div class="cube-header">
+                        <div class="cube-icon">📄</div>
+                        <h2>ניהול עבודות</h2>
+                    </div>
+                    <div class="cube-content">
+                        <div class="cube-stats">
+                            <div class="mini-stat">
+                                <span class="mini-number">8</span>
+                                <span class="mini-label">עבודות בתהליך</span>
+                            </div>
+                            <div class="mini-stat">
+                                <span class="mini-number">3</span>
+                                <span class="mini-label">ממתינות לאישור</span>
+                            </div>
+                        </div>
+                        <div class="recent-items">
+                            <h4>עבודות אחרונות</h4>
+                            <div class="item-list">
+                                <div class="item">
+                                    <span class="item-name">תמלול פגישות דירקטוריון</span>
+                                    <span class="item-status active">בעבודה</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">תמלול ראיונות עבודה</span>
+                                    <span class="item-status pending">ממתין</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">תמלול הרצאות</span>
+                                    <span class="item-status completed">הושלם</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cube-actions">
+                            <button class="btn">עבודה חדשה</button>
+                            <button class="btn">כל העבודות</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- דוחות וסיכומים -->
+                <div class="cube-card reports-cube">
+                    <div class="cube-header">
+                        <div class="cube-icon">📊</div>
+                        <h2>דוחות וסיכומים</h2>
+                    </div>
+                    <div class="cube-content">
+                        <div class="cube-stats">
+                            <div class="mini-stat">
+                                <span class="mini-number">₪12,450</span>
+                                <span class="mini-label">הכנסות החודש</span>
+                            </div>
+                            <div class="mini-stat">
+                                <span class="mini-number">42</span>
+                                <span class="mini-label">עבודות הושלמו</span>
+                            </div>
+                        </div>
+                        <div class="recent-items">
+                            <h4>דוחות זמינים</h4>
+                            <div class="item-list">
+                                <div class="item">
+                                    <span class="item-name">דוח ביצועים חודשי</span>
+                                    <span class="item-status active">זמין</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">דוח לקוחות</span>
+                                    <span class="item-status active">זמין</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">דוח מתמללים</span>
+                                    <span class="item-status pending">בהכנה</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cube-actions">
+                            <button class="btn">דוח חדש</button>
+                            <button class="btn">כל הדוחות</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- לקוחות -->
+                <div class="cube-card clients-cube">
+                    <div class="cube-header">
+                        <div class="cube-icon">👥</div>
+                        <h2>ניהול לקוחות</h2>
+                    </div>
+                    <div class="cube-content">
+                        <div class="cube-stats">
+                            <div class="mini-stat">
+                                <span class="mini-number">4</span>
+                                <span class="mini-label">לקוחות פעילים</span>
+                            </div>
+                            <div class="mini-stat">
+                                <span class="mini-number">15</span>
+                                <span class="mini-label">סה"כ לקוחות</span>
+                            </div>
+                        </div>
+                        <div class="recent-items">
+                            <h4>לקוחות אחרונים</h4>
+                            <div class="item-list">
+                                <div class="item">
+                                    <span class="item-name">ליאת כהן</span>
+                                    <span class="item-status active">פעיל</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">דוד לוי</span>
+                                    <span class="item-status pending">חדש</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">שרה כהן</span>
+                                    <span class="item-status completed">קבוע</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cube-actions">
+                            <button class="btn">לקוח חדש</button>
+                            <button class="btn">רשימת לקוחות</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- מתמללים -->
+                <div class="cube-card transcribers-cube">
+                    <div class="cube-header">
+                        <div class="cube-icon">🎧</div>
+                        <h2>ניהול מתמללים</h2>
+                    </div>
+                    <div class="cube-content">
+                        <div class="cube-stats">
+                            <div class="mini-stat">
+                                <span class="mini-number">6</span>
+                                <span class="mini-label">מתמללים רשומים</span>
+                            </div>
+                            <div class="mini-stat">
+                                <span class="mini-number">4</span>
+                                <span class="mini-label">זמינים כעת</span>
+                            </div>
+                        </div>
+                        <div class="recent-items">
+                            <h4>מתמללים פעילים</h4>
+                            <div class="item-list">
+                                <div class="item">
+                                    <span class="item-name">אלי בן שי</span>
+                                    <span class="item-status active">מחובר</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">רוני כהן</span>
+                                    <span class="item-status active">זמין</span>
+                                </div>
+                                <div class="item">
+                                    <span class="item-name">מיכל לוי</span>
+                                    <span class="item-status pending">עסוק</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cube-actions">
+                            <button class="btn">מתמלל חדש</button>
+                            <button class="btn">רשימת מתמללים</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="floating-actions">
+        <button class="fab" title="הוספה מהירה">+</button>
+    </div>
+
+    <script>
+        // Add interactive functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate stat cards on load
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    card.style.transition = 'all 0.5s ease';
+                    
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 100);
+                }, index * 100);
+            });
+
+            // Animate cube cards on load
+            const cubeCards = document.querySelectorAll('.cube-card');
+            cubeCards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(30px)';
+                    card.style.transition = 'all 0.6s ease';
+                    
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 150);
+                }, index * 200);
+            });
+
+            // Cube card interactions
+            cubeCards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-8px) scale(1.02)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            // Mini stat interactions
+            const miniStats = document.querySelectorAll('.mini-stat');
+            miniStats.forEach(stat => {
+                stat.addEventListener('click', function() {
+                    // Add click animation
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = 'scale(1)';
+                    }, 150);
+                });
+            });
+
+            // Button interactions
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Add ripple effect
+                    const ripple = document.createElement('span');
+                    ripple.style.position = 'absolute';
+                    ripple.style.borderRadius = '50%';
+                    ripple.style.background = 'rgba(255,255,255,0.6)';
+                    ripple.style.transform = 'scale(0)';
+                    ripple.style.animation = 'ripple 0.6s linear';
+                    ripple.style.left = '50%';
+                    ripple.style.top = '50%';
+                    ripple.style.width = '20px';
+                    ripple.style.height = '20px';
+                    ripple.style.marginLeft = '-10px';
+                    ripple.style.marginTop = '-10px';
+                    
+                    this.style.position = 'relative';
+                    this.style.overflow = 'hidden';
+                    this.appendChild(ripple);
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+
+            // Floating action button click
+            const fab = document.querySelector('.fab');
+            if (fab) {
+                fab.addEventListener('click', function() {
+                    alert('הוספה מהירה - תכונה זו בפיתוח');
+                });
+            }
+        });
+
+        // Add CSS animation for ripple effect
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

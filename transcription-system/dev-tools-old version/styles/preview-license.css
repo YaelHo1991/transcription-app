@@ -1,0 +1,195 @@
+/* ===============================================
+   PREVIEW LICENSE CSS - License Sales Preview Components
+   =============================================== */
+
+/* License Preview Window Specific Styles */
+.preview-window[data-service="licenses"] {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Mock License Page Styles */
+.mock-license-page {
+    color: white;
+    font-size: 12px;
+}
+
+.mock-license-page .mock-header {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.client-badge {
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+}
+
+.mock-license-page .mock-header h3 {
+    font-size: 11px;
+    margin: 0;
+    color: white;
+}
+
+.mock-license-page .mock-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.mock-license-page .mock-stat {
+    background: rgba(255,255,255,0.1);
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.mock-license-page .mock-stat.red {
+    background: rgba(184, 80, 66, 0.3);
+}
+
+.mock-license-page .mock-stat.brown {
+    background: rgba(139, 111, 71, 0.3);
+}
+
+.mock-license-page .mock-stat.green {
+    background: rgba(167, 190, 174, 0.3);
+}
+
+.mock-license-page .mock-stat.blue {
+    background: rgba(107, 124, 147, 0.3);
+}
+
+.mock-license-page .stat-num {
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 2px;
+    color: white;
+}
+
+.mock-license-page .stat-label {
+    font-size: 9px;
+    opacity: 0.8;
+    color: white;
+}
+
+/* License Form Styles */
+.mock-form {
+    background: rgba(255,255,255,0.1);
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.mock-form h4 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: white;
+}
+
+.mock-input {
+    background: rgba(255,255,255,0.2);
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 10px;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.mock-permissions {
+    margin: 10px 0;
+}
+
+.permission-block {
+    background: rgba(255,255,255,0.1);
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.perm-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+    font-size: 10px;
+    color: white;
+}
+
+.perm-options {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.perm-option {
+    font-size: 9px;
+    padding: 2px 0;
+    opacity: 0.8;
+    color: white;
+}
+
+.mock-button {
+    background: linear-gradient(135deg, #e75874, #be1558);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 10px;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.mock-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Common mock elements for license */
+.mock-license-page .mock-header {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mock-license-page .mock-header h3 {
+    font-size: 11px;
+    margin: 0;
+}
+
+/* Responsive adjustments for license preview */
+@media (max-width: 768px) {
+    .mock-license-page .mock-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .mock-license-page .mock-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .mock-form {
+        padding: 8px;
+    }
+    
+    .mock-input {
+        padding: 4px 6px;
+        font-size: 9px;
+    }
+}

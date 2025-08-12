@@ -1,0 +1,346 @@
+/* Combined Navigation Bar with Green Theme */
+.combined-navigation-bar {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.15) 0%, rgba(32, 201, 151, 0.18) 50%, rgba(23, 162, 184, 0.15) 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    margin-bottom: 10px;
+    min-height: 50px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Add subtle turquoise glow on hover */
+.combined-navigation-bar:hover {
+    box-shadow: 0 4px 15px rgba(23, 162, 184, 0.15), inset 0 1px 3px rgba(32, 201, 151, 0.15);
+}
+
+.nav-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    position: relative;
+}
+
+/* Media Navigation with File Info - Right Side in RTL */
+.media-nav {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0; /* Allow shrinking */
+    overflow: hidden; /* Prevent any overflow */
+    padding: 0 20px;
+}
+
+.file-info-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 15px;
+    min-width: 0; /* Allow shrinking */
+    overflow: hidden; /* Prevent overflow */
+    text-align: center;
+}
+
+.file-main-info {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 15px;
+    width: 100%;
+}
+
+.file-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #28a745;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 100%; /* Full width of wrapper */
+    position: relative;
+}
+
+/* Marquee effect for long file names */
+.file-name.marquee {
+    animation: marquee 15s linear infinite;
+}
+
+@keyframes marquee {
+    0% {
+        text-indent: 100%;
+    }
+    100% {
+        text-indent: -100%;
+    }
+}
+
+/* Alternative scrolling for long names */
+.file-name-wrapper {
+    flex: 1;
+    max-width: 350px;
+    min-width: 200px;
+    overflow: hidden;
+    position: relative;
+}
+
+.file-name.marquee {
+    animation: none; /* Remove text-indent animation */
+    display: flex;
+    white-space: nowrap;
+}
+
+.file-name-scroll {
+    display: inline-block;
+    padding-right: 50px; /* Space between repetitions */
+    animation: scroll 20s linear infinite;
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+.file-counter {
+    font-size: 14px;
+    color: #28a745;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+.file-details {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 100%;
+}
+
+.file-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.detail-icon {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Project Navigation - Left Side in RTL */
+.project-nav {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    order: -1; /* Ensure it stays on the left */
+    padding: 0 20px;
+}
+
+.project-nav.compact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 20px;
+}
+
+.nav-info-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: auto;
+    padding: 0 5px;
+}
+
+.nav-label {
+    font-size: 11px;
+    color: #28a745;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nav-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: #212529;
+    text-align: center;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nav-value.large-counter {
+    font-size: 13px;
+    font-weight: 700;
+    color: #28a745;
+}
+
+.nav-counter {
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Navigation Buttons */
+.nav-btn {
+    background: white;
+    border: 2px solid #28a745;
+    color: #28a745;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    height: 28px;
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 50%, #17a2b8 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+    border-color: transparent;
+}
+
+.nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f8f9fa;
+    border-color: #dee2e6;
+    color: #adb5bd;
+}
+
+/* Divider */
+.nav-divider {
+    width: 2px;
+    height: 30px;
+    background: linear-gradient(to bottom, 
+        transparent 0%, 
+        rgba(40, 167, 69, 0.2) 20%,
+        rgba(40, 167, 69, 0.2) 80%, 
+        transparent 100%);
+    flex: 0 0 2px;
+    margin: 0 15px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .file-name {
+        max-width: 350px;
+    }
+    
+    .file-details {
+        gap: 15px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .combined-navigation-bar {
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .media-nav {
+        flex: 1 1 100%;
+        order: 1;
+    }
+    
+    .project-nav {
+        flex: 1 1 100%;
+        order: 2;
+        justify-content: center;
+    }
+    
+    .nav-divider {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .combined-navigation-bar {
+        padding: 10px 15px;
+    }
+    
+    .nav-info-group {
+        min-width: 100px;
+    }
+    
+    .file-name {
+        font-size: 14px;
+    }
+    
+    .file-detail-item {
+        font-size: 11px;
+    }
+    
+    .nav-btn {
+        padding: 6px 10px;
+        height: 32px;
+        min-width: 32px;
+        font-size: 14px;
+    }
+    
+    .file-details {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+}
+
+/* Hover Effects */
+.file-detail-item {
+    transition: color 0.2s ease;
+}
+
+.file-detail-item:hover {
+    color: #28a745;
+}
+
+/* Animation for value changes */
+.nav-value,
+.file-name,
+.file-counter,
+#fileDuration,
+#fileSize,
+#fileType {
+    transition: all 0.3s ease;
+}
+
+/* Green accent for active elements */
+.nav-btn:focus {
+    outline: 2px solid rgba(40, 167, 69, 0.3);
+    outline-offset: 2px;
+}

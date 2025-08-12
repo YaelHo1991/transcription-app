@@ -1,0 +1,158 @@
+/*
+ * =========================================
+ * Transcription Header Styles
+ * pages/transcription/assets/css/header.css
+ * =========================================
+ */
+
+/* ===== HOVERING HEADER ===== */
+.header-reveal-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    z-index: 1003;
+    background: transparent;
+    pointer-events: auto;
+    /* Debug: uncomment to see the hover area */
+    /* background: rgba(0, 255, 0, 0.3); */
+}
+
+/* Show header on hover using CSS */
+.header-reveal-zone:hover .collapsible-header {
+    transform: translateY(0) !important;
+    pointer-events: auto !important;
+}
+
+.collapsible-header {
+    background: linear-gradient(135deg, 
+        rgba(40, 167, 69, 0.95) 0%, 
+        rgba(32, 201, 151, 0.92) 35%, 
+        rgba(23, 162, 184, 0.95) 70%,
+        rgba(32, 30, 32, 0.98) 100%);
+    color: white;
+    padding: 0;
+    box-shadow: 0 3px 15px rgba(32, 201, 151, 0.25);
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1002;
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(32, 201, 151, 0.3);
+    pointer-events: none;
+}
+
+/* Keep header visible when hovering over it */
+.collapsible-header:hover {
+    transform: translateY(0) !important;
+    pointer-events: auto !important;
+}
+
+.collapsible-header.show {
+    transform: translateY(0) !important;
+    pointer-events: auto;
+}
+
+.collapsible-header.locked {
+    pointer-events: auto;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-section h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-profile {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 12px;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.user-profile:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.nav {
+    background: transparent;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    display: inline-block;
+    position: relative;
+    z-index: 1005;
+    pointer-events: auto !important;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(32, 201, 151, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+/* Button styles for header */
+.btn.btn-secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    padding: 6px 14px;
+    font-size: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.btn.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(32, 201, 151, 0.3);
+    text-decoration: none;
+}

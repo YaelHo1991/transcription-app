@@ -1,0 +1,237 @@
+/*
+ * Text Editor Blocks Styles
+ * css/text-editor-blocks.css
+ * 
+ * Styles for invisible block system
+ */
+
+/* Ensure editor content has no interfering styles */
+.text-editor-content {
+    padding: 10px !important; /* Add padding to keep blocks inside */
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.text-editor-content * {
+    margin: 0; /* Reset all margins inside editor */
+    box-sizing: border-box !important;
+}
+
+/* Block container - VISIBLE FOR DEVELOPMENT */
+.text-block {
+    position: relative;
+    line-height: 1.6;
+    padding: 4px 10px; /* Reduced vertical padding */
+    margin: 0 -10px 1px -10px !important; /* Minimal bottom margin */
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 0;
+    background-color: #f9f9f9;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: calc(100% + 20px) !important; /* Compensate for negative margins */
+    max-width: calc(100% + 20px) !important;
+    box-sizing: border-box !important;
+}
+
+/* First block should be at the very top */
+.text-block:first-child {
+    margin-top: 0;
+}
+
+/* Force blocks to use full editor width accounting for padding */
+.text-editor-content .text-block {
+    width: calc(100% + 20px) !important;
+    max-width: calc(100% + 20px) !important;
+    margin-left: -10px !important;
+    margin-right: -10px !important;
+}
+
+/* Remove contenteditable outline from individual spans */
+.block-speaker:focus,
+.block-text:focus {
+    outline: none;
+}
+
+/* Speaker area - VISIBLE FOR DEVELOPMENT */
+.block-speaker {
+    font-weight: 600;
+    color: #333; /* Default color, will be overridden per speaker */
+    width: 120px !important; /* Fixed width - always same size */
+    min-width: 120px !important;
+    max-width: 120px !important;
+    display: inline-block;
+    background-color: rgba(0, 0, 0, 0.05); /* Subtle background */
+    padding: 6px 10px;
+    border-radius: 3px;
+    margin: 0; /* Remove margin */
+    flex-shrink: 0;
+    flex-grow: 0;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    direction: rtl; /* Ensure RTL for Hebrew */
+}
+
+/* Subtle indicator for speaker blocks with timestamps */
+.block-speaker[data-timestamp] {
+    border-bottom: 2px dotted rgba(102, 126, 234, 0.3);
+}
+
+/* Hover effect for speaker blocks with timestamps */
+.block-speaker[data-timestamp]:hover {
+    cursor: pointer;
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+/* Show placeholder when empty */
+.block-speaker:empty::before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    opacity: 0.5;
+    font-weight: normal;
+}
+
+/* Prevent browser from adding default content to speaker */
+.block-speaker[contenteditable="true"]:focus {
+    outline: none;
+}
+
+.block-speaker br:first-child {
+    display: none;
+}
+
+/* Separator - VISIBLE FOR DEVELOPMENT */
+.block-separator {
+    color: #64748b;
+    margin: 0 8px;
+    font-weight: bold;
+}
+
+/* Main text area - VISIBLE FOR DEVELOPMENT */
+.block-text {
+    color: inherit;
+    min-width: 0;
+    display: block;
+    background-color: #f0f0f0;
+    padding: 6px 10px;
+    border-radius: 3px;
+    flex: 1 1 auto;
+    margin: 0 !important; /* Remove margins */
+    text-align: justify;
+    text-align-last: auto;
+    word-spacing: normal;
+    hyphens: auto;
+    font-family: 'David', 'Times New Roman', serif;
+    font-size: 18px;
+    box-sizing: border-box !important;
+}
+
+/* Remove initial space in empty text blocks */
+.block-text:empty::before {
+    content: '';
+}
+
+/* Prevent browser from adding space */
+.block-text[contenteditable="true"]:focus {
+    outline: none;
+}
+
+.block-text br:first-child {
+    display: none;
+}
+
+/* Remove any default spacing in contenteditable */
+.block-text:empty::before {
+    content: '';
+}
+
+.block-text:focus:empty::before {
+    content: '';
+}
+
+/* Prevent default contenteditable behavior */
+.block-speaker[contenteditable],
+.block-text[contenteditable] {
+    -webkit-user-modify: read-write-plaintext-only;
+    white-space: pre-wrap;
+}
+
+/* Active block highlight (subtle) */
+.text-block:has(.block-speaker:focus),
+.text-block:has(.block-text:focus) {
+    background-color: rgba(102, 126, 234, 0.05);
+}
+
+/* Timestamp highlight */
+.timestamp {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #333; /* Same color as text */
+    padding: 1px 4px; /* Moderate padding */
+    margin: 0 2px; /* Small margin for spacing */
+    border-radius: 3px;
+    font-family: 'David', 'Times New Roman', serif; /* Same font as text */
+    font-size: 0.9em; /* Slightly smaller than text */
+    cursor: pointer;
+    transition: background-color 0.2s;
+    user-select: none; /* Prevent selection */
+    display: inline; /* Inline to flow with text */
+}
+
+.timestamp:hover {
+    background-color: rgba(255, 193, 7, 0.3);
+}
+
+/* Navigation mode indicator */
+.text-editor-content.navigation-mode .timestamp {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+/* Ensure smooth text flow */
+.text-block + .text-block {
+    margin-top: 0;
+}
+
+/* Remove any extra spacing between consecutive blocks */
+.text-block {
+    margin-bottom: 1px !important;
+}
+
+/* RTL adjustments */
+[dir="rtl"] .block-separator {
+    margin: 0 4px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .block-speaker {
+        color: #818cf8;
+    }
+    
+    .timestamp {
+        background-color: rgba(255, 193, 7, 0.3);
+        color: #fbbf24;
+    }
+}
+
+/* Print styles */
+@media print {
+    .text-block {
+        page-break-inside: avoid;
+    }
+    
+    .block-speaker {
+        font-weight: bold;
+    }
+}
+
+/* Accessibility */
+.block-speaker:focus-visible,
+.block-text:focus-visible {
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.4);
+    border-radius: 2px;
+}

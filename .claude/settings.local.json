@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(rmdir:*)",
+      "Bash(cmd /c \"rmdir /s /q transcription-app\")",
+      "Bash(npm init:*)",
+      "Bash(set NODE_ENV=development)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c:*)",
+      "Bash(powershell:*)",
+      "Bash(dir)",
+      "Bash(del gateway.js package.json package-lock.json)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(dir:*)",
+      "Bash(del development.html)",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -c \"\\d users\")",
+      "Bash(del test-db.js)",
+      "Bash(npx nodemon:*)",
+      "Bash(set PORT=5001)",
+      "Bash(cat:*)",
+      "Bash(del transcription-systembackendfix-user-password.js)",
+      "Bash(npx eslint:*)",
+      "Bash(cp:*)",
+      "Bash(npx sharp:*)",
+      "Bash(del appfavicon.ico)",
+      "Bash(npx next dev:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

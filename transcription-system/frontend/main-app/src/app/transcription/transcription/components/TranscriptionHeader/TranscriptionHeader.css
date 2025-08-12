@@ -1,0 +1,156 @@
+/* ===== TRANSCRIPTION HEADER - TEAL-GREEN THEME ===== */
+
+.theme-transcription .hovering-header {
+  background: linear-gradient(135deg, 
+    rgba(40, 167, 69, 0.95) 0%, 
+    rgba(32, 201, 151, 0.92) 35%, 
+    rgba(23, 162, 184, 0.95) 70%,
+    rgba(32, 30, 32, 0.98) 100%);
+  color: white;
+  box-shadow: 0 3px 15px rgba(32, 201, 151, 0.25);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid rgba(32, 201, 151, 0.3);
+}
+
+/* Override parent header-content */
+.theme-transcription .hovering-header .header-content {
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Style the default header controls - position next to user info */
+.theme-transcription .hovering-header .header-controls {
+  position: absolute;
+  top: 50%;
+  left: 180px;  /* Position next to user info */
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.theme-transcription .transcription-header-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.theme-transcription .header-spacer {
+  flex: 1;  /* Take up all remaining space between the two sides */
+}
+
+.theme-transcription .header-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.theme-transcription .header-label {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.theme-transcription .user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-transcription .user-profile {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: white;
+}
+
+.theme-transcription .user-profile:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.theme-transcription .nav-links {
+  display: flex;
+  gap: 20px;
+  padding-right: 30px;  /* Add space from right edge to avoid corner trigger */
+}
+
+.theme-transcription .nav-links a {
+  color: white;
+  text-decoration: none;
+  padding: 8px 15px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  display: inline-block;
+}
+
+.theme-transcription .nav-links a:hover,
+.theme-transcription .nav-links a.active {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.3);
+  backdrop-filter: blur(5px);
+}
+
+.theme-transcription .hovering-header .lock-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+  color: white !important;
+  padding: 6px 14px;
+  border: 1px solid rgba(40, 167, 69, 0.3) !important;
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(40, 167, 69, 0.4) !important;
+  cursor: pointer;
+}
+
+.theme-transcription .hovering-header .lock-btn:hover {
+  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(32, 201, 151, 0.5) !important;
+  border-color: rgba(32, 201, 151, 0.5) !important;
+}
+
+.theme-transcription .hovering-header .lock-btn.locked {
+  background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+  box-shadow: 0 2px 10px rgba(23, 162, 184, 0.4), inset 0 1px 3px rgba(255, 255, 255, 0.3);
+}
+
+/* Remove old nav control styles - these are no longer used */
+/* Navigation Controls */
+/* Removed - navigation controls no longer used in header */
+
+.theme-transcription .logout-btn {
+  background: rgba(255, 67, 54, 0.8);
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.theme-transcription .logout-btn:hover {
+  background: rgba(255, 67, 54, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 67, 54, 0.3);
+}

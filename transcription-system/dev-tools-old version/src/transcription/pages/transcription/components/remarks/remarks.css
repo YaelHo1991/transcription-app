@@ -1,0 +1,159 @@
+/*
+ * =========================================
+ * Remarks Component CSS
+ * components/remarks/remarks.css
+ * =========================================
+ * Component-specific styles for remarks/notes functionality
+ * Inherits base styles from transcription.css
+ */
+
+/* Override background and styling for notes section */
+.notes-section {
+    background: rgba(40, 167, 69, 0.05);
+    border-radius: 12px;
+    margin: 0 10px;
+    min-height: 250px;
+}
+
+.notes-section form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.notes-section .form-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 15px;
+}
+
+.notes-section .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #201e20;
+    font-size: 14px;
+}
+
+/* Notes textarea specific styles */
+.notes-area {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    resize: vertical;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    font-family: 'David', 'Times New Roman', serif;
+    direction: rtl;
+    text-align: right;
+    line-height: 1.5;
+}
+
+.notes-area:focus {
+    outline: none;
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
+}
+
+.notes-area:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.notes-area::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.remarks-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+/* Button overrides for remarks actions */
+.remarks-actions .btn {
+    flex: 1;
+    min-width: 80px;
+    font-size: 12px;
+}
+
+.remarks-actions .btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+/* Additional button variants for remarks */
+.remarks-actions .btn-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.remarks-actions .btn-primary:hover {
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.remarks-actions .btn-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+}
+
+.remarks-actions .btn-secondary:hover {
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* Compact mode when helper files are active */
+.side-workspace.helper-files-active .notes-section {
+    flex: 0 0 25%;
+    min-height: 150px;
+    padding: 10px;
+}
+
+.side-workspace.helper-files-active .notes-section .notes-area {
+    min-height: 80px;
+    font-size: 12px;
+}
+
+.side-workspace.helper-files-active .remarks-actions {
+    flex-direction: column;
+    gap: 4px;
+}
+
+.side-workspace.helper-files-active .remarks-actions .btn {
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .notes-section {
+        margin: 0 5px;
+        padding: 10px;
+    }
+    
+    .remarks-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .remarks-actions .btn {
+        width: 100%;
+        flex: none;
+    }
+    
+    .notes-area {
+        font-size: 13px;
+        min-height: 120px;
+    }
+}

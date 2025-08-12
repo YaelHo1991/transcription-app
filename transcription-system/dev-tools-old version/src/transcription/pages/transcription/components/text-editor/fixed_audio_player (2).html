@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>נגן אודיו חכם עם עורך בלוקים</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f23;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+        
+        .container {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            z-index: 1;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .title {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            opacity: 0.8;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .upload-area {
+            position: relative;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+        }
+        
+        .upload-area:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+        
+        .upload-text {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .upload-subtext {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        #audioFile {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        audio {
+            width: 100%;
+            height: 60px;
+            border-radius: 12px;
+            outline: none;
+            margin-bottom: 2rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .time-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            text-align: center;
+            width: 140px;
+            transition: all 0.3s ease;
+        }
+        
+        .time-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 0.8rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-navigation {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .btn-navigation.active {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .current-time {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 0.8rem 1.2rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            margin-right: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .text-section {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .instructions {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 152, 0, 0.1) 100%);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .instructions h3 {
+            color: #fbbf24;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .instructions ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.8rem;
+            padding-right: 1.5rem;
+            position: relative;
+            color: #e2e8f0;
+        }
+        
+        .instructions li::before {
+            content: "→";
+            position: absolute;
+            right: 0;
+            color: #fbbf24;
+            font-weight: bold;
+        }
+        
+        /* עיצוב למצב ניווט */
+        .navigation-mode {
+            outline: 2px solid #10b981 !important;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2) !important;
+        }
+        
+        .navigation-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(16, 185, 129, 0.9);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .navigation-status.active {
+            display: block;
+        }
+
+        /* Block Editor Styles */
+        .blocks-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1rem;
+            height: 400px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        
+        .blocks-container:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        .blocks-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .blocks-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        
+        .blocks-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        
+        .blocks-container::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Headers */
+        .blocks-header {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .blocks-header h3 {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+        
+        /* Block styles */
+        .block-wrapper {
+            margin-bottom: 0.015625rem;
+        }
+        
+        .block-content {
+            transition: all 0.2s ease-in-out;
+            border-radius: 0.25rem;
+            padding: 0.03125rem;
+        }
+        
+        .active-block {
+            background-color: rgba(102, 126, 234, 0.1);
+        }
+        
+        .block-separator {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin: 0.125rem 0;
+            display: none;
+        }
+        
+        .block-separator.visible {
+            display: block;
+        }
+        
+        /* Grid layout for blocks */
+        .block-grid {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 0.5rem;
+        }
+        
+        /* Textarea styles for blocks */
+        .block-textarea {
+            width: 100%;
+            padding: 0.25rem 0.25rem;
+            resize: none;
+            overflow: hidden;
+            min-height: 1.2em;
+            height: 1.2em;
+            line-height: 1.2;
+            font-size: 0.875rem;
+            background: transparent;
+            border: none;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+            color: #e2e8f0;
+        }
+        
+        .block-textarea::placeholder {
+            color: #64748b;
+        }
+
+        /* Highlight for selected text in all blocks mode */
+        .all-blocks-selected .block-textarea {
+            background-color: #3b82f6 !important;
+            color: white !important;
+        }
+
+        /* Highlight for active timestamp in navigation mode */
+        .timestamp-highlight {
+            background-color: rgba(255, 255, 0, 0.3) !important;
+            color: #000 !important;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-weight: bold;
+        }
+
+        /* Add block button */
+        .add-block-btn {
+            display: none;
+        }
+
+        /* Animation */
+        .card {
+            animation: slideUp 0.6s ease-out forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .current-time {
+                margin-right: 0;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <div class="navigation-status" id="navigationStatus">
+        🎯 מצב ניווט פעיל - Tab: הבא | Shift+Tab: קודם | Esc: יציאה
+    </div>
+    
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🎵 נגן אודיו חכם</h1>
+            <p class="subtitle">נגן מתקדם עם תמיכה בתיוג זמנים ועריכת בלוקים</p>
+        </div>
+        
+        <div class="card instructions">
+            <h3>💡 איך זה עובד?</h3>
+            <ul>
+                <li>העלה קובץ אודיו מהמחשב שלך</li>
+                <li>השתמש בתיבת הזמן כדי לקפוץ לנקודות מסוימות</li>
+                <li>כתוב הערות והקלד ... כדי להוסיף זמן נוכחי</li>
+                <li>עמוד עם הסמן על נקודות זמן כדי לקפוץ אליהן</li>
+                <li>הפעל מצב ניווט כדי לעבור בין נקודות זמן עם Tab</li>
+                <li>השתמש בעורך הבלוקים עם דוברים ותוכן לעריכה מתקדמת</li>
+            </ul>
+        </div>
+        
+        <div class="card">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="audioFile" accept="audio/*">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">לחץ או גרור קובץ אודיו</div>
+                <div class="upload-subtext">תומך בכל פורמטי האודיו הנפוצים</div>
+            </div>
+            
+            <audio id="audioPlayer" controls style="display: none;">
+                הדפדפן שלך לא תומך בנגן האודיו.
+            </audio>
+            
+            <div class="controls">
+                <input type="text" id="timeInput" class="time-input" placeholder="01:02:30" maxlength="8">
+                <button onclick="jumpToTime()" class="btn">⏭ קפוץ לזמן</button>
+                <button id="navigationToggle" onclick="toggleNavigationMode()" class="btn btn-navigation">
+                    🎯 מצב ניווט: כבוי
+                </button>
+                <div class="current-time">
+                    ⏰ <span id="currentTimeDisplay">00:00:00</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="text-section">
+                <h3 class="section-title">📝 עורך טקסט בלוקים</h3>
+                <div class="blocks-container" id="blocksContainer">
+                    <!-- Headers -->
+                    <div class="blocks-header">
+                        <div>
+                            <h3>דוברים</h3>
+                        </div>
+                        <div>
+                            <h3>תוכן</h3>
+                        </div>
+                    </div>
+
+                    <!-- Blocks Container -->
+                    <div id="blocksWrapper">
+                        <!-- Blocks will be dynamically generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Player Variables
+        const audioFile = document.getElementById('audioFile');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const timeInput = document.getElementById('timeInput');
+        const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+        const uploadArea = document.getElementById('uploadArea');
+        const navigationToggle = document.getElementById('navigationToggle');
+        const navigationStatus = document.getElementById('navigationStatus');
+        
+        // Navigation Variables
+        let navigationMode = false;
+        let allTimestamps = [];
+        let currentTimestampIndex = -1;
+
+        // Block Editor Variables
+        let blocks = [
+            { id: 1, margin: '', center: '', isActive: true, activeArea: 'margin' }
+        ];
+        let activeBlockId = 1;
+        let textareaRefs = new Map();
+        let blockElements = new Map();
+
+        // Ctrl+A state tracking
+        let lastCtrlATime = 0;
+        let lastCtrlAElement = null;
+        let allBlocksSelected = false;
+
+        // Block Editor Class
+        class BlockTextEditor {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                this.renderBlocks();
+                this.setupEventListeners();
+                this.focusActiveBlock();
+            }
+
+            setupEventListeners() {
+                // Container click handler
+                document.getElementById('blocksContainer').addEventListener('click', (e) => {
+                    if (e.target.id === 'blocksContainer' || e.target.id === 'blocksWrapper') {
+                        const lastBlock = blocks[blocks.length - 1];
+                        this.activateBlock(lastBlock.id, 'margin');
+                    }
+                });
+            }
+
+            renderBlocks() {
+                const container = document.getElementById('blocksWrapper');
+                
+                // Clear container completely and rebuild in correct order
+                container.innerHTML = '';
+                textareaRefs.clear();
+                blockElements.clear();
+
+                // Create all blocks in the correct order
+                blocks.forEach((block, index) => {
+                    const blockElement = this.createBlockElement(block);
+                    blockElements.set(block.id, blockElement);
+                    container.appendChild(blockElement);
+                    
+                    // Update separator
+                    this.updateBlockSeparator(blockElement, index < blocks.length - 1);
+                });
+            }
+
+            createBlockElement(block) {
+                const blockDiv = document.createElement('div');
+                blockDiv.className = 'block-wrapper';
+                blockDiv.id = `block-${block.id}`;
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = `block-content ${block.isActive ? 'active-block' : ''}`;
+                
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'block-grid';
+                
+                // Margin area
+                const marginDiv = document.createElement('div');
+                
+                const marginTextarea = document.createElement('textarea');
+                marginTextarea.id = `textarea-${block.id}-margin`;
+                marginTextarea.className = 'block-textarea';
+                marginTextarea.placeholder = 'דובר...';
+                marginTextarea.value = block.margin;
+                
+                // Center area
+                const centerDiv = document.createElement('div');
+                
+                const centerTextarea = document.createElement('textarea');
+                centerTextarea.id = `textarea-${block.id}-center`;
+                centerTextarea.className = 'block-textarea';
+                centerTextarea.placeholder = 'תוכן...';
+                centerTextarea.value = block.center;
+                
+                // Store references
+                textareaRefs.set(`${block.id}-margin`, marginTextarea);
+                textareaRefs.set(`${block.id}-center`, centerTextarea);
+                
+                // Add event listeners
+                this.addTextareaListeners(marginTextarea, block.id, 'margin');
+                this.addTextareaListeners(centerTextarea, block.id, 'center');
+                
+                // Build structure
+                marginDiv.appendChild(marginTextarea);
+                centerDiv.appendChild(centerTextarea);
+                gridDiv.appendChild(marginDiv);
+                gridDiv.appendChild(centerDiv);
+                contentDiv.appendChild(gridDiv);
+                blockDiv.appendChild(contentDiv);
+                
+                // Create separator
+                const separator = document.createElement('div');
+                separator.className = 'block-separator';
+                blockDiv.appendChild(separator);
+                
+                // Update heights
+                setTimeout(() => {
+                    this.updateHeight(marginTextarea);
+                    this.updateHeight(centerTextarea);
+                    this.syncBlockHeights(block.id);
+                }, 0);
+                
+                return blockDiv;
+            }
+
+            updateBlockSeparator(blockElement, showSeparator) {
+                const separator = blockElement.querySelector('.block-separator');
+                if (separator) {
+                    if (showSeparator) {
+                        separator.classList.add('visible');
+                    } else {
+                        separator.classList.remove('visible');
+                    }
+                }
+            }
+
+            addTextareaListeners(textarea, blockId, area) {
+                // Input handler
+                textarea.addEventListener('input', (e) => {
+                    // Clear all blocks selection if user starts typing
+                    if (allBlocksSelected) {
+                        this.clearAllBlocksSelection();
+                    }
+                    
+                    this.updateBlock(blockId, area, e.target.value);
+                    this.updateHeight(textarea);
+                    setTimeout(() => this.syncBlockHeights(blockId), 0);
+                    
+                    // Handle dots functionality
+                    this.handleDotsInput(e);
+                    
+                    // Update timestamps list when content changes
+                    if (navigationMode) {
+                        setTimeout(updateTimestampsList, 100);
+                    }
+                });
+
+                // Key down handler
+                textarea.addEventListener('keydown', (e) => {
+                    // Clear all blocks selection on any key press except Ctrl+A
+                    if (allBlocksSelected && !(((e.ctrlKey || e.metaKey) && e.key === 'a'))) {
+                        this.clearAllBlocksSelection();
+                    }
+                    
+                    this.handleKeyDown(e, blockId, area);
+                });
+
+                // Focus handler
+                textarea.addEventListener('focus', () => {
+                    // Clear all blocks selection when focusing on a specific textarea
+                    if (allBlocksSelected) {
+                        this.clearAllBlocksSelection();
+                    }
+                    
+                    this.activateBlock(blockId, area);
+                });
+
+                // Click handler for timestamp detection
+                textarea.addEventListener('click', (e) => {
+                    this.handleTimestampClick(e, textarea);
+                });
+
+                // Keyup handler for timestamp detection
+                textarea.addEventListener('keyup', (e) => {
+                    this.handleTimestampKeyup(e, textarea);
+                });
+            }
+
+            handleDotsInput(e) {
+                const value = e.target.value;
+                
+                // Check if three dots were typed
+                if (value.endsWith('...')) {
+                    if (audioPlayer.currentTime !== undefined && audioPlayer.src) {
+                        const currentTime = formatTime(audioPlayer.currentTime);
+                        
+                        // Remove the three dots and add the time instead
+                        const newValue = value.slice(0, -3) + currentTime;
+                        e.target.value = newValue;
+                        
+                        // Position cursor after the time
+                        const newCursorPosition = newValue.length;
+                        e.target.setSelectionRange(newCursorPosition, newCursorPosition);
+
+                        // Update the block data
+                        const blockId = parseInt(e.target.id.split('-')[1]);
+                        const area = e.target.id.split('-')[2];
+                        this.updateBlock(blockId, area, newValue);
+                        
+                        // Update timestamps list
+                        if (navigationMode) {
+                            setTimeout(updateTimestampsList, 100);
+                        }
+                    } else {
+                        // Remove the three dots if no audio
+                        e.target.value = value.slice(0, -3);
+                        alert('אין קובץ אודיו טעון או שהנגן לא מוכן');
+                    }
+                }
+            }
+
+            handleTimestampClick(e, textarea) {
+                if (!navigationMode) {
+                    // Normal mode - jump to timestamp
+                    const cursorPosition = e.target.selectionStart;
+                    const text = e.target.value;
+                    const timestamp = this.detectTimestampsInText(text, cursorPosition);
+                    if (timestamp && audioPlayer.src) {
+                        jumpToTime(timestamp);
+                    }
+                }
+            }
+
+            handleTimestampKeyup(e, textarea) {
+                if (!navigationMode) {
+                    const cursorPosition = e.target.selectionStart;
+                    const text = e.target.value;
+                    const timestamp = this.detectTimestampsInText(text, cursorPosition);
+                    
+                    if (timestamp && audioPlayer.src) {
+                        jumpToTime(timestamp);
+                    }
+                }
+            }
+
+            detectTimestampsInText(text, cursorPosition) {
+                const timeRegex = /\d{1,2}:\d{1,2}:\d{1,2}/g;
+                let match;
+                
+                while ((match = timeRegex.exec(text)) !== null) {
+                    const start = match.index;
+                    const end = match.index + match[0].length;
+                    
+                    // Check if cursor is within timestamp
+                    if (cursorPosition >= start && cursorPosition <= end) {
+                        return match[0];
+                    }
+                }
+                
+                return null;
+            }
+
+            updateBlock(blockId, area, value) {
+                blocks = blocks.map(block => {
+                    if (block.id === blockId) {
+                        return { ...block, [area]: value };
+                    }
+                    return block;
+                });
+            }
+
+            updateHeight(element) {
+                if (!element) return;
+                
+                // Reset to single line height first
+                element.style.height = '1.2em';
+                
+                // Calculate needed height
+                const scrollHeight = element.scrollHeight;
+                const minHeight = parseFloat(getComputedStyle(element).lineHeight) || 1.2 * 16; // 1.2em in pixels
+                const newHeight = Math.max(minHeight, scrollHeight);
+                
+                element.style.height = newHeight + 'px';
+            }
+
+            syncBlockHeights(blockId) {
+                const marginElement = textareaRefs.get(`${blockId}-margin`);
+                const centerElement = textareaRefs.get(`${blockId}-center`);
+                
+                if (marginElement && centerElement) {
+                    // Reset both to single line height
+                    marginElement.style.height = '1.2em';
+                    centerElement.style.height = '1.2em';
+                    
+                    const lineHeight = parseFloat(getComputedStyle(marginElement).lineHeight) || 1.2 * 16;
+                    const marginHeight = Math.max(lineHeight, marginElement.scrollHeight);
+                    const centerHeight = Math.max(lineHeight, centerElement.scrollHeight);
+                    const maxHeight = Math.max(marginHeight, centerHeight);
+                    
+                    marginElement.style.height = maxHeight + 'px';
+                    centerElement.style.height = maxHeight + 'px';
+                }
+            }
+
+            createNewBlockAfter(afterBlockId) {
+                const newId = Math.max(...blocks.map(b => b.id)) + 1;
+                const blockIndex = blocks.findIndex(b => b.id === afterBlockId);
+                
+                const newBlock = {
+                    id: newId,
+                    margin: '',
+                    center: '',
+                    isActive: true,
+                    activeArea: 'margin'
+                };
+
+                // Deactivate all blocks
+                blocks = blocks.map(block => ({
+                    ...block,
+                    isActive: false
+                }));
+                
+                // Insert new block after the current block
+                blocks.splice(blockIndex + 1, 0, newBlock);
+                activeBlockId = newId;
+                
+                this.renderBlocks();
+                this.focusActiveBlock();
+            }
+
+            deleteBlock(blockId) {
+                if (blocks.length <= 1) return; // Don't delete the last block
+                
+                const blockIndex = blocks.findIndex(b => b.id === blockId);
+                if (blockIndex === -1) return;
+                
+                // Remove the block
+                blocks.splice(blockIndex, 1);
+                
+                // Determine which block to focus on after deletion
+                let newActiveBlockIndex;
+                if (blockIndex > 0) {
+                    // Focus on the previous block
+                    newActiveBlockIndex = blockIndex - 1;
+                } else {
+                    // Focus on the next block (which is now at index 0)
+                    newActiveBlockIndex = 0;
+                }
+                
+                // Activate the new block
+                blocks = blocks.map((block, index) => ({
+                    ...block,
+                    isActive: index === newActiveBlockIndex,
+                    activeArea: index === newActiveBlockIndex ? 'center' : block.activeArea
+                }));
+                
+                activeBlockId = blocks[newActiveBlockIndex].id;
+                
+                this.renderBlocks();
+                this.focusActiveBlock();
+            }
+
+            handleKeyDown(e, blockId, area) {
+                // If navigation mode is active, only handle navigation between timestamps
+                if (navigationMode) {
+                    return; // Let the global navigation handler deal with it
+                }
+
+                // Handle arrow keys for smart navigation
+                if (this.handleArrowKeys(e, blockId, area)) {
+                    return; // Arrow key was handled, don't continue
+                }
+
+                // Handle Ctrl+A for smart text selection
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    if (this.handleSmartSelectAll(e, blockId, area)) {
+                        return; // Ctrl+A was handled, don't continue
+                    }
+                }
+
+                const currentBlockIndex = blocks.findIndex(b => b.id === blockId);
+                
+                // BACKSPACE - handle deletion and block navigation
+                if (e.key === 'Backspace') {
+                    const element = textareaRefs.get(`${blockId}-${area}`);
+                    if (!element) return;
+                    
+                    const cursorPosition = element.selectionStart;
+                    const value = element.value;
+                    
+                    // If cursor is at the beginning of center area and it's empty, move to margin
+                    if (area === 'center' && cursorPosition === 0) {
+                        if (value.trim() === '') {
+                            e.preventDefault();
+                            this.activateBlock(blockId, 'margin');
+                            setTimeout(() => {
+                                const marginRef = textareaRefs.get(`${blockId}-margin`);
+                                if (marginRef) {
+                                    marginRef.focus();
+                                    marginRef.setSelectionRange(marginRef.value.length, marginRef.value.length);
+                                }
+                            }, 0);
+                            return;
+                        }
+                    }
+                    
+                    // If cursor is at the beginning of margin area and both areas are empty, delete block
+                    if (area === 'margin' && cursorPosition === 0) {
+                        const marginValue = textareaRefs.get(`${blockId}-margin`).value;
+                        const centerValue = textareaRefs.get(`${blockId}-center`).value;
+                        
+                        if (marginValue.trim() === '' && centerValue.trim() === '' && blocks.length > 1) {
+                            e.preventDefault();
+                            this.deleteBlock(blockId);
+                            return;
+                        }
+                        
+                        // If margin is empty but center has content, just let normal backspace work
+                        if (marginValue.trim() === '' && centerValue.trim() !== '') {
+                            // Normal backspace behavior
+                            return;
+                        }
+                    }
+                }
+                
+                // TAB - forward navigation between blocks
+                else if (e.key === 'Tab' && !e.shiftKey) {
+                    e.preventDefault();
+                    
+                    if (area === 'margin') {
+                        this.updateBlockActiveArea(blockId, 'center');
+                        setTimeout(() => {
+                            const centerRef = textareaRefs.get(`${blockId}-center`);
+                            if (centerRef) {
+                                centerRef.focus();
+                            }
+                        }, 0);
+                    } else {
+                        const nextBlockIndex = currentBlockIndex + 1;
+                        if (nextBlockIndex < blocks.length) {
+                            const nextBlock = blocks[nextBlockIndex];
+                            this.activateBlock(nextBlock.id, 'margin');
+                        } else {
+                            this.createNewBlockAfter(blockId);
+                        }
+                    }
+                }
+                
+                // SHIFT+TAB - backward navigation between blocks
+                else if (e.key === 'Tab' && e.shiftKey) {
+                    e.preventDefault();
+                    
+                    if (area === 'center') {
+                        this.updateBlockActiveArea(blockId, 'margin');
+                        setTimeout(() => {
+                            const marginRef = textareaRefs.get(`${blockId}-margin`);
+                            if (marginRef) {
+                                marginRef.focus();
+                            }
+                        }, 0);
+                    } else {
+                        const prevBlockIndex = currentBlockIndex - 1;
+                        if (prevBlockIndex >= 0) {
+                            const prevBlock = blocks[prevBlockIndex];
+                            this.activateBlock(prevBlock.id, 'center');
+                        }
+                    }
+                }
+                
+                // HOME key - move to beginning of line or margin area
+                else if (e.key === 'Home') {
+                    const element = textareaRefs.get(`${blockId}-${area}`);
+                    if (!element) return;
+                    
+                    const cursorPosition = element.selectionStart;
+                    const textBeforeCursor = element.value.substring(0, cursorPosition);
+                    const lines = textBeforeCursor.split('\n');
+                    const currentLineIndex = lines.length - 1;
+                    const currentLineText = lines[currentLineIndex];
+                    
+                    if (area === 'center') {
+                        if (currentLineIndex === 0 && currentLineText === '') {
+                            e.preventDefault();
+                            this.activateBlock(blockId, 'margin');
+                        } else if (currentLineText === '') {
+                            e.preventDefault();
+                            const previousLinesLength = lines.slice(0, currentLineIndex).join('\n').length;
+                            const newPosition = previousLinesLength > 0 ? previousLinesLength : 0;
+                            element.setSelectionRange(newPosition, newPosition);
+                        }
+                    }
+                }
+                
+                // END key - navigate through lines and between areas
+                else if (e.key === 'End') {
+                    const element = textareaRefs.get(`${blockId}-${area}`);
+                    if (!element) return;
+                    
+                    const cursorPosition = element.selectionStart;
+                    const fullText = element.value;
+                    const textBeforeCursor = fullText.substring(0, cursorPosition);
+                    const lines = fullText.split('\n');
+                    const currentLineIndex = textBeforeCursor.split('\n').length - 1;
+                    const currentLine = lines[currentLineIndex];
+                    
+                    // Calculate current position in line
+                    const lineStartPosition = textBeforeCursor.lastIndexOf('\n') + 1;
+                    const positionInLine = cursorPosition - lineStartPosition;
+                    
+                    if (area === 'margin') {
+                        // If we're at the end of current line, move to center area
+                        if (positionInLine === currentLine.length) {
+                            e.preventDefault();
+                            this.activateBlock(blockId, 'center');
+                            // Focus on the beginning of center area
+                            setTimeout(() => {
+                                const centerRef = textareaRefs.get(`${blockId}-center`);
+                                if (centerRef) {
+                                    centerRef.focus();
+                                    centerRef.setSelectionRange(0, 0);
+                                }
+                            }, 0);
+                        }
+                    } else if (area === 'center') {
+                        // If we're at the end of current line
+                        if (positionInLine === currentLine.length) {
+                            // If there's a next line, go to end of next line
+                            if (currentLineIndex < lines.length - 1) {
+                                e.preventDefault();
+                                const nextLineIndex = currentLineIndex + 1;
+                                const nextLineStartPosition = lines.slice(0, nextLineIndex).join('\n').length + (nextLineIndex > 0 ? 1 : 0);
+                                const nextLineEndPosition = nextLineStartPosition + lines[nextLineIndex].length;
+                                element.setSelectionRange(nextLineEndPosition, nextLineEndPosition);
+                            }
+                        }
+                    }
+                }
+                
+                // ENTER - create new block
+                else if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.createNewBlockAfter(blockId);
+                }
+            }
+
+            // New function to handle arrow keys with timestamp awareness
+            handleArrowKeys(e, blockId, area) {
+                const element = textareaRefs.get(`${blockId}-${area}`);
+                if (!element) return false;
+
+                const isArrowKey = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key);
+                if (!isArrowKey) return false;
+
+                const cursorPosition = element.selectionStart;
+                const text = element.value;
+                const isCtrlPressed = e.ctrlKey || e.metaKey;
+
+                // Handle Ctrl+Arrow for word jumping with timestamp awareness
+                if (isCtrlPressed && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                    e.preventDefault();
+                    
+                    // In Hebrew: ArrowLeft goes forward, ArrowRight goes backward
+                    const newPosition = this.getSmartWordPosition(text, cursorPosition, e.key === 'ArrowLeft');
+                    element.setSelectionRange(newPosition, newPosition);
+                    return true;
+                }
+
+                // Handle up/down arrows for block navigation
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    const currentBlockIndex = blocks.findIndex(b => b.id === blockId);
+                    
+                    // Check if we're at the first or last line
+                    const lines = text.split('\n');
+                    const textBeforeCursor = text.substring(0, cursorPosition);
+                    const currentLineIndex = textBeforeCursor.split('\n').length - 1;
+                    
+                    if (e.key === 'ArrowUp' && currentLineIndex === 0) {
+                        // Move to previous block
+                        e.preventDefault();
+                        if (area === 'center') {
+                            // Move to margin of same block
+                            this.activateBlock(blockId, 'margin');
+                            setTimeout(() => {
+                                const marginRef = textareaRefs.get(`${blockId}-margin`);
+                                if (marginRef) {
+                                    marginRef.focus();
+                                    marginRef.setSelectionRange(marginRef.value.length, marginRef.value.length);
+                                }
+                            }, 0);
+                        } else if (currentBlockIndex > 0) {
+                            // Move to center of previous block
+                            const prevBlock = blocks[currentBlockIndex - 1];
+                            this.activateBlock(prevBlock.id, 'center');
+                            setTimeout(() => {
+                                const centerRef = textareaRefs.get(`${prevBlock.id}-center`);
+                                if (centerRef) {
+                                    centerRef.focus();
+                                    centerRef.setSelectionRange(centerRef.value.length, centerRef.value.length);
+                                }
+                            }, 0);
+                        }
+                        return true;
+                    }
+                    
+                    if (e.key === 'ArrowDown' && currentLineIndex === lines.length - 1) {
+                        // Move to next block
+                        e.preventDefault();
+                        if (area === 'margin') {
+                            // Move to center of same block
+                            this.activateBlock(blockId, 'center');
+                            setTimeout(() => {
+                                const centerRef = textareaRefs.get(`${blockId}-center`);
+                                if (centerRef) {
+                                    centerRef.focus();
+                                    centerRef.setSelectionRange(0, 0);
+                                }
+                            }, 0);
+                        } else if (currentBlockIndex < blocks.length - 1) {
+                            // Move to margin of next block
+                            const nextBlock = blocks[currentBlockIndex + 1];
+                            this.activateBlock(nextBlock.id, 'margin');
+                            setTimeout(() => {
+                                const marginRef = textareaRefs.get(`${nextBlock.id}-margin`);
+                                if (marginRef) {
+                                    marginRef.focus();
+                                    marginRef.setSelectionRange(0, 0);
+                                }
+                            }, 0);
+                        } else {
+                            // Create new block if we're at the last one
+                            this.createNewBlockAfter(blockId);
+                        }
+                        return true;
+                    }
+                }
+
+                // Handle left/right arrows at block boundaries
+                if (e.key === 'ArrowRight' && cursorPosition === 0) {
+                    e.preventDefault();
+                    if (area === 'center') {
+                        // Move to end of margin in same block
+                        this.activateBlock(blockId, 'margin');
+                        setTimeout(() => {
+                            const marginRef = textareaRefs.get(`${blockId}-margin`);
+                            if (marginRef) {
+                                marginRef.focus();
+                                marginRef.setSelectionRange(marginRef.value.length, marginRef.value.length);
+                            }
+                        }, 0);
+                    } else {
+                        // Move to end of center in previous block
+                        const currentBlockIndex = blocks.findIndex(b => b.id === blockId);
+                        if (currentBlockIndex > 0) {
+                            const prevBlock = blocks[currentBlockIndex - 1];
+                            this.activateBlock(prevBlock.id, 'center');
+                            setTimeout(() => {
+                                const centerRef = textareaRefs.get(`${prevBlock.id}-center`);
+                                if (centerRef) {
+                                    centerRef.focus();
+                                    centerRef.setSelectionRange(centerRef.value.length, centerRef.value.length);
+                                }
+                            }, 0);
+                        }
+                    }
+                    return true;
+                }
+
+                if (e.key === 'ArrowLeft' && cursorPosition === text.length) {
+                    e.preventDefault();
+                    if (area === 'margin') {
+                        // Move to beginning of center in same block
+                        this.activateBlock(blockId, 'center');
+                        setTimeout(() => {
+                            const centerRef = textareaRefs.get(`${blockId}-center`);
+                            if (centerRef) {
+                                centerRef.focus();
+                                centerRef.setSelectionRange(0, 0);
+                            }
+                        }, 0);
+                    } else {
+                        // Move to beginning of margin in next block
+                        const currentBlockIndex = blocks.findIndex(b => b.id === blockId);
+                        if (currentBlockIndex < blocks.length - 1) {
+                            const nextBlock = blocks[currentBlockIndex + 1];
+                            this.activateBlock(nextBlock.id, 'margin');
+                            setTimeout(() => {
+                                const marginRef = textareaRefs.get(`${nextBlock.id}-margin`);
+                                if (marginRef) {
+                                    marginRef.focus();
+                                    marginRef.setSelectionRange(0, 0);
+                                }
+                            }, 0);
+                        } else {
+                            // Create new block if we're at the last one
+                            this.createNewBlockAfter(blockId);
+                        }
+                    }
+                    return true;
+                }
+
+                return false; // Let default behavior handle other cases
+            }
+
+            // Smart Ctrl+A handler
+            handleSmartSelectAll(e, blockId, area) {
+                e.preventDefault();
+                
+                const currentTime = Date.now();
+                const element = textareaRefs.get(`${blockId}-${area}`);
+                if (!element) return false;
+
+                // Check if this is a double Ctrl+A (within 1000ms and same element)
+                const isDoubleCtrlA = (currentTime - lastCtrlATime < 1000) && 
+                                    (lastCtrlAElement === element);
+
+                if (isDoubleCtrlA) {
+                    // Second Ctrl+A - select all text in all blocks
+                    this.selectAllTextInAllBlocks();
+                } else {
+                    // First Ctrl+A - select text in current block only
+                    this.selectTextInCurrentBlock(blockId);
+                }
+
+                // Update tracking variables
+                lastCtrlATime = currentTime;
+                lastCtrlAElement = element;
+                
+                return true;
+            }
+
+            // Select text in current block (both margin and center)
+            selectTextInCurrentBlock(blockId) {
+                const marginTextarea = textareaRefs.get(`${blockId}-margin`);
+                const centerTextarea = textareaRefs.get(`${blockId}-center`);
+                
+                if (!marginTextarea || !centerTextarea) return;
+
+                const marginText = marginTextarea.value;
+                const centerText = centerTextarea.value;
+                
+                // Clear any all-blocks selection first
+                this.clearAllBlocksSelection();
+                
+                // Determine which textarea to select based on content
+                if (marginText.length === 0 && centerText.length === 0) {
+                    // Both empty, select current active area
+                    const currentBlock = blocks.find(b => b.id === blockId);
+                    if (currentBlock) {
+                        const activeTextarea = textareaRefs.get(`${blockId}-${currentBlock.activeArea}`);
+                        if (activeTextarea) {
+                            activeTextarea.focus();
+                            activeTextarea.setSelectionRange(0, activeTextarea.value.length);
+                        }
+                    }
+                } else if (marginText.length > 0 && centerText.length === 0) {
+                    // Only margin has content
+                    marginTextarea.focus();
+                    marginTextarea.setSelectionRange(0, marginText.length);
+                } else if (marginText.length === 0 && centerText.length > 0) {
+                    // Only center has content
+                    centerTextarea.focus();
+                    centerTextarea.setSelectionRange(0, centerText.length);
+                } else {
+                    // Both have content - select the currently active one
+                    const currentBlock = blocks.find(b => b.id === blockId);
+                    if (currentBlock) {
+                        const activeTextarea = textareaRefs.get(`${blockId}-${currentBlock.activeArea}`);
+                        if (activeTextarea) {
+                            activeTextarea.focus();
+                            activeTextarea.setSelectionRange(0, activeTextarea.value.length);
+                        }
+                    }
+                }
+            }
+
+            // Select all text in all blocks
+            selectAllTextInAllBlocks() {
+                // Mark that all blocks are selected
+                allBlocksSelected = true;
+                
+                // Add visual class to container
+                const container = document.getElementById('blocksContainer');
+                container.classList.add('all-blocks-selected');
+                
+                // Collect all text and select it in the first available textarea
+                let allText = '';
+                let firstTextarea = null;
+                
+                blocks.forEach(block => {
+                    const marginTextarea = textareaRefs.get(`${block.id}-margin`);
+                    const centerTextarea = textareaRefs.get(`${block.id}-center`);
+                    
+                    if (marginTextarea && marginTextarea.value.trim()) {
+                        if (!firstTextarea) firstTextarea = marginTextarea;
+                        allText += marginTextarea.value + '\n';
+                    }
+                    if (centerTextarea && centerTextarea.value.trim()) {
+                        if (!firstTextarea) firstTextarea = centerTextarea;
+                        allText += centerTextarea.value + '\n';
+                    }
+                });
+
+                if (!firstTextarea || !allText.trim()) {
+                    this.clearAllBlocksSelection();
+                    return;
+                }
+
+                // Focus on first textarea and show all text is selected
+                firstTextarea.focus();
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(allText.trim()).then(() => {
+                    this.showSelectionFeedback();
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const tempTextarea = document.createElement('textarea');
+                    tempTextarea.value = allText.trim();
+                    tempTextarea.style.position = 'fixed';
+                    tempTextarea.style.left = '-9999px';
+                    document.body.appendChild(tempTextarea);
+                    tempTextarea.select();
+                    try {
+                        document.execCommand('copy');
+                        this.showSelectionFeedback();
+                    } catch (err) {
+                        console.error('Failed to copy text:', err);
+                    }
+                    document.body.removeChild(tempTextarea);
+                });
+
+                // Clear selection after a short delay or on next interaction
+                setTimeout(() => {
+                    this.clearAllBlocksSelection();
+                }, 2000);
+            }
+
+            // Clear all blocks selection
+            clearAllBlocksSelection() {
+                allBlocksSelected = false;
+                const container = document.getElementById('blocksContainer');
+                container.classList.remove('all-blocks-selected');
+            }
+
+            // Show visual feedback for selection
+            showSelectionFeedback() {
+                // Temporarily highlight all blocks
+                blocks.forEach(block => {
+                    const blockElement = blockElements.get(block.id);
+                    if (blockElement) {
+                        const contentDiv = blockElement.querySelector('.block-content');
+                        if (contentDiv) {
+                            contentDiv.style.background = 'rgba(102, 126, 234, 0.3)';
+                            contentDiv.style.transition = 'background 0.3s ease';
+                            
+                            setTimeout(() => {
+                                contentDiv.style.background = '';
+                            }, 300);
+                        }
+                    }
+                });
+
+                // Show temporary message
+                const message = document.createElement('div');
+                message.textContent = 'כל הטקסט הועתק ללוח';
+                message.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(16, 185, 129, 0.9);
+                    color: white;
+                    padding: 1rem 2rem;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    z-index: 10000;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                `;
+                
+                document.body.appendChild(message);
+                
+                setTimeout(() => {
+                    if (document.body.contains(message)) {
+                        document.body.removeChild(message);
+                    }
+                }, 1000);
+            }
+            getSmartWordPosition(text, currentPosition, forward) {
+                const timeRegex = /\d{1,2}:\d{1,2}:\d{1,2}/g;
+                const timestamps = [];
+                let match;
+
+                // Find all timestamps
+                while ((match = timeRegex.exec(text)) !== null) {
+                    timestamps.push({
+                        start: match.index,
+                        end: match.index + match[0].length
+                    });
+                }
+
+                if (forward) {
+                    // Moving right
+                    // Check if we're inside a timestamp
+                    const currentTimestamp = timestamps.find(ts => 
+                        currentPosition >= ts.start && currentPosition < ts.end
+                    );
+                    
+                    if (currentTimestamp) {
+                        // Jump to end of timestamp
+                        return currentTimestamp.end;
+                    }
+
+                    // Check if next word boundary is a timestamp
+                    const nextTimestamp = timestamps.find(ts => ts.start > currentPosition);
+                    
+                    // Find next word boundary
+                    let nextWordPos = currentPosition;
+                    
+                    // Skip current word/whitespace
+                    while (nextWordPos < text.length && /\S/.test(text[nextWordPos])) {
+                        nextWordPos++;
+                    }
+                    while (nextWordPos < text.length && /\s/.test(text[nextWordPos])) {
+                        nextWordPos++;
+                    }
+
+                    // If there's a timestamp between current position and next word, jump to timestamp start
+                    if (nextTimestamp && nextTimestamp.start < nextWordPos) {
+                        return nextTimestamp.start;
+                    }
+
+                    return Math.min(nextWordPos, text.length);
+                } else {
+                    // Moving left
+                    // Check if we're inside a timestamp
+                    const currentTimestamp = timestamps.find(ts => 
+                        currentPosition > ts.start && currentPosition <= ts.end
+                    );
+                    
+                    if (currentTimestamp) {
+                        // Jump to start of timestamp
+                        return currentTimestamp.start;
+                    }
+
+                    // Check if we're right after a timestamp
+                    const prevTimestamp = timestamps.find(ts => ts.end === currentPosition);
+                    if (prevTimestamp) {
+                        return prevTimestamp.start;
+                    }
+
+                    // Find previous word boundary
+                    let prevWordPos = currentPosition;
+                    
+                    // Skip current whitespace
+                    while (prevWordPos > 0 && /\s/.test(text[prevWordPos - 1])) {
+                        prevWordPos--;
+                    }
+                    
+                    // Skip current word
+                    while (prevWordPos > 0 && /\S/.test(text[prevWordPos - 1])) {
+                        prevWordPos--;
+                    }
+
+                    // Check if we landed in a timestamp
+                    const landedTimestamp = timestamps.find(ts => 
+                        prevWordPos >= ts.start && prevWordPos < ts.end
+                    );
+                    
+                    if (landedTimestamp) {
+                        return landedTimestamp.start;
+                    }
+
+                    return Math.max(prevWordPos, 0);
+                }
+            }
+
+            updateBlockActiveArea(blockId, area) {
+                blocks = blocks.map(b =>
+                    b.id === blockId ? { ...b, activeArea: area } : b
+                );
+            }
+
+            activateBlock(blockId, area) {
+                blocks = blocks.map(block => ({
+                    ...block,
+                    isActive: block.id === blockId,
+                    activeArea: block.id === blockId ? area : block.activeArea
+                }));
+                activeBlockId = blockId;
+                
+                // Update visual state without full re-render
+                this.updateBlockVisualStates();
+                this.focusActiveBlock();
+            }
+
+            updateBlockVisualStates() {
+                blocks.forEach(block => {
+                    const blockElement = blockElements.get(block.id);
+                    if (blockElement) {
+                        const contentDiv = blockElement.querySelector('.block-content');
+                        if (block.isActive) {
+                            contentDiv.classList.add('active-block');
+                        } else {
+                            contentDiv.classList.remove('active-block');
+                        }
+                    }
+                });
+            }
+
+            focusActiveBlock() {
+                setTimeout(() => {
+                    const activeBlock = blocks.find(b => b.isActive);
+                    if (activeBlock) {
+                        const textarea = textareaRefs.get(`${activeBlock.id}-${activeBlock.activeArea}`);
+                        if (textarea) {
+                            textarea.focus();
+                        }
+                    }
+                }, 0);
+            }
+        }
+
+        // Audio Player Functions
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function parseTimeToSeconds(timeString) {
+            const timeRegex = /(\d{1,2}):(\d{1,2}):(\d{1,2})/;
+            const match = timeString.match(timeRegex);
+            
+            if (!match) return null;
+            
+            const [, hours, minutes, seconds] = match;
+            return (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
+        }
+
+        function jumpToTime(timeString = null) {
+            const timeValue = timeString || timeInput.value.trim();
+            const timeRegex = /^(\d{1,2}):(\d{1,2}):(\d{1,2})$/;
+            
+            if (!timeRegex.test(timeValue)) {
+                if (!timeString) {
+                    alert('פורמט זמן לא תקין. השתמש בפורמט: 01:02:30');
+                }
+                return;
+            }
+            
+            const [, hours, minutes, seconds] = timeValue.match(timeRegex);
+            const totalSeconds = (parseInt(hours) * 3600) + (parseInt(minutes) * 60) + parseInt(seconds);
+            
+            if (audioPlayer.duration && totalSeconds <= audioPlayer.duration) {
+                audioPlayer.currentTime = totalSeconds;
+            } else {
+                if (!timeString) {
+                    alert('הזמן שהוזן חורג מאורך הקובץ');
+                }
+            }
+        }
+
+        // Updated timestamp navigation functions
+        function updateTimestampsList() {
+            if (!navigationMode) return;
+            
+            allTimestamps = [];
+            
+            // Go through all textareas and find timestamps
+            blocks.forEach((block, blockIndex) => {
+                const marginTextarea = textareaRefs.get(`${block.id}-margin`);
+                const centerTextarea = textareaRefs.get(`${block.id}-center`);
+                
+                // Search in margin textarea
+                if (marginTextarea) {
+                    const text = marginTextarea.value;
+                    const timeRegex = /\d{1,2}:\d{1,2}:\d{1,2}/g;
+                    let match;
+                    
+                    while ((match = timeRegex.exec(text)) !== null) {
+                        allTimestamps.push({
+                            text: match[0],
+                            start: match.index,
+                            end: match.index + match[0].length,
+                            textarea: marginTextarea,
+                            blockId: block.id,
+                            area: 'margin',
+                            timeInSeconds: parseTimeToSeconds(match[0])
+                        });
+                    }
+                }
+                
+                // Search in center textarea
+                if (centerTextarea) {
+                    const text = centerTextarea.value;
+                    const timeRegex = /\d{1,2}:\d{1,2}:\d{1,2}/g;
+                    let match;
+                    
+                    while ((match = timeRegex.exec(text)) !== null) {
+                        allTimestamps.push({
+                            text: match[0],
+                            start: match.index,
+                            end: match.index + match[0].length,
+                            textarea: centerTextarea,
+                            blockId: block.id,
+                            area: 'center',
+                            timeInSeconds: parseTimeToSeconds(match[0])
+                        });
+                    }
+                }
+            });
+            
+            // Sort timestamps by time value (not by position in text)
+            allTimestamps.sort((a, b) => {
+                if (a.timeInSeconds !== null && b.timeInSeconds !== null) {
+                    return a.timeInSeconds - b.timeInSeconds;
+                }
+                return 0;
+            });
+            
+            console.log(`Found ${allTimestamps.length} timestamps:`, allTimestamps.map(t => t.text));
+        }
+
+        function navigateToNextTimestamp() {
+            if (!navigationMode || allTimestamps.length === 0) {
+                console.log('Navigation mode not active or no timestamps found');
+                return;
+            }
+            
+            // Move to next timestamp
+            currentTimestampIndex = (currentTimestampIndex + 1) % allTimestamps.length;
+            
+            console.log(`Moving to timestamp ${currentTimestampIndex + 1} of ${allTimestamps.length}: ${allTimestamps[currentTimestampIndex].text}`);
+            
+            const timestamp = allTimestamps[currentTimestampIndex];
+            
+            // Focus on the textarea and select the timestamp
+            timestamp.textarea.focus();
+            timestamp.textarea.setSelectionRange(timestamp.start, timestamp.end);
+            
+            // Jump to time in audio
+            if (audioPlayer.src) {
+                jumpToTime(timestamp.text);
+            }
+            
+            // Scroll the textarea into view if needed
+            timestamp.textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function navigateToPrevTimestamp() {
+            if (!navigationMode || allTimestamps.length === 0) {
+                console.log('Navigation mode not active or no timestamps found');
+                return;
+            }
+            
+            // Move to previous timestamp
+            currentTimestampIndex = currentTimestampIndex <= 0 ? 
+                allTimestamps.length - 1 : 
+                currentTimestampIndex - 1;
+            
+            console.log(`Moving to timestamp ${currentTimestampIndex + 1} of ${allTimestamps.length}: ${allTimestamps[currentTimestampIndex].text}`);
+                
+            const timestamp = allTimestamps[currentTimestampIndex];
+            
+            // Focus on the textarea and select the timestamp
+            timestamp.textarea.focus();
+            timestamp.textarea.setSelectionRange(timestamp.start, timestamp.end);
+            
+            // Jump to time in audio
+            if (audioPlayer.src) {
+                jumpToTime(timestamp.text);
+            }
+            
+            // Scroll the textarea into view if needed
+            timestamp.textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function toggleNavigationMode() {
+            navigationMode = !navigationMode;
+            
+            if (navigationMode) {
+                navigationToggle.textContent = '🎯 מצב ניווט: פעיל';
+                navigationToggle.classList.add('active');
+                navigationStatus.classList.add('active');
+                
+                // Add navigation styling to blocks container
+                document.getElementById('blocksContainer').classList.add('navigation-mode');
+                
+                // Update timestamps list and reset navigation
+                updateTimestampsList();
+                currentTimestampIndex = -1;
+                
+                console.log('Navigation mode activated');
+                
+                if (allTimestamps.length === 0) {
+                    alert('לא נמצאו נקודות זמן בטקסט. הוסף נקודות זמן בפורמט 01:02:30 כדי להשתמש במצב הניווט.');
+                }
+                
+            } else {
+                navigationToggle.textContent = '🎯 מצב ניווט: כבוי';
+                navigationToggle.classList.remove('active');
+                navigationStatus.classList.remove('active');
+                
+                // Remove navigation styling
+                document.getElementById('blocksContainer').classList.remove('navigation-mode');
+                
+                // Reset navigation state
+                currentTimestampIndex = -1;
+                allTimestamps = [];
+                
+                console.log('Navigation mode deactivated');
+            }
+        }
+
+        // Global key event listener for navigation mode
+        document.addEventListener('keydown', function(e) {
+            // Only handle if navigation mode is active
+            if (!navigationMode) return;
+            
+            // Tab - navigate between timestamps
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                if (e.shiftKey) {
+                    navigateToPrevTimestamp();
+                } else {
+                    navigateToNextTimestamp();
+                }
+                return false;
+            }
+            
+            // Escape - exit navigation mode
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                toggleNavigationMode();
+            }
+        }, true);
+
+        // File upload functionality
+        function handleFileSelect(file) {
+            const url = URL.createObjectURL(file);
+            audioPlayer.src = url;
+            audioPlayer.style.display = 'block';
+            
+            // Update upload area
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <div class="upload-text">${file.name}</div>
+                <div class="upload-subtext">קובץ נטען בהצלחה</div>
+            `;
+            uploadArea.style.borderColor = '#22c55e';
+            uploadArea.style.background = 'rgba(34, 197, 94, 0.1)';
+        }
+
+        // Event Listeners Setup
+        function setupEventListeners() {
+            // Drag & Drop functionality
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            });
+            
+            // File input change
+            audioFile.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    handleFileSelect(file);
+                }
+            });
+            
+            // Audio player time update
+            audioPlayer.addEventListener('timeupdate', function() {
+                const currentTime = audioPlayer.currentTime;
+                currentTimeDisplay.textContent = formatTime(currentTime);
+            });
+            
+            // Time input formatting
+            timeInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/[^\d]/g, '');
+                
+                if (value.length >= 2) {
+                    value = value.substring(0, 2) + ':' + value.substring(2);
+                }
+                if (value.length >= 5) {
+                    value = value.substring(0, 5) + ':' + value.substring(5);
+                }
+                if (value.length > 8) {
+                    value = value.substring(0, 8);
+                }
+                
+                e.target.value = value;
+            });
+            
+            // Time input enter key
+            timeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    jumpToTime();
+                }
+            });
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            new BlockTextEditor();
+        });
+    </script>
+</body>
+</html>

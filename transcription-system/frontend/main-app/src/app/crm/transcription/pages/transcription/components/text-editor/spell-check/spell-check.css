@@ -1,0 +1,6 @@
+/* Spell Check Styles */
+.spell-error {
+    text-decoration: underline;
+    text-decoration-color: #dc3545;
+    text-decoration-style: wavy;
+}

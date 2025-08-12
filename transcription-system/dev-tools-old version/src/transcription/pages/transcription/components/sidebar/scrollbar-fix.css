@@ -1,0 +1,42 @@
+/* Fix for unwanted scrollbars in side workspace */
+.side-workspace {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+}
+
+/* Hide all scrollbars on webkit browsers */
+.side-workspace::-webkit-scrollbar,
+.side-section::-webkit-scrollbar,
+.speakers-section::-webkit-scrollbar,
+.remarks-section::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+}
+
+/* For Firefox */
+.side-workspace,
+.side-section,
+.speakers-section,
+.remarks-section {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+/* Ensure sections don't create scrollbars unless needed */
+.side-section {
+    overflow: hidden !important;
+}
+
+/* Only textareas should have scrollbars when content overflows */
+.speakers-section textarea,
+.remarks-section textarea {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Remove any scrollbars from parent containers */
+.speakers-section,
+.remarks-section {
+    overflow: hidden !important;
+}

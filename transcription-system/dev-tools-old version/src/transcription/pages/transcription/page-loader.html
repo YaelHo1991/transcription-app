@@ -1,0 +1,50 @@
+<!-- Main Page Component Loader -->
+<!-- This file loads all page components except media player (which has its own loader) -->
+
+<!-- Core Styles -->
+<link rel="stylesheet" href="styles/core/css/variables.css">
+<link rel="stylesheet" href="styles/core/css/base.css">
+<link rel="stylesheet" href="styles/core/css/page-layout.css">
+<link rel="stylesheet" href="styles/core/css/responsive.css">
+
+<!-- Component Loaders -->
+<!-- Header -->
+<link rel="stylesheet" href="components/header/header.css">
+
+<!-- Sidebar -->
+<link rel="stylesheet" href="components/sidebar/sidebar.css">
+<link rel="stylesheet" href="components/sidebar/scrollbar-fix.css">
+<link rel="stylesheet" href="components/sidebar/force-no-scrollbar.css">
+
+<!-- Workspace Header -->
+<link rel="stylesheet" href="components/workspace-header/workspace-header.css">
+
+<!-- Navigation -->
+<link rel="stylesheet" href="components/navigation/navigation.css">
+
+<!-- Context Menu -->
+<link rel="stylesheet" href="components/context-menu/context-menu.css">
+
+<!-- Core Scripts -->
+<script src="styles/core/js/config.js"></script>
+<script src="styles/core/js/utils.js"></script>
+<script src="styles/core/js/transcription-app.js"></script>
+
+<!-- Component Scripts -->
+<script src="components/header/header.js"></script>
+<script src="components/sidebar/sidebar.js"></script>
+<script src="components/workspace-header/workspace-header.js"></script>
+<script src="components/workspace-header/progress-tracker.js"></script>
+<script src="components/navigation/navigation.js"></script>
+<script src="components/context-menu/context-menu.js"></script>
+
+<!-- Drag and Drop -->
+<script src="styles/core/js/drag-drop.js"></script>
+
+<!-- Note: The following components have their own loaders and are loaded separately:
+     - Text Editor (loads via text-editor-consolidated.php)
+     - Speakers (loads via speakers/index.php)
+     - Remarks (loads via remarks.php)
+     - Helper Files (loads via helper-files.php)
+     - Media Player (loads via app-initializer-php.js)
+-->

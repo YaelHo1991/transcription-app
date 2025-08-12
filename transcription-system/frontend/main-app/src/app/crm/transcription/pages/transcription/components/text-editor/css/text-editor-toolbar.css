@@ -1,0 +1,125 @@
+/*
+ * =========================================
+ * Text Editor Toolbar Styles
+ * css/text-editor-toolbar.css
+ * =========================================
+ */
+
+/* Main Toolbar */
+.text-editor-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px; /* Reduced vertical padding */
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    gap: 10px;
+    flex-shrink: 0; /* Don't shrink */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Toolbar Sections */
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Toolbar Divider */
+.toolbar-divider {
+    width: 1px;
+    height: 30px;
+    background: #dee2e6;
+    margin: 0 10px;
+}
+
+/* Toolbar Items */
+.toolbar-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Toolbar Buttons */
+.toolbar-btn {
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.toolbar-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.toolbar-btn:active,
+.toolbar-btn.active {
+    background: #dee2e6;
+    border-color: #adb5bd;
+}
+
+/* Transcription-specific buttons */
+.toolbar-btn.transcription-btn {
+    background: #e3f2fd;
+    border-color: #90caf9;
+    color: #1976d2;
+}
+
+.toolbar-btn.transcription-btn:hover {
+    background: #bbdefb;
+    border-color: #64b5f6;
+}
+
+/* Toolbar Select */
+.toolbar-select {
+    padding: 5px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.toolbar-select:hover {
+    border-color: #adb5bd;
+}
+
+/* Text style buttons specific styling */
+.text-style-buttons .toolbar-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Text alignment buttons */
+.text-align-buttons .toolbar-btn {
+    width: 36px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    font-size: 12px;
+}
+
+/* Undo/Redo buttons */
+.undo-redo-buttons .toolbar-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    font-size: 18px;
+}

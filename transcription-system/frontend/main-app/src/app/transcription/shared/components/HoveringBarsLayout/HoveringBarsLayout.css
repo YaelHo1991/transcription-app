@@ -1,0 +1,336 @@
+/* ===== HOVERING BARS LAYOUT - STRUCTURAL STYLES ONLY ===== */
+/* No colors here - only positioning, dimensions, and animations */
+
+.hovering-bars-layout {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ===== HEADER TRIGGER AREA ===== */
+.header-trigger-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;  /* Full width for better trigger */
+  height: 20px;  /* Thin trigger strip at top */
+  z-index: 2000;  /* Very high z-index to be above everything */
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto !important;
+  /* Debug: uncomment to see the trigger area */
+  /* background: rgba(255, 0, 0, 0.5); */
+}
+
+/* Ensure trigger area is always accessible */
+.header-trigger-area:hover {
+  /* background: rgba(0, 255, 0, 0.1); */
+}
+
+/* ===== HOVERING HEADER ===== */
+.hovering-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 1500;  /* Higher z-index to be above sidebar */
+  transform: translateY(-80px);
+  transition: transform 0.3s ease;
+  will-change: transform;
+  /* Debug: temporary background */
+  /* background: rgba(0, 0, 255, 0.8) !important; */
+}
+
+.hovering-header.visible {
+  transform: translateY(0);
+  pointer-events: auto !important;
+}
+
+/* Keep header visible when hovering over it */
+.hovering-header:hover {
+  transform: translateY(0) !important;
+}
+
+.hovering-header.locked {
+  position: relative;
+  top: 0;
+  pointer-events: auto;
+  z-index: 1500;
+}
+
+.hovering-header .header-content {
+  height: 100%;
+  display: block;  /* Don't use flex here */
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;  /* For absolute positioning of lock button */
+}
+
+.hovering-header .header-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.hovering-header .lock-btn,
+.hovering-sidebar .lock-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  padding: 6px 12px;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+  border-radius: 15px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.hovering-header .lock-btn:hover,
+.hovering-sidebar .lock-btn:hover {
+  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
+}
+
+/* ===== MAIN CONTENT WRAPPER ===== */
+.main-content-wrapper {
+  margin: 0 clamp(10px, 1.2vw, 25px) clamp(10px, 1.2vw, 25px) clamp(10px, 1.2vw, 25px);
+  transition: margin 0.3s ease;
+  min-height: calc(100vh - clamp(120px, 8vh, 170px));
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide scrollbar on larger screens, show on very small */
+@media (min-height: 600px) {
+  .main-content-wrapper {
+    overflow: hidden;
+  }
+}
+
+/* When header is locked, adjust for the header being part of layout */
+.main-content-wrapper.header-locked {
+  min-height: calc(100vh - 180px);
+  margin-top: 0;
+}
+
+/* When sidebar is locked, adjust main content */
+.main-content-wrapper.sidebar-locked {
+  margin-right: 230px;
+  width: calc(100% - 230px);
+}
+
+/* When both header and sidebar are locked */
+.main-content-wrapper.header-locked.sidebar-locked {
+  min-height: calc(100vh - 200px);
+  margin-right: 230px;
+  width: calc(100% - 230px);
+}
+
+/* Full screen - adjust when both bars locked */
+@media (min-width: 1201px) {
+  .main-content-wrapper.header-locked.sidebar-locked {
+    min-height: calc(100vh - 210px);
+  }
+}
+
+/* Half window - adjust when both bars locked */
+@media (min-width: 600px) and (max-width: 1200px) {
+  .main-content-wrapper.header-locked.sidebar-locked {
+    min-height: calc(100vh - 220px);
+  }
+}
+
+/* ===== HOVERING SIDEBAR ===== */
+.hovering-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: clamp(350px, 25vw, 500px);
+  height: 100vh;
+  z-index: 900;  /* Lower than header */
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  will-change: transform;
+  border-radius: 15px 0 0 15px;
+  padding: 0 !important;  /* NO PADDING */
+  box-sizing: border-box;
+}
+
+/* When header is locked, sidebar should always go down (locked or not) */
+.hovering-sidebar.header-locked {
+  top: 80px;
+  height: calc(100vh - 80px);
+}
+
+/* Sidebar trigger corner - also triggers header */
+.sidebar-trigger-corner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 20px;  /* Very small to avoid blocking ראשי link */
+  height: 20px;  /* Very small corner area */
+  z-index: 2100;  /* Higher than both header and sidebar triggers */
+  background: transparent;
+  cursor: pointer;
+  /* Debug: uncomment to see the trigger area */
+  /* background: rgba(0, 255, 0, 0.3); */
+}
+
+/* When header is locked, move trigger corner down */
+.sidebar-trigger-corner.header-locked {
+  top: 80px;
+}
+
+.hovering-sidebar.visible {
+  transform: translateX(0);
+}
+
+/* When sidebar is locked */
+.hovering-sidebar.locked {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 220px;
+  height: 100vh;
+  transform: translateX(0);
+  border-radius: 0;
+  z-index: 800;  /* Lower than header */
+  padding: 0 !important;  /* NO PADDING AT ALL */
+  box-sizing: border-box;
+}
+
+/* When both header and sidebar are locked, align sidebar with header */
+.hovering-sidebar.locked.header-locked {
+  top: 80px;
+  height: calc(100vh - 80px);
+  z-index: 800;  /* Keep lower than header */
+}
+
+.hovering-sidebar .sidebar-header {
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.hovering-sidebar .sidebar-header-top {
+  padding: 10px 5px;  /* Small padding */
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  min-height: 45px;
+}
+
+.hovering-sidebar .sidebar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  padding: 0 40px;  /* Space for lock button */
+}
+
+.hovering-sidebar .sidebar-header-top .lock-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  position: absolute;
+  left: 5px;  /* LEFT side where it's accessible */
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.hovering-sidebar .sidebar-header-top .lock-btn:hover {
+  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
+}
+
+.hovering-sidebar .sidebar-header-top .lock-btn.locked {
+  background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.hovering-sidebar .sidebar-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+  padding: 0 !important;  /* FORCE no padding */
+  margin: 0 !important;  /* FORCE no margin */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ===== RESPONSIVE ADJUSTMENTS ===== */
+
+/* Full screen - adjust when header locked */
+@media (min-width: 1201px) {
+  .main-content-wrapper.header-locked {
+    min-height: calc(100vh - 200px);
+  }
+}
+
+/* Very small screens - allow overflow */
+@media (max-width: 599px), (max-height: 499px) {
+  .main-content-wrapper {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  
+  .main-content-wrapper.header-locked {
+    overflow-y: auto !important;
+    min-height: calc(100vh - 200px);
+  }
+}
+
+/* Medium screens responsive */
+@media (max-width: 768px) {
+  .main-content-wrapper {
+    margin: 10px;
+    min-height: calc(100vh - 200px);
+  }
+  
+  .hovering-header .header-content {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+  
+  .hovering-sidebar {
+    width: 280px;
+    right: -280px;
+  }
+  
+  .hovering-sidebar.locked {
+    width: 280px;
+  }
+  
+  .main-content-wrapper.sidebar-locked {
+    margin-right: 290px;
+  }
+}

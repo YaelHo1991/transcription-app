@@ -1,0 +1,112 @@
+/* Helper Files Styles */
+.helper-files-section {
+    /* Styles moved to layout-improved.css for consistency */
+}
+
+.helper-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.helper-files-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #201e20;
+    margin: 0;
+}
+
+.helper-files-toggle {
+    background: none;
+    border: none;
+    color: #28a745;
+    cursor: pointer;
+    font-size: 20px;
+    padding: 5px;
+    transition: transform 0.3s ease;
+}
+
+.helper-files-toggle:hover {
+    transform: scale(1.1);
+}
+
+.helper-files-toggle.collapsed {
+    transform: rotate(180deg);
+}
+
+.helper-files-content {
+    /* max-height removed - handled by grid layout in layout-improved.css */
+    overflow-y: auto;
+    transition: all 0.3s ease;
+}
+
+.helper-files-content.collapsed {
+    max-height: 0;
+    overflow: hidden;
+}
+
+/* Ensure helper files viewer fills available space */
+.helper-files-viewer {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.empty-helper-files {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+}
+
+.empty-helper-files-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.helper-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: rgba(40, 167, 69, 0.05);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.helper-file-item:hover {
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.helper-file-name {
+    font-size: 14px;
+    color: #201e20;
+}
+
+.helper-file-action {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    color: #28a745;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.helper-file-action:hover {
+    background: rgba(40, 167, 69, 0.2);
+}
+
+.no-helper-files {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-size: 14px;
+}

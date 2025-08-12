@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h1>API Test Page</h1>
+    
+    <h2>Test User Registration</h2>
+    <button onclick="testRegistration()">Test Registration</button>
+    <pre id="reg-result"></pre>
+    
+    <h2>Test User Deletion</h2>
+    <input type="number" id="user-id" placeholder="User ID" value="2">
+    <button onclick="testDeletion()">Test Delete</button>
+    <pre id="del-result"></pre>
+    
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8080/api'
+            : `http://${window.location.hostname}:8080/api`;
+            
+        async function testRegistration() {
+            const data = {
+                fullName: 'Test User ' + Date.now(),
+                email: 'test' + Date.now() + '@example.com',
+                personalCompany: 'Test Company',
+                isAdmin: false,
+                permissions: ['D'],
+                companyName: '',
+                parentCompanyId: null
+            };
+            
+            try {
+                console.log('Sending:', data);
+                const response = await fetch(`${API_BASE}/admin_licenses.php`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                const text = await response.text();
+                console.log('Raw response:', text);
+                
+                document.getElementById('reg-result').textContent = 
+                    'Status: ' + response.status + '\n' +
+                    'Response: ' + text;
+                    
+                try {
+                    const json = JSON.parse(text);
+                    console.log('Parsed JSON:', json);
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                }
+                
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('reg-result').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        async function testDeletion() {
+            const userId = document.getElementById('user-id').value;
+            
+            try {
+                console.log('Deleting user:', userId);
+                const response = await fetch(`${API_BASE}/admin_users.php`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'delete_user',
+                        user_id: parseInt(userId)
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                const text = await response.text();
+                console.log('Raw response:', text);
+                
+                document.getElementById('del-result').textContent = 
+                    'Status: ' + response.status + '\n' +
+                    'Response: ' + text;
+                    
+            } catch (error) {
+                console.error('Delete error:', error);
+                document.getElementById('del-result').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
