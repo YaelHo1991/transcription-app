@@ -33,14 +33,14 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
     const mediaPlayerContainer = document.getElementById('mediaPlayerContainer');
     if (mediaPlayerContainer) {
       const rect = mediaPlayerContainer.getBoundingClientRect();
-      // Position video cube to the left of media player with some padding
+      // Position video cube to the right of media player with some padding
       return {
-        x: Math.max(20, rect.left - 270), // 250px width + 20px gap
+        x: rect.right + 20, // Position to the right of media player + gap
         y: rect.top + 20 // Align with media player top + padding
       };
     }
-    // Fallback position
-    return { x: 20, y: 20 };
+    // Fallback position - right side of screen
+    return { x: window.innerWidth - 270, y: 20 };
   };
 
   const getDefaultSize = (): Size => {

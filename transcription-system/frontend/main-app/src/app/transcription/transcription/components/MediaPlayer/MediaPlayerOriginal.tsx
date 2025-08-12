@@ -492,7 +492,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const handleVideoCubeClose = () => {
     setShowVideo(false);
     setShowVideoCube(false);
-    setVideoMinimized(false);
+    setVideoMinimized(true); // Set to true so restore button appears
   };
 
   const handleVideoRestore = () => {

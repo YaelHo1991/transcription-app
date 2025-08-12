@@ -2084,10 +2084,12 @@
             color: rgba(255, 255, 255, 0.8);
         }
         
-        /* Media player container adjustment when video is active - removed margin adjustment */
+        /* Media player container adjustment when video is active */
         .media-player-container.video-active {
-            /* Video cube now positions itself relative to media player */
-            /* No need to adjust media player margins */
+            width: calc(100% - 270px) !important; /* Leave space for video cube (250px + 20px gap) */
+            max-width: calc(100% - 270px) !important;
+            margin-right: 270px !important; /* Push container to the left, leave space on right */
+            margin-left: 0 !important;
         }
         
         /* Video Cube Styles */
