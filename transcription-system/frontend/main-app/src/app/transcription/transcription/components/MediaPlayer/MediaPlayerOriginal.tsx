@@ -6,9 +6,11 @@ import { WorkerManager } from './workers/workerManager';
 import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import ShortcutsTab from './ShortcutsTab';
 import PedalTab from './PedalTab';
+import AutoDetectTab from './AutoDetectTab';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
+import './autodetect-styles.css';
 
 interface MediaPlayerProps {
   initialMedia?: MediaFile;
@@ -56,6 +58,10 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   
   // Pedal settings
   const [pedalEnabled, setPedalEnabled] = useState(true);
+  
+  // Auto-detect settings
+  const [autoDetectEnabled, setAutoDetectEnabled] = useState(false);
+  const [autoDetectMode, setAutoDetectMode] = useState<'regular' | 'enhanced'>('regular');
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
@@ -336,12 +342,19 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         });
         break;
       case 'toggleAutoDetect':
-        // Will be implemented in Stage 3
-        showGlobalStatus('זיהוי אוטומטי: יושם בשלב 3');
+        setAutoDetectEnabled(prev => {
+          const newEnabled = !prev;
+          showGlobalStatus(`זיהוי אוטומטי: ${newEnabled ? 'פעיל' : 'כבוי'}`);
+          return newEnabled;
+        });
         break;
       case 'toggleMode':
-        // Will be implemented in Stage 3 - switch between regular and enhanced auto-detect modes
-        showGlobalStatus('מצב עבודה: יושם בשלב 3');
+        // Toggle between regular and enhanced auto-detect modes
+        setAutoDetectMode(prev => {
+          const newMode = prev === 'regular' ? 'enhanced' : 'regular';
+          showGlobalStatus(`מצב זיהוי: ${newMode === 'regular' ? 'רגיל' : 'משופר'}`);
+          return newMode;
+        });
         break;
       
       // Special Functions
@@ -871,13 +884,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             
             {/* Auto-detect Tab */}
             <div className={`settings-tab-content ${activeTab === 'autodetect' ? 'active' : ''}`} id="autodetect-tab">
-              <div className="auto-detect-container">
-                <div className="media-auto-detect-header">
-                  <h3>🎯 זיהוי אוטומטי</h3>
-                  <p className="auto-detect-hint">עצירה והפעלה אוטומטית בזמן הקלדה</p>
-                </div>
-                {/* Auto-detect content will go here */}
-              </div>
+              <AutoDetectTab
+                autoDetectEnabled={autoDetectEnabled}
+                onAutoDetectEnabledChange={setAutoDetectEnabled}
+                onModeChange={setAutoDetectMode}
+                isPlaying={isPlaying}
+                onPlayPause={togglePlayPause}
+                onRewind={handleRewind}
+              />
             </div>
           </div>
         </div>

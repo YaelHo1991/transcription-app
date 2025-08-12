@@ -1,0 +1,289 @@
+/* Auto-detect Tab Styles - EXACT COPY from original styles.css */
+
+.auto-detect-container {
+  padding: 10px;
+  margin-top: 20px;
+}
+
+.media-auto-detect-header {
+  margin-bottom: 25px;
+  text-align: center;
+  position: relative;
+}
+
+.media-auto-detect-header h3 {
+  color: #e0f7f7;
+  font-size: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.auto-detect-hint {
+  color: rgba(224, 247, 247, 0.7);
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+
+.media-auto-detect-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auto-detect-mode-section {
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.auto-detect-mode-section h3 {
+  color: #20c997;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.auto-detect-mode-options {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.mode-option {
+  flex: 1;
+  cursor: pointer;
+  max-width: 200px;
+}
+
+.mode-option input[type="radio"] {
+  display: none;
+}
+
+.mode-card {
+  background: rgba(15, 76, 76, 0.6);
+  border: 2px solid rgba(32, 201, 151, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 140px;
+}
+
+.mode-option input[type="radio"]:checked ~ .mode-card {
+  background: rgba(32, 201, 151, 0.2);
+  border-color: #20c997;
+  box-shadow: 0 0 15px rgba(32, 201, 151, 0.3);
+}
+
+.mode-card:hover {
+  border-color: rgba(32, 201, 151, 0.5);
+  transform: translateY(-2px);
+}
+
+.mode-icon {
+  font-size: 32px;
+  display: block;
+}
+
+.mode-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e0f7f7;
+}
+
+.mode-description {
+  font-size: 12px;
+  color: rgba(224, 247, 247, 0.7);
+  line-height: 1.4;
+}
+
+.auto-detect-settings-section {
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.auto-detect-settings-section h3 {
+  color: #20c997;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.auto-detect-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.setting-item label {
+  color: #e0f7f7;
+  font-size: 14px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.auto-detect-input {
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #e0f7f7;
+  font-size: 14px;
+  width: 120px;
+  direction: ltr;
+  text-align: center;
+}
+
+.auto-detect-input:focus {
+  outline: none;
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
+.auto-detect-status-section {
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.auto-detect-status-section h3 {
+  color: #20c997;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.auto-detect-status {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(15, 76, 76, 0.6);
+  border-radius: 8px;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.status-indicator.active {
+  background: rgba(32, 201, 151, 0.2);
+  border: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.status-icon {
+  font-size: 20px;
+  transition: color 0.3s ease;
+}
+
+.status-text {
+  color: #e0f7f7;
+  font-size: 14px;
+}
+
+.enhanced-mode-status {
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Regular and Enhanced mode settings visibility */
+.regular-mode-settings,
+.enhanced-mode-settings {
+  width: 100%;
+}
+
+/* Checkbox label styling */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #e0f7f7;
+  font-size: 14px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #20c997;
+}
+
+/* Make sure rewind settings match other tabs */
+.rewind-on-pause-section {
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.rewind-on-pause-section h4 {
+  color: #20c997;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.rewind-on-pause-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.rewind-on-pause-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rewind-amount-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.3s ease;
+}
+
+.rewind-amount-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.rewind-amount-container label {
+  color: #e0f7f7;
+  font-size: 14px;
+}
+
+.rewind-amount-input {
+  width: 80px;
+  padding: 6px 10px;
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.5);
+  border-radius: 6px;
+  color: #e0f7f7;
+  font-size: 14px;
+  direction: ltr;
+  text-align: center;
+}
+
+.rewind-amount-input:focus {
+  outline: none;
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}

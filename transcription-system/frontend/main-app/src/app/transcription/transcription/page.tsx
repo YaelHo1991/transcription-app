@@ -11,6 +11,7 @@ import UploadOptionsModal from './components/UploadOptionsModal/UploadOptionsMod
 import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayerOriginal from './components/MediaPlayer/MediaPlayerOriginal';
+import TestTextEditor from './components/TestTextEditor';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -329,16 +330,8 @@ export default function TranscriptionWorkPage() {
               }}
             />
 
-            {/* TextEditor Placeholder */}
-            <div className="placeholder-container text-editor">
-              <div className="placeholder-header">
-                <span className="placeholder-icon">📝</span>
-                <h3>Text Editor</h3>
-              </div>
-              <div className="placeholder-content">
-                Rich text editor, speaker blocks, timestamps, auto-corrections
-              </div>
-            </div>
+            {/* Test Text Editor for auto-detect testing */}
+            <TestTextEditor />
           </div>
 
           {/* Side Workspace */}
