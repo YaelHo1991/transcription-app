@@ -71,6 +71,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const [waveformLoading, setWaveformLoading] = useState(false);
   const [waveformProgress, setWaveformProgress] = useState(0);
   const [showWaveform, setShowWaveform] = useState(true);
+  const [waveformEnabled, setWaveformEnabled] = useState(true); // Toggle for waveform vs regular progress bar
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
@@ -431,7 +432,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
   // Analyze waveform for loaded media
   const analyzeWaveform = useCallback(async (url: string) => {
-    if (!workerManagerRef.current || !showWaveform) return;
+    if (!workerManagerRef.current || !showWaveform || !waveformEnabled) return;
     
     try {
       setWaveformLoading(true);
@@ -461,7 +462,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       setWaveformLoading(false);
       setWaveformProgress(0);
     }
-  }, [showWaveform]);
+  }, [showWaveform, waveformEnabled]);
 
   // Load media
   useEffect(() => {
@@ -850,7 +851,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             )}
             
             {/* Waveform Progress Bar (middle) */}
-            {showWaveform && waveformData ? (
+            {waveformEnabled && showWaveform && waveformData ? (
               <div className="waveform-progress-wrapper" style={{ flex: 1 }}>
                 <WaveformCanvas
                   waveformData={waveformData}
@@ -868,7 +869,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                 onClick={handleProgressClick}
                 style={{ flex: 1 }}
               >
-                {waveformLoading ? (
+                {waveformEnabled && waveformLoading ? (
                   <div className="waveform-loading-bar">
                     <div 
                       className="waveform-progress-fill"
@@ -1007,6 +1008,16 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           </button>
         )}
         
+        {/* Waveform Toggle Button */}
+        <button 
+          className="settings-btn" 
+          id="waveformToggleBtn" 
+          title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
+          onClick={() => setWaveformEnabled(!waveformEnabled)}
+        >
+          {waveformEnabled ? "📊" : "▬"}
+        </button>
+
         {/* Settings Button */}
         <button 
           className="settings-btn" 
