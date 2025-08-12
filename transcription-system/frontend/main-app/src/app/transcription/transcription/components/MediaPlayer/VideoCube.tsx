@@ -25,7 +25,7 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
-  const [initialSize, setInitialSize] = useState<Size>({ width: 250, height: 250 });
+  const [initialSize, setInitialSize] = useState<Size>({ width: 350, height: 280 });
   const [initialMousePos, setInitialMousePos] = useState<Position>({ x: 0, y: 0 });
 
   // Calculate default position aligned with media player
@@ -35,16 +35,17 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
       const rect = mediaPlayerContainer.getBoundingClientRect();
       // Position video cube to the right of media player with some padding
       return {
-        x: rect.right + 20, // Position to the right of media player + gap
-        y: rect.top + 20 // Align with media player top + padding
+        x: rect.right + 30, // Position to the right of media player + larger gap
+        y: rect.top // Align exactly with media player top
       };
     }
-    // Fallback position - right side of screen
-    return { x: window.innerWidth - 270, y: 20 };
+    // Fallback position - right side of screen with larger cube size
+    return { x: window.innerWidth - 380, y: 20 };
   };
 
   const getDefaultSize = (): Size => {
-    return { width: 250, height: 250 };
+    // Make video cube larger and more proportional
+    return { width: 350, height: 280 };
   };
 
   const [position, setPosition] = useState<Position>(getDefaultPosition());
@@ -156,8 +157,8 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
         const deltaX = e.clientX - initialMousePos.x;
         const deltaY = e.clientY - initialMousePos.y;
         
-        const newWidth = Math.max(200, initialSize.width + deltaX);
-        const newHeight = Math.max(150, initialSize.height + deltaY);
+        const newWidth = Math.max(280, initialSize.width + deltaX);
+        const newHeight = Math.max(200, initialSize.height + deltaY);
         
         const newSize = { width: newWidth, height: newHeight };
         setSize(newSize);
