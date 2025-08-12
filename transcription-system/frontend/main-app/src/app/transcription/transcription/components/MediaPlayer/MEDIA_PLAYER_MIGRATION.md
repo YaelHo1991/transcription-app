@@ -11,21 +11,21 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [x] Delete test-route file
 - [x] Initialize git repository  
 - [x] Create MEDIA_PLAYER_MIGRATION.md tracking file
-- [ ] Initial git commit
+- [x] Initial git commit
 
-### Stage 1: Keyboard Shortcuts
-- [ ] Import all shortcuts from original HTML
-  - [ ] Playback Control (Play/Pause, Stop)
-  - [ ] Navigation (Skip forward/backward 2.5s, 5s)
-  - [ ] Jump controls (Start, End)
-  - [ ] Volume controls (Up, Down, Mute)
-  - [ ] Speed controls (Up, Down, Reset)
-  - [ ] Mode toggles (Shortcuts, Pedal, AutoDetect)
-- [ ] Implement global keyboard event handlers
-- [ ] Add visual feedback for active shortcuts
-- [ ] Enable/disable toggle functionality
-- [ ] Custom key binding functionality
-- [ ] Test all shortcuts
+### Stage 1: Keyboard Shortcuts ✅
+- [x] Import all shortcuts from original HTML
+  - [x] Playback Control (Play/Pause, Stop)
+  - [x] Navigation (Skip forward/backward 2.5s, 5s)
+  - [x] Jump controls (Start, End)
+  - [x] Volume controls (Up, Down, Mute)
+  - [x] Speed controls (Up, Down, Reset)
+  - [x] Mode toggles (Shortcuts, Pedal, AutoDetect)
+- [x] Implement global keyboard event handlers
+- [x] Add visual feedback for active shortcuts
+- [x] Enable/disable toggle functionality
+- [x] Custom key binding functionality
+- [x] Test all shortcuts
 - [ ] Git commit
 
 ### Stage 2: Pedal Integration

@@ -29,6 +29,7 @@ export interface KeyboardShortcut {
   action: string;
   description: string;
   enabled: boolean;
+  group?: string;
 }
 
 export interface AutoDetectSettings {
@@ -60,6 +61,7 @@ export interface RewindOnPauseSettings {
 
 export interface MediaPlayerSettings {
   shortcuts: KeyboardShortcut[];
+  shortcutsEnabled: boolean;
   autoDetect: AutoDetectSettings;
   pedal: PedalSettings;
   rewindOnPause: RewindOnPauseSettings;

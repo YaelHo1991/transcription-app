@@ -6,6 +6,7 @@ import WaveformCanvas from './WaveformCanvas';
 import MediaControls from './MediaControls';
 import SettingsModal from './SettingsModal';
 import VideoDisplay from './VideoDisplay';
+import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import { WorkerManager } from './workers/workerManager';
 import './MediaPlayer.css';
 
@@ -50,22 +51,10 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       }
     }
     
-    // Default settings
+    // Default settings with all shortcuts from original player
     return {
-      shortcuts: [
-        { key: 'Space', action: 'playPause', description: 'נגן/השהה', enabled: true },
-        { key: 'ArrowLeft', action: 'rewind5', description: 'חזור 5 שניות', enabled: true },
-        { key: 'ArrowRight', action: 'forward5', description: 'קדימה 5 שניות', enabled: true },
-        { key: 'Shift+ArrowLeft', action: 'rewind2.5', description: 'חזור 2.5 שניות', enabled: true },
-        { key: 'Shift+ArrowRight', action: 'forward2.5', description: 'קדימה 2.5 שניות', enabled: true },
-        { key: 'm', action: 'toggleMute', description: 'השתק/בטל השתקה', enabled: true },
-        { key: 'ArrowUp', action: 'volumeUp', description: 'הגבר עוצמה', enabled: true },
-        { key: 'ArrowDown', action: 'volumeDown', description: 'הנמך עוצמה', enabled: true },
-        { key: '1', action: 'speed0.5', description: 'מהירות 0.5x', enabled: true },
-        { key: '2', action: 'speed1', description: 'מהירות רגילה', enabled: true },
-        { key: '3', action: 'speed1.5', description: 'מהירות 1.5x', enabled: true },
-        { key: '4', action: 'speed2', description: 'מהירות 2x', enabled: true },
-      ],
+      shortcuts: defaultShortcuts,
+      shortcutsEnabled: true,
       autoDetect: {
         enabled: false,
         mode: 'regular',
@@ -227,6 +216,103 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   }, [state.currentTime]);
 
+  // Handle keyboard shortcut actions
+  const handleShortcutAction = useCallback((action: string) => {
+    const mediaElement = currentMedia?.type === 'video' ? videoRef.current : audioRef.current;
+    if (!mediaElement && action !== 'openSettings') return;
+
+    switch (action) {
+      // Playback Control
+      case 'playPause':
+        togglePlayPause();
+        break;
+      case 'stop':
+        pause();
+        seek(0);
+        break;
+      
+      // Navigation
+      case 'rewind5':
+        seek(Math.max(0, state.currentTime - 5));
+        break;
+      case 'forward5':
+        seek(Math.min(state.duration, state.currentTime + 5));
+        break;
+      case 'rewind2_5':
+        seek(Math.max(0, state.currentTime - 2.5));
+        break;
+      case 'forward2_5':
+        seek(Math.min(state.duration, state.currentTime + 2.5));
+        break;
+      case 'jumpToStart':
+        seek(0);
+        break;
+      case 'jumpToEnd':
+        seek(state.duration);
+        break;
+      
+      // Volume & Speed
+      case 'volumeUp':
+        setVolume(Math.min(1, state.volume + 0.1));
+        break;
+      case 'volumeDown':
+        setVolume(Math.max(0, state.volume - 0.1));
+        break;
+      case 'mute':
+        setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
+        if (mediaElement) mediaElement.muted = !mediaElement.muted;
+        break;
+      case 'speedUp':
+        setPlaybackRate(Math.min(3, state.playbackRate + 0.25));
+        break;
+      case 'speedDown':
+        setPlaybackRate(Math.max(0.25, state.playbackRate - 0.25));
+        break;
+      case 'speedReset':
+        setPlaybackRate(1);
+        break;
+      
+      // Work Modes
+      case 'toggleShortcuts':
+        setSettings(prev => ({ ...prev, shortcutsEnabled: !prev.shortcutsEnabled }));
+        break;
+      case 'togglePedal':
+        setSettings(prev => ({ ...prev, pedal: { ...prev.pedal, enabled: !prev.pedal.enabled } }));
+        break;
+      case 'toggleAutoDetect':
+        setSettings(prev => ({ ...prev, autoDetect: { ...prev.autoDetect, enabled: !prev.autoDetect.enabled } }));
+        break;
+      
+      // Special Functions
+      case 'openSettings':
+        setShowSettings(true);
+        break;
+      case 'insertTimestamp':
+        const timestamp = getTimestamp();
+        if (onTimestampCopy) {
+          onTimestampCopy(timestamp);
+        } else {
+          // Copy to clipboard
+          navigator.clipboard.writeText(timestamp);
+        }
+        break;
+      
+      // Video Mode
+      case 'toggleVideo':
+        setShowVideo(prev => !prev);
+        break;
+      case 'toggleFullscreen':
+        if (showVideo && videoRef.current) {
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            videoRef.current.requestFullscreen();
+          }
+        }
+        break;
+    }
+  }, [currentMedia, togglePlayPause, pause, seek, setVolume, setPlaybackRate, state, getTimestamp, onTimestampCopy, setSettings, showVideo]);
+
   // Setup global API
   useEffect(() => {
     const api: MediaPlayerAPI = {
@@ -310,6 +396,11 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
   return (
     <div className="media-player-container" dir="rtl">
+      <KeyboardShortcuts
+        shortcuts={settings.shortcuts}
+        enabled={settings.shortcutsEnabled}
+        onAction={handleShortcutAction}
+      />
       <audio ref={audioRef} style={{ display: 'none' }} />
       {showVideo && <VideoDisplay videoRef={videoRef as React.RefObject<HTMLVideoElement>} />}
       
