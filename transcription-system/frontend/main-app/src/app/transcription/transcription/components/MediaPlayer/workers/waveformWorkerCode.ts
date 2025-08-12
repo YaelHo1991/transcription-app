@@ -5,8 +5,8 @@ export const waveformWorkerCode = `
 let isProcessing = false;
 let shouldCancel = false;
 
-// Process audio buffer and extract waveform peaks
-async function analyzeAudioBuffer(audioBuffer, sampleRate) {
+// Process already decoded channel data and extract waveform peaks
+function analyzeChannelData(channelDataBuffer, sampleRate, duration) {
   try {
     isProcessing = true;
     shouldCancel = false;
@@ -17,18 +17,13 @@ async function analyzeAudioBuffer(audioBuffer, sampleRate) {
       data: { progress: 0 }
     });
 
-    // Decode audio data using OfflineAudioContext for better performance
-    const audioContext = new OfflineAudioContext(1, 1, sampleRate);
-    const decodedData = await audioContext.decodeAudioData(audioBuffer.slice(0));
+    // Convert ArrayBuffer back to Float32Array
+    const channelData = new Float32Array(channelDataBuffer);
 
     if (shouldCancel) {
       isProcessing = false;
       return;
     }
-
-    // Get audio channel data
-    const channelData = decodedData.getChannelData(0);
-    const duration = decodedData.duration;
     
     // Calculate resolution - aim for ~2000 points for smooth visualization
     const targetPoints = 2000;
@@ -103,13 +98,13 @@ async function analyzeAudioBuffer(audioBuffer, sampleRate) {
 }
 
 // Handle messages from main thread
-self.onmessage = async (event) => {
-  const { type, audioBuffer, sampleRate } = event.data;
+self.onmessage = (event) => {
+  const { type, channelDataBuffer, sampleRate, duration } = event.data;
 
   switch (type) {
     case 'ANALYZE':
-      if (!isProcessing && audioBuffer && sampleRate) {
-        await analyzeAudioBuffer(audioBuffer, sampleRate);
+      if (!isProcessing && channelDataBuffer && sampleRate && duration) {
+        analyzeChannelData(channelDataBuffer, sampleRate, duration);
       }
       break;
 

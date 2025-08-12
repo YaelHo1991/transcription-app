@@ -438,12 +438,23 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       setWaveformProgress(0);
       setWaveformData(null);
 
-      // Fetch audio buffer
+      // Fetch and decode audio on main thread (Web Workers don't have access to Web Audio API)
       const response = await fetch(url);
       const arrayBuffer = await response.arrayBuffer();
 
-      // Analyze waveform
-      workerManagerRef.current.analyzeWaveform(arrayBuffer, 44100);
+      // Create AudioContext on main thread to decode audio
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const decodedData = await audioContext.decodeAudioData(arrayBuffer.slice());
+
+      // Get channel data and pass to worker for peak extraction
+      const channelData = decodedData.getChannelData(0);
+      const duration = decodedData.duration;
+      
+      // Close the audio context to free resources
+      audioContext.close();
+
+      // Send decoded audio data to worker for peak analysis
+      workerManagerRef.current.analyzeWaveform(channelData.buffer, decodedData.sampleRate, duration);
       
     } catch (error) {
       console.error('Failed to load audio for waveform analysis:', error);

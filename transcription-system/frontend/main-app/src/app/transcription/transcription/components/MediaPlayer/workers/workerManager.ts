@@ -77,14 +77,15 @@ export class WorkerManager {
   }
 
   // Waveform worker methods
-  analyzeWaveform(audioBuffer: ArrayBuffer, sampleRate: number) {
+  analyzeWaveform(channelDataBuffer: ArrayBuffer, sampleRate: number, duration: number) {
     if (!this.waveformWorker) return;
 
     this.waveformWorker.postMessage({
       type: 'ANALYZE',
-      audioBuffer,
-      sampleRate
-    }, [audioBuffer]); // Transfer ownership for better performance
+      channelDataBuffer,
+      sampleRate,
+      duration
+    }, [channelDataBuffer]); // Transfer ownership for better performance
   }
 
   cancelWaveformAnalysis() {
