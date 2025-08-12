@@ -10,7 +10,7 @@ import UrlModal from './components/UrlModal/UrlModal';
 import UploadOptionsModal from './components/UploadOptionsModal/UploadOptionsModal';
 import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
-import MediaPlayer from './components/MediaPlayer/MediaPlayer';
+import MediaPlayerOriginal from './components/MediaPlayer/MediaPlayerOriginal';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -313,7 +313,7 @@ export default function TranscriptionWorkPage() {
             />
 
             {/* MediaPlayer Component */}
-            <MediaPlayer 
+            <MediaPlayerOriginal 
               initialMedia={currentMedia ? {
                 url: currentMedia.type === 'url' ? currentMedia.url! : URL.createObjectURL(currentMedia.file!),
                 name: currentMedia.name,
