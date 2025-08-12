@@ -30,6 +30,12 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
 
   // Calculate default position aligned with media player
   const getDefaultPosition = (): Position => {
+    // Check if we're on the client side
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      // Server-side fallback position
+      return { x: 20, y: 20 };
+    }
+
     const mediaPlayerContainer = document.getElementById('mediaPlayerContainer');
     if (mediaPlayerContainer) {
       const rect = mediaPlayerContainer.getBoundingClientRect();
@@ -48,11 +54,12 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
     return { width: 280, height: 220 };
   };
 
-  const [position, setPosition] = useState<Position>(getDefaultPosition());
+  const [position, setPosition] = useState<Position>({ x: 20, y: 20 }); // Safe initial position
   const [size, setSize] = useState<Size>(getDefaultSize());
 
-  // Load saved position and size from localStorage
+  // Load saved position and size from localStorage (client-side only)
   useEffect(() => {
+    // This runs only on the client side after mounting
     const savedPosition = localStorage.getItem('videoCubePosition');
     const savedSize = localStorage.getItem('videoCubeSize');
     
@@ -62,9 +69,11 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
         setPosition(pos);
       } catch (e) {
         console.warn('Failed to load video cube position:', e);
+        // Call getDefaultPosition only on client side
         setPosition(getDefaultPosition());
       }
     } else {
+      // Call getDefaultPosition only on client side
       setPosition(getDefaultPosition());
     }
     
@@ -92,21 +101,25 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
 
   // Restore to default position and size
   const handleRestore = () => {
-    const defaultPos = getDefaultPosition();
-    const defaultSize = getDefaultSize();
-    setPosition(defaultPos);
-    setSize(defaultSize);
-    savePosition(defaultPos);
-    saveSize(defaultSize);
+    if (typeof document !== 'undefined') {
+      const defaultPos = getDefaultPosition();
+      const defaultSize = getDefaultSize();
+      setPosition(defaultPos);
+      setSize(defaultSize);
+      savePosition(defaultPos);
+      saveSize(defaultSize);
+    }
     onRestore();
   };
 
   // Close cube and reset to defaults for next time
   const handleClose = () => {
-    const defaultPos = getDefaultPosition();
-    const defaultSize = getDefaultSize();
-    savePosition(defaultPos);
-    saveSize(defaultSize);
+    if (typeof document !== 'undefined') {
+      const defaultPos = getDefaultPosition();
+      const defaultSize = getDefaultSize();
+      savePosition(defaultPos);
+      saveSize(defaultSize);
+    }
     onClose();
   };
 
