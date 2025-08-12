@@ -28,7 +28,14 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [x] Test keyboard shortcuts integration with original player
 - [x] Git commit
 
-### Stage 2: Pedal Integration
+### Stage 2: Pedal Integration (In Progress)
+- [ ] Import exact pedal tab layout from original HTML
+  - [ ] Header with toggle (same positioning as shortcuts tab)
+  - [ ] Connection status section
+  - [ ] Visual pedal interface with 3 buttons
+  - [ ] Button mapping dropdowns
+  - [ ] Continuous press settings
+  - [ ] Rewind on pause settings
 - [ ] Implement WebHID API connection
 - [ ] Add HTTPS detection
 - [ ] User notifications for HTTPS requirement
@@ -40,10 +47,19 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
   - [ ] Right button configuration
 - [ ] Continuous press functionality
 - [ ] Rewind on pause feature
-- [ ] Visual pedal interface
 - [ ] Connection status display
-- [ ] Test pedal functionality
+- [ ] Test pedal functionality locally
 - [ ] Git commit
+
+### Stage 2.5: Digital Ocean Deployment & HTTPS Testing
+- [ ] Deploy current version to Digital Ocean
+- [ ] Configure HTTPS with yalitranscription.duckdns.org
+- [ ] Test pedal connection over HTTPS
+- [ ] Verify WebHID API works properly
+- [ ] Test HTTP-to-HTTPS redirect
+- [ ] Confirm all shortcuts still work
+- [ ] Document any deployment issues
+- [ ] Git commit deployment configuration
 
 ### Stage 3: Auto-Detect Typing
 - [ ] Implement typing detection logic

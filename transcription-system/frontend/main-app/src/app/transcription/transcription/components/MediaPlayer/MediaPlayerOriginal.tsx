@@ -5,8 +5,10 @@ import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI } from
 import { WorkerManager } from './workers/workerManager';
 import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import ShortcutsTab from './ShortcutsTab';
+import PedalTab from './PedalTab';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
+import './pedal-styles.css';
 
 interface MediaPlayerProps {
   initialMedia?: MediaFile;
@@ -49,6 +51,9 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     shortcutsEnabled: true,
     rewindOnPause: { enabled: false, amount: 0.5 }
   });
+  
+  // Pedal settings
+  const [pedalEnabled, setPedalEnabled] = useState(true);
 
   // Format time
   const formatTime = (time: number) => {
@@ -241,8 +246,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: !prev.shortcutsEnabled }));
         break;
       case 'togglePedal':
-        // Will be implemented in Stage 2
-        console.log('Pedal toggle - to be implemented in Stage 2');
+        setPedalEnabled(prev => !prev);
         break;
       case 'toggleAutoDetect':
         // Will be implemented in Stage 3
@@ -754,13 +758,10 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             
             {/* Pedal Tab */}
             <div className={`settings-tab-content ${activeTab === 'pedal' ? 'active' : ''}`} id="pedal-tab">
-              <div className="pedal-settings-container">
-                <div className="media-pedal-header">
-                  <h3>🦶 דוושת רגל</h3>
-                  <p className="pedal-hint">חבר דוושת USB לשליטה ללא ידיים</p>
-                </div>
-                {/* Pedal content will go here */}
-              </div>
+              <PedalTab
+                pedalEnabled={pedalEnabled}
+                onPedalEnabledChange={setPedalEnabled}
+              />
             </div>
             
             {/* Auto-detect Tab */}
