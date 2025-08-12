@@ -44,7 +44,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   
   // Keyboard shortcuts settings
   const [keyboardSettings, setKeyboardSettings] = useState({
-    shortcuts: defaultShortcuts,
+    shortcuts: defaultShortcuts || [],
     shortcutsEnabled: true,
     rewindOnPause: { enabled: false, amount: 0.5 }
   });
@@ -519,7 +519,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
               <input
                 type="text"
                 className="time-display editable"
-                value={editTimeValue}
+                value={editTimeValue || ''}
                 onChange={handleTimeEditChange}
                 onKeyDown={handleTimeEditKeyDown}
                 onBlur={handleTimeEditBlur}
@@ -570,7 +570,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
               <input
                 type="text"
                 className="time-display editable"
-                value={editTimeValue}
+                value={editTimeValue || ''}
                 onChange={handleTimeEditChange}
                 onKeyDown={handleTimeEditKeyDown}
                 onBlur={handleTimeEditBlur}
@@ -634,7 +634,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                 id="volumeSlider" 
                 min="0" 
                 max="100" 
-                value={isMuted ? 0 : volume} 
+                value={isMuted ? 0 : (volume || 0)} 
                 title="עוצמת קול"
                 onChange={handleVolumeChange}
               />
@@ -658,7 +658,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                 id="speedSlider" 
                 min="50" 
                 max="200" 
-                value={playbackRate * 100} 
+                value={(playbackRate || 1) * 100} 
                 step="5" 
                 title="מהירות הפעלה"
                 onChange={handleSpeedChange}
