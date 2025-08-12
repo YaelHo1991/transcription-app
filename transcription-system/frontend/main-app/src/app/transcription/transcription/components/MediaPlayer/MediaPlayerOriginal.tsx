@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI } from './types';
 import { WorkerManager } from './workers/workerManager';
 import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
+import ShortcutsTab from './ShortcutsTab';
 import './MediaPlayer.css';
 
 interface MediaPlayerProps {
@@ -44,7 +45,8 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   // Keyboard shortcuts settings
   const [keyboardSettings, setKeyboardSettings] = useState({
     shortcuts: defaultShortcuts,
-    shortcutsEnabled: true
+    shortcutsEnabled: true,
+    rewindOnPause: { enabled: false, amount: 0.5 }
   });
 
   // Format time
@@ -734,13 +736,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           <div className="settings-modal-content">
             {/* Shortcuts Tab */}
             <div className={`settings-tab-content ${activeTab === 'shortcuts' ? 'active' : ''}`} id="shortcuts-tab">
-              <div className="shortcuts-config">
-                <div className="media-shortcuts-header">
-                  <h3>⌨️ קיצורי מקלדת</h3>
-                  <p className="shortcuts-hint">לחץ על קיצור כדי לשנות אותו</p>
-                </div>
-                {/* Shortcuts content will go here */}
-              </div>
+              <ShortcutsTab
+                shortcuts={keyboardSettings.shortcuts}
+                shortcutsEnabled={keyboardSettings.shortcutsEnabled}
+                rewindOnPause={keyboardSettings.rewindOnPause}
+                onShortcutsChange={(shortcuts) => setKeyboardSettings(prev => ({ ...prev, shortcuts }))}
+                onShortcutsEnabledChange={(enabled) => setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: enabled }))}
+                onRewindOnPauseChange={(rewindSettings) => setKeyboardSettings(prev => ({ ...prev, rewindOnPause: rewindSettings }))}
+              />
             </div>
             
             {/* Pedal Tab */}
