@@ -25,7 +25,7 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
-  const [initialSize, setInitialSize] = useState<Size>({ width: 280, height: 220 });
+  const [initialSize, setInitialSize] = useState<Size>({ width: 320, height: 280 });
   const [initialMousePos, setInitialMousePos] = useState<Position>({ x: 0, y: 0 });
 
   // Calculate default position aligned with media player
@@ -45,13 +45,13 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
         y: rect.top // Align exactly with media player top
       };
     }
-    // Fallback position - right side of screen with adjusted cube size
-    return { x: window.innerWidth - 300, y: 20 };
+    // Fallback position - right side of screen with larger cube size
+    return { x: window.innerWidth - 350, y: 20 };
   };
 
   const getDefaultSize = (): Size => {
-    // Balanced size - larger than original but not too big
-    return { width: 280, height: 220 };
+    // Larger size to accommodate taller media player with waveform
+    return { width: 320, height: 280 };
   };
 
   const [position, setPosition] = useState<Position>({ x: 20, y: 20 }); // Safe initial position
@@ -170,8 +170,8 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
         const deltaX = e.clientX - initialMousePos.x;
         const deltaY = e.clientY - initialMousePos.y;
         
-        const newWidth = Math.max(250, initialSize.width + deltaX);
-        const newHeight = Math.max(180, initialSize.height + deltaY);
+        const newWidth = Math.max(280, initialSize.width + deltaX);
+        const newHeight = Math.max(220, initialSize.height + deltaY);
         
         const newSize = { width: newWidth, height: newHeight };
         setSize(newSize);

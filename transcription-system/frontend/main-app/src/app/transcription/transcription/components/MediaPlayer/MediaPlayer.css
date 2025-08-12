@@ -2086,9 +2086,9 @@
         
         /* Media player container adjustment when video is active */
         .media-player-container.video-active {
-            width: calc(100% - 300px) !important; /* Leave space for video cube (280px + 20px gap) */
-            max-width: calc(100% - 300px) !important;
-            margin-right: 300px !important; /* Push container to the left, leave space on right */
+            width: calc(100% - 350px) !important; /* Leave space for video cube (320px + 30px gap) */
+            max-width: calc(100% - 350px) !important;
+            margin-right: 350px !important; /* Push container to the left, leave space on right */
             margin-left: 0 !important;
         }
         
