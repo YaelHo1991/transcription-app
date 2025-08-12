@@ -1088,12 +1088,6 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         onClose={handleVideoCubeClose}
       />
 
-      {/* Keyboard Shortcuts Handler */}
-      <KeyboardShortcuts 
-        shortcuts={keyboardSettings.shortcuts} 
-        enabled={keyboardSettings.enabled}
-        onAction={handleAction} 
-      />
     </>
   );
 }
