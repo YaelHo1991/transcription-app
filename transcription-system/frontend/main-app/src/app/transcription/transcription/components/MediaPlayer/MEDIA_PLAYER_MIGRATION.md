@@ -28,30 +28,33 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [x] Test keyboard shortcuts integration with original player
 - [x] Git commit
 
-### Stage 2: Pedal Integration (In Progress)
-- [ ] Import exact pedal tab layout from original HTML
-  - [ ] Header with toggle (same positioning as shortcuts tab)
-  - [ ] Connection status section
-  - [ ] Visual pedal interface with 3 buttons
-  - [ ] Button mapping dropdowns
-  - [ ] Continuous press settings
-  - [ ] Rewind on pause settings
-- [ ] Implement WebHID API connection
-- [ ] Add HTTPS detection
-- [ ] User notifications for HTTPS requirement
-- [ ] Configure for yalitranscription.duckdns.org domain
-- [ ] HTTP-to-HTTPS redirect for Digital Ocean
-- [ ] Button mappings
-  - [ ] Left button configuration
-  - [ ] Center button configuration  
-  - [ ] Right button configuration
-- [ ] Continuous press functionality
-- [ ] Rewind on pause feature
-- [ ] Connection status display
-- [ ] Test pedal functionality locally
-- [ ] Git commit
+### Stage 2: Pedal Integration ✅
+- [x] Import exact pedal tab layout from original HTML
+  - [x] Header with toggle (same positioning as shortcuts tab)
+  - [x] Connection status section
+  - [x] Visual pedal interface with 3 buttons
+  - [x] Button mapping dropdowns
+  - [x] Continuous press settings
+  - [x] Rewind on pause settings
+- [x] Implement WebHID API connection
+- [x] Add HTTPS detection
+- [x] User notifications for HTTPS requirement
+- [x] Configure for yalitranscription.duckdns.org domain
+- [x] HTTP-to-HTTPS redirect for Digital Ocean
+- [x] Button mappings
+  - [x] Left button configuration (default: forward)
+  - [x] Center button configuration (default: play/pause)
+  - [x] Right button configuration (default: backward)
+- [x] Continuous press functionality
+- [x] Rewind on pause feature
+- [x] Connection status display
+- [x] Test pedal functionality locally
+- [x] Fixed dropdown state management (React closure issue)
+- [x] Fixed mute/unmute toggle functionality
+- [x] Volume controls increment by 5%
+- [x] Git commit
 
-### Stage 2.5: Digital Ocean Deployment & HTTPS Testing
+### Stage 2.5: Digital Ocean Deployment & HTTPS Testing (Skipped for now)
 - [ ] Deploy current version to Digital Ocean
 - [ ] Configure HTTPS with yalitranscription.duckdns.org
 - [ ] Test pedal connection over HTTPS
@@ -60,6 +63,7 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [ ] Confirm all shortcuts still work
 - [ ] Document any deployment issues
 - [ ] Git commit deployment configuration
+*Note: Skipping this stage temporarily to complete all features first*
 
 ### Stage 3: Auto-Detect Typing
 - [ ] Implement typing detection logic
@@ -124,6 +128,13 @@ Each tab maintains exact functionality from original:
 
 ## Notes
 - Audio mode confirmed working with RTL progress bar ✅
-- Settings tabs currently empty - implementation in progress
+- Keyboard shortcuts fully functional ✅
+- Pedal integration complete with all fixes ✅
 - Video mode needs fixing
 - All features must exactly match original HTML player functionality
+
+## Completed Fixes in Stage 2
+1. **React Closure Issues**: Fixed stale state in event handlers by reading from localStorage
+2. **Mute/Unmute Toggle**: Now checks actual audio volume instead of React state
+3. **Volume Controls**: Increments by 5% with proper initialization
+4. **Default Pedal Mapping**: Left=Forward, Right=Backward (swapped from original)
