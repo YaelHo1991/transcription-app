@@ -500,6 +500,12 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     setShowVideoCube(true);
   };
 
+  // Handle video cube restore to defaults
+  const handleVideoCubeRestore = () => {
+    // Just a callback for when restore button is clicked
+    // The VideoCube component handles the actual restore logic
+  };
+
   // Waveform seek handler
   const handleWaveformSeek = useCallback((time: number) => {
     const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
@@ -1097,6 +1103,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         isVisible={showVideoCube}
         onMinimize={handleVideoCubeMinimize}
         onClose={handleVideoCubeClose}
+        onRestore={handleVideoCubeRestore}
       />
 
     </>

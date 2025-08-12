@@ -7,6 +7,7 @@ interface VideoCubeProps {
   isVisible: boolean;
   onMinimize: () => void;
   onClose: () => void;
+  onRestore: () => void;
 }
 
 interface Position {
@@ -19,15 +20,35 @@ interface Size {
   height: number;
 }
 
-export default function VideoCube({ videoRef, isVisible, onMinimize, onClose }: VideoCubeProps) {
+export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, onRestore }: VideoCubeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<Position>({ x: 20, y: 20 });
-  const [size, setSize] = useState<Size>({ width: 250, height: 250 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [initialSize, setInitialSize] = useState<Size>({ width: 250, height: 250 });
   const [initialMousePos, setInitialMousePos] = useState<Position>({ x: 0, y: 0 });
+
+  // Calculate default position aligned with media player
+  const getDefaultPosition = (): Position => {
+    const mediaPlayerContainer = document.getElementById('mediaPlayerContainer');
+    if (mediaPlayerContainer) {
+      const rect = mediaPlayerContainer.getBoundingClientRect();
+      // Position video cube to the left of media player with some padding
+      return {
+        x: Math.max(20, rect.left - 270), // 250px width + 20px gap
+        y: rect.top + 20 // Align with media player top + padding
+      };
+    }
+    // Fallback position
+    return { x: 20, y: 20 };
+  };
+
+  const getDefaultSize = (): Size => {
+    return { width: 250, height: 250 };
+  };
+
+  const [position, setPosition] = useState<Position>(getDefaultPosition());
+  const [size, setSize] = useState<Size>(getDefaultSize());
 
   // Load saved position and size from localStorage
   useEffect(() => {
@@ -40,7 +61,10 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose }: 
         setPosition(pos);
       } catch (e) {
         console.warn('Failed to load video cube position:', e);
+        setPosition(getDefaultPosition());
       }
+    } else {
+      setPosition(getDefaultPosition());
     }
     
     if (savedSize) {
@@ -49,7 +73,10 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose }: 
         setSize(size);
       } catch (e) {
         console.warn('Failed to load video cube size:', e);
+        setSize(getDefaultSize());
       }
+    } else {
+      setSize(getDefaultSize());
     }
   }, []);
 
@@ -60,6 +87,26 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose }: 
 
   const saveSize = (size: Size) => {
     localStorage.setItem('videoCubeSize', JSON.stringify(size));
+  };
+
+  // Restore to default position and size
+  const handleRestore = () => {
+    const defaultPos = getDefaultPosition();
+    const defaultSize = getDefaultSize();
+    setPosition(defaultPos);
+    setSize(defaultSize);
+    savePosition(defaultPos);
+    saveSize(defaultSize);
+    onRestore();
+  };
+
+  // Close cube and reset to defaults for next time
+  const handleClose = () => {
+    const defaultPos = getDefaultPosition();
+    const defaultSize = getDefaultSize();
+    savePosition(defaultPos);
+    saveSize(defaultSize);
+    onClose();
   };
 
   // Dragging functionality
@@ -209,15 +256,22 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose }: 
         <div className="video-cube-controls">
           <button 
             className="video-control-btn"
+            onClick={handleRestore}
+            title="שחזר למיקום ברירת מחדל"
+          >
+            ⌂
+          </button>
+          <button 
+            className="video-control-btn"
             onClick={onMinimize}
-            title="מזער"
+            title="מזער (שמור מיקום ביקום)"
           >
             −
           </button>
           <button 
             className="video-control-btn"
-            onClick={onClose}
-            title="סגור"
+            onClick={handleClose}
+            title="סגור ואפס מיקום"
           >
             ×
           </button>
