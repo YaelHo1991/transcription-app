@@ -152,11 +152,14 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
     // to ensure all components are mounted and any other operations are complete
     if (isSecure) {
       setTimeout(() => {
-        if (autoReconnectPedalRef.current) {
+        if (autoReconnectPedalRef.current && !isConnected && !isConnecting) {
           // console.log('Starting auto-reconnect attempt...');
-          autoReconnectPedalRef.current();
+          autoReconnectPedalRef.current().catch((error) => {
+            console.error('Auto-reconnect failed:', error);
+            // Silently fail auto-reconnect - user can manually connect
+          });
         }
-      }, 1000); // Increased delay to avoid conflicts
+      }, 2000); // Increased delay further to avoid conflicts
     }
   }, []);
 
@@ -402,7 +405,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
         } catch (openError) {
           console.error('Error opening device:', openError);
           // Device might already be open from auto-reconnect
-          if (openError.name === 'InvalidStateError') {
+          if (openError instanceof Error && openError.name === 'InvalidStateError') {
             // Device already open, continuing...
           } else {
             throw openError;
@@ -486,12 +489,17 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
   };
   
   // Auto-reconnect needs to be defined after handleInputReport
-  const autoReconnectPedalRef = useRef<() => Promise<void>>();
+  const autoReconnectPedalRef = useRef<() => Promise<void>>(() => Promise.resolve());
   
   // Auto-reconnect to previously connected pedal
   const autoReconnectPedal = async () => {
     try {
       if (typeof localStorage === 'undefined') return;
+      
+      // Prevent concurrent auto-reconnect attempts
+      if (isAutoReconnecting || isConnecting || isConnected) {
+        return;
+      }
       
       const savedInfo = localStorage.getItem('pedalDeviceInfo');
       if (!savedInfo) {
@@ -563,6 +571,9 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             if (openError.name === 'InvalidStateError') {
               // Device might be in a weird state, show message to user
               showStatus('הדוושה במצב לא תקין - נסה לנתק ולחבר מחדש');
+            } else if (openError.message && openError.message.includes('operation that changes the device state is in progress')) {
+              // Device is being operated on by another process/tab
+              showStatus('הדוושה בשימוש על ידי תהליך אחר - סגור כרטיסיות אחרות');
             } else {
               showStatus('שגיאה בחיבור אוטומטי - נסה לחבר ידנית');
             }
@@ -759,15 +770,36 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
               <div className="pedal-continuous-config" id="pedal-continuous-config">
                 <label>
                   מרווח זמן בלחיצה ממושכת (שניות):
-                  <input 
-                    type="number" 
-                    id="pedal-continuous-interval"
-                    min="0.1" 
-                    max="5" 
-                    step="0.1" 
-                    value={continuousInterval}
-                    onChange={(e) => setContinuousInterval(Number(e.target.value))}
-                  />
+                  <div className="number-input-wrapper">
+                    <button 
+                      className="spinner-btn decrease"
+                      onClick={() => setContinuousInterval(Math.max(0.1, continuousInterval - 0.1))}
+                      type="button"
+                    >
+                      −
+                    </button>
+                    <input 
+                      type="number" 
+                      id="pedal-continuous-interval"
+                      min="0.1" 
+                      max="5" 
+                      step="0.1" 
+                      value={continuousInterval.toFixed(1)}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (!isNaN(val) && val >= 0.1 && val <= 5) {
+                          setContinuousInterval(val);
+                        }
+                      }}
+                    />
+                    <button 
+                      className="spinner-btn increase"
+                      onClick={() => setContinuousInterval(Math.min(5, continuousInterval + 0.1))}
+                      type="button"
+                    >
+                      +
+                    </button>
+                  </div>
                 </label>
               </div>
             )}
@@ -794,25 +826,56 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
               </div>
               <div className={`rewind-amount-container ${rewindOnPause.enabled ? '' : 'disabled'}`}>
                 <label>כמות (שניות):</label>
-                <input
-                  type="number"
-                  className="rewind-amount-input"
-                  min="0.1"
-                  max="2.0"
-                  step="0.1"
-                  value={rewindOnPause.amount}
-                  onChange={(e) => setRewindOnPause({
-                    ...rewindOnPause,
-                    amount: Number(e.target.value) || 0.3
-                  })}
-                />
+                <div className="number-input-wrapper">
+                  <button 
+                    className="spinner-btn decrease"
+                    onClick={() => setRewindOnPause({
+                      ...rewindOnPause,
+                      amount: Math.max(0.1, rewindOnPause.amount - 0.1)
+                    })}
+                    disabled={!rewindOnPause.enabled}
+                    type="button"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    className="rewind-amount-input"
+                    min="0.1"
+                    max="2.0"
+                    step="0.1"
+                    value={rewindOnPause.amount.toFixed(1)}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (!isNaN(val) && val >= 0.1 && val <= 2.0) {
+                        setRewindOnPause({
+                          ...rewindOnPause,
+                          amount: val
+                        });
+                      }
+                    }}
+                    disabled={!rewindOnPause.enabled}
+                  />
+                  <button 
+                    className="spinner-btn increase"
+                    onClick={() => setRewindOnPause({
+                      ...rewindOnPause,
+                      amount: Math.min(2.0, rewindOnPause.amount + 0.1)
+                    })}
+                    disabled={!rewindOnPause.enabled}
+                    type="button"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Reset Settings Button */}
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div className="pedal-reset-section">
             <button 
+              className="reset-shortcuts-btn"
               onClick={() => {
                 // Clear localStorage first
                 if (typeof localStorage !== 'undefined') {
@@ -835,15 +898,6 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
                 // console.log('Reset pedal settings to:', defaultMappings);
                 
                 showStatus('ההגדרות אופסו לברירת המחדל');
-              }}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#20c997',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px'
               }}
             >
               אפס הגדרות לברירת מחדל

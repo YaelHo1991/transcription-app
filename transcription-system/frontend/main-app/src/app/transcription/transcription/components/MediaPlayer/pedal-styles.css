@@ -89,6 +89,14 @@
   color: #20c997;
   margin-bottom: 15px;
   font-size: 18px;
+  text-align: center;
+}
+
+.pedal-connection-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
 }
 
 .pedal-status {
@@ -154,6 +162,7 @@
   color: #20c997;
   margin-bottom: 15px;
   font-size: 18px;
+  text-align: center;
 }
 
 /* Visual Pedal Interface */
@@ -177,6 +186,7 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  min-width: 160px;
 }
 
 .pedal-button-circle {
@@ -223,6 +233,8 @@
   font-size: 14px;
   cursor: pointer;
   min-width: 150px;
+  text-align: center;
+  direction: rtl;
 }
 
 .pedal-action-select:focus {
@@ -243,11 +255,13 @@
   color: #20c997;
   margin-bottom: 15px;
   font-size: 16px;
+  text-align: center;
 }
 
 .pedal-checkbox-label {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   color: #e0f7f7;
   font-size: 14px;
@@ -263,12 +277,17 @@
 
 .pedal-continuous-config {
   margin-top: 15px;
-  padding-left: 26px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .pedal-continuous-config label {
   color: rgba(224, 247, 247, 0.8);
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .pedal-continuous-config input[type="number"] {
@@ -279,7 +298,85 @@
   border-radius: 6px;
   color: #e0f7f7;
   font-size: 14px;
-  margin-left: 10px;
+  text-align: center;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.pedal-continuous-config input[type="number"]::-webkit-inner-spin-button,
+.pedal-continuous-config input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Custom spinners for pedal tab */
+.number-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.number-input-wrapper:focus-within {
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
+.number-input-wrapper input[type="number"] {
+  border: none;
+  background: transparent;
+  padding: 6px 5px;
+  width: 60px;
+}
+
+.number-input-wrapper input[type="number"]:focus {
+  box-shadow: none;
+}
+
+.spinner-btn {
+  background: rgba(32, 201, 151, 0.2);
+  border: none;
+  color: #20c997;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.spinner-btn:hover:not(:disabled) {
+  background: rgba(32, 201, 151, 0.3);
+}
+
+.spinner-btn:active:not(:disabled) {
+  background: rgba(32, 201, 151, 0.4);
+}
+
+.spinner-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner-btn.decrease {
+  border-right: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.spinner-btn.increase {
+  border-left: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+/* Reset Section */
+.pedal-reset-section {
+  text-align: center;
+  margin: 20px 0;
 }
 
 /* Test Section */
@@ -294,6 +391,7 @@
   color: #20c997;
   margin-bottom: 10px;
   font-size: 16px;
+  text-align: center;
 }
 
 .pedal-test-hint {
@@ -330,6 +428,86 @@
 .pedal-test-button.active {
   background: linear-gradient(135deg, #20c997 0%, #1a5d5d 100%);
   transform: scale(0.9);
+}
+
+/* Rewind on Pause Section - matching shortcuts tab */
+.rewind-on-pause-section {
+  background: rgba(15, 76, 76, 0.4);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  border: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.rewind-on-pause-section h4 {
+  color: #20c997;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.rewind-on-pause-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.rewind-on-pause-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rewind-amount-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.rewind-amount-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.rewind-amount-input {
+  width: 80px;
+  padding: 6px 10px;
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.5);
+  border-radius: 6px;
+  color: #e0f7f7;
+  font-size: 14px;
+  text-align: center;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.rewind-amount-input::-webkit-inner-spin-button,
+.rewind-amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.rewind-amount-input:focus {
+  outline: none;
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
+.number-input-wrapper .rewind-amount-input {
+  border: none;
+  background: transparent;
+  padding: 6px 5px;
+  width: 60px;
+}
+
+.number-input-wrapper .rewind-amount-input:focus {
+  box-shadow: none;
 }
 
 /* Status Message */

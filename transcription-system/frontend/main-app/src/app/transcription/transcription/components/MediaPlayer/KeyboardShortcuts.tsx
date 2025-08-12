@@ -57,15 +57,27 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if we're in text editor
+      // Check if we're in ANY input field (not just text editor)
       const activeElement = e.target as HTMLElement;
+      
+      // If we're in ANY input/textarea that's not a transcription text area, let it handle the key
+      const inNonTranscriptionInput = 
+        (activeElement instanceof HTMLInputElement && !activeElement.closest('.transcription-textarea')) ||
+        (activeElement instanceof HTMLTextAreaElement && !activeElement.closest('.transcription-textarea'));
+      
+      if (inNonTranscriptionInput) {
+        return; // Let the input handle all keys normally
+      }
+      
       const inTextEditor = 
-        activeElement instanceof HTMLInputElement || 
-        activeElement instanceof HTMLTextAreaElement ||
         activeElement.contentEditable === 'true' ||
         activeElement.closest('.transcription-textarea') ||
         activeElement.closest('.text-editor-container') ||
         activeElement.closest('.transcription-text');
+      
+      // Build the key string first to check if it's a registered shortcut
+      const key = buildKeyString(e);
+      const shortcut = activeShortcuts.current.get(key);
       
       // Check if this is a key combination (not just a single key)
       const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
@@ -79,12 +91,13 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       // Special: Shift+Numpad should ALWAYS work, even in text editor
       const isShiftNumpad = e.shiftKey && isNumpadKey;
       
-      // Block single keys in text editor (except F-keys, numpad, combinations)
-      if (inTextEditor && !hasModifier && !isFKey && !isNumpadKey && !isShiftNumpad) {
+      // If it's a numpad key that's registered as a shortcut, it should work in text editor
+      const isRegisteredNumpadShortcut = isNumpadKey && shortcut && shortcut.enabled;
+      
+      // Block single keys in text editor (except F-keys, registered numpad shortcuts, combinations)
+      if (inTextEditor && !hasModifier && !isFKey && !isRegisteredNumpadShortcut && !isShiftNumpad) {
         return; // Block single keys that would type characters
       }
-
-      const key = buildKeyString(e);
       
       // Prevent key repeat
       if (isPressed.current.has(key)) {
@@ -92,7 +105,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       }
       isPressed.current.add(key);
 
-      const shortcut = activeShortcuts.current.get(key);
+      // We already have shortcut from above, just check if it exists
       if (shortcut && shortcut.enabled) {
         // Check if this is a toggle action (these always work)
         const toggleActions = ['toggleShortcuts', 'toggleSettings', 'togglePedal', 'toggleAutoDetect', 'toggleMode'];
@@ -103,7 +116,14 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
           e.preventDefault();
           e.stopPropagation();
           onAction(shortcut.action);
+          return; // Important: return here to prevent default behavior
         }
+      }
+      
+      // Special handling for numpad in text editor - prevent default if it's a shortcut
+      if (inTextEditor && isNumpadKey && shortcut && shortcut.enabled && enabled) {
+        e.preventDefault(); // Prevent the number from being typed
+        e.stopPropagation();
       }
     };
 
@@ -122,6 +142,33 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       
       // Handle special keys
       let key = e.key;
+      
+      // Convert to lowercase for letter keys (to handle capital letters)
+      if (key.length === 1 && /[A-Z]/.test(key)) {
+        key = key.toLowerCase();
+      }
+      
+      // Handle numpad keys - use the actual number/operator
+      if (e.code && e.code.startsWith('Numpad')) {
+        // Special handling for Numpad0-9
+        if (e.code === 'Numpad0') key = '0';
+        else if (e.code === 'Numpad1') key = '1';
+        else if (e.code === 'Numpad2') key = '2';
+        else if (e.code === 'Numpad3') key = '3';
+        else if (e.code === 'Numpad4') key = '4';
+        else if (e.code === 'Numpad5') key = '5';
+        else if (e.code === 'Numpad6') key = '6';
+        else if (e.code === 'Numpad7') key = '7';
+        else if (e.code === 'Numpad8') key = '8';
+        else if (e.code === 'Numpad9') key = '9';
+        else if (e.code === 'NumpadDivide') key = '/';
+        else if (e.code === 'NumpadMultiply') key = '*';
+        else if (e.code === 'NumpadSubtract') key = '-';
+        else if (e.code === 'NumpadAdd') key = '+';
+        else if (e.code === 'NumpadEnter') key = 'Enter';
+        else if (e.code === 'NumpadDecimal') key = '.';
+      }
+      
       if (key === ' ') key = 'Space';
       if (key === 'ArrowLeft') key = 'ArrowLeft';
       if (key === 'ArrowRight') key = 'ArrowRight';
@@ -168,6 +215,21 @@ function normalizeKey(key: string): string {
   // Handle Shift combinations
   if (key.includes('Shift+→')) return 'Shift+ArrowRight';
   if (key.includes('Shift+←')) return 'Shift+ArrowLeft';
+  
+  // Convert single capital letters to lowercase
+  if (key.length === 1 && /[A-Z]/.test(key)) {
+    return key.toLowerCase();
+  }
+  
+  // Handle Ctrl/Alt/Shift combinations with capital letters
+  const parts = key.split('+');
+  if (parts.length > 1) {
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.length === 1 && /[A-Z]/.test(lastPart)) {
+      parts[parts.length - 1] = lastPart.toLowerCase();
+      return parts.join('+');
+    }
+  }
   
   return key;
 }

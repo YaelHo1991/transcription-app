@@ -339,19 +339,49 @@ export default function ShortcutsTab({
           </div>
           <div className={`rewind-amount-container ${rewindOnPause.enabled ? '' : 'disabled'}`} id="rewindAmountContainer">
             <label>כמות (שניות):</label>
-            <input
-              type="number"
-              id="rewindAmount"
-              className="rewind-amount-input"
-              min="0.1"
-              max="2.0"
-              step="0.1"
-              value={rewindOnPause.amount || 0.3}
-              onChange={(e) => onRewindOnPauseChange({
-                ...rewindOnPause,
-                amount: Number(e.target.value) || 0.3
-              })}
-            />
+            <div className="number-input-wrapper">
+              <button 
+                className="spinner-btn decrease"
+                onClick={() => onRewindOnPauseChange({
+                  ...rewindOnPause,
+                  amount: Math.max(0.1, (rewindOnPause.amount || 0.3) - 0.1)
+                })}
+                disabled={!rewindOnPause.enabled}
+                type="button"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                id="rewindAmount"
+                className="rewind-amount-input"
+                min="0.1"
+                max="2.0"
+                step="0.1"
+                value={(rewindOnPause.amount || 0.3).toFixed(1)}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (!isNaN(val) && val >= 0.1 && val <= 2.0) {
+                    onRewindOnPauseChange({
+                      ...rewindOnPause,
+                      amount: val
+                    });
+                  }
+                }}
+                disabled={!rewindOnPause.enabled}
+              />
+              <button 
+                className="spinner-btn increase"
+                onClick={() => onRewindOnPauseChange({
+                  ...rewindOnPause,
+                  amount: Math.min(2.0, (rewindOnPause.amount || 0.3) + 0.1)
+                })}
+                disabled={!rewindOnPause.enabled}
+                type="button"
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
       </div>

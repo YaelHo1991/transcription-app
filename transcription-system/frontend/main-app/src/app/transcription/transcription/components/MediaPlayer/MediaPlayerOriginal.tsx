@@ -817,6 +817,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         >
           ⚙️
         </button>
+
       </div>
       
       {/* Settings Modal */}

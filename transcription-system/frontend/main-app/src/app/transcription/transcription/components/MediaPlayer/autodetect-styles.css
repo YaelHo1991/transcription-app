@@ -114,27 +114,28 @@
   color: #20c997;
   margin-bottom: 15px;
   font-size: 18px;
+  text-align: center;
 }
 
 .auto-detect-settings {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  align-items: center;
 }
 
 .setting-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 15px;
-  flex-wrap: wrap;
+  padding: 10px;
 }
 
 .setting-item label {
   color: #e0f7f7;
   font-size: 14px;
-  flex: 1;
-  min-width: 200px;
+  text-align: right;
 }
 
 .auto-detect-input {
@@ -144,15 +145,85 @@
   padding: 8px 12px;
   color: #e0f7f7;
   font-size: 14px;
-  width: 120px;
+  width: 100px;
   direction: ltr;
   text-align: center;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  position: relative;
+}
+
+/* Custom spinner buttons styling */
+.auto-detect-input::-webkit-inner-spin-button,
+.auto-detect-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .auto-detect-input:focus {
   outline: none;
   border-color: #20c997;
   box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
+/* Number input wrapper for custom spinners */
+.number-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.number-input-wrapper:focus-within {
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
+.number-input-wrapper .auto-detect-input {
+  border: none;
+  background: transparent;
+  padding: 8px 5px;
+  width: 60px;
+}
+
+.number-input-wrapper .auto-detect-input:focus {
+  box-shadow: none;
+}
+
+/* Custom spinner buttons */
+.spinner-btn {
+  background: rgba(32, 201, 151, 0.2);
+  border: none;
+  color: #20c997;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.spinner-btn:hover {
+  background: rgba(32, 201, 151, 0.3);
+}
+
+.spinner-btn:active {
+  background: rgba(32, 201, 151, 0.4);
+}
+
+.spinner-btn.decrease {
+  border-right: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.spinner-btn.increase {
+  border-left: 1px solid rgba(32, 201, 151, 0.3);
 }
 
 .auto-detect-status-section {
@@ -165,6 +236,7 @@
   color: #20c997;
   margin-bottom: 15px;
   font-size: 18px;
+  text-align: center;
 }
 
 .auto-detect-status {
@@ -238,11 +310,13 @@
   color: #20c997;
   margin-bottom: 15px;
   font-size: 16px;
+  text-align: center;
 }
 
 .rewind-on-pause-controls {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 20px;
   flex-wrap: wrap;
 }

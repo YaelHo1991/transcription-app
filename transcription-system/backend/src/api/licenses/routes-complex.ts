@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { authenticateToken, requirePermission, AuthRequest } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import bcrypt from 'bcryptjs';
-import purchaseRoute from './purchase-route';
 
 const router = Router();
 
@@ -159,8 +158,7 @@ router.get('/types', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-// Use the separate purchase route
-router.use('/purchase', purchaseRoute);
+// Purchase route will be handled by routes.ts
 
 // Test endpoint
 router.get('/test', (req: Request, res: Response) => {
