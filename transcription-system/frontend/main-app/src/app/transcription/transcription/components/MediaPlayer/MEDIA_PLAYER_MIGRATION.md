@@ -26,7 +26,7 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [x] Enable/disable toggle functionality
 - [x] Custom key binding functionality
 - [x] Test all shortcuts
-- [ ] Git commit
+- [x] Git commit
 
 ### Stage 2: Pedal Integration
 - [ ] Implement WebHID API connection
