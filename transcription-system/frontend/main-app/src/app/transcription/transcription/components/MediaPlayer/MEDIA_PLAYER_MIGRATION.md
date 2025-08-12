@@ -91,16 +91,18 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
   - [x] Fixed pedal auto-reconnect device state errors
 - [x] Git commit
 
-### Stage 4: Video Cube
-- [ ] Implement draggable video window
-- [ ] Resize functionality
-- [ ] Position persistence (localStorage)
-- [ ] Video/audio mode switching
-- [ ] Minimize/maximize controls
-- [ ] Aspect ratio maintenance
-- [ ] Z-index management
-- [ ] Test video playback
-- [ ] Git commit
+### Stage 4: Video Cube ✅
+- [x] Implement draggable video window
+- [x] Resize functionality
+- [x] Position persistence (localStorage)
+- [x] Video/audio mode switching
+- [x] Minimize/maximize controls
+- [x] Aspect ratio maintenance
+- [x] Z-index management
+- [x] Video playback synchronization
+- [x] Media element switching (video/audio)
+- [x] Event handler integration
+- [x] Git commit
 
 ### Stage 5: Waveform Integration
 - [ ] Generate waveform data
@@ -140,7 +142,7 @@ Each tab maintains exact functionality from original:
 - Keyboard shortcuts fully functional ✅
 - Pedal integration complete with all fixes ✅
 - Auto-detect typing implementation complete ✅
-- Video mode needs fixing
+- Video cube implementation complete ✅
 - All features must exactly match original HTML player functionality
 
 ## Completed Fixes in Stage 2

@@ -7,6 +7,7 @@ import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import ShortcutsTab from './ShortcutsTab';
 import PedalTab from './PedalTab';
 import AutoDetectTab from './AutoDetectTab';
+import VideoCube from './VideoCube';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
@@ -48,6 +49,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   // Video
   const [showVideo, setShowVideo] = useState(false);
   const [videoMinimized, setVideoMinimized] = useState(false);
+  const [showVideoCube, setShowVideoCube] = useState(false);
   
   // Keyboard shortcuts settings
   const [keyboardSettings, setKeyboardSettings] = useState({
@@ -81,15 +83,18 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
   // Play/Pause
   const togglePlayPause = () => {
-    if (!audioRef.current) {
+    // Use video element for video files, audio element for audio files
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    
+    if (!mediaElement) {
       return;
     }
     
-    // Check actual audio state, not React state
-    if (!audioRef.current.paused) {
-      audioRef.current.pause();
+    // Check actual media state, not React state
+    if (!mediaElement.paused) {
+      mediaElement.pause();
     } else {
-      audioRef.current.play()
+      mediaElement.play()
         .catch(err => {
           // Ignore AbortError as it's just a play/pause conflict
           if (err.name !== 'AbortError') {
@@ -101,33 +106,42 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
 
   // Seek functions
   const handleRewind = (seconds: number) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - seconds);
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!mediaElement) return;
+    mediaElement.currentTime = Math.max(0, mediaElement.currentTime - seconds);
   };
 
   const handleForward = (seconds: number) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + seconds);
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!mediaElement) return;
+    mediaElement.currentTime = Math.min(duration, mediaElement.currentTime + seconds);
   };
 
   // Progress bar click
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current || !audioRef.current) return;
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!progressBarRef.current || !mediaElement) return;
     
     const rect = progressBarRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     // RTL: Right is 0%, left is 100%
     const progress = 1 - (x / rect.width);
-    audioRef.current.currentTime = progress * duration;
+    mediaElement.currentTime = progress * duration;
   };
 
   // Volume control
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
     setVolume(newVolume);
+    
+    // Apply volume to both audio and video elements
     if (audioRef.current) {
       audioRef.current.volume = newVolume / 100;
     }
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume / 100;
+    }
+    
     setIsMuted(newVolume === 0);
     // Track non-zero volume for unmute
     if (newVolume > 0) {
@@ -136,19 +150,23 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   };
 
   const toggleMute = () => {
-    if (!audioRef.current) return;
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!mediaElement) return;
     
-    // Check actual audio volume instead of React state to avoid closure issues
-    if (audioRef.current.volume === 0) {
+    // Check actual media volume instead of React state to avoid closure issues
+    if (mediaElement.volume === 0) {
       // Currently muted, unmute it
-      audioRef.current.volume = previousVolumeRef.current / 100;
+      const newVolume = previousVolumeRef.current / 100;
+      if (audioRef.current) audioRef.current.volume = newVolume;
+      if (videoRef.current) videoRef.current.volume = newVolume;
       setVolume(previousVolumeRef.current);
       setIsMuted(false);
     } else {
       // Currently has volume, mute it
       // Save current volume before muting
-      previousVolumeRef.current = audioRef.current.volume * 100;
-      audioRef.current.volume = 0;
+      previousVolumeRef.current = mediaElement.volume * 100;
+      if (audioRef.current) audioRef.current.volume = 0;
+      if (videoRef.current) videoRef.current.volume = 0;
       setVolume(0);
       setIsMuted(true);
     }
@@ -158,8 +176,13 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSpeed = Number(e.target.value) / 100;
     setPlaybackRate(newSpeed);
+    
+    // Apply speed to both audio and video elements
     if (audioRef.current) {
       audioRef.current.playbackRate = newSpeed;
+    }
+    if (videoRef.current) {
+      videoRef.current.playbackRate = newSpeed;
     }
   };
 
@@ -404,9 +427,34 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     if (initialMedia && audioRef.current) {
       audioRef.current.src = initialMedia.url;
       audioRef.current.volume = volume / 100; // Initialize volume
-      setShowVideo(initialMedia.type === 'video');
+      const isVideo = initialMedia.type === 'video';
+      setShowVideo(isVideo);
+      setShowVideoCube(isVideo && !videoMinimized);
+      
+      // Set video source if it's a video file
+      if (isVideo && videoRef.current) {
+        videoRef.current.src = initialMedia.url;
+        videoRef.current.volume = volume / 100;
+      }
     }
-  }, [initialMedia]);
+  }, [initialMedia, videoMinimized]);
+
+  // Video cube handlers
+  const handleVideoCubeMinimize = () => {
+    setVideoMinimized(true);
+    setShowVideoCube(false);
+  };
+
+  const handleVideoCubeClose = () => {
+    setShowVideo(false);
+    setShowVideoCube(false);
+    setVideoMinimized(false);
+  };
+
+  const handleVideoRestore = () => {
+    setVideoMinimized(false);
+    setShowVideoCube(true);
+  };
 
   // Audio event handlers
   useEffect(() => {
@@ -452,6 +500,52 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       audio.removeEventListener('ended', handleEnded);
     };
   }, [onTimeUpdate]);
+
+  // Video event handlers
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !showVideo) return;
+
+    // Initialize video volume
+    video.volume = volume / 100;
+    video.playbackRate = playbackRate;
+
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+      setIsReady(true);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      onTimeUpdate?.(video.currentTime);
+    };
+    
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [onTimeUpdate, showVideo, volume, playbackRate]);
 
   // Initialize worker manager
   useEffect(() => {
@@ -585,7 +679,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       </div>
       
       {/* Media Player Component */}
-      <div className="media-player-container" id="mediaPlayerContainer">
+      <div className={`media-player-container ${showVideoCube ? 'video-active' : ''}`} id="mediaPlayerContainer">
         {/* Hidden Audio Element */}
         <audio ref={audioRef} id="audioPlayer" preload="auto" />
         {showVideo && <video ref={videoRef} style={{ display: 'none' }} />}
@@ -802,7 +896,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           <button 
             className="video-restore-control visible" 
             id="videoRestoreBtn"
-            onClick={() => setVideoMinimized(false)}
+            onClick={handleVideoRestore}
           >
             🎬 שחזר
           </button>
@@ -897,6 +991,21 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           </div>
         </div>
       </div>
+
+      {/* Video Cube */}
+      <VideoCube
+        videoRef={videoRef}
+        isVisible={showVideoCube}
+        onMinimize={handleVideoCubeMinimize}
+        onClose={handleVideoCubeClose}
+      />
+
+      {/* Keyboard Shortcuts Handler */}
+      <KeyboardShortcuts 
+        shortcuts={keyboardSettings.shortcuts} 
+        enabled={keyboardSettings.enabled}
+        onAction={handleAction} 
+      />
     </>
   );
 }
