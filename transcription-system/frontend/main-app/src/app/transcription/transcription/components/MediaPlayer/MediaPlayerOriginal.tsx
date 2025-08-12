@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI } from './types';
+import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI, WaveformData } from './types';
 import { WorkerManager } from './workers/workerManager';
 import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
 import ShortcutsTab from './ShortcutsTab';
 import PedalTab from './PedalTab';
 import AutoDetectTab from './AutoDetectTab';
 import VideoCube from './VideoCube';
+import WaveformCanvas from './WaveformCanvas';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
@@ -64,6 +65,12 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   // Auto-detect settings
   const [autoDetectEnabled, setAutoDetectEnabled] = useState(false);
   const [autoDetectMode, setAutoDetectMode] = useState<'regular' | 'enhanced'>('regular');
+
+  // Waveform settings
+  const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
+  const [waveformLoading, setWaveformLoading] = useState(false);
+  const [waveformProgress, setWaveformProgress] = useState(0);
+  const [showWaveform, setShowWaveform] = useState(true);
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
@@ -422,6 +429,29 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     }
   };
 
+  // Analyze waveform for loaded media
+  const analyzeWaveform = useCallback(async (url: string) => {
+    if (!workerManagerRef.current || !showWaveform) return;
+    
+    try {
+      setWaveformLoading(true);
+      setWaveformProgress(0);
+      setWaveformData(null);
+
+      // Fetch audio buffer
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Analyze waveform
+      workerManagerRef.current.analyzeWaveform(arrayBuffer, 44100);
+      
+    } catch (error) {
+      console.error('Failed to load audio for waveform analysis:', error);
+      setWaveformLoading(false);
+      setWaveformProgress(0);
+    }
+  }, [showWaveform]);
+
   // Load media
   useEffect(() => {
     if (initialMedia && audioRef.current) {
@@ -436,8 +466,11 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         videoRef.current.src = initialMedia.url;
         videoRef.current.volume = volume / 100;
       }
+
+      // Analyze waveform for the loaded media
+      analyzeWaveform(initialMedia.url);
     }
-  }, [initialMedia, videoMinimized]);
+  }, [initialMedia, videoMinimized, analyzeWaveform]);
 
   // Video cube handlers
   const handleVideoCubeMinimize = () => {
@@ -455,6 +488,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     setVideoMinimized(false);
     setShowVideoCube(true);
   };
+
+  // Waveform seek handler
+  const handleWaveformSeek = useCallback((time: number) => {
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (mediaElement) {
+      mediaElement.currentTime = time;
+    }
+  }, [showVideo]);
 
   // Audio event handlers
   useEffect(() => {
@@ -550,6 +591,25 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   // Initialize worker manager
   useEffect(() => {
     workerManagerRef.current = new WorkerManager();
+    
+    // Set up waveform event listeners
+    if (workerManagerRef.current) {
+      workerManagerRef.current.on('waveform:progress', (progress: number) => {
+        setWaveformProgress(progress);
+      });
+
+      workerManagerRef.current.on('waveform:complete', (data: WaveformData) => {
+        setWaveformData(data);
+        setWaveformLoading(false);
+        setWaveformProgress(100);
+      });
+
+      workerManagerRef.current.on('waveform:error', (error: string) => {
+        console.error('Waveform analysis error:', error);
+        setWaveformLoading(false);
+        setWaveformProgress(0);
+      });
+    }
     
     return () => {
       workerManagerRef.current?.terminate();
@@ -772,19 +832,47 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
               </span>
             )}
             
-            {/* Progress Bar (middle) */}
-            <div 
-              className="progress-bar-wrapper" 
-              id="progressBar"
-              ref={progressBarRef}
-              onClick={handleProgressClick}
-            >
+            {/* Waveform Progress Bar (middle) */}
+            {showWaveform && waveformData ? (
+              <div className="waveform-progress-wrapper" style={{ flex: 1 }}>
+                <WaveformCanvas
+                  waveformData={waveformData}
+                  currentTime={currentTime}
+                  duration={duration}
+                  isPlaying={isPlaying}
+                  onSeek={handleWaveformSeek}
+                />
+              </div>
+            ) : (
               <div 
-                className="progress-fill" 
-                id="progressFill" 
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
+                className="progress-bar-wrapper" 
+                id="progressBar"
+                ref={progressBarRef}
+                onClick={handleProgressClick}
+                style={{ flex: 1 }}
+              >
+                {waveformLoading ? (
+                  <div className="waveform-loading-bar">
+                    <div 
+                      className="waveform-progress-fill"
+                      style={{ 
+                        width: `${waveformProgress}%`,
+                        background: 'linear-gradient(90deg, rgba(32, 201, 151, 0.4) 0%, rgba(23, 162, 184, 0.4) 100%)',
+                        height: '100%',
+                        borderRadius: '4px',
+                        transition: 'width 0.3s ease'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div 
+                    className="progress-fill" 
+                    id="progressFill" 
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                )}
+              </div>
+            )}
             
             {/* Duration (right side in RTL) */}
             {editingTime === 'total' ? (

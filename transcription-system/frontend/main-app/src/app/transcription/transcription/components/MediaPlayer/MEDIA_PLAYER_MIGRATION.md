@@ -104,14 +104,18 @@ Target location: `src/app/transcription/transcription/components/MediaPlayer/`
 - [x] Event handler integration
 - [x] Git commit
 
-### Stage 5: Waveform Integration
-- [ ] Generate waveform data
-- [ ] Display in progress bar
-- [ ] Visual peaks representation
-- [ ] Color coding for played/unplayed sections
-- [ ] Performance optimization
-- [ ] Responsive scaling
-- [ ] Git commit
+### Stage 5: Waveform Integration ✅
+- [x] Generate waveform data
+- [x] Display in progress bar
+- [x] Visual peaks representation
+- [x] Color coding for played/unplayed sections
+- [x] Performance optimization
+- [x] Responsive scaling
+- [x] Integration with existing progress bar
+- [x] Loading progress indicator
+- [x] Fallback to simple progress bar
+- [x] RTL layout support
+- [x] Git commit
 
 ## Technical Details
 
@@ -143,6 +147,7 @@ Each tab maintains exact functionality from original:
 - Pedal integration complete with all fixes ✅
 - Auto-detect typing implementation complete ✅
 - Video cube implementation complete ✅
+- Waveform integration complete ✅
 - All features must exactly match original HTML player functionality
 
 ## Completed Fixes in Stage 2
@@ -170,3 +175,28 @@ Each tab maintains exact functionality from original:
    - Fixed auto-detect scope to only work in text editor areas
    - Fixed pedal auto-reconnect device state conflicts
 6. **Code Quality**: Removed debug logging, improved error handling, TypeScript fixes
+
+## Stage 5 Complete: Waveform Integration
+1. **Waveform Infrastructure**: Leveraged existing WaveformCanvas and WorkerManager components
+2. **Audio Analysis**: Web Audio API waveform generation using dedicated web worker for performance
+3. **Visual Integration**: 
+   - Replaced simple progress bar with interactive waveform visualization
+   - RTL layout support with right-to-left progress indication
+   - Color-coded played/unplayed sections (turquoise/dark teal)
+   - Smooth playhead with glow effect
+4. **Performance Optimization**:
+   - Off-main-thread audio processing using Web Workers
+   - Canvas rendering with device pixel ratio support
+   - Efficient peak detection using RMS and max peak combination
+   - ~2000 data points for smooth visualization without performance impact
+5. **User Experience**:
+   - Loading progress indicator during waveform analysis
+   - Fallback to simple progress bar if waveform fails/disabled
+   - Click-to-seek functionality on waveform
+   - Hover time tooltip
+   - Seamless integration with existing timestamp editing
+6. **Technical Implementation**:
+   - WaveformCanvas component with real-time playhead movement
+   - WorkerManager event handling for progress/completion/error states
+   - Automatic waveform analysis on media load
+   - Compatible with both audio and video files
