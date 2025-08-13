@@ -94,9 +94,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       
       // If it's an F-key and it's a registered shortcut, prevent default immediately
       // to stop browser default F-key behaviors (F1=help, F3=search, F5=refresh, etc.)
-      if (isFKey) {
-        console.log('F-key detected:', e.key, 'Shortcut:', shortcut, 'Enabled:', enabled);
-        if (shortcut && shortcut.enabled && enabled) {
+      if (isFKey && shortcut && shortcut.enabled && enabled) {
           e.preventDefault();
           e.stopPropagation();
         }
@@ -165,7 +163,6 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
         const fNum = key.substring(1);
         if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
           // Keep F-keys as is (F1, F2, etc.)
-          console.log('F-key in buildKeyString:', key);
           // Don't modify them
         }
       }
