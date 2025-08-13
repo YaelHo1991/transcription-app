@@ -61,7 +61,6 @@ MediaPlayer/
 │   ├── PlaybackOptions.tsx
 │   ├── StatusMessage.tsx
 │   └── SettingsModal/
-│       ├── index.tsx
 │       ├── ShortcutsTab.tsx
 │       ├── PedalTab.tsx
 │       ├── AutoDetectTab.tsx
@@ -158,3 +157,5 @@ MediaPlayer/
 - ProjectNavigator handles media/project imports (not part of MediaPlayer)
 - All media loading and project management stays in page.tsx
 - MediaPlayer is purely a player component with its own controls and settings
+- Settings modal is created inline in index.tsx (no separate SettingsModal component needed)
+- The SettingsModal folder contains only the tab components used by the inline modal
