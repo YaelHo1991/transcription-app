@@ -149,11 +149,142 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 - ProjectNavigator handles media/project imports (not moving this)
 - All existing functionality must be preserved
 
+## Phase 2: Code Extraction from index.tsx and MediaPlayer.css
+
+### Stage 10: Extract Media Control Utilities
+**Status**: PENDING
+**Actions**:
+1. [ ] Create utils/mediaControls.ts
+2. [ ] Extract from index.tsx:
+   - formatTime() function
+   - togglePlayPause() function  
+   - handleRewind() function
+   - handleForward() function
+   - handleProgressClick() function
+3. [ ] Import and use utilities in index.tsx
+4. [ ] Test: All playback controls work
+5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
+6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. [ ] Commit: "Stage 10: Extract media control utilities"
+
+### Stage 11: Extract Volume & Speed Controls
+**Status**: PENDING
+**Actions**:
+1. [ ] Create utils/volumeControls.ts with:
+   - handleVolumeChange() function
+   - toggleMute() function
+   - Volume state management helpers
+2. [ ] Create utils/speedControls.ts with:
+   - handleSpeedChange() function
+   - cycleSpeed() function
+   - resetSpeed() function
+   - Speed presets constants
+3. [ ] Import and use utilities in index.tsx
+4. [ ] Test: Volume and speed controls work
+5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
+6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. [ ] Commit: "Stage 11: Extract volume and speed control utilities"
+
+### Stage 12: Extract Settings & Status Management
+**Status**: PENDING
+**Actions**:
+1. [ ] Create utils/settingsManager.ts with:
+   - loadSettings() function
+   - saveSettings() function
+   - mergeShortcuts() function
+   - Default settings constants
+2. [ ] Create utils/statusManager.ts with:
+   - showGlobalStatus() function
+   - Status timeout management
+3. [ ] Import and use utilities in index.tsx
+4. [ ] Test: Settings persistence and status display
+5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
+6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. [ ] Commit: "Stage 12: Extract settings and status management"
+
+### Stage 13: Extract Control Styles
+**Status**: PENDING
+**Actions**:
+1. [ ] Create styles/controls.css
+2. [ ] Extract from MediaPlayer.css (~400 lines):
+   - .media-controls styles
+   - .control-button styles
+   - Volume slider styles
+   - Speed slider styles
+   - Progress bar styles
+3. [ ] Add @import './styles/controls.css' to MediaPlayer.css
+4. [ ] Test: All controls display correctly
+5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
+6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. [ ] Commit: "Stage 13: Extract control styles to separate CSS"
+
+### Stage 14: Extract Layout & Modal Styles
+**Status**: PENDING
+**Actions**:
+1. [ ] Create styles/layout.css
+2. [ ] Extract from MediaPlayer.css (~300 lines):
+   - .media-player-container styles
+   - .media-player-content styles
+   - Collapsible section styles
+   - Responsive layout styles
+3. [ ] Create styles/modal.css
+4. [ ] Extract from MediaPlayer.css (~500 lines):
+   - .media-modal-overlay styles
+   - .settings-modal styles
+   - Tab navigation styles
+   - Modal animations
+5. [ ] Add @import statements to MediaPlayer.css
+6. [ ] Test: Layout and modal display correctly
+7. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
+8. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+9. [ ] Commit: "Stage 14: Extract layout and modal styles"
+
+### Stage 15: Extract Video & Waveform Styles
+**Status**: PENDING
+**Actions**:
+1. [ ] Create styles/video.css
+2. [ ] Extract from MediaPlayer.css (~200 lines):
+   - Video display styles
+   - Video cube styles
+   - Video control styles
+3. [ ] Create styles/waveform.css
+4. [ ] Extract from MediaPlayer.css (~100 lines):
+   - Waveform container styles
+   - Canvas styles
+   - Zoom control styles
+5. [ ] Add @import statements to MediaPlayer.css
+6. [ ] Test: Video and waveform display correctly
+7. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
+8. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+9. [ ] Commit: "Stage 15: Extract video and waveform styles"
+
+### Stage 16: Final Verification & Optimization
+**Status**: PENDING
+**Actions**:
+1. [ ] Verify index.tsx reduced from 1466 to ~800 lines
+2. [ ] Verify MediaPlayer.css reduced from 2428 to ~500 lines
+3. [ ] Run full functionality test
+4. [ ] Check all TypeScript types
+5. [ ] Remove any unused imports
+6. [ ] Update final documentation
+7. [ ] Commit: "Stage 16: Complete Phase 2 reorganization"
+
 ## Success Criteria
-- [ ] All duplicate files removed
-- [ ] Clear folder structure established
-- [ ] All imports working correctly
+
+### Phase 1 (COMPLETED ✅)
+- [x] All duplicate files removed
+- [x] Clear folder structure established
+- [x] All imports working correctly
+- [x] All functionality preserved
+- [x] Documentation complete and accurate
+- [x] No TypeScript errors
+- [x] Application runs without errors
+
+### Phase 2 (IN PROGRESS)
+- [ ] index.tsx reduced by ~45% (1466 → ~800 lines)
+- [ ] MediaPlayer.css reduced by ~80% (2428 → ~500 lines)
+- [ ] All utilities properly typed with TypeScript
+- [ ] No circular dependencies
 - [ ] All functionality preserved
-- [ ] Documentation complete and accurate
-- [ ] No TypeScript errors
-- [ ] Application runs without errors
+- [ ] Improved code organization
+- [ ] Better separation of concerns

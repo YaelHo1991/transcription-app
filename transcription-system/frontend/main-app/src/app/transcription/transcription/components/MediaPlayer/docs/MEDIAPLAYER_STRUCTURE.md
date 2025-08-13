@@ -151,7 +151,89 @@ MediaPlayer/
 
 - [x] Move remaining TSX components to components folder
 
-### ✅ REORGANIZATION FULLY COMPLETE!
+### ✅ REORGANIZATION PHASE 1 COMPLETE!
+
+## Phase 2 Target Structure (Code Extraction)
+```
+MediaPlayer/
+├── index.tsx (main component - target: ~800 lines, current: 1466 lines)
+├── MediaPlayer.css (main styles - target: ~500 lines, current: 2428 lines)
+├── components/
+│   ├── KeyboardShortcuts.tsx
+│   ├── MediaControls.tsx
+│   ├── VideoDisplay.tsx
+│   ├── VideoCube.tsx
+│   ├── WaveformCanvas.tsx
+│   ├── MarksManager.tsx
+│   ├── PlaybackOptions.tsx
+│   ├── StatusMessage.tsx
+│   └── SettingsModal/
+│       ├── ShortcutsTab.tsx
+│       ├── PedalTab.tsx
+│       ├── AutoDetectTab.tsx
+│       ├── AutoDetectEnhanced.tsx
+│       └── AutoDetectRegular.tsx
+├── styles/
+│   ├── shortcuts.css (existing)
+│   ├── pedal.css (existing)
+│   ├── autodetect.css (existing)
+│   ├── controls.css (NEW - control buttons & sliders)
+│   ├── layout.css (NEW - container & responsive)
+│   ├── modal.css (NEW - settings modal)
+│   ├── video.css (NEW - video display)
+│   └── waveform.css (NEW - waveform visualization)
+├── utils/
+│   ├── ChunkedWaveformProcessor.ts (existing)
+│   ├── httpsDetection.ts (existing)
+│   ├── waveformStrategy.ts (existing)
+│   ├── mediaHelpers.ts (existing)
+│   ├── mediaControls.ts (NEW - playback functions)
+│   ├── volumeControls.ts (NEW - volume functions)
+│   ├── speedControls.ts (NEW - speed functions)
+│   ├── settingsManager.ts (NEW - settings persistence)
+│   └── statusManager.ts (NEW - status display)
+├── types/
+│   ├── index.ts
+│   └── marks.ts
+├── workers/
+│   ├── autoDetect.worker.ts
+│   ├── autoDetectWorkerCode.ts
+│   ├── mediaTimer.worker.ts
+│   ├── timerWorkerCode.ts
+│   ├── waveform.worker.ts
+│   ├── waveformWorkerCode.ts
+│   └── workerManager.ts
+└── docs/
+    ├── MEDIA_PLAYER_MIGRATION.md
+    ├── WAVEFORM_ARCHITECTURE.md
+    ├── MEDIAPLAYER_STRUCTURE.md
+    └── MEDIAPLAYER_REORGANIZATION_PLAN.md
+```
+
+## Phase 2 Extraction Details
+
+### New Utility Files
+- **mediaControls.ts**: Core playback control functions (play, pause, seek)
+- **volumeControls.ts**: Volume management and mute toggle
+- **speedControls.ts**: Playback speed control and presets
+- **settingsManager.ts**: localStorage persistence and settings merge
+- **statusManager.ts**: Global status message display
+
+### New Style Files
+- **controls.css**: Button styles, progress bar, control layouts
+- **layout.css**: Container structure, responsive design
+- **modal.css**: Settings modal overlay and content
+- **video.css**: Video display and cube styles
+- **waveform.css**: Waveform visualization styles
+
+## Phase 2 Success Metrics
+- [ ] index.tsx reduced by ~45% (1466 → ~800 lines)
+- [ ] MediaPlayer.css reduced by ~80% (2428 → ~500 lines)
+- [ ] All utilities properly typed with TypeScript
+- [ ] No circular dependencies
+- [ ] All functionality preserved
+- [ ] Improved code organization
+- [ ] Better separation of concerns
 
 ## Notes
 - ProjectNavigator handles media/project imports (not part of MediaPlayer)
@@ -159,3 +241,4 @@ MediaPlayer/
 - MediaPlayer is purely a player component with its own controls and settings
 - Settings modal is created inline in index.tsx (no separate SettingsModal component needed)
 - The SettingsModal folder contains only the tab components used by the inline modal
+- Phase 2 focuses on extracting reusable code without changing functionality
