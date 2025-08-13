@@ -572,11 +572,10 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           
           audioContext.close();
 
-          // Convert to regular ArrayBuffer to avoid SharedArrayBuffer issues
-          const buffer = channelData.buffer.slice(
-            channelData.byteOffset,
-            channelData.byteOffset + channelData.byteLength
-          );
+          // Create a new ArrayBuffer from the Float32Array to avoid SharedArrayBuffer issues
+          const buffer = new ArrayBuffer(channelData.byteLength);
+          const bufferView = new Float32Array(buffer);
+          bufferView.set(channelData);
           workerManagerRef.current.analyzeWaveform(buffer, decodedData.sampleRate, duration);
           break;
           
