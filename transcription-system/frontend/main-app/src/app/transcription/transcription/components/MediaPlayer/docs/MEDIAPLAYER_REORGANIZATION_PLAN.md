@@ -77,18 +77,18 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 11. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
 12. Ready to commit: "Stage 5: Organize SettingsModal components"
 
-### ⏳ Stage 6: Move AutoDetect Components
-**Status**: PENDING
+### ✅ Stage 6: Move AutoDetect Components
+**Status**: COMPLETED
 **Actions**:
-1. Move AutoDetectEnhanced.tsx → components/SettingsModal/
-2. Move AutoDetectRegular.tsx → components/SettingsModal/
-3. Update imports in AutoDetectTab.tsx:
-   - `'../AutoDetectEnhanced'` → `'./AutoDetectEnhanced'`
-   - `'../AutoDetectRegular'` → `'./AutoDetectRegular'`
-4. Test: Verify AutoDetect functionality
-5. Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. Commit: "Stage 6: Move AutoDetect components to SettingsModal"
+1. ✅ Moved AutoDetectEnhanced.tsx → components/SettingsModal/
+2. ✅ Moved AutoDetectRegular.tsx → components/SettingsModal/
+3. ✅ Updated imports in AutoDetectTab.tsx:
+   - `'../../AutoDetectEnhanced'` → `'./AutoDetectEnhanced'`
+   - `'../../AutoDetectRegular'` → `'./AutoDetectRegular'`
+4. ✅ Test: Ready for user to verify AutoDetect functionality
+5. ✅ Updated: docs/MEDIAPLAYER_STRUCTURE.md
+6. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. Ready to commit: "Stage 6: Move AutoDetect components to SettingsModal"
 
 ### ⏳ Stage 7: Clean Up Types
 **Status**: PENDING

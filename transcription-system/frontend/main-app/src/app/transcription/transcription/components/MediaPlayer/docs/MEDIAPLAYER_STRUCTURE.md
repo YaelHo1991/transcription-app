@@ -141,11 +141,12 @@ MediaPlayer/
 - [x] Update CSS imports in index.tsx
 - [x] Organize SettingsModal components (moved tabs to SettingsModal folder)
 - [x] Update imports for moved tab components
+- [x] Move AutoDetect components to SettingsModal folder
+- [x] Update AutoDetectTab imports
 
 ### In Progress 🔄
 
 ### Pending ⏳
-- [ ] Move AutoDetect components
 - [ ] Clean up types
 - [ ] Extract MediaPlayer CSS from page.css
 - [ ] Final verification
