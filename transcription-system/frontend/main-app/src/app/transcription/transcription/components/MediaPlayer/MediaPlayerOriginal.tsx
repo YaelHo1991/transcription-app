@@ -72,6 +72,33 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     rewindOnPause: { enabled: false, amount: 0.5 }
   });
   
+  // Load and merge shortcuts from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedSettings = localStorage.getItem('mediaPlayerSettings');
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.shortcuts) {
+            // Merge new shortcuts from defaults that don't exist in saved
+            const savedActions = new Set(parsed.shortcuts.map((s: any) => s.action));
+            const newShortcuts = defaultShortcuts.filter(s => !savedActions.has(s.action));
+            const mergedShortcuts = [...parsed.shortcuts, ...newShortcuts];
+            
+            setKeyboardSettings(prev => ({
+              ...prev,
+              shortcuts: mergedShortcuts,
+              shortcutsEnabled: parsed.shortcutsEnabled !== undefined ? parsed.shortcutsEnabled : prev.shortcutsEnabled,
+              rewindOnPause: parsed.rewindOnPause || prev.rewindOnPause
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to load shortcuts:', error);
+        }
+      }
+    }
+  }, []);
+  
   // Pedal settings
   const [pedalEnabled, setPedalEnabled] = useState(true);
   
@@ -412,6 +439,18 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         } else {
           // Copy to clipboard
           navigator.clipboard.writeText(timestamp);
+        }
+        break;
+      
+      // Mark Navigation Actions
+      case 'previousMark':
+      case 'nextMark':
+      case 'cyclePlaybackMode':
+      case 'loopCurrentMark':
+      case 'cycleMarkFilter':
+        // Pass these actions to the WaveformCanvas
+        if ((window as any).__markNavigationHandler) {
+          (window as any).__markNavigationHandler(action);
         }
         break;
       
@@ -997,7 +1036,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         
         
         {/* Controls Section Wrapper */}
-        <div className={`section-wrapper ${controlsCollapsed ? 'collapsed' : ''}`} id="controlsWrapper">
+        <div className={`section-wrapper controls-section ${controlsCollapsed ? 'collapsed' : ''}`} id="controlsWrapper">
           {/* Collapse/Expand Toggle */}
           <button 
             className="collapse-toggle" 
@@ -1095,6 +1134,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                     onSeek={handleWaveformSeek}
                     mediaUrl={initialMedia?.url || ''}
                     marksEnabled={true}
+                    onMarkNavigationAction={handleShortcutAction}
                   />
                 </div>
               ) : (
@@ -1214,7 +1254,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         </div>
         
         {/* Sliders Section Wrapper */}
-        <div className={`section-wrapper ${slidersCollapsed ? 'collapsed' : ''}`} id="slidersWrapper">
+        <div className={`section-wrapper sliders-section ${slidersCollapsed ? 'collapsed' : ''}`} id="slidersWrapper">
           {/* Collapse/Expand Toggle */}
           <button 
             className="collapse-toggle" 

@@ -79,9 +79,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
         try {
           const parsed = JSON.parse(savedSettings);
           
-          // Load shortcuts
+          // Load shortcuts with merging of new defaults
           if (parsed.shortcuts) {
-            setShortcuts(parsed.shortcuts);
+            // Merge new shortcuts from defaults that don't exist in saved
+            const savedActions = new Set(parsed.shortcuts.map((s: any) => s.action));
+            const newShortcuts = defaultShortcuts.filter(s => !savedActions.has(s.action));
+            const mergedShortcuts = [...parsed.shortcuts, ...newShortcuts];
+            setShortcuts(mergedShortcuts);
           }
           
           // Load shortcut settings

@@ -392,21 +392,23 @@ Each tab maintains exact functionality from original:
 - [x] **USER APPROVED**
 - [x] Git commit
 
-### Stage 10: Mark Navigation & Filtering ⏳
-- [ ] Navigation features:
-  - [ ] Previous/Next mark buttons
-  - [ ] Jump to specific mark
-  - [ ] Keyboard shortcuts (Alt+←/→)
-- [ ] Filtering system:
-  - [ ] Show/hide specific mark types
-  - [ ] Isolate marked sections
-- [ ] Playback options:
-  - [ ] Play only marked sections
-  - [ ] Skip marked sections
-  - [ ] Loop within marked range
-- [ ] Synchronization:
-  - [ ] Events for text editor
-  - [ ] Bidirectional navigation
-  - [ ] Shared mark state
-- [ ] **USER TEST & APPROVAL REQUIRED**
-- [ ] Git commit (only after approval)
+### Stage 10: Mark Navigation & Filtering ✅
+- [x] Navigation features:
+  - [x] Previous/Next mark buttons (already in Stage 8)
+  - [x] Jump to specific mark (via navigation)
+  - [x] Keyboard shortcuts (Alt+←/→)
+- [x] Filtering system:
+  - [x] Show/hide specific mark types (filter dropdown)
+  - [x] Isolate marked sections (navigation filter)
+- [x] Playback options:
+  - [x] Play only marked sections
+  - [x] Skip marked sections
+  - [x] Loop within marked range
+- [x] Playback mode UI with dropdown menu
+- [x] Keyboard shortcuts:
+  - [x] M - Cycle playback modes
+  - [x] L - Loop current mark
+  - [x] F - Cycle filters
+  - [x] Alt+←/→ - Navigate marks
+- [x] **USER TEST & APPROVAL RECEIVED**
+- [x] Git commit

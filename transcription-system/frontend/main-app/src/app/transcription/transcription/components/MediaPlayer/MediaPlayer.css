@@ -177,6 +177,21 @@
             border-radius: 0 0 8px 8px;
         }
         
+        /* Fine-tune arrow positions for each section */
+        .controls-section .collapse-toggle {
+            top: -14px; /* Move up 2px for better alignment */
+        }
+        .controls-section.collapsed .collapse-toggle {
+            bottom: -14px; /* Move up 2px when collapsed */
+        }
+        
+        .sliders-section .collapse-toggle {
+            top: -10px; /* Move down 2px for better alignment */
+        }
+        .sliders-section.collapsed .collapse-toggle {
+            bottom: -10px; /* Move down 2px when collapsed */
+        }
+        
         /* Collapsed State - completely hidden */
         .controls-section.collapsed {
             display: none !important;

@@ -14,6 +14,7 @@ interface WaveformCanvasProps {
   showSettings?: boolean;
   mediaUrl?: string;
   marksEnabled?: boolean;
+  onMarkNavigationAction?: (action: string) => void;
 }
 
 export default function WaveformCanvas({
@@ -24,7 +25,8 @@ export default function WaveformCanvas({
   onSeek,
   showSettings = true,
   mediaUrl = '',
-  marksEnabled = true
+  marksEnabled = true,
+  onMarkNavigationAction
 }: WaveformCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +56,11 @@ export default function WaveformCanvas({
   const [navigationFilter, setNavigationFilter] = useState<MarkType | 'all'>('all');
   const [showNavigationFilter, setShowNavigationFilter] = useState(false);
   const lastAutoScrollTime = useRef(0);
+  
+  // Playback mode state
+  const [playbackMode, setPlaybackMode] = useState<'normal' | 'marked-only' | 'skip-marked' | 'loop-mark'>('normal');
+  const [loopingMark, setLoopingMark] = useState<any>(null);
+  const [showPlaybackOptions, setShowPlaybackOptions] = useState(false);
   
   // Zoom constraints
   const MIN_ZOOM = 1;
@@ -580,6 +587,122 @@ export default function WaveformCanvas({
     }
   }, [showMarkTypeSelector, handleClickOutsideTypeSelector]);
 
+  // Handle playback modes
+  useEffect(() => {
+    if (!isPlaying || playbackMode === 'normal') return;
+    
+    // Get marks from the manager
+    const marks = marksManagerRef.current?.getMarks ? marksManagerRef.current.getMarks() : [];
+    const filteredMarks = markFilter 
+      ? marks.filter((m: any) => m.type === markFilter)
+      : marks;
+    
+    // Check if current time is within a mark
+    const currentMark = filteredMarks.find((mark: any) => {
+      if (mark.isRange && mark.endTime) {
+        return currentTime >= mark.time && currentTime <= mark.endTime;
+      }
+      return false;
+    });
+    
+    switch (playbackMode) {
+      case 'marked-only':
+        // Play only marked sections
+        if (!currentMark) {
+          // Find next mark
+          const nextMark = filteredMarks.find((m: any) => m.time > currentTime);
+          if (nextMark) {
+            onSeek(nextMark.time);
+          }
+        }
+        break;
+        
+      case 'skip-marked':
+        // Skip marked sections
+        if (currentMark && currentMark.endTime) {
+          onSeek(currentMark.endTime + 0.1);
+        }
+        break;
+        
+      case 'loop-mark':
+        // Loop within current mark
+        if (loopingMark && loopingMark.endTime) {
+          if (currentTime >= loopingMark.endTime) {
+            onSeek(loopingMark.time);
+          } else if (currentTime < loopingMark.time) {
+            onSeek(loopingMark.time);
+          }
+        }
+        break;
+    }
+  }, [currentTime, isPlaying, playbackMode, loopingMark, markFilter, onSeek]);
+
+  // Handle mark navigation actions from keyboard shortcuts
+  useEffect(() => {
+    if (!onMarkNavigationAction) return;
+    
+    const handleAction = (action: string) => {
+      switch (action) {
+        case 'previousMark':
+          if (marksManagerRef.current) {
+            marksManagerRef.current.navigateToPreviousMark();
+          }
+          break;
+          
+        case 'nextMark':
+          if (marksManagerRef.current) {
+            marksManagerRef.current.navigateToNextMark();
+          }
+          break;
+          
+        case 'cyclePlaybackMode':
+          const modes: Array<'normal' | 'marked-only' | 'skip-marked' | 'loop-mark'> = 
+            ['normal', 'marked-only', 'skip-marked', 'loop-mark'];
+          const currentIndex = modes.indexOf(playbackMode);
+          const nextIndex = (currentIndex + 1) % modes.length;
+          setPlaybackMode(modes[nextIndex]);
+          
+          // Show status message
+          const modeNames = {
+            'normal': 'רגיל',
+            'marked-only': 'סימונים בלבד',
+            'skip-marked': 'דלג על סימונים',
+            'loop-mark': 'לולאה בסימון'
+          };
+          console.log(`מצב הפעלה: ${modeNames[modes[nextIndex]]}`);
+          break;
+          
+        case 'loopCurrentMark':
+          if (marksManagerRef.current?.getMarks) {
+            const marks = marksManagerRef.current.getMarks();
+            const currentMark = marks.find((mark: any) => {
+              if (mark.isRange && mark.endTime) {
+                return currentTime >= mark.time && currentTime <= mark.endTime;
+              }
+              return false;
+            });
+            
+            if (currentMark) {
+              setLoopingMark(currentMark);
+              setPlaybackMode('loop-mark');
+              onSeek(currentMark.time);
+            }
+          }
+          break;
+          
+        case 'cycleMarkFilter':
+          const filters: Array<MarkType | null> = [null, 'skip', 'unclear', 'review', 'section', 'custom'];
+          const currentFilterIndex = filters.indexOf(markFilter);
+          const nextFilterIndex = (currentFilterIndex + 1) % filters.length;
+          setMarkFilter(filters[nextFilterIndex]);
+          break;
+      }
+    };
+    
+    // Store the handler reference for cleanup
+    (window as any).__markNavigationHandler = handleAction;
+  }, [currentTime, playbackMode, markFilter, onSeek, onMarkNavigationAction]);
+
   return (
     <div 
       ref={containerRef}
@@ -945,6 +1068,31 @@ export default function WaveformCanvas({
               title="בחר סוג סימון לניווט"
             >
               🎯
+            </button>
+
+            {/* Playback Mode Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPlaybackOptions(!showPlaybackOptions);
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: playbackMode !== 'normal' || showPlaybackOptions ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="אפשרויות הפעלה"
+            >
+              {playbackMode === 'loop-mark' ? '🔄' : playbackMode === 'marked-only' ? '▶️' : playbackMode === 'skip-marked' ? '⏭️' : '▶'}
             </button>
 
             {/* Export Marks Button */}
@@ -1449,6 +1597,110 @@ export default function WaveformCanvas({
                     <span>{color.nameHebrew}</span>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Playback Options Dropdown */}
+            {showPlaybackOptions && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '240px',
+                  right: '20px',
+                  backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                  minWidth: '200px',
+                  zIndex: 2001,
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+                onMouseLeave={() => {
+                  setTimeout(() => setShowPlaybackOptions(false), 300);
+                }}
+              >
+                <div style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginBottom: '4px'
+                }}>
+                  אפשרויות הפעלה
+                </div>
+                
+                {/* Playback Mode Options */}
+                {[
+                  { mode: 'normal' as const, icon: '▶', label: 'הפעלה רגילה', desc: 'הפעל את כל התוכן' },
+                  { mode: 'marked-only' as const, icon: '▶️', label: 'סימונים בלבד', desc: 'הפעל רק קטעים מסומנים' },
+                  { mode: 'skip-marked' as const, icon: '⏭️', label: 'דלג על סימונים', desc: 'דלג על קטעים מסומנים' },
+                  { mode: 'loop-mark' as const, icon: '🔄', label: 'לולאה בסימון', desc: 'חזור על הסימון הנוכחי' }
+                ].map(({ mode, icon, label, desc }) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setPlaybackMode(mode);
+                      if (mode !== 'loop-mark') {
+                        setLoopingMark(null);
+                      }
+                      setShowPlaybackOptions(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: '2px',
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: playbackMode === mode ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s',
+                      textAlign: 'right'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (playbackMode !== mode) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (playbackMode !== mode) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.6)', marginRight: '24px' }}>
+                      {desc}
+                    </div>
+                  </button>
+                ))}
+                
+                {/* Keyboard Shortcuts Info */}
+                <div style={{
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginTop: '8px',
+                  paddingTop: '8px',
+                  fontSize: '10px',
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  textAlign: 'right'
+                }}>
+                  <div style={{ marginBottom: '4px', color: 'rgba(255, 255, 255, 0.7)' }}>
+                    💡 קיצורי מקלדת (ניתן לשינוי בהגדרות):
+                  </div>
+                  <div style={{ marginRight: '12px' }}>
+                    <div>Ctrl+P - החלף מצב הפעלה</div>
+                    <div>L - לולאה בסימון נוכחי</div>
+                    <div>F - החלף סינון סימונים</div>
+                    <div>Alt+← / Alt+→ - ניווט בין סימונים</div>
+                  </div>
+                </div>
               </div>
             )}
 

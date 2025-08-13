@@ -26,18 +26,25 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   // Group 3: Volume & Speed (עוצמה ומהירות)
   { action: 'volumeUp', key: 'ArrowUp', description: 'הגבר עוצמה', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'volumeDown', key: 'ArrowDown', description: 'הנמך עוצמה', enabled: true, group: 'עוצמה ומהירות' },
-  { action: 'mute', key: 'm', description: 'השתק/בטל השתקה', enabled: true, group: 'עוצמה ומהירות' },
+  { action: 'mute', key: 'u', description: 'השתק/בטל השתקה', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'speedUp', key: '=', description: 'הגבר מהירות', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'speedDown', key: '-', description: 'הנמך מהירות', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'speedReset', key: '0', description: 'אפס מהירות', enabled: true, group: 'עוצמה ומהירות' },
   
-  // Group 4: Work Modes (מצבי עבודה) - ordered by tabs like original
+  // Group 4: Mark Navigation (ניווט סימונים)
+  { action: 'previousMark', key: 'Alt+ArrowRight', description: 'סימון קודם', enabled: true, group: 'ניווט סימונים' },
+  { action: 'nextMark', key: 'Alt+ArrowLeft', description: 'סימון הבא', enabled: true, group: 'ניווט סימונים' },
+  { action: 'cyclePlaybackMode', key: 'Ctrl+p', description: 'החלף מצב הפעלה', enabled: true, group: 'ניווט סימונים' },
+  { action: 'loopCurrentMark', key: 'l', description: 'לולאה בסימון נוכחי', enabled: true, group: 'ניווט סימונים' },
+  { action: 'cycleMarkFilter', key: 'f', description: 'החלף סינון סימונים', enabled: true, group: 'ניווט סימונים' },
+  
+  // Group 5: Work Modes (מצבי עבודה) - ordered by tabs like original
   { action: 'toggleShortcuts', key: 'Ctrl+Shift+s', description: 'הפעל/כבה קיצורים', enabled: true, group: 'מצבי עבודה' },
   { action: 'togglePedal', key: 'p', description: 'הפעל/כבה דוושה', enabled: true, group: 'מצבי עבודה' },
   { action: 'toggleAutoDetect', key: 'a', description: 'הפעל/כבה זיהוי אוטומטי', enabled: true, group: 'מצבי עבודה' },
   { action: 'toggleMode', key: 'Ctrl+m', description: 'החלף מצב רגיל/משופר', enabled: true, group: 'מצבי עבודה' },
   
-  // Group 5: Settings (הגדרות)
+  // Group 6: Settings (הגדרות)
   { action: 'toggleSettings', key: 's', description: 'פתח הגדרות', enabled: true, group: 'הגדרות' },
 ];
 
