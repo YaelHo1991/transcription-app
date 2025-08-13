@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { KeyboardShortcut } from '../types';
 
 interface KeyboardShortcutsProps {
@@ -62,8 +62,8 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
     });
   }, [shortcuts]);
 
-  // Helper function to build key string - must be defined before useEffect
-  const buildKeyString = (e: KeyboardEvent): string => {
+  // Helper function to build key string - use useCallback to prevent re-renders
+  const buildKeyString = useCallback((e: KeyboardEvent): string => {
     const parts: string[] = [];
     
     if (e.ctrlKey) parts.push('Ctrl');
@@ -120,7 +120,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
     }
     
     return parts.join('+');
-  };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -215,7 +215,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       window.removeEventListener('keyup', handleKeyUp);
       isPressed.current.clear();
     };
-  }, [enabled, onAction]);
+  }, [enabled, onAction, buildKeyString]);
 
   return null; // This component doesn't render anything
 }
