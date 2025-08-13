@@ -136,11 +136,11 @@ MediaPlayer/
 - [x] Remove duplicate files (MediaPlayer.tsx, SettingsModal.old.tsx)
 - [x] Rename MediaPlayerOriginal.tsx to index.tsx
 - [x] Update import in page.tsx
+- [x] Create folder structure (styles/, components/SettingsModal/)
 
 ### In Progress 🔄
 
 ### Pending ⏳
-- [ ] Create folder structure
 - [ ] Move CSS files to styles folder
 - [ ] Organize SettingsModal components
 - [ ] Move AutoDetect components
