@@ -62,6 +62,66 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
     });
   }, [shortcuts]);
 
+  // Helper function to build key string - must be defined before useEffect
+  const buildKeyString = (e: KeyboardEvent): string => {
+    const parts: string[] = [];
+    
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.altKey) parts.push('Alt');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.metaKey) parts.push('Meta');
+    
+    // Handle special keys
+    let key = e.key;
+    
+    // Handle F1-F12 keys
+    if (key.startsWith('F') && key.length >= 2 && key.length <= 3) {
+      const fNum = key.substring(1);
+      if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
+        // Keep F-keys as is (F1, F2, etc.)
+        // Don't modify them
+      }
+    }
+    // Convert to lowercase for letter keys (to handle capital letters)
+    else if (key.length === 1 && /[A-Z]/.test(key)) {
+      key = key.toLowerCase();
+    }
+    
+    // Handle numpad keys - use the actual number/operator
+    if (e.code && e.code.startsWith('Numpad')) {
+      // Special handling for Numpad0-9
+      if (e.code === 'Numpad0') key = '0';
+      else if (e.code === 'Numpad1') key = '1';
+      else if (e.code === 'Numpad2') key = '2';
+      else if (e.code === 'Numpad3') key = '3';
+      else if (e.code === 'Numpad4') key = '4';
+      else if (e.code === 'Numpad5') key = '5';
+      else if (e.code === 'Numpad6') key = '6';
+      else if (e.code === 'Numpad7') key = '7';
+      else if (e.code === 'Numpad8') key = '8';
+      else if (e.code === 'Numpad9') key = '9';
+      else if (e.code === 'NumpadDivide') key = '/';
+      else if (e.code === 'NumpadMultiply') key = '*';
+      else if (e.code === 'NumpadSubtract') key = '-';
+      else if (e.code === 'NumpadAdd') key = '+';
+      else if (e.code === 'NumpadEnter') key = 'Enter';
+      else if (e.code === 'NumpadDecimal') key = '.';
+    }
+    
+    if (key === ' ') key = 'Space';
+    if (key === 'ArrowLeft') key = 'ArrowLeft';
+    if (key === 'ArrowRight') key = 'ArrowRight';
+    if (key === 'ArrowUp') key = 'ArrowUp';
+    if (key === 'ArrowDown') key = 'ArrowDown';
+    
+    // Don't add modifier keys themselves
+    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+      parts.push(key);
+    }
+    
+    return parts.join('+');
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if we're in ANY input field (not just text editor)
@@ -146,64 +206,6 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       isPressed.current.delete(key);
     };
 
-    const buildKeyString = (e: KeyboardEvent): string => {
-      const parts: string[] = [];
-      
-      if (e.ctrlKey) parts.push('Ctrl');
-      if (e.altKey) parts.push('Alt');
-      if (e.shiftKey) parts.push('Shift');
-      if (e.metaKey) parts.push('Meta');
-      
-      // Handle special keys
-      let key = e.key;
-      
-      // Handle F1-F12 keys
-      if (key.startsWith('F') && key.length >= 2 && key.length <= 3) {
-        const fNum = key.substring(1);
-        if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
-          // Keep F-keys as is (F1, F2, etc.)
-          // Don't modify them
-        }
-      }
-      // Convert to lowercase for letter keys (to handle capital letters)
-      else if (key.length === 1 && /[A-Z]/.test(key)) {
-        key = key.toLowerCase();
-      }
-      
-      // Handle numpad keys - use the actual number/operator
-      if (e.code && e.code.startsWith('Numpad')) {
-        // Special handling for Numpad0-9
-        if (e.code === 'Numpad0') key = '0';
-        else if (e.code === 'Numpad1') key = '1';
-        else if (e.code === 'Numpad2') key = '2';
-        else if (e.code === 'Numpad3') key = '3';
-        else if (e.code === 'Numpad4') key = '4';
-        else if (e.code === 'Numpad5') key = '5';
-        else if (e.code === 'Numpad6') key = '6';
-        else if (e.code === 'Numpad7') key = '7';
-        else if (e.code === 'Numpad8') key = '8';
-        else if (e.code === 'Numpad9') key = '9';
-        else if (e.code === 'NumpadDivide') key = '/';
-        else if (e.code === 'NumpadMultiply') key = '*';
-        else if (e.code === 'NumpadSubtract') key = '-';
-        else if (e.code === 'NumpadAdd') key = '+';
-        else if (e.code === 'NumpadEnter') key = 'Enter';
-        else if (e.code === 'NumpadDecimal') key = '.';
-      }
-      
-      if (key === ' ') key = 'Space';
-      if (key === 'ArrowLeft') key = 'ArrowLeft';
-      if (key === 'ArrowRight') key = 'ArrowRight';
-      if (key === 'ArrowUp') key = 'ArrowUp';
-      if (key === 'ArrowDown') key = 'ArrowDown';
-      
-      // Don't add modifier keys themselves
-      if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-        parts.push(key);
-      }
-      
-      return parts.join('+');
-    };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
