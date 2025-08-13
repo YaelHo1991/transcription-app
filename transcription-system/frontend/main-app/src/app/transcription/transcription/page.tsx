@@ -11,7 +11,6 @@ import UploadOptionsModal from './components/UploadOptionsModal/UploadOptionsMod
 import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayerOriginal from './components/MediaPlayer/MediaPlayerOriginal';
-import TestTextEditor from './components/TestTextEditor';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -330,8 +329,6 @@ export default function TranscriptionWorkPage() {
               }}
             />
 
-            {/* Test Text Editor for auto-detect testing */}
-            <TestTextEditor />
           </div>
 
           {/* Side Workspace */}

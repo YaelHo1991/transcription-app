@@ -1,0 +1,242 @@
+/* TextEditor Component Styles */
+
+.text-editor-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Header Section */
+.text-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #3d3d3d;
+}
+
+.text-editor-header h3 {
+  margin: 0;
+  color: #e91e63;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.text-editor-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.sync-button,
+.timestamp-button {
+  padding: 6px 12px;
+  background-color: #3d3d3d;
+  border: 1px solid #4d4d4d;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.sync-button:hover,
+.timestamp-button:hover {
+  background-color: #4d4d4d;
+  border-color: #5d5d5d;
+}
+
+.sync-button.active {
+  background-color: #e91e63;
+  border-color: #e91e63;
+}
+
+.cursor-position {
+  color: #888;
+  font-size: 12px;
+  margin-left: 12px;
+}
+
+/* Body Section */
+.text-editor-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Marks Sidebar */
+.marks-sidebar {
+  width: 200px;
+  background-color: #252525;
+  border-right: 1px solid #3d3d3d;
+  padding: 12px;
+  overflow-y: auto;
+  direction: rtl;
+}
+
+.marks-sidebar h4 {
+  margin: 0 0 12px 0;
+  color: #e91e63;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.marks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mark-item {
+  padding: 8px;
+  background-color: #2d2d2d;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mark-item:hover {
+  background-color: #3d3d3d;
+  transform: translateX(-2px);
+}
+
+.mark-item.active {
+  background-color: #e91e63;
+  color: white;
+}
+
+.mark-time {
+  font-size: 12px;
+  color: #26d0ce;
+  font-family: monospace;
+}
+
+.mark-type {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.mark-name {
+  font-size: 12px;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Editor Content */
+.text-editor-content {
+  flex: 1;
+  padding: 20px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  direction: rtl;
+  text-align: right;
+}
+
+.text-editor-content:focus {
+  outline: none;
+}
+
+.text-editor-content[contenteditable="true"]:empty:before {
+  content: attr(placeholder);
+  color: #666;
+  pointer-events: none;
+  position: absolute;
+}
+
+/* Footer Section */
+.text-editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #2d2d2d;
+  border-top: 1px solid #3d3d3d;
+  font-size: 12px;
+  color: #888;
+}
+
+.word-count,
+.char-count {
+  margin-right: 16px;
+}
+
+.current-mark-indicator {
+  color: #26d0ce;
+  font-weight: 500;
+}
+
+/* Timestamps in text */
+.timestamp-ref {
+  color: #26d0ce;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.timestamp-ref:hover {
+  color: #40e0d0;
+  background-color: rgba(38, 208, 206, 0.1);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+/* Mark highlights in text */
+.mark-highlight {
+  background-color: rgba(233, 30, 99, 0.2);
+  border-bottom: 2px solid #e91e63;
+  padding: 2px 0;
+}
+
+/* Scrollbar styling */
+.text-editor-content::-webkit-scrollbar,
+.marks-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.text-editor-content::-webkit-scrollbar-track,
+.marks-sidebar::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.text-editor-content::-webkit-scrollbar-thumb,
+.marks-sidebar::-webkit-scrollbar-thumb {
+  background: #4d4d4d;
+  border-radius: 4px;
+}
+
+.text-editor-content::-webkit-scrollbar-thumb:hover,
+.marks-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #5d5d5d;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .marks-sidebar {
+    width: 150px;
+  }
+  
+  .text-editor-controls {
+    gap: 8px;
+  }
+  
+  .cursor-position {
+    display: none;
+  }
+}
