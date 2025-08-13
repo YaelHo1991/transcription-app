@@ -351,22 +351,22 @@ Each tab maintains exact functionality from original:
 6. **Zoom Integration**: Works correctly with zoom and scroll
 7. **Toolbar Integration**: Navigation and management in expandable toolbar
 
-### Stage 8: Hidden Toolbar ⏳
-- [ ] Create expandable toolbar UI (dot/hamburger icon)
-- [ ] Position: top-right corner of waveform
-- [ ] Ultra-compact icons when expanded
-- [ ] Auto-hide after inactivity
-- [ ] Tools to include:
-  - [ ] Add mark (with type selector)
-  - [ ] Custom mark creator (+)
-  - [ ] Navigate between marks
-  - [ ] Filter marks by type
-  - [ ] Clear all marks
-  - [ ] Zoom controls
-  - [ ] Loop between marks
-  - [ ] Export/import marks
-- [ ] **USER TEST & APPROVAL REQUIRED**
-- [ ] Git commit (only after approval)
+### Stage 8: Hidden Toolbar ✅
+- [x] Create expandable toolbar UI (gear icon)
+- [x] Position: top-right corner of waveform
+- [x] Ultra-compact icons when expanded
+- [x] Auto-hide after inactivity (5 seconds)
+- [x] Tools to include:
+  - [x] Add mark (with type selector) - 📌 button with dropdown
+  - [x] Custom mark creator (+) - ➕ button with dialog
+  - [x] Navigate between marks - ► ◄ buttons
+  - [x] Filter marks by type - 🔍 button with dropdown
+  - [x] Clear all marks - 🗑️ in guide menu
+  - [x] Zoom controls - +/- with level indicator
+  - [x] Loop between marks - 🔄 button with modes
+  - [x] Export/import marks - 📤📥 in guide menu
+- [x] **USER TEST & APPROVAL REQUIRED**
+- [x] Git commit
 
 ### Stage 9: Text Editor Integration Prep ⏳
 - [ ] Create TextEditor folder structure:

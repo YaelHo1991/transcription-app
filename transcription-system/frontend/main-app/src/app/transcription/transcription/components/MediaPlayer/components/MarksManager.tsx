@@ -21,6 +21,8 @@ interface MarksManagerProps {
   zoomLevel?: number;
   scrollOffset?: number;
   onDragStateChange?: (isDragging: boolean) => void;
+  markFilter?: MarkType | null;
+  navigationFilter?: MarkType | 'all';
 }
 
 const MarksManager = forwardRef(function MarksManager({
@@ -32,7 +34,9 @@ const MarksManager = forwardRef(function MarksManager({
   enabled = true,
   zoomLevel = 1,
   scrollOffset = 0,
-  onDragStateChange
+  onDragStateChange,
+  markFilter = null,
+  navigationFilter = 'all'
 }: MarksManagerProps, ref) {
   const [marks, setMarks] = useState<Mark[]>([]);
   const [selectedMarkId, setSelectedMarkId] = useState<string | null>(null);
@@ -318,32 +322,62 @@ const MarksManager = forwardRef(function MarksManager({
     }
   }, [draggingBar, editingMarkId, marks, duration, scrollOffset, zoomLevel, onDragStateChange]);
 
-  // Get next/previous mark
+  // Get filtered marks based on navigation filter
+  const getFilteredMarks = useCallback(() => {
+    if (navigationFilter === 'all') {
+      return marks;
+    }
+    return marks.filter(mark => mark.type === navigationFilter);
+  }, [marks, navigationFilter]);
+
+  // Get next/previous mark (filtered) with tolerance
   const getNextMark = useCallback((fromTime: number): Mark | null => {
-    const sortedMarks = sortMarksByTime(marks);
-    return sortedMarks.find(m => m.time > fromTime) || null;
-  }, [marks]);
+    const filteredMarks = getFilteredMarks();
+    console.log('getNextMark - filteredMarks:', filteredMarks.map(m => ({id: m.id, time: m.time, type: m.type})));
+    const sortedMarks = sortMarksByTime(filteredMarks);
+    console.log('getNextMark - sortedMarks:', sortedMarks.map(m => ({id: m.id, time: m.time, type: m.type})));
+    // Add tolerance of 0.5 seconds to avoid getting stuck at current mark
+    const nextMark = sortedMarks.find(m => m.time > fromTime + 0.5);
+    console.log('getNextMark - fromTime:', fromTime, 'nextMark:', nextMark ? {id: nextMark.id, time: nextMark.time, type: nextMark.type} : null);
+    return nextMark || null;
+  }, [getFilteredMarks]);
 
   const getPreviousMark = useCallback((fromTime: number): Mark | null => {
-    const sortedMarks = sortMarksByTime(marks);
-    const previousMarks = sortedMarks.filter(m => m.time < fromTime);
-    return previousMarks[previousMarks.length - 1] || null;
-  }, [marks]);
+    const filteredMarks = getFilteredMarks();
+    console.log('getPreviousMark - filteredMarks:', filteredMarks.map(m => ({id: m.id, time: m.time, type: m.type})));
+    const sortedMarks = sortMarksByTime(filteredMarks);
+    console.log('getPreviousMark - sortedMarks:', sortedMarks.map(m => ({id: m.id, time: m.time, type: m.type})));
+    // Add tolerance of 0.5 seconds to avoid getting stuck at current mark
+    const previousMarks = sortedMarks.filter(m => m.time < fromTime - 0.5);
+    const prevMark = previousMarks[previousMarks.length - 1] || null;
+    console.log('getPreviousMark - fromTime:', fromTime, 'prevMark:', prevMark ? {id: prevMark.id, time: prevMark.time, type: prevMark.type} : null);
+    return prevMark;
+  }, [getFilteredMarks]);
 
   // Navigate to next/previous mark
   const navigateToNextMark = useCallback(() => {
+    console.log('Navigating to next mark, currentTime:', currentTime);
     const nextMark = getNextMark(currentTime);
+    console.log('Found next mark:', nextMark);
     if (nextMark) {
+      console.log('Seeking to:', nextMark.time);
       onSeek?.(nextMark.time);
       onMarkClick?.(nextMark);
+    } else {
+      console.log('No next mark found');
     }
   }, [currentTime, getNextMark, onSeek, onMarkClick]);
 
   const navigateToPreviousMark = useCallback(() => {
+    console.log('Navigating to previous mark, currentTime:', currentTime);
     const prevMark = getPreviousMark(currentTime);
+    console.log('Found previous mark:', prevMark);
     if (prevMark) {
+      console.log('Seeking to:', prevMark.time);
       onSeek?.(prevMark.time);
       onMarkClick?.(prevMark);
+    } else {
+      console.log('No previous mark found');
     }
   }, [currentTime, getPreviousMark, onSeek, onMarkClick]);
 
@@ -455,7 +489,7 @@ const MarksManager = forwardRef(function MarksManager({
         }}
       >
         {/* Render marks */}
-        {marks.map(mark => {
+        {marks.filter(mark => markFilter === null || mark.type === markFilter).map(mark => {
           // Calculate mark positions as absolute positions on the waveform
           const markStart = mark.time / duration;
           const markEnd = (mark.endTime || mark.time) / duration;

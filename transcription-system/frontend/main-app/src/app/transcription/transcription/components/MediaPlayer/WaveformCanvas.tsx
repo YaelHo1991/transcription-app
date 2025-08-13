@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { WaveformData } from './types';
 import MarksManager from './components/MarksManager';
+import { MarkType, MARK_COLORS } from './types/marks';
 
 interface WaveformCanvasProps {
   waveformData: WaveformData;
@@ -44,6 +45,14 @@ export default function WaveformCanvas({
   const [showMarksMenu, setShowMarksMenu] = useState(false);
   const marksMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isMarkDragging, setIsMarkDragging] = useState(false);
+  const toolbarHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showMarkTypeSelector, setShowMarkTypeSelector] = useState(false);
+  const [showCustomMarkDialog, setShowCustomMarkDialog] = useState(false);
+  const [customMarkName, setCustomMarkName] = useState('');
+  const [showMarkFilter, setShowMarkFilter] = useState(false);
+  const [markFilter, setMarkFilter] = useState<MarkType | null>(null);
+  const [navigationFilter, setNavigationFilter] = useState<MarkType | 'all'>('all');
+  const [showNavigationFilter, setShowNavigationFilter] = useState(false);
   const lastAutoScrollTime = useRef(0);
   
   // Zoom constraints
@@ -232,6 +241,100 @@ export default function WaveformCanvas({
     lastDrawnProgress.current = -1;
     drawWaveform();
   }, [drawWaveform]);
+
+  // Auto-hide toolbar functionality
+  const startToolbarHideTimer = useCallback(() => {
+    // Clear existing timer
+    if (toolbarHideTimeoutRef.current) {
+      clearTimeout(toolbarHideTimeoutRef.current);
+    }
+    
+    // Start new timer (5 seconds of inactivity)
+    toolbarHideTimeoutRef.current = setTimeout(() => {
+      setShowToolbar(false);
+      setShowMarksMenu(false);
+      toolbarHideTimeoutRef.current = null;
+    }, 5000);
+  }, []);
+
+  const cancelToolbarHideTimer = useCallback(() => {
+    if (toolbarHideTimeoutRef.current) {
+      clearTimeout(toolbarHideTimeoutRef.current);
+      toolbarHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Create mark at current position
+  const createMarkAtCurrentTime = useCallback((markType: MarkType) => {
+    if (marksManagerRef.current?.addMark) {
+      marksManagerRef.current.addMark(currentTime, markType);
+    }
+    setShowMarkTypeSelector(false);
+  }, [currentTime]);
+
+  // Create custom mark
+  const createCustomMark = useCallback(() => {
+    if (customMarkName.trim() && marksManagerRef.current?.addMark) {
+      marksManagerRef.current.addMark(currentTime, MarkType.CUSTOM, undefined, customMarkName.trim());
+    }
+    setShowCustomMarkDialog(false);
+    setCustomMarkName('');
+  }, [currentTime, customMarkName]);
+
+  // Export marks to JSON file
+  const exportMarks = useCallback(() => {
+    if (marksManagerRef.current?.getMarks) {
+      const marks = marksManagerRef.current.getMarks();
+      const dataStr = JSON.stringify(marks, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `marks_${new Date().toISOString().slice(0,10)}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    }
+    setShowMarksMenu(false);
+  }, []);
+
+  // Import marks from JSON file
+  const importMarks = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const importedMarks = JSON.parse(e.target?.result as string);
+            if (Array.isArray(importedMarks) && marksManagerRef.current) {
+              // Validate marks structure
+              const validMarks = importedMarks.filter(mark => 
+                mark.id && mark.time !== undefined && mark.type
+              );
+              if (validMarks.length > 0) {
+                // Replace current marks with imported ones
+                const storageKey = `mediaplayer_marks_${Math.abs(mediaUrl.split('').reduce((a,b)=>(a<<5)-a+b.charCodeAt(0)|0,0))}`;
+                localStorage.setItem(storageKey, JSON.stringify(validMarks));
+                // Reload the component to show imported marks
+                window.location.reload();
+              } else {
+                alert('קובץ לא תקין - לא נמצאו סימונים חוקיים');
+              }
+            }
+          } catch (error) {
+            alert('שגיאה בקריאת הקובץ - וודא שמדובר בקובץ JSON תקין');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+    setShowMarksMenu(false);
+  }, [mediaUrl]);
 
   // Handle zoom in/out
   const handleZoomIn = useCallback(() => {
@@ -437,6 +540,9 @@ export default function WaveformCanvas({
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      if (toolbarHideTimeoutRef.current) {
+        clearTimeout(toolbarHideTimeoutRef.current);
+      }
     };
   }, [resizeCanvas, handleWheel, isDragging, handleMouseMove, handleMouseUp]);
 
@@ -454,6 +560,25 @@ export default function WaveformCanvas({
     
     return () => clearTimeout(timer);
   }, [waveformData, zoomLevel, scrollOffset, drawWaveform]);
+
+  // Click outside handler for type selector
+  const handleClickOutsideTypeSelector = useCallback((e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // Check if click is outside the type selector and its button
+    if (!target.closest('[data-type-selector]') && !target.closest('[data-type-selector-button]')) {
+      setShowMarkTypeSelector(false);
+    }
+  }, []);
+
+  // Add click outside listener for type selector
+  useEffect(() => {
+    if (showMarkTypeSelector) {
+      document.addEventListener('click', handleClickOutsideTypeSelector);
+      return () => {
+        document.removeEventListener('click', handleClickOutsideTypeSelector);
+      };
+    }
+  }, [showMarkTypeSelector, handleClickOutsideTypeSelector]);
 
   return (
     <div 
@@ -514,6 +639,8 @@ export default function WaveformCanvas({
           zoomLevel={zoomLevel}
           scrollOffset={scrollOffset}
           onDragStateChange={setIsMarkDragging}
+          markFilter={markFilter}
+          navigationFilter={navigationFilter}
         />
       )}
       
@@ -531,7 +658,15 @@ export default function WaveformCanvas({
         >
           {/* Toolbar Toggle Button - Very Transparent */}
           <button
-            onClick={() => setShowToolbar(!showToolbar)}
+            onClick={() => {
+              const newShowState = !showToolbar;
+              setShowToolbar(newShowState);
+              if (newShowState) {
+                startToolbarHideTimer();
+              } else {
+                cancelToolbarHideTimer();
+              }
+            }}
             style={{
               width: '16px',
               height: '16px',
@@ -569,6 +704,8 @@ export default function WaveformCanvas({
               alignItems: 'center',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
             }}
+            onMouseEnter={cancelToolbarHideTimer}
+            onMouseLeave={startToolbarHideTimer}
           >
             {/* Zoom Controls - Compact Horizontal Layout */}
             <div style={{ 
@@ -632,50 +769,39 @@ export default function WaveformCanvas({
               >
                 +
               </button>
+              {/* Reset Zoom - Always visible */}
+              <button
+                onClick={() => {
+                  setZoomLevel(1);
+                  setScrollOffset(0);
+                }}
+                disabled={zoomLevel === 1}
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '3px',
+                  border: 'none',
+                  backgroundColor: zoomLevel === 1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)',
+                  color: zoomLevel === 1 ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.9)',
+                  cursor: zoomLevel === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  if (zoomLevel > 1) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  if (zoomLevel > 1) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                }}
+                title="איפוס זום"
+              >
+                ↺
+              </button>
             </div>
-            
-            {/* Vertical Separator */}
-            {zoomLevel > 1 && (
-              <>
-                <div style={{
-                  width: '1px',
-                  height: '14px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)'
-                }} />
-                
-                {/* Reset Zoom - Compact Icon */}
-                <button
-                  onClick={() => {
-                    setZoomLevel(1);
-                    setScrollOffset(0);
-                  }}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '3px',
-                    border: 'none',
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 0,
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                  }}
-                  title="איפוס זום"
-                >
-                  ↺
-                </button>
-              </>
-            )}
             
             {/* Marks Menu Button - Always visible */}
             <div style={{
@@ -720,10 +846,231 @@ export default function WaveformCanvas({
               📍
             </button>
 
+            {/* Add Mark Button */}
+            <button
+              data-type-selector-button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMarkTypeSelector(!showMarkTypeSelector);
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: showMarkTypeSelector ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="הוסף סימון בזמן נוכחי"
+            >
+              📌
+            </button>
+
+            {/* Custom Mark Creator Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCustomMarkDialog(true);
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="יצירת סימון מותאם אישית"
+            >
+              ➕
+            </button>
+
+            {/* Filter Marks Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMarkFilter(!showMarkFilter);
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: showMarkFilter ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="סנן סימונים לפי סוג"
+            >
+              🔍
+            </button>
+
+            {/* Navigation Filter Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNavigationFilter(!showNavigationFilter);
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: showNavigationFilter || navigationFilter !== 'all' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="בחר סוג סימון לניווט"
+            >
+              🎯
+            </button>
+
+            {/* Export Marks Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (marksManagerRef.current?.getMarks) {
+                  const marks = marksManagerRef.current.getMarks();
+                  const dataStr = JSON.stringify(marks, null, 2);
+                  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                  
+                  const exportFileDefaultName = `marks_${new Date().toISOString().slice(0,10)}.json`;
+                  
+                  const linkElement = document.createElement('a');
+                  linkElement.setAttribute('href', dataUri);
+                  linkElement.setAttribute('download', exportFileDefaultName);
+                  linkElement.click();
+                }
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: 'rgba(0, 150, 0, 0.3)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="יצא סימונים לקובץ JSON"
+            >
+              📤
+            </button>
+
+            {/* Import Marks Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      try {
+                        const importedMarks = JSON.parse(e.target?.result as string);
+                        if (Array.isArray(importedMarks) && marksManagerRef.current) {
+                          // Validate marks structure
+                          const validMarks = importedMarks.filter(mark => 
+                            mark.id && mark.time !== undefined && mark.type
+                          );
+                          if (validMarks.length > 0) {
+                            // Replace current marks with imported ones
+                            const storageKey = `mediaplayer_marks_${Math.abs(mediaUrl.split('').reduce((a,b)=>(a<<5)-a+b.charCodeAt(0)|0,0))}`;
+                            localStorage.setItem(storageKey, JSON.stringify(validMarks));
+                            // Reload the component to show imported marks
+                            window.location.reload();
+                          } else {
+                            alert('קובץ לא תקין - לא נמצאו סימונים חוקיים');
+                          }
+                        }
+                      } catch (error) {
+                        alert('שגיאה בקריאת הקובץ - וודא שמדובר בקובץ JSON תקין');
+                      }
+                    };
+                    reader.readAsText(file);
+                  }
+                };
+                input.click();
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: 'rgba(0, 100, 200, 0.3)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="יבא סימונים מקובץ JSON"
+            >
+              📥
+            </button>
+
+            {/* Clear All Marks Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (marksManagerRef.current?.clearAllMarks) {
+                  marksManagerRef.current.clearAllMarks();
+                }
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: 'rgba(200, 0, 0, 0.3)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              title="מחק את כל הסימונים"
+            >
+              🗑️
+            </button>
+
             {/* Mark Navigation Controls - Only when marks enabled */}
             {marksEnabled && (
               <>
-                {/* Previous Mark Button */}
+                {/* Previous Mark Button - RTL: shows ► for previous */}
                 <button
                   onClick={() => {
                     if (marksManagerRef.current?.navigateToPreviousMark) {
@@ -746,10 +1093,10 @@ export default function WaveformCanvas({
                   }}
                   title="סימון קודם"
                 >
-                  ◄
+                  ►
                 </button>
                 
-                {/* Next Mark Button */}
+                {/* Next Mark Button - RTL: shows ◄ for next */}
                 <button
                   onClick={() => {
                     if (marksManagerRef.current?.navigateToNextMark) {
@@ -772,7 +1119,7 @@ export default function WaveformCanvas({
                   }}
                   title="סימון הבא"
                 >
-                  ►
+                  ◄
                 </button>
                 
               </>
@@ -780,21 +1127,348 @@ export default function WaveformCanvas({
           </div>
         )}
 
-            {/* Marks Dropdown Menu - Always available */}
-            {showMarksMenu && (
+            {/* Navigation Filter Dropdown */}
+            {showNavigationFilter && (
               <div
                 style={{
                   position: 'fixed',
-                  top: '120px',
+                  top: '240px',
                   right: '20px',
                   backgroundColor: 'rgba(30, 30, 30, 0.95)',
                   borderRadius: '6px',
                   padding: '8px',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-                  minWidth: '200px',
-                  zIndex: 2000,
+                  minWidth: '180px',
+                  zIndex: 2001,
                   border: '1px solid rgba(255, 255, 255, 0.2)',
                   backdropFilter: 'blur(10px)'
+                }}
+                onMouseLeave={() => {
+                  setTimeout(() => setShowNavigationFilter(false), 300);
+                }}
+              >
+                <div style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginBottom: '4px'
+                }}>
+                  בחר סוג סימון לניווט
+                </div>
+                
+                {/* Navigate All Marks Option */}
+                <button
+                  onClick={() => {
+                    setNavigationFilter('all');
+                    setShowNavigationFilter(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 12px',
+                    backgroundColor: navigationFilter === 'all' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (navigationFilter !== 'all') e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (navigationFilter !== 'all') e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <span>🎯</span>
+                  <span>כל הסימונים</span>
+                </button>
+
+                {/* Individual Navigation Filter Options */}
+                {Object.entries(MARK_COLORS).map(([type, color]) => {
+                  // Check if marks of this type exist
+                  const hasMarksOfType = marksManagerRef.current?.getMarks ? 
+                    marksManagerRef.current.getMarks().some((mark: any) => mark.type === type) : false;
+                  
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        if (hasMarksOfType) {
+                          setNavigationFilter(type as MarkType);
+                          setShowNavigationFilter(false);
+                        }
+                      }}
+                      disabled={!hasMarksOfType}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '6px 12px',
+                        backgroundColor: navigationFilter === type ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                        border: 'none',
+                        color: hasMarksOfType ? 'white' : 'rgba(255, 255, 255, 0.4)',
+                        cursor: hasMarksOfType ? 'pointer' : 'not-allowed',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (hasMarksOfType && navigationFilter !== type) {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (hasMarksOfType && navigationFilter !== type) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                    >
+                      <span style={{ opacity: hasMarksOfType ? 1 : 0.4 }}>{color.icon}</span>
+                      <span>{color.nameHebrew} {!hasMarksOfType && '(לא קיים)'}</span>
+                    </button>
+                  );
+                })}
+
+                {/* Custom Marks Section */}
+                {marksManagerRef.current?.getMarks && 
+                 marksManagerRef.current.getMarks().some((mark: any) => mark.type === MarkType.CUSTOM) && (
+                  <>
+                    <div style={{
+                      borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+                      margin: '4px 0',
+                      padding: '4px 8px 0 8px',
+                      fontSize: '10px',
+                      color: 'rgba(255, 255, 255, 0.6)'
+                    }}>
+                      סימונים מותאמים:
+                    </div>
+                    {Array.from(new Set(
+                      marksManagerRef.current.getMarks()
+                        .filter((mark: any) => mark.type === MarkType.CUSTOM && mark.customName)
+                        .map((mark: any) => mark.customName)
+                    )).map(customName => (
+                      <button
+                        key={customName}
+                        onClick={() => {
+                          setNavigationFilter(MarkType.CUSTOM);
+                          setShowNavigationFilter(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '6px 12px',
+                          backgroundColor: navigationFilter === MarkType.CUSTOM ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                          border: 'none',
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (navigationFilter !== MarkType.CUSTOM) {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (navigationFilter !== MarkType.CUSTOM) {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }
+                        }}
+                      >
+                        <span>⚪</span>
+                        <span>{customName}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Mark Filter Dropdown */}
+            {showMarkFilter && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '200px',
+                  right: '20px',
+                  backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                  minWidth: '180px',
+                  zIndex: 2001,
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+                onMouseLeave={() => {
+                  setTimeout(() => setShowMarkFilter(false), 300);
+                }}
+              >
+                <div style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginBottom: '4px'
+                }}>
+                  סנן סימונים לפי סוג
+                </div>
+                
+                {/* Show All Option */}
+                <button
+                  onClick={() => {
+                    setMarkFilter(null);
+                    setShowMarkFilter(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 12px',
+                    backgroundColor: markFilter === null ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (markFilter !== null) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (markFilter !== null) e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <span>👁️</span>
+                  <span>הצג הכל</span>
+                </button>
+
+                {/* Individual Filter Options */}
+                {Object.entries(MARK_COLORS).map(([type, color]) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setMarkFilter(type as MarkType);
+                      setShowMarkFilter(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      padding: '6px 12px',
+                      backgroundColor: markFilter === type ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (markFilter !== type) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (markFilter !== type) e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <span>{color.icon}</span>
+                    <span>{color.nameHebrew}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Mark Type Selector Dropdown */}
+            {showMarkTypeSelector && (
+              <div
+                data-type-selector
+                style={{
+                  position: 'fixed',
+                  top: '160px',
+                  right: '20px',
+                  backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                  minWidth: '180px',
+                  zIndex: 2001,
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+                onMouseLeave={() => {
+                  // Don't auto-close, only close on selection or outside click
+                }}
+              >
+                <div style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginBottom: '4px'
+                }}>
+                  הוסף סימון ב-{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}
+                </div>
+                {Object.entries(MARK_COLORS).map(([type, color]) => (
+                  <button
+                    key={type}
+                    onClick={() => createMarkAtCurrentTime(type as MarkType)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      padding: '6px 12px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <span>{color.icon}</span>
+                    <span>{color.nameHebrew}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Marks Dropdown Menu - Always available */}
+            {showMarksMenu && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '100px',
+                  right: '20px',
+                  backgroundColor: 'rgba(30, 30, 30, 0.98)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.8)',
+                  minWidth: '250px',
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  zIndex: 3000,
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  backdropFilter: 'blur(15px)'
                 }}
                 onMouseLeave={() => {
                   // Clear any existing timeout
@@ -832,35 +1506,121 @@ export default function WaveformCanvas({
                   <div>✋ גרור פסים - התאמת טווח (במצב עריכה)</div>
                 </div>
                 
-                <button
-                  onClick={() => {
-                    if (marksManagerRef.current?.clearAllMarks) {
-                      marksManagerRef.current.clearAllMarks();
-                    }
-                    setShowMarksMenu(false);
-                  }}
+              </div>
+            )}
+
+            {/* Custom Mark Dialog */}
+            {showCustomMarkDialog && (
+              <>
+                {/* Backdrop */}
+                <div
                   style={{
-                    width: '100%',
-                    padding: '6px 10px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    textAlign: 'right',
-                    transition: 'background-color 0.2s'
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    zIndex: 2999
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  onClick={() => {
+                    setShowCustomMarkDialog(false);
+                    setCustomMarkName('');
                   }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                />
+                
+                {/* Dialog */}
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                    borderRadius: '8px',
+                    padding: '20px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                    zIndex: 3000,
+                    minWidth: '300px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
                   }}
                 >
-                  🗑️ מחק את כל הסימונים
-                </button>
-              </div>
+                  <h3 style={{
+                    margin: '0 0 15px 0',
+                    color: 'white',
+                    fontSize: '16px',
+                    textAlign: 'right'
+                  }}>
+                    סימון מותאם אישית ב-{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}
+                  </h3>
+                  
+                  <input
+                    type="text"
+                    value={customMarkName}
+                    onChange={(e) => setCustomMarkName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        createCustomMark();
+                      } else if (e.key === 'Escape') {
+                        setShowCustomMarkDialog(false);
+                        setCustomMarkName('');
+                      }
+                    }}
+                    placeholder="הכנס שם לסימון..."
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      borderRadius: '4px',
+                      color: 'white',
+                      fontSize: '14px',
+                      marginBottom: '15px',
+                      textAlign: 'right'
+                    }}
+                  />
+                  
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px',
+                    justifyContent: 'flex-end'
+                  }}>
+                    <button
+                      onClick={() => {
+                        setShowCustomMarkDialog(false);
+                        setCustomMarkName('');
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: 'transparent',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        borderRadius: '4px',
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      ביטול
+                    </button>
+                    <button
+                      onClick={createCustomMark}
+                      disabled={!customMarkName.trim()}
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: customMarkName.trim() ? '#26d0ce' : 'rgba(255, 255, 255, 0.1)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: customMarkName.trim() ? 'white' : 'rgba(255, 255, 255, 0.5)',
+                        cursor: customMarkName.trim() ? 'pointer' : 'not-allowed',
+                        fontSize: '12px'
+                      }}
+                    >
+                      יצור
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
         </div>
       )}
