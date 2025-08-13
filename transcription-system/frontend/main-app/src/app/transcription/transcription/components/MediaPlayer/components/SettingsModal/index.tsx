@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MediaPlayerSettings } from './types';
+import { MediaPlayerSettings } from '../../types';
 import ShortcutsTab from './ShortcutsTab';
 
 interface SettingsModalProps {

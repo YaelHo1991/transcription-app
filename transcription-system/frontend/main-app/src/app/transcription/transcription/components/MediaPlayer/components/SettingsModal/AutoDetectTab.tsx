@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import AutoDetectRegular from './AutoDetectRegular';
-import AutoDetectEnhanced from './AutoDetectEnhanced';
+import AutoDetectRegular from '../../AutoDetectRegular';
+import AutoDetectEnhanced from '../../AutoDetectEnhanced';
 
 interface AutoDetectTabProps {
   autoDetectEnabled: boolean;

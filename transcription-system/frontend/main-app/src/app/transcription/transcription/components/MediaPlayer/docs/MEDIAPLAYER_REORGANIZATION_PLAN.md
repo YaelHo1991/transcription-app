@@ -58,23 +58,24 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 7. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
 8. Ready to commit: "Stage 4: Organize MediaPlayer CSS into styles folder"
 
-### ⏳ Stage 5: Organize SettingsModal
-**Status**: PENDING
+### ✅ Stage 5: Organize SettingsModal
+**Status**: COMPLETED
 **Actions**:
-1. Move SettingsModal.tsx → components/SettingsModal/index.tsx
-2. Delete components/SettingsModal.tsx (duplicate)
-3. Move ShortcutsTab.tsx → components/SettingsModal/
-4. Move PedalTab.tsx → components/SettingsModal/
-5. Move AutoDetectTab.tsx → components/SettingsModal/
-6. Update imports in index.tsx:
+1. ✅ Moved SettingsModal.tsx → components/SettingsModal/index.tsx
+2. ✅ Deleted components/SettingsModal.tsx (duplicate)
+3. ✅ Moved ShortcutsTab.tsx → components/SettingsModal/
+4. ✅ Moved PedalTab.tsx → components/SettingsModal/
+5. ✅ Moved AutoDetectTab.tsx → components/SettingsModal/
+6. ✅ Updated imports in index.tsx:
    - `'./ShortcutsTab'` → `'./components/SettingsModal/ShortcutsTab'`
    - `'./PedalTab'` → `'./components/SettingsModal/PedalTab'`
    - `'./AutoDetectTab'` → `'./components/SettingsModal/AutoDetectTab'`
-7. Update imports in SettingsModal/index.tsx
-8. Test: Open settings modal, verify all tabs work
-9. Update: docs/MEDIAPLAYER_STRUCTURE.md
-10. Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-11. Commit: "Stage 5: Organize SettingsModal components"
+7. ✅ Updated imports in SettingsModal components
+8. ✅ Updated AutoDetectTab imports for AutoDetectRegular/Enhanced
+9. ✅ Test: Ready for user to verify all tabs work
+10. ✅ Updated: docs/MEDIAPLAYER_STRUCTURE.md
+11. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+12. Ready to commit: "Stage 5: Organize SettingsModal components"
 
 ### ⏳ Stage 6: Move AutoDetect Components
 **Status**: PENDING

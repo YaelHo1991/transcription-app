@@ -139,11 +139,12 @@ MediaPlayer/
 - [x] Create folder structure (styles/, components/SettingsModal/)
 - [x] Move CSS files to styles folder (shortcuts.css, pedal.css, autodetect.css)
 - [x] Update CSS imports in index.tsx
+- [x] Organize SettingsModal components (moved tabs to SettingsModal folder)
+- [x] Update imports for moved tab components
 
 ### In Progress 🔄
 
 ### Pending ⏳
-- [ ] Organize SettingsModal components
 - [ ] Move AutoDetect components
 - [ ] Clean up types
 - [ ] Extract MediaPlayer CSS from page.css

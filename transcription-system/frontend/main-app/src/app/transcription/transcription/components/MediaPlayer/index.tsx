@@ -4,9 +4,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI, WaveformData } from './types';
 import { WorkerManager } from './workers/workerManager';
 import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
-import ShortcutsTab from './ShortcutsTab';
-import PedalTab from './PedalTab';
-import AutoDetectTab from './AutoDetectTab';
+import ShortcutsTab from './components/SettingsModal/ShortcutsTab';
+import PedalTab from './components/SettingsModal/PedalTab';
+import AutoDetectTab from './components/SettingsModal/AutoDetectTab';
 import VideoCube from './VideoCube';
 import WaveformCanvas from './WaveformCanvas';
 import { 
