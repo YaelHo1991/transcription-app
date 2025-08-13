@@ -20,9 +20,9 @@ import { ChunkedWaveformProcessor } from './utils/ChunkedWaveformProcessor';
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
-import './shortcuts-styles.css';
-import './pedal-styles.css';
-import './autodetect-styles.css';
+import './styles/shortcuts.css';
+import './styles/pedal.css';
+import './styles/autodetect.css';
 
 interface MediaPlayerProps {
   initialMedia?: MediaFile;

@@ -137,11 +137,12 @@ MediaPlayer/
 - [x] Rename MediaPlayerOriginal.tsx to index.tsx
 - [x] Update import in page.tsx
 - [x] Create folder structure (styles/, components/SettingsModal/)
+- [x] Move CSS files to styles folder (shortcuts.css, pedal.css, autodetect.css)
+- [x] Update CSS imports in index.tsx
 
 ### In Progress 🔄
 
 ### Pending ⏳
-- [ ] Move CSS files to styles folder
 - [ ] Organize SettingsModal components
 - [ ] Move AutoDetect components
 - [ ] Clean up types
