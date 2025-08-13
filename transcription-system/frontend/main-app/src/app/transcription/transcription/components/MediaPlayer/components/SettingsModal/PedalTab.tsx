@@ -146,6 +146,23 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
     savePedalSettings();
   }, [pedalMappings, continuousEnabled, continuousInterval, rewindOnPause]);
   
+  // Re-attach event listener when pedalEnabled changes to ensure it uses current value
+  useEffect(() => {
+    if (connectedDevice && connectedDevice.opened) {
+      // Remove old listener
+      connectedDevice.removeEventListener('inputreport', handleInputReport);
+      // Add new listener with current closure
+      connectedDevice.addEventListener('inputreport', handleInputReport);
+      
+      // Cleanup function to remove listener
+      return () => {
+        if (connectedDevice && connectedDevice.opened) {
+          connectedDevice.removeEventListener('inputreport', handleInputReport);
+        }
+      };
+    }
+  }, [pedalEnabled, connectedDevice]); // Re-run when pedalEnabled or device changes
+  
   useEffect(() => {
     // Check if we're on HTTPS or localhost (which is also secure)
     const isLocalhost = window.location.hostname === 'localhost' || 
@@ -429,8 +446,8 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
         setShowMappings(true);
         showStatus('הדוושה חוברה בהצלחה');
         
-        // Set up event listener for input reports
-        device.addEventListener('inputreport', handleInputReport);
+        // Event listener will be added by useEffect to ensure it uses current pedalEnabled state
+        // device.addEventListener('inputreport', handleInputReport);
         
         // Save device info for auto-reconnect
         savePedalDeviceInfo(device);
@@ -554,8 +571,8 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
           setIsConnected(true);
           setShowMappings(true);
           
-          // Set up event listener
-          matchingDevice.addEventListener('inputreport', handleInputReport);
+          // Event listener will be added by useEffect to ensure it uses current pedalEnabled state
+          // matchingDevice.addEventListener('inputreport', handleInputReport);
           // console.log('Event listener attached to already-open device');
           
           showStatus('הדוושה כבר מחוברת');
@@ -571,8 +588,8 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             setIsConnected(true);
             setShowMappings(true);
             
-            // Set up event listener
-            matchingDevice.addEventListener('inputreport', handleInputReport);
+            // Event listener will be added by useEffect to ensure it uses current pedalEnabled state
+            // matchingDevice.addEventListener('inputreport', handleInputReport);
             // console.log('Event listener attached');
             
             showStatus('הדוושה חוברה מחדש אוטומטית');
