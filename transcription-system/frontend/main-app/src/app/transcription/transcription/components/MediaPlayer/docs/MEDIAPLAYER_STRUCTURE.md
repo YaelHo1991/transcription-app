@@ -144,11 +144,13 @@ MediaPlayer/
 - [x] Move AutoDetect components to SettingsModal folder
 - [x] Update AutoDetectTab imports
 - [x] Clean up types (moved types.ts to types/index.ts)
+- [x] Fix TypeScript errors in page.tsx
+- [x] Create mediaHelpers.ts utility file
+- [x] Extract MediaPlayer CSS from page.css to MediaPlayer.css
 
 ### In Progress 🔄
 
 ### Pending ⏳
-- [ ] Extract MediaPlayer CSS from page.css
 - [ ] Final verification
 
 ## Notes

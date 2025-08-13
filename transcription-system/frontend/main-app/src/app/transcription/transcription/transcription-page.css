@@ -352,10 +352,7 @@
 }
 
 /* Adjust components when header is locked - all screen sizes */
-.main-content.header-locked .placeholder-container.media-player {
-  min-height: 120px; /* Fixed height instead of clamp */
-  flex: 1.2;
-}
+/* Media player header-locked styles moved to MediaPlayer.css */
 
 .main-content.header-locked .placeholder-container.text-editor {
   min-height: 250px; /* Fixed height instead of clamp */
@@ -385,10 +382,7 @@
     height: calc(100vh - 200px); /* Slightly more space */
   }
   
-  .main-content.header-locked .placeholder-container.media-player {
-    min-height: clamp(90px, 10vh, 120px);
-    flex: 1.1;
-  }
+  /* Media player responsive styles moved to MediaPlayer.css */
 
   .main-content.header-locked .placeholder-container.text-editor {
     min-height: clamp(180px, 22vh, 280px);
@@ -526,23 +520,7 @@
   box-shadow: 0 8px 25px rgba(32, 201, 151, 0.2);
 }
 
-.placeholder-container.media-player {
-  flex: 0 0 auto; /* Don't grow or shrink */
-  height: 150px; /* Fixed height */
-  min-height: 150px;
-  max-height: 150px;
-  background: linear-gradient(135deg, rgba(23, 162, 184, 0.08) 0%, rgba(32, 201, 151, 0.12) 60%, rgba(40, 167, 69, 0.08) 100%);
-  border-color: rgba(23, 162, 184, 0.3);
-}
-
-.placeholder-container.media-player:hover {
-  border-color: #17a2b8;
-  box-shadow: 0 8px 25px rgba(23, 162, 184, 0.2);
-}
-
-.placeholder-container.media-player h3 {
-  color: #17a2b8;
-}
+/* Media player styles moved to MediaPlayer.css */
 
 .placeholder-container.text-editor {
   flex: 0 0 auto; /* Don't grow or shrink */

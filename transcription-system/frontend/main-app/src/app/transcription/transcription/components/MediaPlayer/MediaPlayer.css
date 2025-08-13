@@ -1,9 +1,44 @@
+        /* Import font for modern look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
         /* ================================
            Stage 2: Basic Media Player Styles
            ================================ */
         
-        /* Import font for modern look */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        /* ================================
+           Extracted from transcription-page.css
+           ================================ */
+        .placeholder-container.media-player {
+          flex: 0 0 auto; /* Don't grow or shrink */
+          height: 150px; /* Fixed height */
+          min-height: 150px;
+          max-height: 150px;
+          background: linear-gradient(135deg, rgba(23, 162, 184, 0.08) 0%, rgba(32, 201, 151, 0.12) 60%, rgba(40, 167, 69, 0.08) 100%);
+          border-color: rgba(23, 162, 184, 0.3);
+        }
+        
+        .placeholder-container.media-player:hover {
+          border-color: #17a2b8;
+          box-shadow: 0 8px 25px rgba(23, 162, 184, 0.2);
+        }
+        
+        .placeholder-container.media-player h3 {
+          color: #17a2b8;
+        }
+        
+        /* Header locked state */
+        .main-content.header-locked .placeholder-container.media-player {
+          min-height: 120px; /* Fixed height instead of clamp */
+          flex: 1.2;
+        }
+        
+        /* Full screen responsive */
+        @media (min-width: 1201px) {
+          .main-content.header-locked .placeholder-container.media-player {
+            min-height: clamp(90px, 10vh, 120px);
+            flex: 1.1;
+          }
+        }
         
         /* Reset and base styles */
         * {

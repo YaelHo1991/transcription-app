@@ -11,6 +11,7 @@ import UploadOptionsModal from './components/UploadOptionsModal/UploadOptionsMod
 import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayer from './components/MediaPlayer';
+import { getMediaType, createMediaUrl } from './components/MediaPlayer/utils/mediaHelpers';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -31,7 +32,15 @@ interface Project {
 
 // Extend File interface for webkit directory properties
 interface FileWithPath extends File {
-  webkitRelativePath?: string;
+  readonly webkitRelativePath: string;
+}
+
+// Extend HTMLInputElement for directory selection
+declare module 'react' {
+  interface InputHTMLAttributes<T> extends React.HTMLAttributes<T> {
+    webkitdirectory?: string;
+    directory?: string;
+  }
 }
 
 export default function TranscriptionWorkPage() {
@@ -315,9 +324,9 @@ export default function TranscriptionWorkPage() {
             {/* MediaPlayer Component */}
             <MediaPlayer 
               initialMedia={currentMedia ? {
-                url: currentMedia.type === 'url' ? currentMedia.url! : URL.createObjectURL(currentMedia.file!),
+                url: createMediaUrl(currentMedia),
                 name: currentMedia.name,
-                type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
+                type: getMediaType(currentMedia.name)
               } : undefined}
               onTimeUpdate={(time) => {
                 // Handle time updates for text editor integration

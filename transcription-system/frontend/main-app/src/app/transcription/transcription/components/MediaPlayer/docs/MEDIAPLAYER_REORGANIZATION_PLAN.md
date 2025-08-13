@@ -101,26 +101,29 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 6. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
 7. Ready to commit: "Stage 7: Organize MediaPlayer types"
 
-### ⏳ Stage 8: Extract MediaPlayer CSS
-**Status**: PENDING
+### ✅ Stage 8: Extract Code, Fix Errors, and Extract CSS
+**Status**: COMPLETED
 **Actions**:
-1. Extract from transcription-page.css:
-   ```css
-   /* Lines 355-358, 388-391, 529-545 */
-   .placeholder-container.media-player { ... }
-   .main-content.header-locked .placeholder-container.media-player { ... }
-   .placeholder-container.media-player:hover { ... }
-   .placeholder-container.media-player h3 { ... }
-   ```
-2. Add extracted styles to MediaPlayer.css with comment:
-   ```css
-   /* Extracted from transcription-page.css */
-   ```
-3. Remove extracted styles from transcription-page.css
-4. Test: Verify MediaPlayer styling unchanged
-5. Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. Commit: "Stage 8: Extract MediaPlayer-specific CSS from page styles"
+1. ✅ Fixed TypeScript errors in page.tsx:
+   - Fixed FileWithPath interface (made webkitRelativePath readonly)
+   - Added webkitdirectory typing via React module declaration
+2. ✅ Created MediaPlayer/utils/mediaHelpers.ts:
+   - getMediaType() - extracts media type detection logic
+   - createMediaUrl() - handles URL creation for files and URLs
+   - formatFileSize() - formats bytes to MB
+   - getFilenameFromUrl() - extracts filename from URL
+3. ✅ Updated page.tsx to use new helpers
+4. ✅ Extracted from transcription-page.css:
+   - .placeholder-container.media-player styles
+   - .main-content.header-locked .placeholder-container.media-player
+   - Media player hover effects
+   - Responsive media player styles
+5. ✅ Added extracted styles to MediaPlayer.css
+6. ✅ Removed extracted styles from transcription-page.css
+7. ✅ Test: Ready for user verification
+8. ✅ Updated: docs/MEDIAPLAYER_STRUCTURE.md
+9. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+10. Ready to commit: "Stage 8: Extract code, fix TypeScript errors, and extract MediaPlayer CSS"
 
 ### ⏳ Stage 9: Final Verification
 **Status**: PENDING
