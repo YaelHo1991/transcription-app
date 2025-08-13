@@ -150,8 +150,16 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       // Handle special keys
       let key = e.key;
       
+      // Handle F1-F12 keys
+      if (key.startsWith('F') && key.length >= 2 && key.length <= 3) {
+        const fNum = key.substring(1);
+        if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
+          // Keep F-keys as is (F1, F2, etc.)
+          // Don't modify them
+        }
+      }
       // Convert to lowercase for letter keys (to handle capital letters)
-      if (key.length === 1 && /[A-Z]/.test(key)) {
+      else if (key.length === 1 && /[A-Z]/.test(key)) {
         key = key.toLowerCase();
       }
       
@@ -219,6 +227,11 @@ function normalizeKey(key: string): string {
   // Normalize escape
   if (key === 'Esc' || key === 'Escape') return 'Escape';
   
+  // Handle F1-F12 keys - keep them as is
+  if (key.match(/^F([1-9]|1[0-2])$/)) {
+    return key; // Keep F1-F12 as is
+  }
+  
   // Handle Shift combinations
   if (key.includes('Shift+→')) return 'Shift+ArrowRight';
   if (key.includes('Shift+←')) return 'Shift+ArrowLeft';
@@ -228,10 +241,15 @@ function normalizeKey(key: string): string {
     return key.toLowerCase();
   }
   
-  // Handle Ctrl/Alt/Shift combinations with capital letters
+  // Handle Ctrl/Alt/Shift combinations with capital letters or F-keys
   const parts = key.split('+');
   if (parts.length > 1) {
     const lastPart = parts[parts.length - 1];
+    // Keep F-keys as is in combinations
+    if (lastPart.match(/^F([1-9]|1[0-2])$/)) {
+      return key; // Keep F-key combinations as is
+    }
+    // Convert capital letters to lowercase in combinations
     if (lastPart.length === 1 && /[A-Z]/.test(lastPart)) {
       parts[parts.length - 1] = lastPart.toLowerCase();
       return parts.join('+');

@@ -106,6 +106,12 @@ export default function ShortcutsTab({
       key = 'ArrowDown';
     } else if (key === 'Escape') {
       key = 'Escape';
+    } else if (key.startsWith('F') && key.length >= 2 && key.length <= 3) {
+      // Handle F1-F12 keys
+      const fNum = key.substring(1);
+      if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
+        key = key; // Keep F-keys as is (F1, F2, etc.)
+      }
     } else if (key.length === 1) {
       // For single character keys, keep lowercase to match defaults
       key = key.toLowerCase();
