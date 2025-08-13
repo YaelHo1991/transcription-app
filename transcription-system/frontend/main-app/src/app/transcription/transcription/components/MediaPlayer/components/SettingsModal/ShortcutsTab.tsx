@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { KeyboardShortcut } from './types';
-import { defaultShortcuts } from './KeyboardShortcuts';
+import { KeyboardShortcut } from '../../types';
+import { defaultShortcuts } from '../../KeyboardShortcuts';
 
 interface ShortcutsTabProps {
   shortcuts: KeyboardShortcut[];
