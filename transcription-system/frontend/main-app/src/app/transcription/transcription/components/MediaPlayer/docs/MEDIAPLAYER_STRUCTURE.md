@@ -178,8 +178,8 @@ MediaPlayer/
 │   ├── pedal.css (existing)
 │   ├── autodetect.css (existing)
 │   ├── controls.css (COMPLETED - control buttons & sliders)
-│   ├── layout.css (NEW - container & responsive)
-│   ├── modal.css (NEW - settings modal)
+│   ├── layout.css (COMPLETED - container & responsive)
+│   ├── modal.css (COMPLETED - settings modal)
 │   ├── video.css (NEW - video display)
 │   └── waveform.css (NEW - waveform visualization)
 ├── utils/

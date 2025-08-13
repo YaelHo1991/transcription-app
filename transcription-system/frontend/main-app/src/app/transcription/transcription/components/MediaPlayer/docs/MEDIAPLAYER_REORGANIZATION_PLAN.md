@@ -229,25 +229,25 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 7. Ready to commit: "Stage 13: Extract control styles to separate CSS"
 
 ### Stage 14: Extract Layout & Modal Styles
-**Status**: PENDING
+**Status**: COMPLETED
 **Actions**:
-1. [ ] Create styles/layout.css
-2. [ ] Extract from MediaPlayer.css (~300 lines):
+1. [x] Create styles/layout.css (237 lines)
+2. [x] Extract from MediaPlayer.css (~300 lines):
    - .media-player-container styles
    - .media-player-content styles
    - Collapsible section styles
    - Responsive layout styles
-3. [ ] Create styles/modal.css
-4. [ ] Extract from MediaPlayer.css (~500 lines):
+3. [x] Create styles/modal.css (267 lines)
+4. [x] Extract from MediaPlayer.css (~500 lines):
    - .media-modal-overlay styles
    - .settings-modal styles
    - Tab navigation styles
    - Modal animations
-5. [ ] Add @import statements to MediaPlayer.css
-6. [ ] Test: Layout and modal display correctly
-7. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
-8. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-9. [ ] Commit: "Stage 14: Extract layout and modal styles"
+5. [x] Add @import statements to MediaPlayer.css
+6. [x] Test: Layout and modal display correctly
+7. [x] Update: docs/MEDIAPLAYER_STRUCTURE.md
+8. [x] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+9. [x] Commit: "Stage 14: Extract layout and modal styles"
 
 ### Stage 15: Extract Video & Waveform Styles
 **Status**: PENDING
