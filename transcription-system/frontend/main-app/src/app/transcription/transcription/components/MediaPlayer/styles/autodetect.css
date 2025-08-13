@@ -150,6 +150,7 @@
   text-align: center;
   -webkit-appearance: none;
   -moz-appearance: textfield;
+  appearance: none;
   position: relative;
 }
 
@@ -157,6 +158,7 @@
 .auto-detect-input::-webkit-inner-spin-button,
 .auto-detect-input::-webkit-outer-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
