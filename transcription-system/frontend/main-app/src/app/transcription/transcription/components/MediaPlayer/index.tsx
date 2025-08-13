@@ -30,7 +30,7 @@ interface MediaPlayerProps {
   onTimestampCopy?: (timestamp: string) => void;
 }
 
-export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTimestampCopy }: MediaPlayerProps) {
+export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCopy }: MediaPlayerProps) {
   // Refs
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);

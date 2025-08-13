@@ -48,7 +48,8 @@
       "WebSearch",
       "Bash(ffmpeg:*)",
       "Bash(set PGPASSWORD=transcription_pass)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(del \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\app\\transcription\\transcription\\components\\MediaPlayer\\MediaPlayer.tsx\")"
     ],
     "deny": []
   }

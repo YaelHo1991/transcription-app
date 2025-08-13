@@ -132,13 +132,14 @@ MediaPlayer/
 - [x] Create docs folder
 - [x] Move MEDIA_PLAYER_MIGRATION.md to docs
 - [x] Move WAVEFORM_ARCHITECTURE.md to docs
+- [x] Create documentation files
+- [x] Remove duplicate files (MediaPlayer.tsx, SettingsModal.old.tsx)
+- [x] Rename MediaPlayerOriginal.tsx to index.tsx
+- [x] Update import in page.tsx
 
 ### In Progress 🔄
-- [ ] Create documentation files
 
 ### Pending ⏳
-- [ ] Remove duplicate files
-- [ ] Rename MediaPlayerOriginal.tsx to index.tsx
 - [ ] Create folder structure
 - [ ] Move CSS files to styles folder
 - [ ] Organize SettingsModal components
