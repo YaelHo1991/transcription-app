@@ -214,20 +214,19 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 8. Ready to commit: "Stage 12: Extract settings and status management"
 
 ### Stage 13: Extract Control Styles
-**Status**: PENDING
+**Status**: COMPLETED
 **Actions**:
-1. [ ] Create styles/controls.css
-2. [ ] Extract from MediaPlayer.css (~400 lines):
-   - .media-controls styles
-   - .control-button styles
-   - Volume slider styles
-   - Speed slider styles
-   - Progress bar styles
-3. [ ] Add @import './styles/controls.css' to MediaPlayer.css
-4. [ ] Test: All controls display correctly
-5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. [ ] Commit: "Stage 13: Extract control styles to separate CSS"
+1. [x] Create styles/controls.css (441 lines)
+2. [x] Extract from MediaPlayer.css:
+   - Progress bar and time display styles
+   - Control button styles
+   - Volume and speed slider styles
+   - All slider responsive styles
+3. [x] Add @import './styles/controls.css' to MediaPlayer.css
+4. [x] Test: All controls display correctly
+5. [x] Update: docs/MEDIAPLAYER_STRUCTURE.md
+6. [x] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. Ready to commit: "Stage 13: Extract control styles to separate CSS"
 
 ### Stage 14: Extract Layout & Modal Styles
 **Status**: PENDING

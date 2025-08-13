@@ -177,7 +177,7 @@ MediaPlayer/
 │   ├── shortcuts.css (existing)
 │   ├── pedal.css (existing)
 │   ├── autodetect.css (existing)
-│   ├── controls.css (NEW - control buttons & sliders)
+│   ├── controls.css (COMPLETED - control buttons & sliders)
 │   ├── layout.css (NEW - container & responsive)
 │   ├── modal.css (NEW - settings modal)
 │   ├── video.css (NEW - video display)
