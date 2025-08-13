@@ -52,6 +52,8 @@ export default function ShortcutsTab({
     e.preventDefault();
     e.stopPropagation();
     
+    console.log('ShortcutsTab - Key pressed:', e.key, 'Code:', e.code);
+    
     // Don't capture ESC - let user cancel
     if (e.key === 'Escape') {
       setEditingIndex(null);
@@ -110,6 +112,7 @@ export default function ShortcutsTab({
       // Handle F1-F12 keys
       const fNum = key.substring(1);
       if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
+        console.log('ShortcutsTab - F-key detected:', key);
         key = key; // Keep F-keys as is (F1, F2, etc.)
       }
     } else if (key.length === 1) {
@@ -129,6 +132,8 @@ export default function ShortcutsTab({
     }
     
     const keyString = parts.join('+');
+    
+    console.log('ShortcutsTab - Final key string:', keyString, 'Parts:', parts);
     
     // Check if it's the same key for the same action
     if (shortcuts[index].key === keyString) {
@@ -150,6 +155,7 @@ export default function ShortcutsTab({
     
     const updatedShortcuts = [...shortcuts];
     updatedShortcuts[index].key = keyString;
+    console.log('ShortcutsTab - Saving shortcut:', updatedShortcuts[index]);
     onShortcutsChange(updatedShortcuts);
     showStatus('הקיצור עודכן בהצלחה');
     setEditingIndex(null);
