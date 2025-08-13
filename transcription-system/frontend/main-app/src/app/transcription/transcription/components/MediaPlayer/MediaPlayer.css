@@ -2245,6 +2245,7 @@
         
         .video-cube.active {
             /* Active state - cube is visible */
+            opacity: 1;
         }
         
         .video-cube-header {
