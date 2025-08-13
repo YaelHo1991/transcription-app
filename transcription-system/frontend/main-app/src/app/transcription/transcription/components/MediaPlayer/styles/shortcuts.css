@@ -170,6 +170,9 @@ input:checked + .toggle-slider:before {
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
   color: white;
   animation: pulse 1s infinite;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Shortcut checkbox styling */
