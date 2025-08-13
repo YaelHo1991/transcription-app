@@ -89,8 +89,18 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       // Check if this is a key combination (not just a single key)
       const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
       
-      // Check if it's an F-key
-      const isFKey = e.key.startsWith('F') && e.key.length <= 3;
+      // Check if it's an F-key (F1-F12)
+      const isFKey = e.key.match(/^F([1-9]|1[0-2])$/);
+      
+      // If it's an F-key and it's a registered shortcut, prevent default immediately
+      // to stop browser default F-key behaviors (F1=help, F3=search, F5=refresh, etc.)
+      if (isFKey) {
+        console.log('F-key detected:', e.key, 'Shortcut:', shortcut, 'Enabled:', enabled);
+        if (shortcut && shortcut.enabled && enabled) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
       
       // Check if it's a numpad key
       const isNumpadKey = e.code && e.code.startsWith('Numpad');
@@ -155,6 +165,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
         const fNum = key.substring(1);
         if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
           // Keep F-keys as is (F1, F2, etc.)
+          console.log('F-key in buildKeyString:', key);
           // Don't modify them
         }
       }
