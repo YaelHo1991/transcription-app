@@ -1,9 +1,6 @@
         /* Import font for modern look */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        /* Import component-specific styles */
-        @import './styles/controls.css';
-        
         /* ================================
            Stage 2: Basic Media Player Styles
            ================================ */
