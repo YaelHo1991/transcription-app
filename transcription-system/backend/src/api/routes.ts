@@ -2,6 +2,8 @@ import { Router } from 'express';
 import authRoutes from './auth/routes';
 import devRoutes from './dev/routes';
 import licensesRoutes from './licenses/routes';
+import { initWaveformRoutes } from '../routes/waveformRoutes';
+import { db } from '../db/connection';
 
 const router = Router();
 
@@ -12,6 +14,9 @@ router.use('/auth', authRoutes);
 
 // License management endpoints
 router.use('/licenses', licensesRoutes);
+
+// Waveform endpoints
+router.use('/waveform', initWaveformRoutes(db));
 
 // Development endpoints (will be protected in the route file)
 router.use('/dev', devRoutes);

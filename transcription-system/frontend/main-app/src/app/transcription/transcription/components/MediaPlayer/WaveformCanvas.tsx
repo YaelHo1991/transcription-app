@@ -38,28 +38,35 @@ export default function WaveformCanvas({
   // Draw waveform
   const drawWaveform = useCallback(() => {
     const canvas = canvasRef.current;
+    const container = containerRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx || !waveformData) return;
+    if (!canvas || !ctx || !waveformData || !container) return;
 
     const { peaks } = waveformData;
     const progress = duration > 0 ? currentTime / duration : 0;
     
-    // Only redraw if progress changed significantly
-    if (Math.abs(progress - lastDrawnProgress.current) < 0.001 && !isPlaying) {
+    // Only skip redraw if progress hasn't changed AND we've already drawn at least once
+    if (lastDrawnProgress.current !== -1 && Math.abs(progress - lastDrawnProgress.current) < 0.001 && !isPlaying) {
       return;
     }
     
     lastDrawnProgress.current = progress;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Get actual display dimensions
+    const rect = container.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Clear canvas (using scaled dimensions)
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, width * dpr, height * dpr);
 
     // RTL: Progress goes from right to left
-    const progressX = canvas.width * (1 - progress);
+    const progressX = width * (1 - progress);
     
-    const barWidth = canvas.width / peaks.length;
-    const centerY = canvas.height / 2;
-    const maxHeight = canvas.height * 0.8; // Leave some padding
+    const barWidth = width / peaks.length;
+    const centerY = height / 2;
+    const maxHeight = height * 0.8; // Leave some padding
 
     // Draw waveform bars
     peaks.forEach((peak, i) => {
@@ -98,7 +105,7 @@ export default function WaveformCanvas({
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(progressX, 0);
-      ctx.lineTo(progressX, canvas.height);
+      ctx.lineTo(progressX, height);
       ctx.stroke();
       
       // Reset shadow
@@ -114,6 +121,10 @@ export default function WaveformCanvas({
     if (!canvas || !container) return;
 
     const rect = container.getBoundingClientRect();
+    
+    // Skip if dimensions are invalid
+    if (rect.width <= 0 || rect.height <= 0) return;
+    
     const dpr = window.devicePixelRatio || 1;
     
     // Set display size
@@ -130,7 +141,8 @@ export default function WaveformCanvas({
       ctx.scale(dpr, dpr);
     }
     
-    // Redraw after resize
+    // Force redraw after resize
+    lastDrawnProgress.current = -1;
     drawWaveform();
   }, [drawWaveform]);
 
@@ -179,6 +191,8 @@ export default function WaveformCanvas({
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
+      // Force redraw when paused
+      lastDrawnProgress.current = -1;
       drawWaveform();
       return;
     }
@@ -201,10 +215,16 @@ export default function WaveformCanvas({
   useEffect(() => {
     resizeCanvas();
     
+    // Force resize after a short delay to ensure container is ready
+    const initTimer = setTimeout(() => {
+      resizeCanvas();
+    }, 50);
+    
     const handleResize = () => resizeCanvas();
     window.addEventListener('resize', handleResize);
     
     return () => {
+      clearTimeout(initTimer);
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -214,7 +234,17 @@ export default function WaveformCanvas({
 
   // Redraw when waveform data changes
   useEffect(() => {
+    // Reset the last drawn progress to force redraw
+    lastDrawnProgress.current = -1;
     drawWaveform();
+    
+    // Force another draw after a short delay to ensure canvas is ready
+    const timer = setTimeout(() => {
+      lastDrawnProgress.current = -1;
+      drawWaveform();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [waveformData, drawWaveform]);
 
   return (

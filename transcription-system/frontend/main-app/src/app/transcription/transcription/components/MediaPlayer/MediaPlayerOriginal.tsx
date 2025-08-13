@@ -9,6 +9,16 @@ import PedalTab from './PedalTab';
 import AutoDetectTab from './AutoDetectTab';
 import VideoCube from './VideoCube';
 import WaveformCanvas from './WaveformCanvas';
+import { 
+  getWaveformStrategy, 
+  getFileSizeFromUrl, 
+  generateFileId,
+  WaveformMethod,
+  formatFileSize 
+} from './utils/waveformStrategy';
+import { ChunkedWaveformProcessor } from './utils/ChunkedWaveformProcessor';
+import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
+import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
@@ -26,6 +36,9 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const workerManagerRef = useRef<WorkerManager | null>(null);
+  
+  // Resource monitoring
+  const { checkOperation, showWarning } = useResourceCheck();
 
   // State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -70,8 +83,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
   const [waveformLoading, setWaveformLoading] = useState(false);
   const [waveformProgress, setWaveformProgress] = useState(0);
-  const [showWaveform, setShowWaveform] = useState(false); // Default to regular progress bar
-  const [waveformEnabled, setWaveformEnabled] = useState(false); // Default to regular view
+  const [waveformEnabled, setWaveformEnabled] = useState(false); // Toggle state
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
@@ -430,48 +442,201 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
     }
   };
 
-  // Analyze waveform for loaded media
+  // Analyze waveform for loaded media with smart strategy
   const analyzeWaveform = useCallback(async (url: string) => {
-    if (!workerManagerRef.current || !showWaveform || !waveformEnabled) return;
-    
     try {
       setWaveformLoading(true);
       setWaveformProgress(0);
       setWaveformData(null);
 
-      // Fetch and decode audio on main thread (Web Workers don't have access to Web Audio API)
-      const response = await fetch(url);
-      const arrayBuffer = await response.arrayBuffer();
-
-      // Create AudioContext on main thread to decode audio
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const decodedData = await audioContext.decodeAudioData(arrayBuffer.slice());
-
-      // Get channel data and pass to worker for peak extraction
-      const channelData = decodedData.getChannelData(0);
-      const duration = decodedData.duration;
+      // Get file size to determine strategy
+      const fileSize = await getFileSizeFromUrl(url);
       
-      // Close the audio context to free resources
-      audioContext.close();
+      // If file size detection failed (returns 0), use client-side as fallback
+      if (fileSize === 0) {
+        console.warn('Could not determine file size, using client-side processing as fallback');
+      }
+      
+      // Check system resources before processing
+      const resourceCheck = await checkOperation(OperationType.WAVEFORM, fileSize || 50 * 1024 * 1024);
+      
+      if (!resourceCheck.safe) {
+        // Show warning and handle user response
+        const proceed = showWarning(resourceCheck);
+        
+        if (!proceed) {
+          // User cancelled, disable waveform
+          setWaveformEnabled(false);
+          setWaveformLoading(false);
+          showGlobalStatus('ניתוח צורת גל בוטל - אין מספיק משאבים');
+          return;
+        }
+        
+        // If alternative method suggested, switch strategy
+        if (resourceCheck.recommendation === Recommendation.USE_SERVER) {
+          // Force server-side processing
+          console.log('Switching to server-side processing due to low resources');
+        }
+      }
+      
+      const strategy = getWaveformStrategy(fileSize || 1); // Use 1 byte if 0 to get client strategy
+      
+      console.log(`File size: ${fileSize ? formatFileSize(fileSize) : 'Unknown'}, using ${strategy.method} method`);
+      
+      // Show appropriate message
+      setWaveformProgress(1); // Show loading started
+      
+      // Log operation start for metrics
+      const startTime = Date.now();
+      const startMemory = (await resourceMonitor.getStatus()).memoryUsed;
+      
+      switch (strategy.method) {
+        case WaveformMethod.CLIENT:
+          // Small files: Original client-side processing
+          if (!workerManagerRef.current) return;
+          
+          const response = await fetch(url);
+          const arrayBuffer = await response.arrayBuffer();
 
-      // Send decoded audio data to worker for peak analysis
-      workerManagerRef.current.analyzeWaveform(channelData.buffer, decodedData.sampleRate, duration);
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const decodedData = await audioContext.decodeAudioData(arrayBuffer.slice());
+
+          const channelData = decodedData.getChannelData(0);
+          const duration = decodedData.duration;
+          
+          audioContext.close();
+
+          workerManagerRef.current.analyzeWaveform(channelData.buffer, decodedData.sampleRate, duration);
+          break;
+          
+        case WaveformMethod.CHUNKED:
+          // Medium files: Process in chunks
+          const chunkedProcessor = new ChunkedWaveformProcessor({
+            onProgress: (progress) => setWaveformProgress(progress),
+            onError: (error) => console.error('Chunked processing error:', error)
+          });
+          
+          const chunkedResult = await chunkedProcessor.processLargeFile(url);
+          setWaveformData(chunkedResult);
+          setWaveformLoading(false);
+          setWaveformProgress(100);
+          break;
+          
+        case WaveformMethod.SERVER:
+          // Large files: Request from server
+          const fileId = generateFileId(url);
+          
+          // First, trigger generation on server
+          const generateResponse = await fetch('http://localhost:5000/api/waveform/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              fileId,
+              fileUrl: url,
+              fileSize
+            })
+          });
+          
+          if (!generateResponse.ok) {
+            throw new Error('Failed to generate waveform on server');
+          }
+          
+          // Poll for completion (for large files)
+          let attempts = 0;
+          const maxAttempts = 60; // 1 minute timeout
+          
+          while (attempts < maxAttempts) {
+            const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+            
+            if (waveformResponse.ok) {
+              const data = await waveformResponse.json();
+              setWaveformData({
+                peaks: data.peaks,
+                duration: data.duration
+              });
+              setWaveformLoading(false);
+              setWaveformProgress(100);
+              break;
+            }
+            
+            // Wait and retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+            setWaveformProgress(Math.min(90, attempts * 1.5)); // Show progress
+          }
+          
+          if (attempts >= maxAttempts) {
+            throw new Error('Waveform generation timeout');
+          }
+          break;
+      }
+      
+      // Log operation completion for metrics
+      const endMemory = (await resourceMonitor.getStatus()).memoryUsed;
+      resourceMonitor.logOperation({
+        type: OperationType.WAVEFORM,
+        timestamp: startTime,
+        fileSize: fileSize || 0,
+        memoryBefore: startMemory,
+        memoryAfter: endMemory,
+        duration: Date.now() - startTime,
+        success: true
+      });
       
     } catch (error) {
-      console.error('Failed to load audio for waveform analysis:', error);
+      console.error('Failed to analyze waveform:', error);
       setWaveformLoading(false);
       setWaveformProgress(0);
+      
+      // Log operation failure
+      resourceMonitor.logOperation({
+        type: OperationType.WAVEFORM,
+        timestamp: Date.now(),
+        fileSize: 0,
+        memoryBefore: 0,
+        success: false,
+        error: error.message
+      });
+      
+      // Show error message to user
+      showGlobalStatus(`שגיאה בטעינת צורת גל: ${error.message}`);
     }
-  }, [showWaveform, waveformEnabled]);
+  }, [checkOperation, showWarning]);
 
   // Load media
   useEffect(() => {
     if (initialMedia && audioRef.current) {
+      // Reset playback states for new media
+      setCurrentTime(0);
+      setDuration(0);
+      setIsPlaying(false);
+      setIsReady(false);
+      
       audioRef.current.src = initialMedia.url;
       audioRef.current.volume = volume / 100; // Initialize volume
       const isVideo = initialMedia.type === 'video';
       setShowVideo(isVideo);
       setShowVideoCube(isVideo && !videoMinimized);
+      
+      // Clear video minimized state when switching to audio
+      if (!isVideo) {
+        setVideoMinimized(false);
+      }
+      
+      // Reset waveform states when loading new media
+      setWaveformData(null);
+      setWaveformLoading(false);
+      setWaveformProgress(0);
+      // Clear previous media URL to trigger re-analysis
+      previousMediaUrlRef.current = null;
+      // Keep waveformEnabled state as user preference
       
       // Set video source if it's a video file - with small delay to ensure element is mounted
       if (isVideo) {
@@ -485,10 +650,29 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         }, 100);
       }
 
-      // Analyze waveform for the loaded media
-      analyzeWaveform(initialMedia.url);
+      // Don't analyze waveform automatically - wait for user to enable it
+      // This prevents the 3-click issue
     }
-  }, [initialMedia, analyzeWaveform]); // Removed videoMinimized dependency
+  }, [initialMedia]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Track previous media URL to detect changes
+  const previousMediaUrlRef = useRef<string | null>(null);
+  
+  // Analyze waveform when enabled and media is available or changes
+  useEffect(() => {
+    if (waveformEnabled && initialMedia?.url) {
+      // Check if media has changed
+      const mediaChanged = previousMediaUrlRef.current !== initialMedia.url;
+      
+      // Analyze if we don't have data, aren't loading, or media has changed
+      if ((!waveformData && !waveformLoading) || mediaChanged) {
+        previousMediaUrlRef.current = initialMedia.url;
+        setTimeout(() => {
+          analyzeWaveform(initialMedia.url);
+        }, 100);
+      }
+    }
+  }, [waveformEnabled, initialMedia?.url]); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Update video cube visibility when videoMinimized changes
   useEffect(() => {
@@ -867,16 +1051,54 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             )}
             
             {/* Waveform Progress Bar (middle) */}
-            {waveformEnabled && showWaveform && waveformData ? (
-              <div className="waveform-progress-wrapper" style={{ flex: 1 }}>
-                <WaveformCanvas
-                  waveformData={waveformData}
-                  currentTime={currentTime}
-                  duration={duration}
-                  isPlaying={isPlaying}
-                  onSeek={handleWaveformSeek}
-                />
-              </div>
+            {waveformEnabled ? (
+              waveformData ? (
+                <div className="waveform-progress-wrapper" style={{ flex: 1 }}>
+                  <WaveformCanvas
+                    waveformData={waveformData}
+                    currentTime={currentTime}
+                    duration={duration}
+                    isPlaying={isPlaying}
+                    onSeek={handleWaveformSeek}
+                  />
+                </div>
+              ) : (
+                <div 
+                  className="waveform-progress-wrapper" 
+                  style={{ flex: 1 }}
+                >
+                  {waveformLoading ? (
+                    <div className="waveform-loading-bar" style={{ width: '100%', height: '60px' }}>
+                      <div 
+                        className="waveform-progress-fill"
+                        style={{ 
+                          width: `${waveformProgress}%`,
+                          background: 'linear-gradient(90deg, rgba(32, 201, 151, 0.4) 0%, rgba(23, 162, 184, 0.4) 100%)',
+                          height: '100%',
+                          borderRadius: '4px',
+                          transition: 'width 0.3s ease'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div 
+                      className="waveform-container"
+                      style={{
+                        width: '100%',
+                        height: '60px',
+                        backgroundColor: 'rgba(15, 76, 76, 0.1)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'rgba(255, 255, 255, 0.3)'
+                      }}
+                    >
+                      {!initialMedia ? 'אין מדיה' : 'ממתין לצורת גל...'}
+                    </div>
+                  )}
+                </div>
+              )
             ) : (
               <div 
                 className="progress-bar-wrapper" 
@@ -885,26 +1107,11 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                 onClick={handleProgressClick}
                 style={{ flex: 1 }}
               >
-                {waveformEnabled && waveformLoading ? (
-                  <div className="waveform-loading-bar">
-                    <div 
-                      className="waveform-progress-fill"
-                      style={{ 
-                        width: `${waveformProgress}%`,
-                        background: 'linear-gradient(90deg, rgba(32, 201, 151, 0.4) 0%, rgba(23, 162, 184, 0.4) 100%)',
-                        height: '100%',
-                        borderRadius: '4px',
-                        transition: 'width 0.3s ease'
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div 
-                    className="progress-fill" 
-                    id="progressFill" 
-                    style={{ width: `${progressPercentage}%` }}
-                  />
-                )}
+                <div 
+                  className="progress-fill" 
+                  id="progressFill" 
+                  style={{ width: `${progressPercentage}%` }}
+                />
               </div>
             )}
             
@@ -950,7 +1157,15 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
               className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''}`}
               id="waveformToggleBtn" 
               title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
-              onClick={() => setWaveformEnabled(!waveformEnabled)}
+              onClick={() => {
+                const newEnabled = !waveformEnabled;
+                setWaveformEnabled(newEnabled);
+                
+                // If enabling and we don't have data, analyze
+                if (newEnabled && !waveformData && initialMedia?.url) {
+                  analyzeWaveform(initialMedia.url);
+                }
+              }}
             >
               ●
             </button>
@@ -1023,8 +1238,8 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           </div>
         </div>
         
-        {/* Video Restore Button (shows when video is minimized) */}
-        {videoMinimized && (
+        {/* Video Restore Button (shows when video is minimized and it's a video file) */}
+        {videoMinimized && showVideo && (
           <button 
             className="video-restore-control visible" 
             id="videoRestoreBtn"

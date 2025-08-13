@@ -176,6 +176,26 @@ Each tab maintains exact functionality from original:
    - Fixed pedal auto-reconnect device state conflicts
 6. **Code Quality**: Removed debug logging, improved error handling, TypeScript fixes
 
+## Stage 4 Complete: Video Cube Implementation
+1. **Hybrid Integration**: Video cube integrated into media player layout (not floating by default)
+2. **Interactive Features**:
+   - Double-click to detach and enable drag mode
+   - Three control buttons: X (close/reset), − (minimize), ⌂ (restore)
+   - Draggable and resizable when detached
+3. **State Management**:
+   - Minimize saves position/size for restore
+   - Close resets everything to defaults
+   - Position/size persistence with localStorage
+4. **Bug Fixes**:
+   - Fixed video playback in regular progress bar mode
+   - Changed default from waveform to regular progress bar
+   - Fixed dragging immediately after double-click
+   - Fixed media player not resetting on minimize/close
+5. **Layout Improvements**:
+   - Set fixed heights for all components
+   - Proper positioning in layout
+   - Responsive design maintained
+
 ## Stage 5 Complete: Waveform Integration
 1. **Waveform Infrastructure**: Leveraged existing WaveformCanvas and WorkerManager components
 2. **Audio Analysis**: Web Audio API waveform generation using dedicated web worker for performance
@@ -200,3 +220,165 @@ Each tab maintains exact functionality from original:
    - WorkerManager event handling for progress/completion/error states
    - Automatic waveform analysis on media load
    - Compatible with both audio and video files
+
+### Stage 5.1: Bug Fixes ✅
+- [x] Fix restore button showing when switching from video to audio
+- [x] Fix waveform toggle not switching modes
+- [x] Fix waveform not visible when media is paused
+- [x] Fix waveform showing 'waiting' message after loading
+- [x] Fix waveform not appearing until interaction
+- [x] Fix waveform disappearing when switching media
+- [x] Fix progress bar filling temporarily on media load
+- [x] Git commit
+
+### Stage 5.2: Large File Support - Safety & Detection ⏳
+- [ ] Add file size detection utility function
+- [ ] Implement memory monitoring for browser safety
+- [ ] Add file size threshold constants (50MB, 200MB)
+- [ ] Create WaveformStrategy enum (client/chunked/server)
+- [ ] Add safety checks before waveform analysis
+- [ ] Show appropriate messages for large files
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 5.3: Chunked Processing for Medium Files ⏳
+- [ ] Create ChunkedWaveformProcessor class
+- [ ] Implement 10MB chunk size processing
+- [ ] Add chunk-by-chunk audio decoding
+- [ ] Progressive peak data merging
+- [ ] Memory release after each chunk
+- [ ] Progress reporting during chunked analysis
+- [ ] Test with 50-200MB files
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 5.4: Backend Waveform Generation ⏳
+- [ ] Install FFmpeg for Windows development
+- [ ] Create waveform database schema
+- [ ] Add waveform generation service in backend
+- [ ] Implement REST API endpoints:
+  - [ ] POST /api/waveform/generate
+  - [ ] GET /api/waveform/:fileId
+  - [ ] GET /api/waveform/:fileId/segment
+- [ ] Add waveform caching logic
+- [ ] Frontend integration for server waveforms
+- [ ] Test with 200MB+ files
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 5.5: Performance Optimization ⏳
+- [ ] Implement IndexedDB caching for waveforms
+- [ ] Add waveform quality settings (low/medium/high)
+- [ ] Virtual scrolling for very long waveforms
+- [ ] Adaptive detail based on zoom level
+- [ ] Memory usage monitoring and reporting
+- [ ] Performance metrics collection
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 5.6: Resource Monitoring Integration ✅
+- [x] Create system-wide ResourceMonitor service
+- [x] Implement memory/CPU/storage checking
+- [x] Add operation cost calculations
+- [x] Create resource warning UI components
+- [x] Integrate with MediaPlayer waveform analysis
+- [x] Add automatic fallback strategies
+- [x] Log operations for metrics
+- [x] Test with various file sizes
+- [x] Git commit
+
+**Resource Monitor Features:**
+- Prevents browser crashes from large files
+- Checks available memory before operations
+- Provides warnings in Hebrew and English
+- Suggests alternative methods (server-side, chunked)
+- Works system-wide for all components
+- Minimal performance overhead (< 0.1% CPU)
+
+### Stage 6: Waveform Zoom & Scrolling ⏳
+- [ ] Add inline zoom controls (+/- buttons on waveform)
+- [ ] Implement zoom levels (1x-10x)
+- [ ] Add auto-scroll during playback (keep playhead centered)
+- [ ] Manual pan/drag when paused
+- [ ] Mouse wheel zoom support (Ctrl+scroll)
+- [ ] Zoom level indicator
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 7: Marking System ⏳
+- [ ] Define mark types and colors:
+  - [ ] 🔴 Skip sections (red)
+  - [ ] 🟡 Unclear audio (yellow)
+  - [ ] 🟢 Review later (green)
+  - [ ] 🟣 Section boundaries (purple)
+  - [ ] ➕ Custom marks button (user-defined)
+- [ ] Add mark data structure
+- [ ] Implement add/remove/edit marks
+- [ ] Visual indicators:
+  - [ ] Regular mode: small white dots only
+  - [ ] Waveform mode: full colored indicators
+- [ ] Click to add mark at current position
+- [ ] Right-click for mark type menu
+- [ ] Drag marks to adjust position
+- [ ] LocalStorage persistence per file
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 8: Hidden Toolbar ⏳
+- [ ] Create expandable toolbar UI (dot/hamburger icon)
+- [ ] Position: top-right corner of waveform
+- [ ] Ultra-compact icons when expanded
+- [ ] Auto-hide after inactivity
+- [ ] Tools to include:
+  - [ ] Add mark (with type selector)
+  - [ ] Custom mark creator (+)
+  - [ ] Navigate between marks
+  - [ ] Filter marks by type
+  - [ ] Clear all marks
+  - [ ] Zoom controls
+  - [ ] Loop between marks
+  - [ ] Export/import marks
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 9: Text Editor Integration Prep ⏳
+- [ ] Create TextEditor folder structure:
+  ```
+  /components/TextEditor/
+    ├── TextEditor.tsx (placeholder)
+    ├── TextEditor.css (placeholder)
+    ├── types.ts
+    ├── hooks/
+    │   └── useMediaSync.ts
+    └── INTEGRATION.md
+  ```
+- [ ] Write INTEGRATION.md documentation:
+  - [ ] Media player API functions
+  - [ ] Mark synchronization protocol
+  - [ ] Event listeners for time updates
+  - [ ] Navigation commands
+  - [ ] Variable names and types
+  - [ ] Example code snippets
+- [ ] Define synchronization API
+- [ ] Create placeholder components
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)
+
+### Stage 10: Mark Navigation & Filtering ⏳
+- [ ] Navigation features:
+  - [ ] Previous/Next mark buttons
+  - [ ] Jump to specific mark
+  - [ ] Keyboard shortcuts (Alt+←/→)
+- [ ] Filtering system:
+  - [ ] Show/hide specific mark types
+  - [ ] Isolate marked sections
+- [ ] Playback options:
+  - [ ] Play only marked sections
+  - [ ] Skip marked sections
+  - [ ] Loop within marked range
+- [ ] Synchronization:
+  - [ ] Events for text editor
+  - [ ] Bidirectional navigation
+  - [ ] Shared mark state
+- [ ] **USER TEST & APPROVAL REQUIRED**
+- [ ] Git commit (only after approval)

@@ -44,7 +44,11 @@
       "Bash(npm run build:*)",
       "Bash(timeout:*)",
       "Bash(git checkout:*)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "WebSearch",
+      "Bash(ffmpeg:*)",
+      "Bash(set PGPASSWORD=transcription_pass)",
+      "Bash(psql:*)"
     ],
     "deny": []
   }
