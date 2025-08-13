@@ -54,7 +54,6 @@ import {
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
-import './styles/controls.css';
 import './styles/shortcuts.css';
 import './styles/pedal.css';
 import './styles/autodetect.css';
