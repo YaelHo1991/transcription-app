@@ -121,8 +121,9 @@
     rgba(23, 162, 184, 0.75) 70%,
     rgba(30, 50, 60, 0.8) 100%);
   border-radius: 15px;
-  margin: clamp(8px, 0.8vw, 15px) 0;
-  padding: clamp(8px, 0.8vw, 12px) 20px;
+  margin: 10px 0; /* Fixed margin */
+  padding: 10px 20px; /* Fixed padding */
+  height: 50px; /* Fixed height */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
@@ -132,12 +133,12 @@
 }
 
 .workspace-header.header-locked {
-  margin-top: clamp(8px, 0.8vw, 15px);
+  margin-top: 10px; /* Fixed margin */
 }
 
 /* Adjust workspace header when sidebar is locked */
 .workspace-header.sidebar-locked {
-  width: calc(100% - 20px); /* Match workspace-grid width */
+  width: 100%; /* Full width - video cube is now inside media player */
   margin-right: 0; /* No right margin */
   margin-left: 0; /* No left margin */
 }
@@ -207,14 +208,17 @@
     rgba(23, 180, 190, 0.55) 70%,
     rgba(40, 60, 70, 0.6) 100%);
   border-radius: 15px;
-  padding: clamp(6px, 0.6vw, 10px) clamp(10px, 1vw, 15px);
+  padding: 8px 12px; /* Fixed padding */
+  height: 60px; /* Fixed height */
+  min-height: 60px;
+  max-height: 60px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(10px);
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: all 0.3s ease;
-  flex-shrink: 0;
+  flex: 0 0 auto; /* Don't grow or shrink */
   width: 100%;
   box-sizing: border-box;
   border: 1px solid rgba(32, 201, 151, 0.25);
@@ -329,20 +333,17 @@
 /* ===== MAIN CONTENT ===== */
 .main-content {
   transition: all 0.3s ease;
-  height: calc(100vh - clamp(120px, 8vh, 170px));
-  overflow-y: auto;
-  overflow-x: hidden;
+  height: calc(100vh - 150px); /* Fixed height instead of clamp */
+  max-height: calc(100vh - 150px); /* Prevent expansion */
+  min-height: 500px; /* Minimum height to prevent crushing */
+  overflow-y: auto; /* Always allow scrolling */
+  overflow-x: auto; /* Allow horizontal scroll if needed */
   display: flex;
   flex-direction: column;
   /* Margins handled by parent wrapper now */
 }
 
-/* Hide scrollbar on larger screens, show on very small */
-@media (min-height: 600px) {
-  .main-content {
-    overflow: hidden;
-  }
-}
+/* Always show scrollbar when content overflows - removed media query that hid it */
 
 /* When header is locked, adjust for the header being part of layout */
 .main-content.header-locked {
@@ -352,29 +353,29 @@
 
 /* Adjust components when header is locked - all screen sizes */
 .main-content.header-locked .placeholder-container.media-player {
-  min-height: clamp(100px, 12vh, 140px);
+  min-height: 120px; /* Fixed height instead of clamp */
   flex: 1.2;
 }
 
 .main-content.header-locked .placeholder-container.text-editor {
-  min-height: clamp(200px, 25vh, 300px);
+  min-height: 250px; /* Fixed height instead of clamp */
   flex: 3;
 }
 
 .main-content.header-locked .placeholder-container.speakers.normal,
 .main-content.header-locked .placeholder-container.remarks.normal {
-  min-height: clamp(100px, 13vh, 160px);
+  min-height: 130px; /* Fixed height instead of clamp */
   flex: 1;
 }
 
 .main-content.header-locked .placeholder-container.speakers.compressed,
 .main-content.header-locked .placeholder-container.remarks.compressed {
-  min-height: clamp(80px, 10vh, 120px);
+  min-height: 100px; /* Fixed height instead of clamp */
   flex: 0.7;
 }
 
 .main-content.header-locked .placeholder-container.helper-files.expanded {
-  min-height: clamp(120px, 15vh, 180px);
+  min-height: 150px; /* Fixed height instead of clamp */
   flex: 1.2;
 }
 
@@ -445,16 +446,17 @@
 /* ===== WORKSPACE GRID ===== */
 .workspace-grid {
   display: grid;
-  grid-template-columns: 1fr clamp(350px, 25vw, 500px);
-  gap: clamp(8px, 1vw, 25px);
+  grid-template-columns: 1fr 400px; /* Fixed right column width */
+  gap: 15px; /* Fixed gap */
   height: 100%;
   flex: 1;
+  min-width: 1000px; /* Minimum width to prevent crushing */
 }
 
 /* When sidebar is locked, make speakers column smaller */
 .main-content.sidebar-locked .workspace-grid {
-  grid-template-columns: 1fr clamp(260px, 18vw, 340px); /* Slightly larger speakers column */
-  width: calc(100% - 20px); /* Don't fill entire width - leave space on right */
+  grid-template-columns: 1fr 300px; /* Fixed smaller speakers column */
+  width: 100%; /* Use full width - video cube is now inside media player */
   /* Keep same gap as base grid */
 }
 
@@ -468,12 +470,12 @@
 /* Shrink side workspace components when sidebar is locked */
 .main-content.sidebar-locked .placeholder-container.speakers,
 .main-content.sidebar-locked .placeholder-container.remarks {
-  min-height: clamp(80px, 10vh, 120px);
+  min-height: 100px; /* Fixed height */
   flex: 0.8;
 }
 
 .main-content.sidebar-locked .placeholder-container.helper-files.expanded {
-  min-height: clamp(100px, 12vh, 140px);
+  min-height: 120px; /* Fixed height */
   flex: 0.9;
 }
 
@@ -481,8 +483,10 @@
 .main-workspace {
   display: flex;
   flex-direction: column;
-  gap: clamp(5px, 0.8vw, 20px);
+  gap: 10px; /* Fixed gap */
   height: 100%;
+  max-height: 100%;
+  overflow: hidden; /* Prevent expansion */
 }
 
 /* ===== SIDE WORKSPACE ===== */
@@ -523,8 +527,10 @@
 }
 
 .placeholder-container.media-player {
-  flex: 1.2;
-  min-height: clamp(140px, 10vh, 130px);
+  flex: 0 0 auto; /* Don't grow or shrink */
+  height: 150px; /* Fixed height */
+  min-height: 150px;
+  max-height: 150px;
   background: linear-gradient(135deg, rgba(23, 162, 184, 0.08) 0%, rgba(32, 201, 151, 0.12) 60%, rgba(40, 167, 69, 0.08) 100%);
   border-color: rgba(23, 162, 184, 0.3);
 }
@@ -539,9 +545,12 @@
 }
 
 .placeholder-container.text-editor {
-  flex: 3;
-  min-height: clamp(280px, 20vh, 280px);
+  flex: 0 0 auto; /* Don't grow or shrink */
+  height: 300px; /* Fixed height */
+  min-height: 300px;
+  max-height: 300px;
   background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(32, 201, 151, 0.08) 50%, rgba(23, 162, 184, 0.05) 100%);
+  overflow-y: auto; /* Add scroll if content is too large */
 }
 
 /* Sidebar containers */

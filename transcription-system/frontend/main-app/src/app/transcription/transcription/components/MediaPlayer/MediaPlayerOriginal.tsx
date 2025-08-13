@@ -70,8 +70,8 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
   const [waveformLoading, setWaveformLoading] = useState(false);
   const [waveformProgress, setWaveformProgress] = useState(0);
-  const [showWaveform, setShowWaveform] = useState(true);
-  const [waveformEnabled, setWaveformEnabled] = useState(true); // Toggle for waveform vs regular progress bar
+  const [showWaveform, setShowWaveform] = useState(false); // Default to regular progress bar
+  const [waveformEnabled, setWaveformEnabled] = useState(false); // Default to regular view
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
@@ -473,16 +473,29 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       setShowVideo(isVideo);
       setShowVideoCube(isVideo && !videoMinimized);
       
-      // Set video source if it's a video file
-      if (isVideo && videoRef.current) {
-        videoRef.current.src = initialMedia.url;
-        videoRef.current.volume = volume / 100;
+      // Set video source if it's a video file - with small delay to ensure element is mounted
+      if (isVideo) {
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.src = initialMedia.url;
+            videoRef.current.volume = volume / 100;
+            // Ensure video is ready to play
+            videoRef.current.load();
+          }
+        }, 100);
       }
 
       // Analyze waveform for the loaded media
       analyzeWaveform(initialMedia.url);
     }
-  }, [initialMedia, videoMinimized, analyzeWaveform]);
+  }, [initialMedia, analyzeWaveform]); // Removed videoMinimized dependency
+  
+  // Update video cube visibility when videoMinimized changes
+  useEffect(() => {
+    if (showVideo) {
+      setShowVideoCube(!videoMinimized);
+    }
+  }, [videoMinimized, showVideo]);
 
   // Video cube handlers
   const handleVideoCubeMinimize = () => {
@@ -491,13 +504,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
   };
 
   const handleVideoCubeClose = () => {
-    setShowVideo(false);
     setShowVideoCube(false);
     setVideoMinimized(true); // Set to true so restore button appears
+    // Keep video enabled (don't set setShowVideo(false))
   };
 
   const handleVideoRestore = () => {
     setVideoMinimized(false);
+    setShowVideo(true); // Make sure video is enabled again
     setShowVideoCube(true);
   };
 
@@ -758,9 +772,11 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
       
       {/* Media Player Component */}
       <div className={`media-player-container ${showVideoCube ? 'video-active' : ''}`} id="mediaPlayerContainer">
-        {/* Hidden Audio Element */}
-        <audio ref={audioRef} id="audioPlayer" preload="auto" />
-        {showVideo && <video ref={videoRef} style={{ display: 'none' }} />}
+        {/* Media Player Content Wrapper */}
+        <div className="media-player-content">
+          {/* Hidden Audio Element */}
+          <audio ref={audioRef} id="audioPlayer" preload="auto" />
+          {showVideo && <video ref={videoRef} style={{ display: 'none' }} />}
         
         
         {/* Controls Section Wrapper */}
@@ -931,12 +947,12 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             
             {/* Waveform Toggle Button */}
             <button 
-              className="waveform-toggle-btn" 
+              className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''}`}
               id="waveformToggleBtn" 
               title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
               onClick={() => setWaveformEnabled(!waveformEnabled)}
             >
-              {waveformEnabled ? "📊" : "▬"}
+              ●
             </button>
           </div>
         </div>
@@ -1018,16 +1034,31 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           </button>
         )}
         
-        {/* Settings Button */}
-        <button 
-          className="settings-btn" 
-          id="settingsBtn" 
-          title="הגדרות"
-          onClick={() => setShowSettings(true)}
-        >
-          ⚙️
-        </button>
-
+          {/* Settings Button */}
+          <button 
+            className="settings-btn" 
+            id="settingsBtn" 
+            title="הגדרות"
+            onClick={() => setShowSettings(true)}
+          >
+            ⚙️
+          </button>
+        </div>
+        
+        {/* Video Cube - part of layout when video is shown */}
+        {showVideoCube && (
+          <div className="video-cube-container">
+            <VideoCube
+              videoRef={videoRef}
+              isVisible={showVideoCube}
+              onMinimize={handleVideoCubeMinimize}
+              onClose={handleVideoCubeClose}
+              onRestore={handleVideoCubeRestore}
+              waveformEnabled={waveformEnabled}
+              isInLayout={true}
+            />
+          </div>
+        )}
       </div>
       
       {/* Settings Modal */}
@@ -1108,14 +1139,6 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         </div>
       </div>
 
-      {/* Video Cube */}
-      <VideoCube
-        videoRef={videoRef}
-        isVisible={showVideoCube}
-        onMinimize={handleVideoCubeMinimize}
-        onClose={handleVideoCubeClose}
-        onRestore={handleVideoCubeRestore}
-      />
 
     </>
   );
