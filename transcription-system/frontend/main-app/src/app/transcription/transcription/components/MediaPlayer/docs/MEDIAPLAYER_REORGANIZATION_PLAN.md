@@ -193,21 +193,25 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 8. Ready to commit: "Stage 11: Extract volume and speed control utilities"
 
 ### Stage 12: Extract Settings & Status Management
-**Status**: PENDING
+**Status**: COMPLETED
 **Actions**:
-1. [ ] Create utils/settingsManager.ts with:
+1. [x] Create utils/settingsManager.ts with:
    - loadSettings() function
    - saveSettings() function
    - mergeShortcuts() function
-   - Default settings constants
-2. [ ] Create utils/statusManager.ts with:
+   - DEFAULT_SETTINGS constant
+   - resetSettings() function
+2. [x] Create utils/statusManager.ts with:
    - showGlobalStatus() function
-   - Status timeout management
-3. [ ] Import and use utilities in index.tsx
-4. [ ] Test: Settings persistence and status display
-5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. [ ] Commit: "Stage 12: Extract settings and status management"
+   - showGlobalStatusWithTimeout() function
+   - statusMessages object with all status texts
+   - getStatusMessage() helper
+3. [x] Import and use utilities in index.tsx
+4. [x] Added automatic saving when settings change
+5. [x] Test: Settings persistence and status display work
+6. [x] Update: docs/MEDIAPLAYER_STRUCTURE.md
+7. [x] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+8. Ready to commit: "Stage 12: Extract settings and status management"
 
 ### Stage 13: Extract Control Styles
 **Status**: PENDING

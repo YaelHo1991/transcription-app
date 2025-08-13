@@ -40,6 +40,17 @@ import {
   formatSpeed,
   SPEED_PRESETS
 } from './utils/speedControls';
+import {
+  loadSettings,
+  saveSettings,
+  mergeShortcuts,
+  DEFAULT_SETTINGS
+} from './utils/settingsManager';
+import {
+  showGlobalStatus as showGlobalStatusUtil,
+  statusMessages,
+  getStatusMessage
+} from './utils/statusManager';
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
@@ -98,42 +109,32 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   
   // Load and merge shortcuts from localStorage on mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem('mediaPlayerSettings');
-      if (savedSettings) {
-        try {
-          const parsed = JSON.parse(savedSettings);
-          if (parsed.shortcuts) {
-            // Create a map of saved shortcuts by action for deduplication
-            const savedShortcutsMap = new Map(
-              parsed.shortcuts.map((s: any) => [s.action, s])
-            );
-            
-            // Use defaults as base, but preserve saved customizations
-            const mergedShortcuts = defaultShortcuts.map(defaultShortcut => {
-              const saved = savedShortcutsMap.get(defaultShortcut.action);
-              if (saved) {
-                // Preserve user's customization but ensure group is set
-                return {
-                  ...defaultShortcut,
-                  ...saved,
-                  group: (saved as any).group || defaultShortcut.group // Ensure group exists
-                };
-              }
-              return defaultShortcut;
-            });
-            
-            setKeyboardSettings(prev => ({
-              ...prev,
-              shortcuts: mergedShortcuts,
-              shortcutsEnabled: parsed.shortcutsEnabled !== undefined ? parsed.shortcutsEnabled : prev.shortcutsEnabled,
-              rewindOnPause: parsed.rewindOnPause || prev.rewindOnPause
-            }));
-          }
-        } catch (error) {
-          console.error('Failed to load shortcuts:', error);
-        }
-      }
+    const savedSettings = loadSettings();
+    
+    setKeyboardSettings({
+      shortcuts: savedSettings.shortcuts,
+      shortcutsEnabled: savedSettings.shortcutsEnabled,
+      rewindOnPause: savedSettings.rewindOnPause
+    });
+    
+    // Load other settings
+    if (savedSettings.pedalEnabled !== undefined) {
+      setPedalEnabled(savedSettings.pedalEnabled);
+    }
+    if (savedSettings.autoDetectEnabled !== undefined) {
+      setAutoDetectEnabled(savedSettings.autoDetectEnabled);
+    }
+    if (savedSettings.autoDetectMode) {
+      setAutoDetectMode(savedSettings.autoDetectMode);
+    }
+    if (savedSettings.volume !== undefined) {
+      setVolume(savedSettings.volume);
+      applyVolumeToElements(savedSettings.volume, audioRef, videoRef);
+    }
+    if (savedSettings.playbackRate !== undefined) {
+      setPlaybackRate(savedSettings.playbackRate);
+      setSpeedSliderValue(savedSettings.playbackRate * 100);
+      applyPlaybackRateToElements(savedSettings.playbackRate, audioRef, videoRef);
     }
   }, []);
   
@@ -152,10 +153,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
-    setGlobalStatus(message);
-    setTimeout(() => {
-      setGlobalStatus(null);
-    }, 3000);
+    showGlobalStatusUtil(message, setGlobalStatus);
   };
 
   // Play/Pause wrapper
@@ -185,6 +183,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
     handleVolumeChangeUtil(newVolume, audioRef, videoRef, setVolume, setIsMuted, previousVolumeRef);
+    saveSettings({ volume: newVolume });
   };
 
   const toggleMute = () => {
@@ -195,6 +194,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSpeed = Number(e.target.value);
     handleSpeedChangeUtil(newSpeed, audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
+    saveSettings({ playbackRate: newSpeed / 100 });
   };
 
   // Cycle through speed presets
@@ -338,21 +338,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       case 'toggleShortcuts':
         setKeyboardSettings(prev => {
           const newEnabled = !prev.shortcutsEnabled;
-          showGlobalStatus(`קיצורי מקלדת: ${newEnabled ? 'פעילים' : 'כבויים'}`);
+          showGlobalStatus(getStatusMessage('shortcuts', newEnabled));
           return { ...prev, shortcutsEnabled: newEnabled };
         });
         break;
       case 'togglePedal':
         setPedalEnabled(prev => {
           const newEnabled = !prev;
-          showGlobalStatus(`דוושה: ${newEnabled ? 'פעילה' : 'כבויה'}`);
+          showGlobalStatus(getStatusMessage('pedal', newEnabled));
           return newEnabled;
         });
         break;
       case 'toggleAutoDetect':
         setAutoDetectEnabled(prev => {
           const newEnabled = !prev;
-          showGlobalStatus(`זיהוי אוטומטי: ${newEnabled ? 'פעיל' : 'כבוי'}`);
+          showGlobalStatus(getStatusMessage('autoDetect', newEnabled));
           return newEnabled;
         });
         break;
@@ -360,7 +360,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         // Toggle between regular and enhanced auto-detect modes
         setAutoDetectMode(prev => {
           const newMode = prev === 'regular' ? 'enhanced' : 'regular';
-          showGlobalStatus(`מצב זיהוי: ${newMode === 'regular' ? 'רגיל' : 'משופר'}`);
+          showGlobalStatus(getStatusMessage('autoDetect', newMode));
           return newMode;
         });
         break;
@@ -445,7 +445,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           // User cancelled, disable waveform
           setWaveformEnabled(false);
           setWaveformLoading(false);
-          showGlobalStatus('ניתוח צורת גל בוטל - אין מספיק משאבים');
+          showGlobalStatus(statusMessages.waveform.canceled);
           return;
         }
         
@@ -628,7 +628,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       });
       
       // Show error message to user
-      showGlobalStatus(`שגיאה בטעינת צורת גל: ${error instanceof Error ? error.message : String(error)}`);
+      showGlobalStatus(statusMessages.waveform.error(error instanceof Error ? error.message : String(error)));
     }
   }, [checkOperation, showWarning]);
 
@@ -1355,9 +1355,18 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 shortcuts={keyboardSettings.shortcuts}
                 shortcutsEnabled={keyboardSettings.shortcutsEnabled}
                 rewindOnPause={keyboardSettings.rewindOnPause}
-                onShortcutsChange={(shortcuts) => setKeyboardSettings(prev => ({ ...prev, shortcuts }))}
-                onShortcutsEnabledChange={(enabled) => setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: enabled }))}
-                onRewindOnPauseChange={(rewindSettings) => setKeyboardSettings(prev => ({ ...prev, rewindOnPause: rewindSettings }))}
+                onShortcutsChange={(shortcuts) => {
+                  setKeyboardSettings(prev => ({ ...prev, shortcuts }));
+                  saveSettings({ shortcuts });
+                }}
+                onShortcutsEnabledChange={(enabled) => {
+                  setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: enabled }));
+                  saveSettings({ shortcutsEnabled: enabled });
+                }}
+                onRewindOnPauseChange={(rewindSettings) => {
+                  setKeyboardSettings(prev => ({ ...prev, rewindOnPause: rewindSettings }));
+                  saveSettings({ rewindOnPause: rewindSettings });
+                }}
               />
             </div>
             
@@ -1365,7 +1374,10 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             <div className={`settings-tab-content ${activeTab === 'pedal' ? 'active' : ''}`} id="pedal-tab">
               <PedalTab
                 pedalEnabled={pedalEnabled}
-                onPedalEnabledChange={setPedalEnabled}
+                onPedalEnabledChange={(enabled) => {
+                  setPedalEnabled(enabled);
+                  saveSettings({ pedalEnabled: enabled });
+                }}
                 onPedalAction={handleShortcutAction}
               />
             </div>
@@ -1374,8 +1386,14 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             <div className={`settings-tab-content ${activeTab === 'autodetect' ? 'active' : ''}`} id="autodetect-tab">
               <AutoDetectTab
                 autoDetectEnabled={autoDetectEnabled}
-                onAutoDetectEnabledChange={setAutoDetectEnabled}
-                onModeChange={setAutoDetectMode}
+                onAutoDetectEnabledChange={(enabled) => {
+                  setAutoDetectEnabled(enabled);
+                  saveSettings({ autoDetectEnabled: enabled });
+                }}
+                onModeChange={(mode) => {
+                  setAutoDetectMode(mode);
+                  saveSettings({ autoDetectMode: mode });
+                }}
                 isPlaying={isPlaying}
                 onPlayPause={togglePlayPause}
                 onRewind={handleRewind}

@@ -190,8 +190,8 @@ MediaPlayer/
 │   ├── mediaControls.ts (COMPLETED - playback functions)
 │   ├── volumeControls.ts (COMPLETED - volume functions)
 │   ├── speedControls.ts (COMPLETED - speed functions)
-│   ├── settingsManager.ts (NEW - settings persistence)
-│   └── statusManager.ts (NEW - status display)
+│   ├── settingsManager.ts (COMPLETED - settings persistence)
+│   └── statusManager.ts (COMPLETED - status display)
 ├── types/
 │   ├── index.ts
 │   └── marks.ts
