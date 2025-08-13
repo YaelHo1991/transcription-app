@@ -143,11 +143,11 @@ MediaPlayer/
 - [x] Update imports for moved tab components
 - [x] Move AutoDetect components to SettingsModal folder
 - [x] Update AutoDetectTab imports
+- [x] Clean up types (moved types.ts to types/index.ts)
 
 ### In Progress 🔄
 
 ### Pending ⏳
-- [ ] Clean up types
 - [ ] Extract MediaPlayer CSS from page.css
 - [ ] Final verification
 

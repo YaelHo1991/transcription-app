@@ -90,17 +90,16 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 6. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
 7. Ready to commit: "Stage 6: Move AutoDetect components to SettingsModal"
 
-### ⏳ Stage 7: Clean Up Types
-**Status**: PENDING
+### ✅ Stage 7: Clean Up Types
+**Status**: COMPLETED
 **Actions**:
-1. Rename types.ts → types/index.ts
-2. Verify types/marks.ts is in correct location
-3. Update all imports:
-   - `'./types'` → `'./types/index'` or `'./types'`
-4. Test: TypeScript compilation
-5. Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. Commit: "Stage 7: Organize MediaPlayer types"
+1. ✅ Renamed types.ts → types/index.ts
+2. ✅ Verified types/marks.ts is in correct location
+3. ✅ Imports still work (TypeScript resolves './types' to './types/index.ts' automatically)
+4. ✅ Test: TypeScript compilation successful
+5. ✅ Updated: docs/MEDIAPLAYER_STRUCTURE.md
+6. ✅ Updated: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+7. Ready to commit: "Stage 7: Organize MediaPlayer types"
 
 ### ⏳ Stage 8: Extract MediaPlayer CSS
 **Status**: PENDING
