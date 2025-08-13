@@ -172,6 +172,11 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
   
   // Handle input report from pedal - defined early for use in connect/disconnect
   const handleInputReport = (event: any) => {
+    // Check if pedal is enabled before processing input
+    if (!pedalEnabled) {
+      return;
+    }
+    
     const { data, reportId } = event;
     
     // Parse the data to determine which button was pressed
@@ -248,7 +253,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
   
   // Handle pedal button press
   const handlePedalPress = (button: string) => {
-    if (!pedalEnabled || !onPedalAction) {
+    if (!onPedalAction) {
       return;
     }
     
