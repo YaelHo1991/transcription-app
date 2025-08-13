@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { WaveformData } from './types';
-import MarksManager from './components/MarksManager';
-import { MarkType, MARK_COLORS } from './types/marks';
+import { WaveformData } from '../types';
+import MarksManager from './MarksManager';
+import { MarkType, MARK_COLORS } from '../types/marks';
 
 interface WaveformCanvasProps {
   waveformData: WaveformData;

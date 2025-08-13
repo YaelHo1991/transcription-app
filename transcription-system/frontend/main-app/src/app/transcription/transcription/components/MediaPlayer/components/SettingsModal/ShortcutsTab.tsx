@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { KeyboardShortcut } from '../../types';
-import { defaultShortcuts } from '../../KeyboardShortcuts';
+import { defaultShortcuts } from '../KeyboardShortcuts';
 
 interface ShortcutsTabProps {
   shortcuts: KeyboardShortcut[];

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { MediaPlayerState } from './types';
+import { MediaPlayerState } from '../types';
 
 interface MediaControlsProps {
   state: MediaPlayerState;

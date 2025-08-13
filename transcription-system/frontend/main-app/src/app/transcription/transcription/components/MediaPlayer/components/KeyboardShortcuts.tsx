@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { KeyboardShortcut } from './types';
+import { KeyboardShortcut } from '../types';
 
 interface KeyboardShortcutsProps {
   shortcuts: KeyboardShortcut[];

@@ -3,12 +3,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI, WaveformData } from './types';
 import { WorkerManager } from './workers/workerManager';
-import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
+import KeyboardShortcuts, { defaultShortcuts } from './components/KeyboardShortcuts';
 import ShortcutsTab from './components/SettingsModal/ShortcutsTab';
 import PedalTab from './components/SettingsModal/PedalTab';
 import AutoDetectTab from './components/SettingsModal/AutoDetectTab';
-import VideoCube from './VideoCube';
-import WaveformCanvas from './WaveformCanvas';
+import VideoCube from './components/VideoCube';
+import WaveformCanvas from './components/WaveformCanvas';
 import { 
   getWaveformStrategy, 
   getFileSizeFromUrl, 
