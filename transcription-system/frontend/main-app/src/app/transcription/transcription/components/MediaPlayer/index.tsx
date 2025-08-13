@@ -93,7 +93,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 return {
                   ...defaultShortcut,
                   ...saved,
-                  group: saved.group || defaultShortcut.group // Ensure group exists
+                  group: (saved as any).group || defaultShortcut.group // Ensure group exists
                 };
               }
               return defaultShortcut;
@@ -539,7 +539,11 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       
       // Override to chunked processing for blob URLs that would normally use server
       if (isBlobUrl && strategy.method === WaveformMethod.SERVER) {
-        strategy = { method: WaveformMethod.CHUNKED, threshold: fileSize || 0 };
+        strategy = { 
+          method: WaveformMethod.CHUNKED, 
+          threshold: fileSize || 0,
+          message: 'מעבד קובץ גדול, אנא המתן...'
+        };
         console.log('Using chunked processing for blob URL (server processing not available for blobs)');
       }
       
@@ -628,7 +632,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                   const data = await waveformResponse.json();
                   setWaveformData({
                     peaks: data.peaks,
-                    duration: data.duration
+                    duration: data.duration,
+                    sampleRate: data.sampleRate || 44100,
+                    resolution: data.resolution || 1024
                   });
                   setWaveformLoading(false);
                   setWaveformProgress(100);
@@ -653,7 +659,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               const data = await waveformResponse.json();
               setWaveformData({
                 peaks: data.peaks,
-                duration: data.duration
+                duration: data.duration,
+                sampleRate: data.sampleRate || 44100,
+                resolution: data.resolution || 1024
               });
               setWaveformLoading(false);
               setWaveformProgress(100);
@@ -688,11 +696,11 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         fileSize: 0,
         memoryBefore: 0,
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
       
       // Show error message to user
-      showGlobalStatus(`שגיאה בטעינת צורת גל: ${error.message}`);
+      showGlobalStatus(`שגיאה בטעינת צורת גל: ${error instanceof Error ? error.message : String(error)}`);
     }
   }, [checkOperation, showWarning]);
 

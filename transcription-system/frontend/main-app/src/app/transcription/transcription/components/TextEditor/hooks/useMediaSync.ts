@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Mark } from '../../types/marks';
+import { Mark, MarkType } from '../../MediaPlayer/types/marks';
 import { SyncState, EditorPosition, TimedSegment } from '../types';
 
 interface UseMediaSyncProps {
@@ -51,7 +51,7 @@ export function useMediaSync({
   const [cursorPosition, setCursorPosition] = useState<EditorPosition | null>(null);
   const [segments, setSegments] = useState<TimedSegment[]>([]);
   
-  const highlightTimeoutRef = useRef<NodeJS.Timeout>();
+  const highlightTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastHighlightedMarkRef = useRef<string | null>(null);
   const lastHighlightedSegmentRef = useRef<string | null>(null);
 
@@ -62,7 +62,9 @@ export function useMediaSync({
     const mark = getMarkAtTime(currentTime);
     
     if (mark?.id !== lastHighlightedMarkRef.current) {
-      clearTimeout(highlightTimeoutRef.current);
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
       
       highlightTimeoutRef.current = setTimeout(() => {
         setActiveMark(mark);
@@ -70,7 +72,11 @@ export function useMediaSync({
       }, highlightDelay);
     }
 
-    return () => clearTimeout(highlightTimeoutRef.current);
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
   }, [currentTime, marks, syncEnabled, highlightDelay]);
 
   // Find active segment based on current time
@@ -138,7 +144,7 @@ export function useMediaSync({
 
     const newMark: Partial<Mark> = {
       time: currentTime,
-      type: 'custom',
+      type: MarkType.CUSTOM,
       label: `Mark at line ${position.line}`,
       customName: `Editor Mark ${position.line}:${position.column}`
     };
@@ -167,11 +173,11 @@ export function useMediaSync({
 
   // Compute sync state
   const syncState: SyncState = {
-    isConnected: syncEnabled,
-    isPlaying,
-    currentTime,
-    lastSyncTime: Date.now(),
-    syncMode: autoScroll ? 'auto' : 'manual'
+    enabled: syncEnabled,
+    mode: autoScroll ? 'auto' : 'manual',
+    autoScroll,
+    highlightCurrent: true,
+    syncDelay: highlightDelay
   };
 
   return {

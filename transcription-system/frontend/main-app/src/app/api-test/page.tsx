@@ -38,7 +38,7 @@ export default function ApiTestPage() {
         endpoint,
         status: 'ERROR',
         success: false,
-        data: { error: error.message },
+        data: { error: error instanceof Error ? error.message : String(error) },
         timestamp: new Date().toLocaleTimeString()
       }])
     } finally {

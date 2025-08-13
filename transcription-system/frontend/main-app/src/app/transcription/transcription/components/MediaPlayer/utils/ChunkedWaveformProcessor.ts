@@ -97,10 +97,12 @@ export class ChunkedWaveformProcessor {
       
       return {
         peaks: finalPeaks,
-        duration: totalDuration
+        duration: totalDuration,
+        sampleRate: 44100,
+        resolution: 1024
       };
     } catch (error) {
-      this.onError?.(error.message);
+      this.onError?.(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -182,10 +184,10 @@ export class ChunkedWaveformProcessor {
   /**
    * Normalize and resample peaks to target count
    */
-  private normalizePeaks(peaks: number[], targetCount: number): number[] {
+  private normalizePeaks(peaks: number[], targetCount: number): Float32Array {
     // If we have too many peaks, downsample
     if (peaks.length > targetCount) {
-      const result: number[] = [];
+      const result = new Float32Array(targetCount);
       const ratio = peaks.length / targetCount;
       
       for (let i = 0; i < targetCount; i++) {
@@ -198,14 +200,18 @@ export class ChunkedWaveformProcessor {
           maxPeak = Math.max(maxPeak, peaks[j]);
         }
         
-        result.push(Math.min(1, maxPeak)); // Ensure normalized 0-1
+        result[i] = Math.min(1, maxPeak); // Ensure normalized 0-1
       }
       
       return result;
     }
     
     // Normalize to 0-1 range
-    return peaks.map(p => Math.min(1, p));
+    const result = new Float32Array(peaks.length);
+    for (let i = 0; i < peaks.length; i++) {
+      result[i] = Math.min(1, peaks[i]);
+    }
+    return result;
   }
 
   /**
@@ -295,6 +301,9 @@ export class ChunkedWaveformProcessor {
       const peaks = this.extractPeaksOptimized(channelData, targetPeaks);
       this.onProgress?.(90);
       
+      // Get sample rate before cleanup
+      const sampleRate = this.audioContext?.sampleRate || 44100;
+      
       // Close audio context
       if (this.audioContext) {
         await this.audioContext.close();
@@ -304,8 +313,10 @@ export class ChunkedWaveformProcessor {
       this.onProgress?.(100);
       
       return {
-        peaks,
-        duration
+        peaks: new Float32Array(peaks),
+        duration,
+        sampleRate,
+        resolution: 1024
       };
     } catch (error) {
       if (this.audioContext) {

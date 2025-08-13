@@ -20,9 +20,8 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
     
     // Load PDF without worker
     const pdf = await pdfjsLib.getDocument({ 
-      data: arrayBuffer,
-      disableWorker: true  // Run on main thread
-    }).promise;
+      data: arrayBuffer
+    } as any).promise;
     
     const totalPages = pdf.numPages;
     console.log('PDF loaded:', totalPages, 'pages');
@@ -50,8 +49,9 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
         // Render
         await page.render({
           canvasContext: ctx,
-          viewport: viewport
-        }).promise;
+          viewport: viewport,
+          canvas: canvas
+        } as any).promise;
         
         // Convert to data URL
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);

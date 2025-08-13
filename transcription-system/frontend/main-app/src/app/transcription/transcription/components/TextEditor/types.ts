@@ -68,6 +68,9 @@ export interface EditorPosition {
  * Text segment with timing information
  */
 export interface TimedSegment {
+  /** Unique identifier */
+  id: string;
+  
   /** Start time in seconds */
   startTime: number;
   
@@ -82,6 +85,9 @@ export interface TimedSegment {
   
   /** Confidence score (0-1) */
   confidence?: number;
+  
+  /** Associated mark ID (optional) */
+  markId?: string;
 }
 
 /**

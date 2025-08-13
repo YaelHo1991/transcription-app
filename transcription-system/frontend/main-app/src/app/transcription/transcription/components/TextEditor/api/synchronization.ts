@@ -5,7 +5,7 @@
  * the text editor and media player components.
  */
 
-import { Mark } from '../../types/marks';
+import { Mark } from '../../MediaPlayer/types/marks';
 import {
   EditorPosition,
   TimedSegment,
@@ -101,9 +101,9 @@ export interface TextEditorAPI {
   importSession(session: string): void;
   
   // Event Handlers
-  on(event: EditorEvent, handler: Function): void;
-  off(event: EditorEvent, handler: Function): void;
-  emit(event: EditorEvent, data?: any): void;
+  on(event: string, handler: Function): void;
+  off(event: string, handler: Function): void;
+  emit(event: string, data?: any): void;
 }
 
 /**

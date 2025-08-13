@@ -24,14 +24,19 @@ export default function TextEditor({
   
   // Use the media sync hook for synchronization
   const {
-    syncedMarks,
-    currentMark,
-    navigateToMark,
-    insertMarkReference
+    activeMark,
+    syncToMark,
+    insertTimestamp,
+    syncToTime
   } = useMediaSync({
-    marks,
-    currentTime,
-    onSeek
+    marks: marks || [],
+    currentTime: currentTime || 0,
+    duration: 0,
+    isPlaying: false,
+    onSeek: onSeek || (() => {}),
+    syncEnabled: true,
+    autoScroll: false,
+    highlightDelay: 200
   });
 
   // Handle text changes
@@ -42,16 +47,16 @@ export default function TextEditor({
 
   // Handle mark navigation from editor
   const handleMarkNavigation = useCallback((markId: string) => {
-    const mark = syncedMarks.find(m => m.id === markId);
+    const mark = (marks || []).find((m: any) => m.id === markId);
     if (mark && onMarkClick) {
       onMarkClick(mark);
-      navigateToMark(mark);
+      syncToMark(markId);
     }
-  }, [syncedMarks, onMarkClick, navigateToMark]);
+  }, [marks, onMarkClick, syncToMark]);
 
   // Insert timestamp at cursor position
-  const insertTimestamp = useCallback(() => {
-    const timestamp = formatTime(currentTime);
+  const handleInsertTimestamp = useCallback(() => {
+    const timestamp = formatTime(currentTime || 0);
     const newContent = content.slice(0, cursorPosition.column) + 
                       `[${timestamp}] ` + 
                       content.slice(cursorPosition.column);
@@ -60,11 +65,11 @@ export default function TextEditor({
 
   // Auto-scroll to current mark position
   useEffect(() => {
-    if (syncEnabled && currentMark && editorRef.current) {
+    if (syncEnabled && activeMark && editorRef.current) {
       // TODO: Implement auto-scroll logic
-      console.log('Auto-scrolling to mark:', currentMark);
+      console.log('Auto-scrolling to mark:', activeMark);
     }
-  }, [currentMark, syncEnabled]);
+  }, [activeMark, syncEnabled]);
 
   return (
     <div className="text-editor-container">
@@ -79,7 +84,7 @@ export default function TextEditor({
             🔄
           </button>
           <button 
-            onClick={insertTimestamp}
+            onClick={handleInsertTimestamp}
             className="timestamp-button"
             title="הוסף חותמת זמן"
           >
@@ -95,10 +100,10 @@ export default function TextEditor({
         <div className="marks-sidebar">
           <h4>סימונים</h4>
           <div className="marks-list">
-            {syncedMarks.map(mark => (
+            {(marks || []).map((mark: any) => (
               <div 
                 key={mark.id}
-                className={`mark-item ${currentMark?.id === mark.id ? 'active' : ''}`}
+                className={`mark-item ${activeMark?.id === mark.id ? 'active' : ''}`}
                 onClick={() => handleMarkNavigation(mark.id)}
               >
                 <span className="mark-time">{formatTime(mark.time)}</span>
@@ -114,7 +119,7 @@ export default function TextEditor({
           className="text-editor-content"
           contentEditable={enabled}
           onInput={(e) => handleContentChange(e.currentTarget.textContent || '')}
-          placeholder="התחל להקליד כאן..."
+          data-placeholder="התחל להקליד כאן..."
         >
           {content}
         </div>
@@ -123,9 +128,9 @@ export default function TextEditor({
       <div className="text-editor-footer">
         <span className="word-count">מילים: {content.split(/\s+/).filter(w => w).length}</span>
         <span className="char-count">תווים: {content.length}</span>
-        {currentMark && (
+        {activeMark && (
           <span className="current-mark-indicator">
-            סימון נוכחי: {currentMark.type} ({formatTime(currentMark.time)})
+            סימון נוכחי: {activeMark.type} ({formatTime(activeMark.time)})
           </span>
         )}
       </div>

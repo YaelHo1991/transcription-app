@@ -51,10 +51,11 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
       // Render PDF page to canvas
       const renderContext = {
         canvasContext: context,
-        viewport: viewport
+        viewport: viewport,
+        canvas: canvas
       };
       
-      await page.render(renderContext).promise;
+      await page.render(renderContext as any).promise;
       console.log(`Page ${pageNum} rendered to canvas`);
       
       // Convert canvas to blob

@@ -20,11 +20,8 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
     
     // Load PDF with worker disabled as fallback
     const loadingTask = pdfjsLib.getDocument({ 
-      data: arrayBuffer,
-      disableWorker: false, // Try with worker first
-      disableRange: true,  // Disable range requests for local files
-      disableStream: true  // Disable streaming for better compatibility
-    });
+      data: arrayBuffer
+    } as any);
     
     const pdf = await loadingTask.promise;
     const totalPages = pdf.numPages;
@@ -54,8 +51,9 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
         // Render page
         await page.render({
           canvasContext: ctx,
-          viewport: viewport
-        }).promise;
+          viewport: viewport,
+          canvas: canvas
+        } as any).promise;
         
         // Convert to image
         const dataUrl = canvas.toDataURL('image/png');

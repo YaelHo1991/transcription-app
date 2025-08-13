@@ -9,7 +9,7 @@ export interface ResourceCheckHook {
   checkOperation: (type: OperationType, size: number) => Promise<SafetyCheck>;
   isChecking: boolean;
   lastCheck: SafetyCheck | null;
-  showWarning: (check: SafetyCheck) => void;
+  showWarning: (check: SafetyCheck) => boolean;
 }
 
 export function useResourceCheck(): ResourceCheckHook {
