@@ -36,6 +36,12 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
   const [isHttps, setIsHttps] = useState(false);
   const [showMappings, setShowMappings] = useState(false);
   
+  // Use ref to track current pedalEnabled state to avoid closure issues
+  const pedalEnabledRef = useRef(pedalEnabled);
+  useEffect(() => {
+    pedalEnabledRef.current = pedalEnabled;
+  }, [pedalEnabled]);
+  
   // Load saved pedal settings or use defaults
   const loadPedalSettings = () => {
     // Check if we're in the browser
@@ -172,8 +178,8 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
   
   // Handle input report from pedal - defined early for use in connect/disconnect
   const handleInputReport = (event: any) => {
-    // Check if pedal is enabled before processing input
-    if (!pedalEnabled) {
+    // Check if pedal is enabled before processing input (use ref to avoid closure issues)
+    if (!pedalEnabledRef.current) {
       return;
     }
     
