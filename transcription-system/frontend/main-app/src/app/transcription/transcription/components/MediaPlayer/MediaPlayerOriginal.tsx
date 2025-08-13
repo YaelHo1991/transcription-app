@@ -1036,7 +1036,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         
         
         {/* Controls Section Wrapper */}
-        <div className={`section-wrapper controls-section ${controlsCollapsed ? 'collapsed' : ''}`} id="controlsWrapper">
+        <div className={`section-wrapper controls-wrapper ${controlsCollapsed ? 'collapsed' : ''}`} id="controlsWrapper">
           {/* Collapse/Expand Toggle */}
           <button 
             className="collapse-toggle" 
@@ -1254,7 +1254,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         </div>
         
         {/* Sliders Section Wrapper */}
-        <div className={`section-wrapper sliders-section ${slidersCollapsed ? 'collapsed' : ''}`} id="slidersWrapper">
+        <div className={`section-wrapper sliders-wrapper ${slidersCollapsed ? 'collapsed' : ''}`} id="slidersWrapper">
           {/* Collapse/Expand Toggle */}
           <button 
             className="collapse-toggle" 

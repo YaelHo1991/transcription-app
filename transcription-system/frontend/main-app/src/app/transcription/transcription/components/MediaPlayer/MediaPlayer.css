@@ -124,6 +124,28 @@
             margin: 0;
         }
         
+        /* Ensure wrapper has minimum height when collapsed to show toggle */
+        .section-wrapper.collapsed {
+            min-height: 0; /* No minimum height needed */
+            overflow: visible !important; /* Allow toggle to show outside */
+        }
+        
+        /* Special handling for controls wrapper when collapsed */
+        .section-wrapper.controls-wrapper.collapsed {
+            min-height: 1px; /* Minimum height to keep toggle attached */
+            background: transparent !important;
+            border: none !important;
+        }
+        
+        /* Hide the inner controls section but keep wrapper for toggle */
+        .section-wrapper.controls-wrapper.collapsed .controls-section {
+            display: none !important;
+            height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+        }
+        
         /* Ensure controls don't shrink too much when video is shown */
         .media-player-container.video-active .media-player-content {
             min-width: 500px;
@@ -178,23 +200,29 @@
         }
         
         /* Fine-tune arrow positions for each section */
-        .controls-section .collapse-toggle {
-            top: -14px; /* Move up 2px for better alignment */
-        }
-        .controls-section.collapsed .collapse-toggle {
-            bottom: -14px; /* Move up 2px when collapsed */
+        .section-wrapper.controls-wrapper {
+            display: block !important; /* Wrapper always visible */
         }
         
-        .sliders-section .collapse-toggle {
+        .section-wrapper.controls-wrapper .collapse-toggle {
+            top: -14px; /* Move up 2px for better alignment */
+            display: flex !important; /* Force visibility */
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .section-wrapper.controls-wrapper.collapsed .collapse-toggle {
+            bottom: -14px; /* Move up 2px when collapsed */
+            display: flex !important; /* Force visibility */
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .section-wrapper.sliders-wrapper .collapse-toggle {
             top: -10px; /* Move down 2px for better alignment */
         }
-        .sliders-section.collapsed .collapse-toggle {
+        .section-wrapper.sliders-wrapper.collapsed .collapse-toggle {
             bottom: -10px; /* Move down 2px when collapsed */
-        }
-        
-        /* Collapsed State - completely hidden */
-        .controls-section.collapsed {
-            display: none !important;
         }
         
         /* Play/Pause Button */
