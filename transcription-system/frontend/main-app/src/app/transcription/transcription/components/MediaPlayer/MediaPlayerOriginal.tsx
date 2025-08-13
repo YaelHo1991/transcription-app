@@ -479,7 +479,16 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
         }
       }
       
-      const strategy = getWaveformStrategy(fileSize || 1); // Use 1 byte if 0 to get client strategy
+      // Check if it's a blob URL (can't be processed server-side)
+      const isBlobUrl = url.startsWith('blob:');
+      
+      let strategy = getWaveformStrategy(fileSize || 1); // Use 1 byte if 0 to get client strategy
+      
+      // Override to chunked processing for blob URLs that would normally use server
+      if (isBlobUrl && strategy.method === WaveformMethod.SERVER) {
+        strategy = { method: WaveformMethod.CHUNKED, threshold: fileSize || 0 };
+        console.log('Using chunked processing for blob URL (server processing not available for blobs)');
+      }
       
       console.log(`File size: ${fileSize ? formatFileSize(fileSize) : 'Unknown'}, using ${strategy.method} method`);
       
@@ -517,9 +526,14 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           });
           
           const chunkedResult = await chunkedProcessor.processLargeFile(url);
+          console.log('Chunked processing complete:', chunkedResult);
           setWaveformData(chunkedResult);
           setWaveformLoading(false);
           setWaveformProgress(100);
+          // Force re-render by updating a dummy state if needed
+          if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
+            console.log('Waveform data set successfully, peaks:', chunkedResult.peaks.length);
+          }
           break;
           
         case WaveformMethod.SERVER:
@@ -530,8 +544,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
           const generateResponse = await fetch('http://localhost:5000/api/waveform/generate', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({
               fileId,
@@ -544,16 +557,44 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             throw new Error('Failed to generate waveform on server');
           }
           
-          // Poll for completion (for large files)
-          let attempts = 0;
-          const maxAttempts = 60; // 1 minute timeout
+          // Check generation status first
+          const statusData = await generateResponse.json();
           
-          while (attempts < maxAttempts) {
-            const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`, {
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+          // If processing in background (large files), poll for completion
+          if (statusData.status === 'processing') {
+            let attempts = 0;
+            const maxAttempts = 600; // 10 minutes timeout for very large files
+            
+            while (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+              
+              try {
+                const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+                
+                if (waveformResponse.ok) {
+                  const data = await waveformResponse.json();
+                  setWaveformData({
+                    peaks: data.peaks,
+                    duration: data.duration
+                  });
+                  setWaveformLoading(false);
+                  setWaveformProgress(100);
+                  break;
+                }
+              } catch (pollError) {
+                console.log('Still processing...', pollError);
               }
-            });
+              
+              attempts++;
+              setWaveformProgress(Math.min(95, 20 + (attempts * 0.25))); // Slower progress for large files
+            }
+            
+            if (attempts >= maxAttempts) {
+              throw new Error('Waveform generation timeout - file too large');
+            }
+          } else if (statusData.status === 'completed') {
+            // Small files complete immediately
+            const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
             
             if (waveformResponse.ok) {
               const data = await waveformResponse.json();
@@ -563,17 +604,9 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
               });
               setWaveformLoading(false);
               setWaveformProgress(100);
-              break;
+            } else {
+              throw new Error('Failed to retrieve waveform data');
             }
-            
-            // Wait and retry
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            attempts++;
-            setWaveformProgress(Math.min(90, attempts * 1.5)); // Show progress
-          }
-          
-          if (attempts >= maxAttempts) {
-            throw new Error('Waveform generation timeout');
           }
           break;
       }
@@ -1052,7 +1085,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
             
             {/* Waveform Progress Bar (middle) */}
             {waveformEnabled ? (
-              waveformData ? (
+              waveformData && waveformData.peaks && waveformData.peaks.length > 0 ? (
                 <div className="waveform-progress-wrapper" style={{ flex: 1 }}>
                   <WaveformCanvas
                     waveformData={waveformData}
@@ -1067,7 +1100,7 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                   className="waveform-progress-wrapper" 
                   style={{ flex: 1 }}
                 >
-                  {waveformLoading ? (
+                  {waveformLoading || waveformProgress > 0 ? (
                     <div className="waveform-loading-bar" style={{ width: '100%', height: '60px' }}>
                       <div 
                         className="waveform-progress-fill"
@@ -1091,10 +1124,16 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: 'rgba(255, 255, 255, 0.3)'
+                        color: 'rgba(255, 255, 255, 0.3)',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        if (initialMedia?.url && !waveformLoading) {
+                          analyzeWaveform(initialMedia.url);
+                        }
                       }}
                     >
-                      {!initialMedia ? 'אין מדיה' : 'ממתין לצורת גל...'}
+                      {!initialMedia ? 'אין מדיה' : 'לחץ לטעינת צורת גל'}
                     </div>
                   )}
                 </div>

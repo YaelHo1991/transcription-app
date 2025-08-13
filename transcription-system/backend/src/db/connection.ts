@@ -82,6 +82,23 @@ export async function initializeDatabase(): Promise<void> {
       )
     `);
 
+    // Create waveforms table for storing pre-generated waveform data
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS waveforms (
+        id SERIAL PRIMARY KEY,
+        file_id VARCHAR(255) UNIQUE NOT NULL,
+        file_url TEXT NOT NULL,
+        file_size BIGINT NOT NULL,
+        duration FLOAT NOT NULL,
+        sample_rate INTEGER DEFAULT 44100,
+        peaks JSONB NOT NULL,
+        peak_count INTEGER NOT NULL,
+        processing_time FLOAT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better performance
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -90,6 +107,8 @@ export async function initializeDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
       CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+      CREATE INDEX IF NOT EXISTS idx_waveforms_file_id ON waveforms(file_id);
+      CREATE INDEX IF NOT EXISTS idx_waveforms_created_at ON waveforms(created_at);
     `);
 
     console.log('✅ Database tables initialized successfully');

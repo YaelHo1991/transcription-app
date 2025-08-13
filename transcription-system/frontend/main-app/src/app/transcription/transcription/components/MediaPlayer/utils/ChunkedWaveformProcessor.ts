@@ -28,6 +28,15 @@ export class ChunkedWaveformProcessor {
    */
   async processLargeFile(url: string): Promise<WaveformData> {
     try {
+      // Check if it's a blob URL
+      const isBlobUrl = url.startsWith('blob:');
+      
+      if (isBlobUrl) {
+        // For blob URLs, process the entire file at once with memory management
+        return this.processBlobUrl(url);
+      }
+      
+      // For regular URLs, use range requests
       // Get file size first
       const response = await fetch(url, { method: 'HEAD' });
       const contentLength = response.headers.get('content-length');
@@ -248,6 +257,98 @@ export class ChunkedWaveformProcessor {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  /**
+   * Process blob URL with optimized memory usage
+   */
+  private async processBlobUrl(url: string): Promise<WaveformData> {
+    console.log('Processing blob URL with optimized memory usage');
+    
+    try {
+      // Initialize audio context
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Fetch the blob
+      this.onProgress?.(10);
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const fileSize = blob.size;
+      
+      console.log(`Blob size: ${this.formatBytes(fileSize)}`);
+      this.onProgress?.(20);
+      
+      // Convert to ArrayBuffer
+      const arrayBuffer = await blob.arrayBuffer();
+      this.onProgress?.(40);
+      
+      // Decode audio data with lower sample rate to save memory
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+      this.onProgress?.(60);
+      
+      // Get channel data
+      const channelData = audioBuffer.getChannelData(0);
+      const duration = audioBuffer.duration;
+      
+      // Extract peaks with reduced resolution for large files
+      const targetPeaks = fileSize > 100 * 1024 * 1024 ? 1500 : 2000; // Fewer peaks for very large files
+      const peaks = this.extractPeaksOptimized(channelData, targetPeaks);
+      this.onProgress?.(90);
+      
+      // Close audio context
+      if (this.audioContext) {
+        await this.audioContext.close();
+        this.audioContext = null;
+      }
+      
+      this.onProgress?.(100);
+      
+      return {
+        peaks,
+        duration
+      };
+    } catch (error) {
+      if (this.audioContext) {
+        await this.audioContext.close();
+        this.audioContext = null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Extract peaks with optimized memory usage
+   */
+  private extractPeaksOptimized(channelData: Float32Array, targetPeaks: number): number[] {
+    const peaks: number[] = [];
+    const samplesPerPeak = Math.floor(channelData.length / targetPeaks);
+    const skipFactor = Math.max(1, Math.floor(samplesPerPeak / 100)); // Sample every Nth sample for efficiency
+    
+    for (let i = 0; i < targetPeaks; i++) {
+      const start = i * samplesPerPeak;
+      const end = Math.min(start + samplesPerPeak, channelData.length);
+      
+      let maxPeak = 0;
+      let sumSquares = 0;
+      let count = 0;
+      
+      // Use RMS (Root Mean Square) for better peak detection
+      for (let j = start; j < end; j += skipFactor) {
+        const sample = channelData[j];
+        const absSample = Math.abs(sample);
+        maxPeak = Math.max(maxPeak, absSample);
+        sumSquares += sample * sample;
+        count++;
+      }
+      
+      // Combine max peak and RMS for better representation
+      const rms = Math.sqrt(sumSquares / count);
+      const combinedPeak = (maxPeak * 0.7 + rms * 0.3); // Weight towards max peak
+      
+      peaks.push(Math.min(1, combinedPeak));
+    }
+    
+    return peaks;
   }
 }
 

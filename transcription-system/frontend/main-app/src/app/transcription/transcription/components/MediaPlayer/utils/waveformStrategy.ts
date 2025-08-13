@@ -4,8 +4,8 @@
 
 export enum WaveformMethod {
   CLIENT = 'client',      // < 50MB: Process in browser
-  CHUNKED = 'chunked',    // 50-200MB: Process in chunks
-  SERVER = 'server'       // > 200MB: Server-side processing
+  CHUNKED = 'chunked',    // 50-300MB: Process in chunks
+  SERVER = 'server'       // > 300MB: Server-side processing (not available for blob URLs)
 }
 
 export interface WaveformStrategy {
@@ -17,7 +17,7 @@ export interface WaveformStrategy {
 // File size thresholds in bytes
 export const FILE_SIZE_LIMITS = {
   SMALL: 50 * 1024 * 1024,     // 50MB
-  MEDIUM: 200 * 1024 * 1024,   // 200MB
+  MEDIUM: 300 * 1024 * 1024,   // 300MB - increased for better blob support
   LARGE: 4 * 1024 * 1024 * 1024 // 4GB (max supported)
 };
 

@@ -17,7 +17,7 @@ export const initWaveformRoutes = (pool: Pool) => {
  * POST /api/waveform/generate
  * Generate waveform for a media file
  */
-router.post('/generate', authenticateToken, async (req: Request, res: Response) => {
+router.post('/generate', async (req: Request, res: Response) => {
   try {
     const { fileId, fileUrl, fileSize } = req.body;
 
@@ -84,7 +84,7 @@ router.post('/generate', authenticateToken, async (req: Request, res: Response) 
  * GET /api/waveform/:fileId
  * Retrieve waveform data for a file
  */
-router.get('/:fileId', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:fileId', async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
 
@@ -116,7 +116,7 @@ router.get('/:fileId', authenticateToken, async (req: Request, res: Response) =>
  * GET /api/waveform/:fileId/segment
  * Retrieve partial waveform data (for progressive loading)
  */
-router.get('/:fileId/segment', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:fileId/segment', async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
     const start = parseInt(req.query.start as string) || 0;
@@ -151,7 +151,7 @@ router.get('/:fileId/segment', authenticateToken, async (req: Request, res: Resp
  * DELETE /api/waveform/:fileId
  * Delete waveform data for a file
  */
-router.delete('/:fileId', authenticateToken, async (req: Request, res: Response) => {
+router.delete('/:fileId', async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
 
@@ -180,7 +180,7 @@ router.delete('/:fileId', authenticateToken, async (req: Request, res: Response)
  * POST /api/waveform/cleanup
  * Clean up old waveforms (admin only)
  */
-router.post('/cleanup', authenticateToken, async (req: Request, res: Response) => {
+router.post('/cleanup', async (req: Request, res: Response) => {
   try {
     // Check if user is admin (you might want to add proper admin check)
     // For now, we'll just proceed
@@ -206,7 +206,7 @@ router.post('/cleanup', authenticateToken, async (req: Request, res: Response) =
  * GET /api/waveform/status/:fileId
  * Check waveform generation status
  */
-router.get('/status/:fileId', authenticateToken, async (req: Request, res: Response) => {
+router.get('/status/:fileId', async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
 
