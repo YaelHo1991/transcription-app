@@ -62,6 +62,7 @@ export interface Mark {
   endTime?: number;       // End time for range marks
   type: MarkType;
   label?: string;         // Optional label for custom marks
+  customName?: string;    // Custom name for custom marks
   color?: string;         // Optional custom color
   createdAt: number;      // Timestamp
   updatedAt: number;      // Timestamp

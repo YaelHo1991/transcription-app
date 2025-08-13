@@ -42,6 +42,7 @@ export default function WaveformCanvas({
   const [showToolbar, setShowToolbar] = useState(false);
   const [hoverToolbar, setHoverToolbar] = useState(false);
   const [showMarksMenu, setShowMarksMenu] = useState(false);
+  const marksMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isMarkDragging, setIsMarkDragging] = useState(false);
   const lastAutoScrollTime = useRef(0);
   
@@ -293,9 +294,9 @@ export default function WaveformCanvas({
     setIsDragging(false);
   }, []);
   
-  // Handle click to seek (RTL aware)
+  // Handle click to seek (RTL aware) or Ctrl+Click to edit marks
   const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDragging || isMarkDragging) return; // Don't seek if dragging marks
+    if (isDragging || isMarkDragging) return; // Don't handle if dragging
     
     const canvas = canvasRef.current;
     if (!canvas || duration <= 0) return;
@@ -303,14 +304,25 @@ export default function WaveformCanvas({
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     
-    // Calculate seek position based on zoom and scroll
+    // Calculate click position based on zoom and scroll
     const { start, end } = getVisibleRange();
     const visibleProgress = 1 - (x / rect.width);
     const globalProgress = start + (visibleProgress * (end - start));
-    const seekTime = globalProgress * duration;
+    const clickTime = globalProgress * duration;
     
-    onSeek(Math.max(0, Math.min(duration, seekTime)));
+    // Check if Ctrl key is held
+    if (event.ctrlKey || event.metaKey) {
+      // Ctrl+Click: Try to enter edit mode for mark at this position
+      if (marksManagerRef.current?.handleCtrlClickFromParent) {
+        marksManagerRef.current.handleCtrlClickFromParent(clickTime);
+      }
+    } else {
+      // Normal click: Seek to position
+      const seekTime = Math.max(0, Math.min(duration, clickTime));
+      onSeek(seekTime);
+    }
   }, [duration, onSeek, isDragging, isMarkDragging, getVisibleRange]);
+
 
   // Handle hover to show time tooltip
   const handleCanvasHover = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -665,15 +677,52 @@ export default function WaveformCanvas({
               </>
             )}
             
-            {/* Mark Navigation Controls */}
+            {/* Marks Menu Button - Always visible */}
+            <div style={{
+              width: '1px',
+              height: '14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)'
+            }} />
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                // Clear any pending timeout
+                if (marksMenuTimeoutRef.current) {
+                  clearTimeout(marksMenuTimeoutRef.current);
+                  marksMenuTimeoutRef.current = null;
+                }
+                
+                setShowMarksMenu(!showMarksMenu);
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+              }}
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                border: 'none',
+                backgroundColor: showMarksMenu ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                pointerEvents: 'auto'
+              }}
+              title="תפריט סימונים"
+            >
+              📍
+            </button>
+
+            {/* Mark Navigation Controls - Only when marks enabled */}
             {marksEnabled && (
               <>
-                <div style={{
-                  width: '1px',
-                  height: '14px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)'
-                }} />
-                
                 {/* Previous Mark Button */}
                 <button
                   onClick={() => {
@@ -726,94 +775,93 @@ export default function WaveformCanvas({
                   ►
                 </button>
                 
-                {/* Marks Menu Button */}
-                <button
-                  onClick={() => setShowMarksMenu(!showMarksMenu)}
-                  style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '3px',
-                    border: 'none',
-                    backgroundColor: showMarksMenu ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 0
-                  }}
-                  title="תפריט סימונים"
-                >
-                  📍
-                </button>
-                
-                {/* Marks Dropdown Menu */}
-                {showMarksMenu && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '25px',
-                      right: '0',
-                      backgroundColor: 'rgba(30, 30, 30, 0.95)',
-                      borderRadius: '6px',
-                      padding: '8px',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-                      minWidth: '200px',
-                      zIndex: 30
-                    }}
-                    onMouseLeave={() => setShowMarksMenu(false)}
-                  >
-                    {/* Instructions */}
-                    <div style={{
-                      padding: '6px 10px',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                      marginBottom: '6px',
-                      fontSize: '10px',
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      lineHeight: '1.4'
-                    }}>
-                      <div>📌 קליק ימני - הוספת סימון</div>
-                      <div>👆 קליק - בחירת סימון</div>
-                      <div>👆👆 קליק כפול - עריכת סימון</div>
-                      <div>❌ Shift+קליק - מחיקת סימון</div>
-                      <div>✋ גרור פסים - התאמת טווח (במצב עריכה)</div>
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        if (marksManagerRef.current?.clearAllMarks) {
-                          marksManagerRef.current.clearAllMarks();
-                        }
-                        setShowMarksMenu(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '6px 10px',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        color: 'rgba(255, 255, 255, 0.9)',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        textAlign: 'right',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      🗑️ מחק את כל הסימונים
-                    </button>
-                  </div>
-                )}
               </>
             )}
           </div>
         )}
+
+            {/* Marks Dropdown Menu - Always available */}
+            {showMarksMenu && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '120px',
+                  right: '20px',
+                  backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                  minWidth: '200px',
+                  zIndex: 2000,
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)'
+                }}
+                onMouseLeave={() => {
+                  // Clear any existing timeout
+                  if (marksMenuTimeoutRef.current) {
+                    clearTimeout(marksMenuTimeoutRef.current);
+                  }
+                  
+                  // Delay closing to prevent accidental closes
+                  marksMenuTimeoutRef.current = setTimeout(() => {
+                    setShowMarksMenu(false);
+                    marksMenuTimeoutRef.current = null;
+                  }, 500);
+                }}
+                onMouseEnter={() => {
+                  // Clear timeout if mouse re-enters
+                  if (marksMenuTimeoutRef.current) {
+                    clearTimeout(marksMenuTimeoutRef.current);
+                    marksMenuTimeoutRef.current = null;
+                  }
+                }}
+              >
+                {/* Instructions */}
+                <div style={{
+                  padding: '6px 10px',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  marginBottom: '6px',
+                  fontSize: '10px',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  lineHeight: '1.4'
+                }}>
+                  <div>📌 קליק ימני - הוספת סימון</div>
+                  <div>👆 קליק - ניווט לזמן</div>
+                  <div>⌃👆 Ctrl+קליק - עריכת סימון</div>
+                  <div>❌ Shift+קליק - מחיקת סימון</div>
+                  <div>✋ גרור פסים - התאמת טווח (במצב עריכה)</div>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    if (marksManagerRef.current?.clearAllMarks) {
+                      marksManagerRef.current.clearAllMarks();
+                    }
+                    setShowMarksMenu(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    textAlign: 'right',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  🗑️ מחק את כל הסימונים
+                </button>
+              </div>
+            )}
         </div>
       )}
     </div>

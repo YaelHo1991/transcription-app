@@ -42,6 +42,10 @@ const MarksManager = forwardRef(function MarksManager({
   const [draggingBar, setDraggingBar] = useState<{ markId: string; type: 'start' | 'end' } | null>(null);
   const [dragStartX, setDragStartX] = useState(0);
   const [editingMarkId, setEditingMarkId] = useState<string | null>(null);
+  const [clickCount, setClickCount] = useState(0);
+  const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showCustomNameDialog, setShowCustomNameDialog] = useState(false);
+  const [customNameInput, setCustomNameInput] = useState('');
   
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -71,13 +75,14 @@ const MarksManager = forwardRef(function MarksManager({
   }, [marks, mediaUrl]);
 
   // Add a new mark
-  const addMark = useCallback((time: number, type: MarkType, label?: string) => {
+  const addMark = useCallback((time: number, type: MarkType, label?: string, customName?: string) => {
     const newMark: Mark = {
       id: generateMarkId(),
       time,
       endTime: Math.min(time + 5, duration), // Default 5 second range
       type,
       label,
+      customName,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isRange: true
@@ -123,31 +128,54 @@ const MarksManager = forwardRef(function MarksManager({
     // RTL: Reverse the X position  
     const relativeX = 1 - (x / rect.width);
     
-    // When not zoomed, use simple calculation
-    if (zoomLevel === 1) {
-      const time = relativeX * duration;
-      setPendingMarkTime(time);
-    } else {
-      // When zoomed, account for visible area
-      const visibleWidth = 1 / zoomLevel;
-      const visibleStart = scrollOffset;
-      const progress = visibleStart + (relativeX * visibleWidth);
-      const time = progress * duration;
-      setPendingMarkTime(time);
-    }
+    // Calculate time based on visible range
+    const visibleWidth = 1 / zoomLevel;
+    const visibleStart = scrollOffset;
+    const progress = visibleStart + (relativeX * visibleWidth);
+    const time = Math.max(0, Math.min(duration, progress * duration));
     
+    setPendingMarkTime(time);
     setContextMenuPosition({ x: e.clientX, y: e.clientY });
     setShowContextMenu(true);
+    
+    // Auto-close menu after 10 seconds if no interaction
+    setTimeout(() => {
+      setShowContextMenu(false);
+    }, 10000);
   }, [enabled, duration, zoomLevel, scrollOffset]);
 
   // Handle mark type selection from context menu
   const handleMarkTypeSelect = useCallback((type: MarkType) => {
     if (pendingMarkTime !== null) {
-      addMark(pendingMarkTime, type);
+      if (type === MarkType.CUSTOM) {
+        // Show custom name dialog
+        setShowCustomNameDialog(true);
+        setCustomNameInput('');
+        setShowContextMenu(false);
+      } else {
+        addMark(pendingMarkTime, type);
+        setPendingMarkTime(null);
+        setShowContextMenu(false);
+      }
+    }
+  }, [pendingMarkTime, addMark]);
+
+  // Handle custom name confirmation
+  const handleCustomNameConfirm = useCallback(() => {
+    if (pendingMarkTime !== null && customNameInput.trim()) {
+      addMark(pendingMarkTime, MarkType.CUSTOM, undefined, customNameInput.trim());
       setPendingMarkTime(null);
     }
-    setShowContextMenu(false);
-  }, [pendingMarkTime, addMark]);
+    setShowCustomNameDialog(false);
+    setCustomNameInput('');
+  }, [pendingMarkTime, customNameInput, addMark]);
+
+  // Handle custom name cancel
+  const handleCustomNameCancel = useCallback(() => {
+    setShowCustomNameDialog(false);
+    setCustomNameInput('');
+    setPendingMarkTime(null);
+  }, []);
   
   // Handle dragging range bars (only in editing mode)
   const handleBarMouseDown = useCallback((e: React.MouseEvent, markId: string, type: 'start' | 'end') => {
@@ -156,8 +184,12 @@ const MarksManager = forwardRef(function MarksManager({
     
     if (editingMarkId !== markId) return; // Only allow dragging if this mark is being edited
     
+    // Immediately start dragging to prevent stickiness
     setDraggingBar({ markId, type });
     setDragStartX(e.clientX);
+    
+    // Prevent any text selection during drag
+    document.body.style.userSelect = 'none';
   }, [editingMarkId]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -168,18 +200,13 @@ const MarksManager = forwardRef(function MarksManager({
     // RTL: Reverse the X position
     const relativeX = 1 - (x / rect.width);
     
-    let newTime;
-    if (zoomLevel === 1) {
-      // When not zoomed, use simple calculation
-      newTime = relativeX * duration;
-    } else {
-      // When zoomed, account for visible area
-      const visibleWidth = 1 / zoomLevel;
-      const visibleStart = scrollOffset;
-      const progress = visibleStart + (relativeX * visibleWidth);
-      newTime = progress * duration;
-    }
+    // Calculate time based on visible range
+    const visibleWidth = 1 / zoomLevel;
+    const visibleStart = scrollOffset;
+    const progress = visibleStart + (relativeX * visibleWidth);
+    const newTime = Math.max(0, Math.min(duration, progress * duration));
     
+    // Update immediately without requestAnimationFrame for lighter dragging
     setMarks(prev => prev.map(mark => {
       if (mark.id === draggingBar.markId) {
         if (draggingBar.type === 'start') {
@@ -201,17 +228,12 @@ const MarksManager = forwardRef(function MarksManager({
   }, [draggingBar, duration, zoomLevel, scrollOffset]);
   
   const handleMouseUp = useCallback(() => {
-    setDraggingBar(null);
-  }, []);
-
-  // Handle single click to select/bring to front
-  const handleMarkRangeClick = useCallback((mark: Mark, e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    
-    // Select this mark (brings it to front visually)
-    setSelectedMarkId(mark.id);
-  }, []);
+    if (draggingBar) {
+      // Re-enable text selection
+      document.body.style.userSelect = '';
+      setDraggingBar(null);
+    }
+  }, [draggingBar]);
 
   // Handle double-click on mark range to enter editing mode
   const handleMarkRangeDoubleClick = useCallback((mark: Mark, e: React.MouseEvent) => {
@@ -227,27 +249,74 @@ const MarksManager = forwardRef(function MarksManager({
     setEditingMarkId(mark.id);
     onDragStateChange?.(true); // Freeze the white bar
   }, [editingMarkId, onDragStateChange]);
+
+  // Handle smart click - distinguish single vs double click
+  const handleMarkRangeClick = useCallback((mark: Mark, e: React.MouseEvent) => {
+    // Handle Shift+Click to delete (works in any mode)
+    if (e.shiftKey) {
+      e.stopPropagation();
+      e.preventDefault();
+      removeMark(mark.id);
+      return;
+    }
+    
+    // If in editing mode, handle normally
+    if (editingMarkId === mark.id) {
+      e.stopPropagation();
+      e.preventDefault();
+      setSelectedMarkId(mark.id);
+      return;
+    }
+    
+    // If not editing, use click detection to distinguish single vs double
+    if (clickTimer) {
+      // This is a double-click
+      clearTimeout(clickTimer);
+      setClickTimer(null);
+      setClickCount(0);
+      
+      // Handle as double-click - enter editing mode
+      e.stopPropagation();
+      e.preventDefault();
+      handleMarkRangeDoubleClick(mark, e);
+    } else {
+      // This might be a single click - wait to see if double-click follows
+      setClickCount(1);
+      const timer = setTimeout(() => {
+        setClickCount(0);
+        setClickTimer(null);
+        // This was just a single click - let it pass through for seeking
+        // Don't need to do anything special here
+      }, 300); // 300ms window for double-click detection
+      setClickTimer(timer);
+    }
+  }, [removeMark, editingMarkId, clickTimer, handleMarkRangeDoubleClick]);
   
   // Handle clicking outside to exit editing mode
   const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (editingMarkId && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const relativeX = 1 - (x / rect.width); // RTL
-      const clickTime = (scrollOffset + (relativeX / zoomLevel)) * duration;
-      
-      // Check if click is outside any mark's range
-      const clickedMark = marks.find(mark => 
-        clickTime >= mark.time && clickTime <= (mark.endTime || mark.time)
-      );
-      
-      if (!clickedMark || clickedMark.id !== editingMarkId) {
-        // Clicked outside the editing mark
-        setEditingMarkId(null);
-        onDragStateChange?.(false); // Unfreeze the white bar
-      }
+    // Don't handle clicks if we're currently dragging a bar
+    if (draggingBar || !editingMarkId || !containerRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const relativeX = 1 - (x / rect.width); // RTL
+    const visibleWidth = 1 / zoomLevel;
+    const visibleStart = scrollOffset;
+    const progress = visibleStart + (relativeX * visibleWidth);
+    const clickTime = progress * duration;
+    
+    // Check if click is outside any mark's range
+    const clickedMark = marks.find(mark => 
+      clickTime >= mark.time && clickTime <= (mark.endTime || mark.time)
+    );
+    
+    if (!clickedMark || clickedMark.id !== editingMarkId) {
+      // Clicked outside the editing mark
+      setEditingMarkId(null);
+      setSelectedMarkId(null);
+      onDragStateChange?.(false); // Unfreeze the white bar
     }
-  }, [editingMarkId, marks, duration, scrollOffset, zoomLevel, onDragStateChange]);
+  }, [draggingBar, editingMarkId, marks, duration, scrollOffset, zoomLevel, onDragStateChange]);
 
   // Get next/previous mark
   const getNextMark = useCallback((fromTime: number): Mark | null => {
@@ -288,6 +357,23 @@ const MarksManager = forwardRef(function MarksManager({
     }
   }, [onDragStateChange]);
   
+  // Handle Ctrl+Click from parent (WaveformCanvas)
+  const handleCtrlClickFromParent = useCallback((clickTime: number) => {
+    if (editingMarkId) return; // Don't handle if already editing
+    
+    // Find mark at this time position
+    const clickedMark = marks.find(mark => {
+      if (!mark.isRange || !mark.endTime) return false;
+      return clickTime >= mark.time && clickTime <= mark.endTime;
+    });
+    
+    if (clickedMark) {
+      setEditingMarkId(clickedMark.id);
+      setSelectedMarkId(clickedMark.id);
+      onDragStateChange?.(true); // Freeze the white bar
+    }
+  }, [marks, editingMarkId, onDragStateChange]);
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     navigateToNextMark,
@@ -296,8 +382,9 @@ const MarksManager = forwardRef(function MarksManager({
     addMark,
     removeMark,
     getMarks: () => marks,
-    handleContextMenu
-  }), [navigateToNextMark, navigateToPreviousMark, clearAllMarks, addMark, removeMark, marks, handleContextMenu]);
+    handleContextMenu,
+    handleCtrlClickFromParent
+  }), [navigateToNextMark, navigateToPreviousMark, clearAllMarks, addMark, removeMark, marks, handleContextMenu, handleCtrlClickFromParent]);
 
   // Add global mouse event listeners for dragging
   useEffect(() => {
@@ -363,28 +450,60 @@ const MarksManager = forwardRef(function MarksManager({
           left: 0,
           width: '100%',
           height: '100%',
-          pointerEvents: 'none',  // Always pass through - bars have their own pointerEvents
+          pointerEvents: 'none',  // Pass through by default
           zIndex: 5
         }}
       >
         {/* Render marks */}
         {marks.map(mark => {
-          // Calculate absolute positions
+          // Calculate mark positions as absolute positions on the waveform
           const markStart = mark.time / duration;
           const markEnd = (mark.endTime || mark.time) / duration;
           
-          // RTL: positions are from right to left
-          const startPosition = 100 - (markStart * 100);
-          const endPosition = 100 - (markEnd * 100);
+          // Calculate visible range for clipping (but don't affect positioning)
+          const visibleWidth = 1 / zoomLevel;
+          const visibleStart = scrollOffset;
+          const visibleEnd = visibleStart + visibleWidth;
+          
+          // Check if mark is visible (for performance, but still render for consistency)
+          const isVisible = !(markEnd < visibleStart || markStart > visibleEnd);
+          
+          // Always use absolute positions relative to the full waveform
+          // This ensures marks stay fixed to their timeline positions
+          const absoluteStart = markStart;
+          const absoluteEnd = markEnd;
+          
+          // When zoomed, we need to map the absolute position to the visible canvas
+          let startPosition, endPosition;
+          
+          if (zoomLevel === 1) {
+            // No zoom: direct mapping
+            startPosition = 100 - (absoluteStart * 100);
+            endPosition = 100 - (absoluteEnd * 100);
+          } else {
+            // Zoomed: map absolute position to visible area
+            const relativeStart = (absoluteStart - visibleStart) / visibleWidth;
+            const relativeEnd = (absoluteEnd - visibleStart) / visibleWidth;
+            startPosition = 100 - (relativeStart * 100);
+            endPosition = 100 - (relativeEnd * 100);
+          }
+          
           const color = MARK_COLORS[mark.type];
+          
+          // Only render if mark would be visible on screen
+          if (!isVisible && zoomLevel > 1) {
+            return null;
+          }
           
           return (
             <React.Fragment key={mark.id}>
               {/* Range highlight */}
               {mark.isRange && mark.endTime && (
                 <div
-                  onClick={(e) => handleMarkRangeClick(mark, e)}
-                  onDoubleClick={(e) => handleMarkRangeDoubleClick(mark, e)}
+                  onClick={editingMarkId === mark.id ? (e) => handleMarkRangeClick(mark, e) : undefined}
+                  data-mark-id={mark.id}
+                  data-mark-start={mark.time}
+                  data-mark-end={mark.endTime}
                   style={{
                     position: 'absolute',
                     left: `${Math.min(startPosition, endPosition)}%`,
@@ -392,8 +511,8 @@ const MarksManager = forwardRef(function MarksManager({
                     height: '100%',
                     backgroundColor: color.secondary,
                     opacity: editingMarkId === mark.id ? 0.5 : (selectedMarkId === mark.id ? 0.4 : 0.3),
-                    pointerEvents: 'auto',
-                    cursor: 'pointer',
+                    pointerEvents: editingMarkId === mark.id ? 'auto' : 'none', // Only interactive when editing this specific mark
+                    cursor: editingMarkId === mark.id ? 'pointer' : 'default',
                     border: editingMarkId === mark.id ? `2px solid ${color.primary}` : (selectedMarkId === mark.id ? `1px solid ${color.primary}` : 'none'),
                     boxSizing: 'border-box',
                     zIndex: editingMarkId === mark.id ? 20 : (selectedMarkId === mark.id ? 10 : 1)
@@ -411,13 +530,13 @@ const MarksManager = forwardRef(function MarksManager({
                   width: editingMarkId === mark.id ? '5px' : '3px',
                   height: '100%',
                   backgroundColor: color.primary,
-                  cursor: editingMarkId === mark.id ? 'ew-resize' : 'default',
+                  cursor: editingMarkId === mark.id ? 'ew-resize' : 'pointer',
                   pointerEvents: editingMarkId === mark.id ? 'auto' : 'none',
                   zIndex: editingMarkId === mark.id ? 21 : (selectedMarkId === mark.id ? 11 : 2),
                   boxShadow: editingMarkId === mark.id ? `0 0 8px ${color.primary}` : `0 0 4px ${color.primary}`
                 }}
                 onMouseDown={(e) => handleBarMouseDown(e, mark.id, 'start')}
-                title={`${color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime || mark.time)}`}
+                title={`${mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime || mark.time)}`}
               >
                 {/* Timestamp label */}
                 <div
@@ -454,13 +573,13 @@ const MarksManager = forwardRef(function MarksManager({
                     width: editingMarkId === mark.id ? '5px' : '3px',
                     height: '100%',
                     backgroundColor: color.primary,
-                    cursor: editingMarkId === mark.id ? 'ew-resize' : 'default',
+                    cursor: editingMarkId === mark.id ? 'ew-resize' : 'pointer',
                     pointerEvents: editingMarkId === mark.id ? 'auto' : 'none',
                     zIndex: editingMarkId === mark.id ? 21 : (selectedMarkId === mark.id ? 11 : 2),
                     boxShadow: editingMarkId === mark.id ? `0 0 8px ${color.primary}` : `0 0 4px ${color.primary}`
                   }}
                   onMouseDown={(e) => handleBarMouseDown(e, mark.id, 'end')}
-                  title={`${color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime)}`}
+                  title={`${mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime)}`}
                 >
                   {/* Timestamp label */}
                   <div
@@ -506,7 +625,10 @@ const MarksManager = forwardRef(function MarksManager({
             zIndex: 1000,
             minWidth: '150px'
           }}
-          onMouseLeave={() => setShowContextMenu(false)}
+          onMouseLeave={() => {
+            // Close menu when mouse leaves (longer delay)
+            setTimeout(() => setShowContextMenu(false), 500);
+          }}
         >
           {Object.entries(MARK_COLORS).map(([type, color]) => (
             <button
@@ -537,7 +659,163 @@ const MarksManager = forwardRef(function MarksManager({
               <span>{color.nameHebrew}</span>
             </button>
           ))}
+          
+          {/* Existing Custom Marks Section */}
+          {marks.some(mark => mark.type === MarkType.CUSTOM && mark.customName) && (
+            <>
+              <div style={{
+                borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+                margin: '4px 0',
+                padding: '4px 12px 0 12px',
+                fontSize: '10px',
+                color: 'rgba(255, 255, 255, 0.6)'
+              }}>
+                סימונים קיימים:
+              </div>
+              {Array.from(new Set(marks.filter(mark => mark.type === MarkType.CUSTOM && mark.customName).map(mark => mark.customName))).map(customName => (
+                <button
+                  key={customName}
+                  onClick={() => {
+                    if (pendingMarkTime !== null) {
+                      addMark(pendingMarkTime, MarkType.CUSTOM, undefined, customName);
+                      setPendingMarkTime(null);
+                      setShowContextMenu(false);
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 12px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <span>⚪</span>
+                  <span>{customName}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
+      )}
+
+      {/* Custom Name Dialog */}
+      {showCustomNameDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(30, 30, 30, 0.95)',
+            borderRadius: '8px',
+            padding: '20px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+            zIndex: 2000,
+            minWidth: '300px',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <h3 style={{
+            margin: '0 0 15px 0',
+            color: 'white',
+            fontSize: '16px',
+            textAlign: 'right'
+          }}>
+            שם מותאם אישית
+          </h3>
+          
+          <input
+            type="text"
+            value={customNameInput}
+            onChange={(e) => setCustomNameInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleCustomNameConfirm();
+              } else if (e.key === 'Escape') {
+                handleCustomNameCancel();
+              }
+            }}
+            placeholder="הכנס שם לסימון..."
+            autoFocus
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '4px',
+              color: 'white',
+              fontSize: '14px',
+              marginBottom: '15px',
+              textAlign: 'right'
+            }}
+          />
+          
+          <div style={{
+            display: 'flex',
+            gap: '10px',
+            justifyContent: 'flex-end'
+          }}>
+            <button
+              onClick={handleCustomNameCancel}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '4px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              ביטול
+            </button>
+            <button
+              onClick={handleCustomNameConfirm}
+              disabled={!customNameInput.trim()}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: customNameInput.trim() ? '#26d0ce' : 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                borderRadius: '4px',
+                color: customNameInput.trim() ? 'white' : 'rgba(255, 255, 255, 0.5)',
+                cursor: customNameInput.trim() ? 'pointer' : 'not-allowed',
+                fontSize: '12px'
+              }}
+            >
+              אישור
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop for custom name dialog */}
+      {showCustomNameDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1999
+          }}
+          onClick={handleCustomNameCancel}
+        />
       )}
     </>
   );
