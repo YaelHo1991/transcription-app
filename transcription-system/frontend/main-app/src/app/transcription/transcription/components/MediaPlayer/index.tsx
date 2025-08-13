@@ -80,10 +80,24 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         try {
           const parsed = JSON.parse(savedSettings);
           if (parsed.shortcuts) {
-            // Merge new shortcuts from defaults that don't exist in saved
-            const savedActions = new Set(parsed.shortcuts.map((s: any) => s.action));
-            const newShortcuts = defaultShortcuts.filter(s => !savedActions.has(s.action));
-            const mergedShortcuts = [...parsed.shortcuts, ...newShortcuts];
+            // Create a map of saved shortcuts by action for deduplication
+            const savedShortcutsMap = new Map(
+              parsed.shortcuts.map((s: any) => [s.action, s])
+            );
+            
+            // Use defaults as base, but preserve saved customizations
+            const mergedShortcuts = defaultShortcuts.map(defaultShortcut => {
+              const saved = savedShortcutsMap.get(defaultShortcut.action);
+              if (saved) {
+                // Preserve user's customization but ensure group is set
+                return {
+                  ...defaultShortcut,
+                  ...saved,
+                  group: saved.group || defaultShortcut.group // Ensure group exists
+                };
+              }
+              return defaultShortcut;
+            });
             
             setKeyboardSettings(prev => ({
               ...prev,
