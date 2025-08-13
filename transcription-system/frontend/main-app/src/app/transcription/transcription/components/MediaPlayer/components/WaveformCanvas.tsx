@@ -133,7 +133,7 @@ export default function WaveformCanvas({
     
     // If we have too few peaks at high zoom, interpolate
     if (visiblePeaks.length < minPeaksToShow && visiblePeaks.length > 0) {
-      const interpolated = [];
+      const interpolated = new Float32Array(minPeaksToShow);
       for (let i = 0; i < minPeaksToShow; i++) {
         const index = (i / minPeaksToShow) * visiblePeaks.length;
         const lower = Math.floor(index);
@@ -141,9 +141,9 @@ export default function WaveformCanvas({
         const fraction = index - lower;
         
         if (upper < visiblePeaks.length) {
-          interpolated.push(visiblePeaks[lower] * (1 - fraction) + visiblePeaks[upper] * fraction);
+          interpolated[i] = visiblePeaks[lower] * (1 - fraction) + visiblePeaks[upper] * fraction;
         } else {
-          interpolated.push(visiblePeaks[lower]);
+          interpolated[i] = visiblePeaks[lower];
         }
       }
       visiblePeaks = interpolated;
@@ -691,7 +691,7 @@ export default function WaveformCanvas({
           break;
           
         case 'cycleMarkFilter':
-          const filters: Array<MarkType | null> = [null, 'skip', 'unclear', 'review', 'section', 'custom'];
+          const filters: Array<MarkType | null> = [null, MarkType.SKIP, MarkType.UNCLEAR, MarkType.REVIEW, MarkType.BOUNDARY, MarkType.CUSTOM];
           const currentFilterIndex = filters.indexOf(markFilter);
           const nextFilterIndex = (currentFilterIndex + 1) % filters.length;
           setMarkFilter(filters[nextFilterIndex]);
@@ -1399,8 +1399,8 @@ export default function WaveformCanvas({
                     {Array.from(new Set(
                       marksManagerRef.current.getMarks()
                         .filter((mark: any) => mark.type === MarkType.CUSTOM && mark.customName)
-                        .map((mark: any) => mark.customName)
-                    )).map(customName => (
+                        .map((mark: any) => mark.customName as string)
+                    ) as Set<string>).map((customName) => (
                       <button
                         key={customName}
                         onClick={() => {
