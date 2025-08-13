@@ -572,7 +572,12 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           
           audioContext.close();
 
-          workerManagerRef.current.analyzeWaveform(channelData.buffer, decodedData.sampleRate, duration);
+          // Convert to regular ArrayBuffer to avoid SharedArrayBuffer issues
+          const buffer = channelData.buffer.slice(
+            channelData.byteOffset,
+            channelData.byteOffset + channelData.byteLength
+          );
+          workerManagerRef.current.analyzeWaveform(buffer, decodedData.sampleRate, duration);
           break;
           
         case WaveformMethod.CHUNKED:
