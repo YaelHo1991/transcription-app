@@ -299,7 +299,7 @@ Each tab maintains exact functionality from original:
 - [x] Mouse wheel zoom support (Ctrl+scroll)
 - [x] Zoom level indicator
 - [x] **USER TEST & APPROVAL REQUIRED**
-- [ ] Git commit (only after approval)
+- [x] Git commit (only after approval)
 
 **Stage 6 Implementation Details:**
 1. **Compact Toolbar**: Small gear icon (⚙) in top-right corner that expands
@@ -317,24 +317,39 @@ Each tab maintains exact functionality from original:
 6. **Performance**: Optimized rendering to only draw visible peaks
 7. **Timeout Fix**: Increased timeout to 10 minutes for very large files
 
-### Stage 7: Marking System ⏳
-- [ ] Define mark types and colors:
-  - [ ] 🔴 Skip sections (red)
-  - [ ] 🟡 Unclear audio (yellow)
-  - [ ] 🟢 Review later (green)
-  - [ ] 🟣 Section boundaries (purple)
-  - [ ] ➕ Custom marks button (user-defined)
-- [ ] Add mark data structure
-- [ ] Implement add/remove/edit marks
-- [ ] Visual indicators:
-  - [ ] Regular mode: small white dots only
-  - [ ] Waveform mode: full colored indicators
-- [ ] Click to add mark at current position
-- [ ] Right-click for mark type menu
-- [ ] Drag marks to adjust position
-- [ ] LocalStorage persistence per file
-- [ ] **USER TEST & APPROVAL REQUIRED**
-- [ ] Git commit (only after approval)
+### Stage 7: Marking System ✅
+- [x] Define mark types and colors:
+  - [x] 🔴 Skip sections (red)
+  - [x] 🟡 Unclear audio (yellow)
+  - [x] 🟢 Review later (green)
+  - [x] 🟣 Section boundaries (purple)
+  - [x] ➕ Custom marks button (user-defined)
+- [x] Add mark data structure
+- [x] Implement add/remove/edit marks
+- [x] Visual indicators:
+  - [x] Range bars with colored highlighting
+  - [x] Timestamp labels on bars
+  - [x] Editing mode with visual feedback
+- [x] Right-click for mark type menu
+- [x] Drag marks to adjust position (with editing mode)
+- [x] LocalStorage persistence per file
+- [x] Mark navigation (previous/next mark buttons)
+- [x] Clear all marks functionality
+- [x] **USER TEST & APPROVAL RECEIVED**
+- [x] Git commit
+
+**Stage 7 Implementation Details:**
+1. **Mark Types**: 5 types with Hebrew names and distinct colors
+2. **Range Marks**: All marks are range-based with start/end times
+3. **Editing Mode System**: 
+   - Single-click to select mark (brings to front)
+   - Double-click to enter editing mode (freezes white bar)
+   - Drag bars to adjust start/end positions
+   - Click outside to exit editing mode
+4. **RTL Support**: Timestamps and positioning fully RTL-aware
+5. **Z-index Layering**: Proper layering for overlapping marks
+6. **Zoom Integration**: Works correctly with zoom and scroll
+7. **Toolbar Integration**: Navigation and management in expandable toolbar
 
 ### Stage 8: Hidden Toolbar ⏳
 - [ ] Create expandable toolbar UI (dot/hamburger icon)

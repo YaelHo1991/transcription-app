@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { WaveformData } from './types';
+import MarksManager from './components/MarksManager';
 
 interface WaveformCanvasProps {
   waveformData: WaveformData;
@@ -10,6 +11,8 @@ interface WaveformCanvasProps {
   isPlaying: boolean;
   onSeek: (time: number) => void;
   showSettings?: boolean;
+  mediaUrl?: string;
+  marksEnabled?: boolean;
 }
 
 export default function WaveformCanvas({
@@ -18,13 +21,16 @@ export default function WaveformCanvas({
   duration,
   isPlaying,
   onSeek,
-  showSettings = true
+  showSettings = true,
+  mediaUrl = '',
+  marksEnabled = true
 }: WaveformCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const lastDrawnProgress = useRef<number>(-1);
+  const marksManagerRef = useRef<any>(null);
   
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -35,6 +41,8 @@ export default function WaveformCanvas({
   const [showControls, setShowControls] = useState(false);
   const [showToolbar, setShowToolbar] = useState(false);
   const [hoverToolbar, setHoverToolbar] = useState(false);
+  const [showMarksMenu, setShowMarksMenu] = useState(false);
+  const [isMarkDragging, setIsMarkDragging] = useState(false);
   const lastAutoScrollTime = useRef(0);
   
   // Zoom constraints
@@ -241,26 +249,33 @@ export default function WaveformCanvas({
   
   // Handle mouse wheel zoom (Ctrl + scroll)
   const handleWheel = useCallback((event: WheelEvent) => {
-    if (!event.ctrlKey) return;
+    if (!event.ctrlKey && !event.metaKey) return;
     
     event.preventDefault();
+    event.stopPropagation();
     
     if (event.deltaY < 0) {
       handleZoomIn();
     } else {
       handleZoomOut();
     }
+    
+    return false;
   }, [handleZoomIn, handleZoomOut]);
   
   // Handle drag to pan when zoomed
   const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (zoomLevel === 1) return;
+    // Only allow panning when zoomed and not in mark editing mode
+    if (zoomLevel === 1 || isMarkDragging) return;
     
-    setIsDragging(true);
-    setDragStartX(event.clientX);
-    setDragStartOffset(scrollOffset);
-    event.preventDefault();
-  }, [zoomLevel, scrollOffset]);
+    // Check if clicking on canvas (not on other elements)
+    if (event.target === canvasRef.current) {
+      setIsDragging(true);
+      setDragStartX(event.clientX);
+      setDragStartOffset(scrollOffset);
+      event.preventDefault();
+    }
+  }, [zoomLevel, scrollOffset, isMarkDragging]);
   
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!isDragging) return;
@@ -280,7 +295,7 @@ export default function WaveformCanvas({
   
   // Handle click to seek (RTL aware)
   const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDragging) return;
+    if (isDragging || isMarkDragging) return; // Don't seek if dragging marks
     
     const canvas = canvasRef.current;
     if (!canvas || duration <= 0) return;
@@ -295,7 +310,7 @@ export default function WaveformCanvas({
     const seekTime = globalProgress * duration;
     
     onSeek(Math.max(0, Math.min(duration, seekTime)));
-  }, [duration, onSeek, isDragging, getVisibleRange]);
+  }, [duration, onSeek, isDragging, isMarkDragging, getVisibleRange]);
 
   // Handle hover to show time tooltip
   const handleCanvasHover = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -322,31 +337,29 @@ export default function WaveformCanvas({
     canvas.title = timeStr;
   }, [duration, isDragging, zoomLevel, getVisibleRange]);
   
-  // Auto-scroll to keep playhead visible during playback
+  // Auto-scroll to keep playhead visible
   useEffect(() => {
-    if (!isPlaying || zoomLevel === 1 || isDragging) return;
+    if (zoomLevel === 1 || isDragging) return; // No scrolling needed when not zoomed or when dragging
     
     const progress = currentTime / duration;
     const { start, end, visibleWidth } = getVisibleRange();
     
-    // Throttle auto-scroll updates to prevent stuttering
-    const now = Date.now();
-    if (now - lastAutoScrollTime.current < 100) return; // Update at most every 100ms
-    
-    // Only scroll if playhead is getting close to edge
-    const edgeThreshold = visibleWidth * 0.3; // 30% from edge
-    
-    if (progress < start + edgeThreshold || progress > end - edgeThreshold) {
-      // Smooth scroll towards keeping playhead centered
+    // Check if playhead is outside visible area
+    if (progress < start || progress > end) {
+      // Center the playhead in the view
       const targetOffset = progress - (visibleWidth / 2);
       const clampedTarget = Math.max(0, Math.min(1 - visibleWidth, targetOffset));
+      setScrollOffset(clampedTarget);
+    } else if (isPlaying) {
+      // Only auto-scroll during playback if getting close to edge
+      const edgeThreshold = visibleWidth * 0.2; // 20% from edge
       
-      // Smooth transition with interpolation
-      const smoothingFactor = 0.2;
-      const newOffset = scrollOffset + (clampedTarget - scrollOffset) * smoothingFactor;
-      
-      setScrollOffset(newOffset);
-      lastAutoScrollTime.current = now;
+      if (progress > end - edgeThreshold) {
+        // Smoothly scroll to keep playhead visible
+        const targetOffset = progress - (visibleWidth * 0.7); // Keep playhead at 70% position
+        const clampedTarget = Math.max(0, Math.min(1 - visibleWidth, targetOffset));
+        setScrollOffset(clampedTarget);
+      }
     }
   }, [currentTime, duration, isPlaying, zoomLevel, getVisibleRange, scrollOffset, isDragging]);
 
@@ -447,12 +460,27 @@ export default function WaveformCanvas({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        // Forward right-click to MarksManager if it exists
+        if (marksManagerRef.current?.handleContextMenu) {
+          marksManagerRef.current.handleContextMenu(e);
+        }
+      }}
+      onWheel={(e) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          const wheelEvent = e.nativeEvent as WheelEvent;
+          handleWheel(wheelEvent);
+        }
+      }}
     >
       <canvas
         ref={canvasRef}
         onClick={handleClick}
         onMouseMove={handleCanvasHover}
-        style={{
+          style={{
           position: 'absolute',
           top: 0,
           left: 0,
@@ -461,6 +489,21 @@ export default function WaveformCanvas({
           cursor: isDragging ? 'grabbing' : (zoomLevel > 1 ? 'grab' : 'pointer')
         }}
       />
+      
+      {/* Marks Layer - Overlay on waveform */}
+      {marksEnabled && mediaUrl && (
+        <MarksManager
+          ref={marksManagerRef}
+          mediaUrl={mediaUrl}
+          currentTime={currentTime}
+          duration={duration}
+          onSeek={onSeek}
+          enabled={marksEnabled}
+          zoomLevel={zoomLevel}
+          scrollOffset={scrollOffset}
+          onDragStateChange={setIsMarkDragging}
+        />
+      )}
       
       {/* Compact Toolbar - Only show if showSettings is true */}
       {showSettings && (
@@ -619,6 +662,154 @@ export default function WaveformCanvas({
                 >
                   ↺
                 </button>
+              </>
+            )}
+            
+            {/* Mark Navigation Controls */}
+            {marksEnabled && (
+              <>
+                <div style={{
+                  width: '1px',
+                  height: '14px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)'
+                }} />
+                
+                {/* Previous Mark Button */}
+                <button
+                  onClick={() => {
+                    if (marksManagerRef.current?.navigateToPreviousMark) {
+                      marksManagerRef.current.navigateToPreviousMark();
+                    }
+                  }}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '3px',
+                    border: 'none',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0
+                  }}
+                  title="סימון קודם"
+                >
+                  ◄
+                </button>
+                
+                {/* Next Mark Button */}
+                <button
+                  onClick={() => {
+                    if (marksManagerRef.current?.navigateToNextMark) {
+                      marksManagerRef.current.navigateToNextMark();
+                    }
+                  }}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '3px',
+                    border: 'none',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0
+                  }}
+                  title="סימון הבא"
+                >
+                  ►
+                </button>
+                
+                {/* Marks Menu Button */}
+                <button
+                  onClick={() => setShowMarksMenu(!showMarksMenu)}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '3px',
+                    border: 'none',
+                    backgroundColor: showMarksMenu ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0
+                  }}
+                  title="תפריט סימונים"
+                >
+                  📍
+                </button>
+                
+                {/* Marks Dropdown Menu */}
+                {showMarksMenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '25px',
+                      right: '0',
+                      backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                      borderRadius: '6px',
+                      padding: '8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                      minWidth: '200px',
+                      zIndex: 30
+                    }}
+                    onMouseLeave={() => setShowMarksMenu(false)}
+                  >
+                    {/* Instructions */}
+                    <div style={{
+                      padding: '6px 10px',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                      marginBottom: '6px',
+                      fontSize: '10px',
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      lineHeight: '1.4'
+                    }}>
+                      <div>📌 קליק ימני - הוספת סימון</div>
+                      <div>👆 קליק - בחירת סימון</div>
+                      <div>👆👆 קליק כפול - עריכת סימון</div>
+                      <div>❌ Shift+קליק - מחיקת סימון</div>
+                      <div>✋ גרור פסים - התאמת טווח (במצב עריכה)</div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        if (marksManagerRef.current?.clearAllMarks) {
+                          marksManagerRef.current.clearAllMarks();
+                        }
+                        setShowMarksMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        textAlign: 'right',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      🗑️ מחק את כל הסימונים
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

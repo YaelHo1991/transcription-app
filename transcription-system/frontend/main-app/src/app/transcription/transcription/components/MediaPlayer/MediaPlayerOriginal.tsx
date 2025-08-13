@@ -1093,6 +1093,8 @@ export default function MediaPlayerOriginal({ initialMedia, onTimeUpdate, onTime
                     duration={duration}
                     isPlaying={isPlaying}
                     onSeek={handleWaveformSeek}
+                    mediaUrl={initialMedia?.url || ''}
+                    marksEnabled={true}
                   />
                 </div>
               ) : (
