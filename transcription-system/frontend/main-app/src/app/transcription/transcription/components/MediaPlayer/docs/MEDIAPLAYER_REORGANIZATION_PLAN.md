@@ -172,22 +172,25 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 8. Ready to commit: "Stage 10: Extract media control utilities"
 
 ### Stage 11: Extract Volume & Speed Controls
-**Status**: PENDING
+**Status**: COMPLETED
 **Actions**:
-1. [ ] Create utils/volumeControls.ts with:
+1. [x] Create utils/volumeControls.ts with:
    - handleVolumeChange() function
    - toggleMute() function
-   - Volume state management helpers
-2. [ ] Create utils/speedControls.ts with:
+   - getVolumeIcon() helper
+   - formatVolumePercentage() helper
+2. [x] Create utils/speedControls.ts with:
    - handleSpeedChange() function
    - cycleSpeed() function
    - resetSpeed() function
-   - Speed presets constants
-3. [ ] Import and use utilities in index.tsx
-4. [ ] Test: Volume and speed controls work
-5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. [ ] Commit: "Stage 11: Extract volume and speed control utilities"
+   - formatSpeed() helper
+   - SPEED_PRESETS constant
+3. [x] Import and use utilities in index.tsx
+4. [x] Added speedSliderValue state for slider tracking
+5. [x] Test: Volume and speed controls work
+6. [x] Update: docs/MEDIAPLAYER_STRUCTURE.md
+7. [x] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+8. Ready to commit: "Stage 11: Extract volume and speed control utilities"
 
 ### Stage 12: Extract Settings & Status Management
 **Status**: PENDING

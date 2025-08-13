@@ -27,6 +27,19 @@ import {
   applyVolumeToElements,
   applyPlaybackRateToElements
 } from './utils/mediaControls';
+import {
+  handleVolumeChange as handleVolumeChangeUtil,
+  toggleMute as toggleMuteUtil,
+  getVolumeIcon,
+  formatVolumePercentage
+} from './utils/volumeControls';
+import {
+  cycleSpeed as cycleSpeedUtil,
+  resetSpeed as resetSpeedUtil,
+  handleSpeedChange as handleSpeedChangeUtil,
+  formatSpeed,
+  SPEED_PRESETS
+} from './utils/speedControls';
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
@@ -57,6 +70,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(100);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [speedSliderValue, setSpeedSliderValue] = useState(100); // Speed slider value (50-200)
   const [isMuted, setIsMuted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [globalStatus, setGlobalStatus] = useState<string | null>(null);
@@ -170,76 +184,27 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   // Volume control
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
-    setVolume(newVolume);
-    
-    // Apply volume to both audio and video elements
-    applyVolumeToElements(newVolume, audioRef, videoRef);
-    
-    setIsMuted(newVolume === 0);
-    // Track non-zero volume for unmute
-    if (newVolume > 0) {
-      previousVolumeRef.current = newVolume;
-    }
+    handleVolumeChangeUtil(newVolume, audioRef, videoRef, setVolume, setIsMuted, previousVolumeRef);
   };
 
   const toggleMute = () => {
-    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
-    if (!mediaElement) return;
-    
-    // Check actual media volume instead of React state to avoid closure issues
-    if (mediaElement.volume === 0) {
-      // Currently muted, unmute it
-      const newVolume = previousVolumeRef.current;
-      applyVolumeToElements(newVolume, audioRef, videoRef);
-      setVolume(newVolume);
-      setIsMuted(false);
-    } else {
-      // Currently has volume, mute it
-      // Save current volume before muting
-      previousVolumeRef.current = mediaElement.volume * 100;
-      applyVolumeToElements(0, audioRef, videoRef);
-      setVolume(0);
-      setIsMuted(true);
-    }
+    toggleMuteUtil(showVideo, audioRef, videoRef, setVolume, setIsMuted, previousVolumeRef);
   };
 
   // Speed control
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSpeed = Number(e.target.value) / 100;
-    setPlaybackRate(newSpeed);
-    
-    // Apply speed to both audio and video elements
-    applyPlaybackRateToElements(newSpeed, audioRef, videoRef);
+    const newSpeed = Number(e.target.value);
+    handleSpeedChangeUtil(newSpeed, audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
   };
 
   // Cycle through speed presets
   const cycleSpeed = () => {
-    const currentSpeed = playbackRate * 100;
-    let nextSpeed;
-    
-    if (currentSpeed <= 75) {
-      nextSpeed = 100; // 0.75x -> 1.0x
-    } else if (currentSpeed <= 100) {
-      nextSpeed = 125; // 1.0x -> 1.25x
-    } else if (currentSpeed <= 125) {
-      nextSpeed = 150; // 1.25x -> 1.5x
-    } else if (currentSpeed <= 150) {
-      nextSpeed = 175; // 1.5x -> 1.75x
-    } else if (currentSpeed <= 175) {
-      nextSpeed = 200; // 1.75x -> 2.0x
-    } else {
-      nextSpeed = 75; // 2.0x -> 0.75x (wrap around)
-    }
-    
-    const newRate = nextSpeed / 100;
-    setPlaybackRate(newRate);
-    applyPlaybackRateToElements(newRate, audioRef, videoRef);
+    cycleSpeedUtil(playbackRate, audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
   };
 
   // Reset speed to normal
   const resetSpeed = () => {
-    setPlaybackRate(1);
-    applyPlaybackRateToElements(1, audioRef, videoRef);
+    resetSpeedUtil(audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
   };
 
   // Handle keyboard shortcut actions
@@ -356,16 +321,14 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       case 'speedUp':
         const newSpeedUp = Math.min(2, playbackRate + 0.25);
         setPlaybackRate(newSpeedUp);
-        if (audioRef.current) {
-          audioRef.current.playbackRate = newSpeedUp;
-        }
+        setSpeedSliderValue(newSpeedUp * 100);
+        applyPlaybackRateToElements(newSpeedUp, audioRef, videoRef);
         break;
       case 'speedDown':
         const newSpeedDown = Math.max(0.5, playbackRate - 0.25);
         setPlaybackRate(newSpeedDown);
-        if (audioRef.current) {
-          audioRef.current.playbackRate = newSpeedDown;
-        }
+        setSpeedSliderValue(newSpeedDown * 100);
+        applyPlaybackRateToElements(newSpeedDown, audioRef, videoRef);
         break;
       case 'speedReset':
         resetSpeed();
@@ -1262,7 +1225,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 title="השתק/בטל השתקה"
                 onClick={toggleMute}
               >
-                {isMuted || volume === 0 ? '🔇' : volume < 50 ? '🔉' : '🔊'}
+                {getVolumeIcon(volume, isMuted)}
               </span>
               <input 
                 type="range" 
@@ -1275,7 +1238,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 onChange={handleVolumeChange}
               />
               <span className="slider-value" id="volumeValue">
-                {isMuted ? '0' : volume}%
+                {formatVolumePercentage(isMuted ? 0 : volume)}
               </span>
             </div>
             
@@ -1294,13 +1257,13 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 id="speedSlider" 
                 min="50" 
                 max="200" 
-                value={(playbackRate || 1) * 100} 
+                value={speedSliderValue} 
                 step="5" 
                 title="מהירות הפעלה"
                 onChange={handleSpeedChange}
               />
               <span className="slider-value" id="speedValue">
-                {playbackRate.toFixed(1)}x
+                {formatSpeed(playbackRate)}
               </span>
             </div>
           </div>
