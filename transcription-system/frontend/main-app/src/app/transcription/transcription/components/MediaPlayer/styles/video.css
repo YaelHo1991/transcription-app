@@ -1,0 +1,153 @@
+/* ================================
+   Video Styles - Video Cube and Display Components
+   ================================ */
+
+/* Audio element - hidden */
+#audioPlayer {
+    display: none;
+}
+
+/* Video Cube Styles */
+.video-cube {
+    background: linear-gradient(135deg, #1a5d5d 0%, #0f4c4c 100%);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+/* Video cube in layout mode */
+.video-cube.in-layout {
+    position: relative;
+    width: 240px; /* Wider for better proportion */
+    height: 160px; /* Slightly taller */
+    border: 2px solid #20c997;
+    margin: 10px auto 0; /* Center horizontally, push down a bit */
+}
+
+/* Video cube detached mode */
+.video-cube.detached {
+    position: fixed;
+    width: 320px;
+    height: 240px;
+    z-index: 500;
+    overflow: hidden;
+    transition: height 0.3s ease; /* Smooth height changes */
+    /* Position set dynamically by JavaScript */
+}
+
+.video-cube.active {
+    /* Active state - cube is visible */
+    opacity: 1;
+}
+
+.video-cube-header {
+    background: linear-gradient(135deg, #0f4c4c 0%, #1a5d5d 100%);
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+    user-select: none;
+    height: 32px;
+}
+
+.video-cube-title {
+    color: #20c997;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.video-cube-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.video-control-btn {
+    background: transparent;
+    border: 1px solid #20c997;
+    color: #20c997;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.video-control-btn:hover {
+    background: rgba(32, 201, 151, 0.2);
+    transform: scale(1.1);
+}
+
+.video-cube-content {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+}
+
+.video-cube video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.video-cube-resize-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    border: 2px solid #20c997;
+    border-top: none;
+    border-left: none;
+    cursor: nwse-resize;
+    bottom: 0;
+    right: 0;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.video-cube-resize-handle:hover {
+    opacity: 1;
+}
+
+.video-cube.minimized {
+    display: none;
+}
+
+.video-restore-control {
+    position: absolute;
+    top: 15px;
+    left: 60px; /* Position next to settings button (left + width + gap) */
+    background: linear-gradient(135deg, #0f4c4c 0%, #1a5d5d 100%);
+    border: 1px solid #20c997;
+    color: #20c997;
+    padding: 6px 12px;
+    border-radius: 18px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    z-index: 1000;
+    height: 36px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-restore-control.visible {
+    display: flex;
+}
+
+.video-restore-control:hover {
+    background: linear-gradient(135deg, #20c997 0%, #1a5d5d 100%);
+    transform: scale(1.05);
+}

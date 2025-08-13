@@ -250,23 +250,23 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 9. [x] Commit: "Stage 14: Extract layout and modal styles"
 
 ### Stage 15: Extract Video & Waveform Styles
-**Status**: PENDING
+**Status**: COMPLETED
 **Actions**:
-1. [ ] Create styles/video.css
-2. [ ] Extract from MediaPlayer.css (~200 lines):
+1. [x] Create styles/video.css (152 lines)
+2. [x] Extract from MediaPlayer.css (~200 lines):
    - Video display styles
    - Video cube styles
    - Video control styles
-3. [ ] Create styles/waveform.css
-4. [ ] Extract from MediaPlayer.css (~100 lines):
+3. [x] Create styles/waveform.css (67 lines)
+4. [x] Extract from MediaPlayer.css (~100 lines):
    - Waveform container styles
    - Canvas styles
    - Zoom control styles
-5. [ ] Add @import statements to MediaPlayer.css
-6. [ ] Test: Video and waveform display correctly
-7. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
-8. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-9. [ ] Commit: "Stage 15: Extract video and waveform styles"
+5. [x] Add @import statements to MediaPlayer.css
+6. [x] Test: Video and waveform display correctly
+7. [x] Update: docs/MEDIAPLAYER_STRUCTURE.md
+8. [x] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+9. [x] Commit: "Stage 15: Extract video and waveform styles"
 
 ### Stage 16: Final Verification & Optimization
 **Status**: PENDING
