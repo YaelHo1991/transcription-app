@@ -187,7 +187,7 @@ MediaPlayer/
 │   ├── httpsDetection.ts (existing)
 │   ├── waveformStrategy.ts (existing)
 │   ├── mediaHelpers.ts (existing)
-│   ├── mediaControls.ts (NEW - playback functions)
+│   ├── mediaControls.ts (COMPLETED - playback functions)
 │   ├── volumeControls.ts (NEW - volume functions)
 │   ├── speedControls.ts (NEW - speed functions)
 │   ├── settingsManager.ts (NEW - settings persistence)

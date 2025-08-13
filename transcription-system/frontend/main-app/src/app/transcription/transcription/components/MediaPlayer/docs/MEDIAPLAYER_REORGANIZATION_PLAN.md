@@ -152,20 +152,24 @@ This document tracks the step-by-step reorganization of the MediaPlayer componen
 ## Phase 2: Code Extraction from index.tsx and MediaPlayer.css
 
 ### Stage 10: Extract Media Control Utilities
-**Status**: PENDING
+**Status**: COMPLETED
 **Actions**:
-1. [ ] Create utils/mediaControls.ts
-2. [ ] Extract from index.tsx:
+1. [x] Create utils/mediaControls.ts
+2. [x] Extract from index.tsx:
    - formatTime() function
    - togglePlayPause() function  
    - handleRewind() function
    - handleForward() function
    - handleProgressClick() function
-3. [ ] Import and use utilities in index.tsx
-4. [ ] Test: All playback controls work
-5. [ ] Update: docs/MEDIAPLAYER_STRUCTURE.md
-6. [ ] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
-7. [ ] Commit: "Stage 10: Extract media control utilities"
+3. [x] Import and use utilities in index.tsx
+4. [x] Added helper functions:
+   - getActiveMediaElement() - gets current media element
+   - applyVolumeToElements() - applies volume to both elements
+   - applyPlaybackRateToElements() - applies speed to both elements
+5. [x] Test: All playback controls work
+6. [x] Update: docs/MEDIAPLAYER_STRUCTURE.md
+7. [x] Update: docs/MEDIAPLAYER_REORGANIZATION_PLAN.md
+8. Ready to commit: "Stage 10: Extract media control utilities"
 
 ### Stage 11: Extract Volume & Speed Controls
 **Status**: PENDING

@@ -17,6 +17,16 @@ import {
   formatFileSize 
 } from './utils/waveformStrategy';
 import { ChunkedWaveformProcessor } from './utils/ChunkedWaveformProcessor';
+import { 
+  formatTime, 
+  togglePlayPause as togglePlayPauseUtil,
+  handleRewind as handleRewindUtil,
+  handleForward as handleForwardUtil,
+  handleProgressClick as handleProgressClickUtil,
+  getActiveMediaElement,
+  applyVolumeToElements,
+  applyPlaybackRateToElements
+} from './utils/mediaControls';
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
@@ -134,60 +144,27 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     }, 3000);
   };
 
-  // Format time
-  const formatTime = (time: number) => {
-    const hours = Math.floor(time / 3600);
-    const minutes = Math.floor((time % 3600) / 60);
-    const seconds = Math.floor(time % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  // Play/Pause
+  // Play/Pause wrapper
   const togglePlayPause = () => {
-    // Use video element for video files, audio element for audio files
-    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
-    
-    if (!mediaElement) {
-      return;
-    }
-    
-    // Check actual media state, not React state
-    if (!mediaElement.paused) {
-      mediaElement.pause();
-    } else {
-      mediaElement.play()
-        .catch(err => {
-          // Ignore AbortError as it's just a play/pause conflict
-          if (err.name !== 'AbortError') {
-            console.error('Play failed:', err);
-          }
-        });
-    }
+    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
+    togglePlayPauseUtil(mediaElement);
   };
 
-  // Seek functions
+  // Seek functions wrappers
   const handleRewind = (seconds: number) => {
-    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
-    if (!mediaElement) return;
-    mediaElement.currentTime = Math.max(0, mediaElement.currentTime - seconds);
+    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
+    handleRewindUtil(mediaElement, seconds);
   };
 
   const handleForward = (seconds: number) => {
-    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
-    if (!mediaElement) return;
-    mediaElement.currentTime = Math.min(duration, mediaElement.currentTime + seconds);
+    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
+    handleForwardUtil(mediaElement, seconds, duration);
   };
 
-  // Progress bar click
+  // Progress bar click wrapper
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
-    if (!progressBarRef.current || !mediaElement) return;
-    
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    // RTL: Right is 0%, left is 100%
-    const progress = 1 - (x / rect.width);
-    mediaElement.currentTime = progress * duration;
+    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
+    handleProgressClickUtil(e, progressBarRef, mediaElement, duration);
   };
 
   // Volume control
@@ -196,12 +173,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     setVolume(newVolume);
     
     // Apply volume to both audio and video elements
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume / 100;
-    }
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume / 100;
-    }
+    applyVolumeToElements(newVolume, audioRef, videoRef);
     
     setIsMuted(newVolume === 0);
     // Track non-zero volume for unmute
@@ -211,23 +183,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   };
 
   const toggleMute = () => {
-    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
     if (!mediaElement) return;
     
     // Check actual media volume instead of React state to avoid closure issues
     if (mediaElement.volume === 0) {
       // Currently muted, unmute it
-      const newVolume = previousVolumeRef.current / 100;
-      if (audioRef.current) audioRef.current.volume = newVolume;
-      if (videoRef.current) videoRef.current.volume = newVolume;
-      setVolume(previousVolumeRef.current);
+      const newVolume = previousVolumeRef.current;
+      applyVolumeToElements(newVolume, audioRef, videoRef);
+      setVolume(newVolume);
       setIsMuted(false);
     } else {
       // Currently has volume, mute it
       // Save current volume before muting
       previousVolumeRef.current = mediaElement.volume * 100;
-      if (audioRef.current) audioRef.current.volume = 0;
-      if (videoRef.current) videoRef.current.volume = 0;
+      applyVolumeToElements(0, audioRef, videoRef);
       setVolume(0);
       setIsMuted(true);
     }
@@ -239,12 +209,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     setPlaybackRate(newSpeed);
     
     // Apply speed to both audio and video elements
-    if (audioRef.current) {
-      audioRef.current.playbackRate = newSpeed;
-    }
-    if (videoRef.current) {
-      videoRef.current.playbackRate = newSpeed;
-    }
+    applyPlaybackRateToElements(newSpeed, audioRef, videoRef);
   };
 
   // Cycle through speed presets
@@ -268,17 +233,13 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     
     const newRate = nextSpeed / 100;
     setPlaybackRate(newRate);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = newRate;
-    }
+    applyPlaybackRateToElements(newRate, audioRef, videoRef);
   };
 
   // Reset speed to normal
   const resetSpeed = () => {
     setPlaybackRate(1);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = 1;
-    }
+    applyPlaybackRateToElements(1, audioRef, videoRef);
   };
 
   // Handle keyboard shortcut actions
