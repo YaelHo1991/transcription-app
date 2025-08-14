@@ -53,6 +53,10 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
   
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'code' | 'name' | 'description', value: string) => {
+    // Get the old value before updating
+    const oldBlock = blockManagerRef.current.getBlocks().find(b => b.id === id);
+    const oldCode = oldBlock?.code;
+    
     // Validate unique code if updating code field
     if (field === 'code' && value) {
       if (!blockManagerRef.current.validateUniqueCode(value, id)) {
@@ -68,11 +72,14 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     if (field === 'name' || field === 'code') {
       const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
       if (block) {
+        // Always send speaker update with ID for tracking
         document.dispatchEvent(new CustomEvent('speakerUpdated', {
           detail: {
+            speakerId: block.id,  // Send the unique speaker ID
             code: block.code,
             name: block.name,
-            color: block.color
+            color: block.color,
+            oldCode: field === 'code' ? oldCode : undefined
           }
         }));
       }
@@ -161,8 +168,36 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     });
   }, []);
   
+  // Check if a speaker is in use in the TextEditor
+  const checkSpeakerInUse = useCallback((speakerCode: string, speakerName?: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const checkEvent = new CustomEvent('checkSpeakerInUse', {
+        detail: {
+          code: speakerCode,
+          name: speakerName,
+          callback: (inUse: boolean) => resolve(inUse)
+        }
+      });
+      document.dispatchEvent(checkEvent);
+    });
+  }, []);
+  
   // Handle block removal
-  const handleRemoveBlock = useCallback((id: string, deleteNext = false) => {
+  const handleRemoveBlock = useCallback(async (id: string, deleteNext = false) => {
+    const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
+    
+    // Check if this speaker has a code and if it's in use
+    if (block && block.code) {
+      const inUse = await checkSpeakerInUse(block.code, block.name);
+      if (inUse) {
+        // Show error message and prevent deletion
+        const displayName = block.name || block.code;
+        alert(`לא ניתן למחוק את הדובר "${displayName}" (קוד: ${block.code}) כי הוא בשימוש בעורך הטקסט.\nניתן לשנות את הקוד, אך לא למחוק אותו.`);
+        // Important: Return here to prevent deletion
+        return;
+      }
+    }
+    
     const direction = deleteNext ? 'next' : 'current';
     
     // Store the current state before removal
@@ -182,7 +217,7 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     }
     
     setBlocks([...blockManagerRef.current.getBlocks()]);
-  }, []);
+  }, [checkSpeakerInUse]);
   
   // Helper to get available code
   const getAvailableCode = useCallback((name?: string, excludeId?: string): string => {
@@ -301,6 +336,7 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
           // Notify TextEditor of new speaker
           document.dispatchEvent(new CustomEvent('speakerCreated', {
             detail: {
+              speakerId: block.id,  // Send the unique speaker ID
               code: block.code,
               name: block.name,
               color: block.color
@@ -341,6 +377,7 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
           // Notify TextEditor
           document.dispatchEvent(new CustomEvent('speakerCreated', {
             detail: {
+              speakerId: block.id,  // Send the unique speaker ID
               code: block.code,
               name: block.name,
               color: block.color

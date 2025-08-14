@@ -45,13 +45,17 @@ export default function TextEditor({
     }));
   }, []);
   
-  // Initialize blocks
+  // Initialize blocks from block manager
   useEffect(() => {
     const initialBlocks = blockManagerRef.current.getBlocks();
     setBlocks([...initialBlocks]);
     if (initialBlocks.length > 0) {
       setActiveBlockId(initialBlocks[0].id);
       setActiveArea('speaker');
+      // Set the first block's timestamp to current media time
+      if (currentMediaTime > 0) {
+        blockManagerRef.current.setFirstBlockTimestamp(currentMediaTime);
+      }
     }
   }, []);
 
@@ -199,18 +203,34 @@ export default function TextEditor({
       const handleResponse = (event: CustomEvent) => {
         document.removeEventListener('speakerCreated', handleResponse as EventListener);
         
-        // Track which blocks belong to this speaker code
-        if (!speakerBlocksRef.current.has(code)) {
-          speakerBlocksRef.current.set(code, new Set());
+        const speakerId = event.detail.speakerId;
+        const speakerCode = event.detail.code;
+        const speakerName = event.detail.name;
+        
+        // Track which blocks belong to this speaker by ID
+        if (speakerId) {
+          if (!speakerBlocksRef.current.has(speakerId)) {
+            speakerBlocksRef.current.set(speakerId, new Set());
+          }
+          
+          // Add current block to the speaker's block set
+          const currentBlockId = blockManagerRef.current.getActiveBlockId();
+          if (currentBlockId) {
+            speakerBlocksRef.current.get(speakerId)!.add(currentBlockId);
+          }
+          
+          // Track speaker ID to code mapping
+          if (speakerCode) {
+            speakerIdToCodeRef.current.set(speakerId, speakerCode);
+          }
+          
+          // Track the name mapping if available
+          if (speakerCode && speakerName && speakerName.trim()) {
+            speakerNamesRef.current.set(speakerCode, speakerName);
+          }
         }
         
-        // Add current block to the speaker's block set
-        const currentBlockId = blockManagerRef.current.getActiveBlockId();
-        if (currentBlockId) {
-          speakerBlocksRef.current.get(code)!.add(currentBlockId);
-        }
-        
-        resolve(event.detail.name);
+        resolve(speakerName || event.detail.code);
       };
       
       document.addEventListener('speakerCreated', handleResponse as EventListener);
@@ -222,10 +242,12 @@ export default function TextEditor({
           callback: (name: string | null) => {
             if (!name) {
               document.removeEventListener('speakerCreated', handleResponse as EventListener);
+              resolve(name);
+              return;
             }
             
-            // Track which blocks belong to this speaker code
-            if (name && code) {
+            // For single character codes, track the block immediately
+            if (code.length === 1) {
               if (!speakerBlocksRef.current.has(code)) {
                 speakerBlocksRef.current.set(code, new Set());
               }
@@ -244,47 +266,90 @@ export default function TextEditor({
     });
   }, []);
 
-  // Track which blocks belong to which speaker code
+  // Track which blocks belong to which speaker (by speaker ID)
   const speakerBlocksRef = useRef<Map<string, Set<string>>>(new Map());
+  // Track speaker ID to code mapping
+  const speakerIdToCodeRef = useRef<Map<string, string>>(new Map());
   
   // Listen for speaker updates
   useEffect(() => {
     const handleSpeakerUpdated = (event: CustomEvent) => {
-      const { code, name, color } = event.detail;
+      const { speakerId, code, name, color, oldCode } = event.detail;
       
-      // Update color mapping - use name if available, otherwise use code
-      const speakerKey = name && name.trim() ? name : code;
-      setSpeakerColors(prev => new Map(prev).set(speakerKey, color));
-      
-      // Track speaker name updates
-      if (name && name.trim()) {
-        speakerNamesRef.current.set(code, name);
-      }
-      
-      // Get or create the set of blocks for this speaker code
-      if (!speakerBlocksRef.current.has(code)) {
-        speakerBlocksRef.current.set(code, new Set());
-      }
-      const speakerBlockIds = speakerBlocksRef.current.get(code)!;
-      
-      // Update all blocks that belong to this speaker
-      const blocks = blockManagerRef.current.getBlocks();
-      blocks.forEach(block => {
-        // Check if this block belongs to this speaker (by code or any partial name)
-        // The block could have the code or any version of the name
-        if (block.speaker === code || speakerBlockIds.has(block.id)) {
-          // Track this block as belonging to this speaker
-          speakerBlockIds.add(block.id);
-          
-          // Update to the new name if we have one
-          const newValue = name && name.trim() ? name : code;
-          if (block.speaker !== newValue) {
-            blockManagerRef.current.updateBlock(block.id, 'speaker', newValue);
-          }
+      // Track by speaker ID for persistent connection
+      if (speakerId) {
+        // Get the old code if it was changed
+        const previousCode = oldCode || speakerIdToCodeRef.current.get(speakerId);
+        
+        // Update speaker ID to code mapping
+        if (code) {
+          speakerIdToCodeRef.current.set(speakerId, code);
         }
-      });
-      
-      setBlocks([...blockManagerRef.current.getBlocks()]);
+        
+        // Get or create the set of blocks for this speaker ID
+        if (!speakerBlocksRef.current.has(speakerId)) {
+          speakerBlocksRef.current.set(speakerId, new Set());
+        }
+        const speakerBlockIds = speakerBlocksRef.current.get(speakerId)!;
+        
+        // Update all blocks that belong to this speaker
+        const blocks = blockManagerRef.current.getBlocks();
+        blocks.forEach(block => {
+          // Check if this block belongs to this speaker
+          let belongsToSpeaker = false;
+          
+          // Check by tracked block IDs
+          if (speakerBlockIds.has(block.id)) {
+            belongsToSpeaker = true;
+          }
+          // Check by previous code
+          else if (previousCode && block.speaker === previousCode) {
+            belongsToSpeaker = true;
+            speakerBlockIds.add(block.id);
+          }
+          // Check by current code
+          else if (code && block.speaker === code) {
+            belongsToSpeaker = true;
+            speakerBlockIds.add(block.id);
+          }
+          // Check by name
+          else if (name && block.speaker === name) {
+            belongsToSpeaker = true;
+            speakerBlockIds.add(block.id);
+          }
+          
+          // Update the block if it belongs to this speaker
+          if (belongsToSpeaker) {
+            // Determine what value to use: prioritize name, then code
+            const newValue = (name && name.trim()) ? name : (code || '');
+            if (block.speaker !== newValue) {
+              blockManagerRef.current.updateBlock(block.id, 'speaker', newValue);
+            }
+          }
+        });
+        
+        // Update color mapping
+        const speakerKey = (name && name.trim()) ? name : (code || '');
+        if (speakerKey) {
+          setSpeakerColors(prev => {
+            const newMap = new Map(prev);
+            // Remove old color entries
+            if (previousCode && previousCode !== code) {
+              newMap.delete(previousCode);
+            }
+            // Set new color
+            newMap.set(speakerKey, color);
+            return newMap;
+          });
+        }
+        
+        // Track speaker name updates
+        if (code && name && name.trim()) {
+          speakerNamesRef.current.set(code, name);
+        }
+        
+        setBlocks([...blockManagerRef.current.getBlocks()]);
+      }
     };
     
     document.addEventListener('speakerUpdated', handleSpeakerUpdated as EventListener);
@@ -312,6 +377,8 @@ export default function TextEditor({
     const handleMediaTimeUpdate = (event: CustomEvent) => {
       const { time } = event.detail;
       setCurrentMediaTime(time || 0);
+      // Set the first block's timestamp if it doesn't have one
+      blockManagerRef.current.setFirstBlockTimestamp(time || 0);
     };
     
     // Handle navigation mode check from child components
@@ -322,16 +389,40 @@ export default function TextEditor({
       }
     };
     
+    // Check if a speaker code is in use
+    const handleCheckSpeakerInUse = (event: CustomEvent) => {
+      const { code, name, callback } = event.detail;
+      if (callback) {
+        const blocks = blockManagerRef.current ? blockManagerRef.current.getBlocks() : [];
+        // Check if any block uses this speaker (code or associated name)
+        const inUse = blocks.some(block => {
+          // Direct match with the code
+          if (block.speaker === code) return true;
+          // Check if the block uses the name associated with this code
+          if (name && block.speaker === name) return true;
+          // Check if this is a name that was created from this code
+          // Names created from codes are tracked in speakerNamesRef
+          const trackedName = speakerNamesRef.current.get(code);
+          if (trackedName && block.speaker === trackedName) return true;
+          return false;
+        });
+        callback(inUse);
+      }
+    };
+    
+    
     document.addEventListener('speakersSelected', handleSpeakersSelected as EventListener);
     document.addEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
     document.addEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
     document.addEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
+    document.addEventListener('checkSpeakerInUse', handleCheckSpeakerInUse as EventListener);
     
     return () => {
       document.removeEventListener('speakersSelected', handleSpeakersSelected as EventListener);
       document.removeEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
       document.removeEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
       document.removeEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
+      document.removeEventListener('checkSpeakerInUse', handleCheckSpeakerInUse as EventListener);
     };
   }, [navigationMode]);
 

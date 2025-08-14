@@ -5,7 +5,7 @@ export class BlockManager {
   private activeBlockId: string | null = null;
   private activeArea: 'speaker' | 'text' = 'speaker';
 
-  constructor(initialText?: string) {
+  constructor(initialText?: string, initialTime?: number) {
     // Initialize with at least one block
     this.blocks = [];
     this.activeBlockId = null;
@@ -14,7 +14,15 @@ export class BlockManager {
     if (initialText) {
       this.parseText(initialText);
     } else {
-      this.addBlock();
+      // Add first block with initial timestamp
+      this.addBlock(undefined, initialTime || 0);
+    }
+  }
+  
+  // Update the first block's timestamp if it doesn't have one
+  setFirstBlockTimestamp(time: number): void {
+    if (this.blocks.length > 0 && this.blocks[0].speakerTime === undefined) {
+      this.blocks[0].speakerTime = time;
     }
   }
 
