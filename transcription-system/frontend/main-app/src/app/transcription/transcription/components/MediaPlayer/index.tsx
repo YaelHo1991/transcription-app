@@ -63,6 +63,7 @@ import './MediaPlayer.css';
 import './styles/shortcuts.css';
 import './styles/pedal.css';
 import './styles/autodetect.css';
+import './styles/tooltip.css';
 
 interface MediaPlayerProps {
   initialMedia?: MediaFile;
@@ -498,7 +499,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           <button 
             className="collapse-toggle" 
             id="controlsToggle" 
-            title="הסתר/הצג פקדי הפעלה"
+            data-tooltip="הסתר/הצג פקדי הפעלה"
             onClick={() => setControlsCollapsed(!controlsCollapsed)}
           >
             <span className="toggle-icon">{controlsCollapsed ? '▲' : '▼'}</span>
@@ -509,28 +510,28 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             {/* Control Buttons (RTL: rewind on left, forward on right) */}
             <div className="control-buttons">
               {/* Rewind buttons (left side in RTL) */}
-              <button className="control-btn" id="rewind5Btn" title="אחורה 5 שניות" onClick={() => handleRewind(5)}>
+              <button className="control-btn" id="rewind5Btn" data-tooltip="אחורה 5 שניות" onClick={() => handleRewind(5)}>
                 ➡️
                 <span className="skip-amount">5</span>
               </button>
               
-              <button className="control-btn" id="rewind2_5Btn" title="אחורה 2.5 שניות" onClick={() => handleRewind(2.5)}>
+              <button className="control-btn" id="rewind2_5Btn" data-tooltip="אחורה 2.5 שניות" onClick={() => handleRewind(2.5)}>
                 ➡️
                 <span className="skip-amount">2.5</span>
               </button>
               
               {/* Play/Pause Button (center) */}
-              <button className="play-pause-btn" id="playPauseBtn" title="הפעל/השהה" onClick={togglePlayPause}>
+              <button className="play-pause-btn" id="playPauseBtn" data-tooltip="הפעל/השהה" onClick={togglePlayPause}>
                 <span id="playIcon">{isPlaying ? '⏸️' : '▶️'}</span>
               </button>
               
               {/* Forward buttons (right side in RTL) */}
-              <button className="control-btn" id="forward2_5Btn" title="קדימה 2.5 שניות" onClick={() => handleForward(2.5)}>
+              <button className="control-btn" id="forward2_5Btn" data-tooltip="קדימה 2.5 שניות" onClick={() => handleForward(2.5)}>
                 ⬅️
                 <span className="skip-amount">2.5</span>
               </button>
               
-              <button className="control-btn" id="forward5Btn" title="קדימה 5 שניות" onClick={() => handleForward(5)}>
+              <button className="control-btn" id="forward5Btn" data-tooltip="קדימה 5 שניות" onClick={() => handleForward(5)}>
                 ⬅️
                 <span className="skip-amount">5</span>
               </button>
@@ -568,7 +569,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className="time-display" 
                 id="currentTime" 
-                title="לחץ לקפיצה להתחלה, קליק ימני לעריכה"
+                data-tooltip="לחץ לקפיצה להתחלה, קליק ימני לעריכה"
                 onClick={jumpToStart}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -679,7 +680,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className="time-display" 
                 id="totalTime" 
-                title="לחץ לקפיצה לסוף, קליק ימני לעריכה"
+                data-tooltip="לחץ לקפיצה לסוף, קליק ימני לעריכה"
                 onClick={jumpToEnd}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -694,7 +695,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             <button 
               className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''}`}
               id="waveformToggleBtn" 
-              title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
+              data-tooltip={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
               onClick={() => {
                 const newEnabled = !waveformEnabled;
                 setWaveformEnabled(newEnabled);
@@ -716,7 +717,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           <button 
             className="collapse-toggle" 
             id="slidersToggle" 
-            title="הסתר/הצג בקרות עוצמה ומהירות"
+            data-tooltip="הסתר/הצג בקרות עוצמה ומהירות"
             onClick={() => setSlidersCollapsed(!slidersCollapsed)}
           >
             <span className="toggle-icon">{slidersCollapsed ? '▲' : '▼'}</span>
@@ -729,7 +730,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className={`slider-icon ${isMuted ? 'muted' : ''}`} 
                 id="volumeIcon" 
-                title="השתק/בטל השתקה"
+                data-tooltip="השתק/בטל השתקה"
                 onClick={toggleMute}
               >
                 {getVolumeIcon(volume, isMuted)}
@@ -741,7 +742,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 min="0" 
                 max="100" 
                 value={isMuted ? 0 : (volume || 0)} 
-                title="עוצמת קול"
+                data-tooltip="עוצמת קול"
                 onChange={handleVolumeChange}
               />
               <span className="slider-value" id="volumeValue">
@@ -754,7 +755,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className="slider-icon" 
                 id="speedIcon" 
-                title="לחץ להחלפת מהירות, לחץ פעמיים לאיפוס"
+                data-tooltip="לחץ להחלפת מהירות, לחץ פעמיים לאיפוס"
                 onClick={handleSpeedIconClick}
                 style={{ cursor: 'pointer' }}
               >⚡</span>
@@ -766,7 +767,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 max="200" 
                 value={speedSliderValue} 
                 step="5" 
-                title="מהירות הפעלה"
+                data-tooltip="מהירות הפעלה"
                 onChange={handleSpeedChange}
               />
               <span className="slider-value" id="speedValue">
@@ -791,7 +792,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           <button 
             className="settings-btn" 
             id="settingsBtn" 
-            title="הגדרות"
+            data-tooltip="הגדרות"
             onClick={() => setShowSettings(true)}
           >
             ⚙️

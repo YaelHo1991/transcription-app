@@ -872,7 +872,7 @@ export default function WaveformCanvas({
               transition: 'all 0.2s',
               opacity: hoverToolbar || showToolbar ? 1 : 0.3
             }}
-            title="כלים"
+            data-tooltip="כלים"
           >
             ⚙
           </button>
@@ -920,7 +920,7 @@ export default function WaveformCanvas({
                   justifyContent: 'center',
                   padding: 0
                 }}
-                title="הקטן"
+                data-tooltip="הקטן"
               >
                 −
               </button>
@@ -955,7 +955,7 @@ export default function WaveformCanvas({
                   justifyContent: 'center',
                   padding: 0
                 }}
-                title="הגדל"
+                data-tooltip="הגדל"
               >
                 +
               </button>
@@ -987,7 +987,7 @@ export default function WaveformCanvas({
                 onMouseLeave={(e) => {
                   if (zoomLevel > 1) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
                 }}
-                title="איפוס זום"
+                data-tooltip="איפוס זום"
               >
                 ↺
               </button>
@@ -1031,7 +1031,7 @@ export default function WaveformCanvas({
                 padding: 0,
                 pointerEvents: 'auto'
               }}
-              title="תפריט סימונים"
+              data-tooltip="תפריט סימונים"
             >
               📍
             </button>
@@ -1057,7 +1057,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="הוסף סימון בזמן נוכחי"
+              data-tooltip="הוסף סימון בזמן נוכחי"
             >
               📌
             </button>
@@ -1082,7 +1082,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="יצירת סימון מותאם אישית"
+              data-tooltip="יצירת סימון מותאם אישית"
             >
               ➕
             </button>
@@ -1107,7 +1107,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="סנן סימונים לפי סוג"
+              data-tooltip="סנן סימונים לפי סוג"
             >
               🔍
             </button>
@@ -1132,7 +1132,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="בחר סוג סימון לניווט"
+              data-tooltip="בחר סוג סימון לניווט"
             >
               🎯
             </button>
@@ -1157,7 +1157,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="אפשרויות הפעלה"
+              data-tooltip="אפשרויות הפעלה"
             >
               {playbackMode === 'loop-mark' ? '🔄' : playbackMode === 'marked-only' ? '▶️' : playbackMode === 'skip-marked' ? '⏭️' : '▶'}
             </button>
@@ -1193,7 +1193,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="יצא סימונים לקובץ JSON"
+              data-tooltip="יצא סימונים לקובץ JSON"
             >
               📤
             </button>
@@ -1250,7 +1250,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="יבא סימונים מקובץ JSON"
+              data-tooltip="יבא סימונים מקובץ JSON"
             >
               📥
             </button>
@@ -1277,7 +1277,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              title="מחק את כל הסימונים"
+              data-tooltip="מחק את כל הסימונים"
             >
               🗑️
             </button>
@@ -1306,7 +1306,7 @@ export default function WaveformCanvas({
                     justifyContent: 'center',
                     padding: 0
                   }}
-                  title="סימון קודם"
+                  data-tooltip="סימון קודם"
                 >
                   ►
                 </button>
@@ -1332,7 +1332,7 @@ export default function WaveformCanvas({
                     justifyContent: 'center',
                     padding: 0
                   }}
-                  title="סימון הבא"
+                  data-tooltip="סימון הבא"
                 >
                   ◄
                 </button>
