@@ -109,7 +109,7 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 
 ## Stage 4: TextEditor Turquoise Frame
 **Status**: ✅ Complete  
-**Commit**: `pending`  
+**Commit**: `28f446f`  
 **Objective**: Match MediaPlayer styling
 
 ### Changes:

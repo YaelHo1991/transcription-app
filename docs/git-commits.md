@@ -2,6 +2,17 @@
 
 ## Recent Commits
 
+### Stage 4: Add dark turquoise frame to TextEditor
+**Commit Hash**: `28f446f`
+**Date**: 2025-08-14
+**Description**: Added dark turquoise frame matching MediaPlayer
+**Changes**:
+- Added dark turquoise frame with 1.5px border
+- Applied double-layer design with inner wrapper
+- Kept interior sections light (header, sidebar, footer)
+- White content area for text readability
+- Subtle shadows and hover effects
+
 ### Stage 3: Re-enable marks sidebar & fix RTL text direction
 **Commit Hash**: `ea20c19`
 **Date**: 2025-08-14
