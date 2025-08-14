@@ -45,6 +45,8 @@ export default function SpeakerBlock({
   const [localCode, setLocalCode] = useState(speaker.code);
   const [localName, setLocalName] = useState(speaker.name);
   const [localDescription, setLocalDescription] = useState(speaker.description);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Focus management
   useEffect(() => {
@@ -76,11 +78,40 @@ export default function SpeakerBlock({
         // Check for duplicate code before moving
         if (localCode && !validateUniqueCode(localCode)) {
           // Show error - code already exists
+          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setShowError(true);
+          setTimeout(() => {
+            setShowError(false);
+            setErrorMessage('');
+          }, 3000);
+          return;
+        }
+        onNavigate('name');
+      } else if (e.key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        // Check for duplicate code before navigating to name field
+        if (localCode && !validateUniqueCode(localCode)) {
+          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setShowError(true);
+          setTimeout(() => {
+            setShowError(false);
+            setErrorMessage('');
+          }, 3000);
           return;
         }
         onNavigate('name');
       } else if (e.key === 'Enter') {
         e.preventDefault();
+        // Check for duplicate code before creating new block
+        if (localCode && !validateUniqueCode(localCode)) {
+          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setShowError(true);
+          setTimeout(() => {
+            setShowError(false);
+            setErrorMessage('');
+          }, 3000);
+          return;
+        }
         onNewBlock();
       } else if (e.key === 'Backspace') {
         const input = e.target as HTMLInputElement;
@@ -108,15 +139,45 @@ export default function SpeakerBlock({
         }
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        // Check for duplicate code before navigating
+        if (localCode && !validateUniqueCode(localCode)) {
+          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setShowError(true);
+          setTimeout(() => {
+            setShowError(false);
+            setErrorMessage('');
+          }, 3000);
+          return;
+        }
         onNavigate('up');
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
+        // Check for duplicate code before navigating
+        if (localCode && !validateUniqueCode(localCode)) {
+          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setShowError(true);
+          setTimeout(() => {
+            setShowError(false);
+            setErrorMessage('');
+          }, 3000);
+          return;
+        }
         onNavigate('down');
       } else if (e.key === 'ArrowLeft') {
         const input = e.target as HTMLInputElement;
         // In RTL, left arrow at end of text goes to next field
         if (input.selectionStart === input.value.length) {
           e.preventDefault();
+          // Check for duplicate code before navigating
+          if (localCode && !validateUniqueCode(localCode)) {
+            setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+            setShowError(true);
+            setTimeout(() => {
+              setShowError(false);
+              setErrorMessage('');
+            }, 3000);
+            return;
+          }
           onNavigate('name');
         }
         // Otherwise let cursor move through text
@@ -132,6 +193,16 @@ export default function SpeakerBlock({
         const input = e.target as HTMLInputElement;
         if (input.selectionStart === input.value.length) {
           e.preventDefault();
+          // Check for duplicate code before navigating
+          if (localCode && !validateUniqueCode(localCode)) {
+            setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+            setShowError(true);
+            setTimeout(() => {
+              setShowError(false);
+              setErrorMessage('');
+            }, 3000);
+            return;
+          }
           onNavigate('name');
         }
       } else if (e.key === 'Home') {
@@ -146,6 +217,18 @@ export default function SpeakerBlock({
     else if (field === 'name') {
       if (e.key === 'Tab' && !e.shiftKey) {
         e.preventDefault();
+        // Check for duplicate code when leaving name field
+        if (localCode && !validateUniqueCode(localCode)) {
+          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setShowError(true);
+          setTimeout(() => {
+            setShowError(false);
+            setErrorMessage('');
+          }, 3000);
+          // Go back to code field
+          onNavigate('code');
+          return;
+        }
         onNavigate('description');
       } else if (e.key === 'Tab' && e.shiftKey) {
         e.preventDefault();
@@ -334,17 +417,18 @@ export default function SpeakerBlock({
 
   // Handle field changes
   const handleCodeChange = (value: string) => {
-    // Limit to single character
-    const char = value.slice(-1).toUpperCase();
+    // Allow multiple letters but no spaces
+    const code = value.toUpperCase().replace(/\s/g, '');
     
-    // Check for duplicate code before updating
-    if (char && !validateUniqueCode(char)) {
-      // Don't update if code already exists
-      return;
+    // Allow typing without immediate validation - only validate on navigation
+    setLocalCode(code);
+    onUpdate(speaker.id, 'code', code);
+    
+    // Clear any existing error when typing
+    if (showError) {
+      setShowError(false);
+      setErrorMessage('');
     }
-    
-    setLocalCode(char);
-    onUpdate(speaker.id, 'code', char);
   };
 
   const handleNameChange = (value: string) => {
@@ -386,7 +470,6 @@ export default function SpeakerBlock({
           onFocus={() => onNavigate('code')}
           placeholder="קוד"
           className="code-input"
-          maxLength={1}
           dir="rtl"
           style={{ color: speaker.color }}
         />
@@ -424,6 +507,12 @@ export default function SpeakerBlock({
       <div className="speaker-count">
         {(speaker.code && speaker.name && speaker.count > 0) ? speaker.count : ''}
       </div>
+      
+      {showError && (
+        <div className="speaker-error-tooltip">
+          {errorMessage}
+        </div>
+      )}
     </div>
   );
 }
