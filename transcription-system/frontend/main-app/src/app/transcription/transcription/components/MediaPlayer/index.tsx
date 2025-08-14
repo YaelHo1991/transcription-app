@@ -835,6 +835,10 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
       onTimeUpdate?.(audio.currentTime);
+      // Dispatch time update event for other components
+      document.dispatchEvent(new CustomEvent('mediaTimeUpdate', { 
+        detail: { time: audio.currentTime } 
+      }));
     };
     
     const handlePlay = () => {
@@ -881,6 +885,10 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
       onTimeUpdate?.(video.currentTime);
+      // Dispatch time update event for other components
+      document.dispatchEvent(new CustomEvent('mediaTimeUpdate', { 
+        detail: { time: video.currentTime } 
+      }));
     };
     
     const handlePlay = () => {
@@ -910,6 +918,23 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     };
   }, [onTimeUpdate, showVideo]); // Don't re-run on volume/playbackRate changes
 
+  // Listen for seek requests from other components
+  useEffect(() => {
+    const handleSeekRequest = (event: CustomEvent) => {
+      const { time } = event.detail;
+      const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+      if (mediaElement && typeof time === 'number') {
+        mediaElement.currentTime = time;
+      }
+    };
+    
+    document.addEventListener('seekMedia', handleSeekRequest as EventListener);
+    
+    return () => {
+      document.removeEventListener('seekMedia', handleSeekRequest as EventListener);
+    };
+  }, [showVideo]);
+  
   // Initialize worker manager
   useEffect(() => {
     workerManagerRef.current = new WorkerManager();

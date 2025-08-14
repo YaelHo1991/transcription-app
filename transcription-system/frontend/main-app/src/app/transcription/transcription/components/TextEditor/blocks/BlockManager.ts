@@ -55,11 +55,12 @@ export class BlockManager {
   }
 
   // Add new block
-  addBlock(afterId?: string): TextBlockData {
+  addBlock(afterId?: string, speakerTime?: number): TextBlockData {
     const newBlock: TextBlockData = {
       id: this.generateId(),
       speaker: '',
-      text: ''
+      text: '',
+      speakerTime
     };
 
     if (afterId) {

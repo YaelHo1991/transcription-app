@@ -441,16 +441,30 @@ export default function TextBlock({
       }
       // Otherwise let the cursor move naturally within the text
     } else if (e.key === 'ArrowLeft') {
-      // In RTL, left goes to next block's speaker
-      if (textarea.selectionStart === textarea.value.length) {
+      const cursorPos = textarea.selectionStart;
+      const timestampBounds = getTimestampBoundaries(textarea.value, cursorPos);
+      
+      if (timestampBounds) {
+        // If inside timestamp, jump to end of timestamp
         e.preventDefault();
-        onNavigate('next', 'text');  // Go to next block's speaker field
+        textarea.setSelectionRange(timestampBounds.end, timestampBounds.end);
+      } else if (cursorPos === textarea.value.length) {
+        // At end of text, go to next block
+        e.preventDefault();
+        onNavigate('next', 'text');
       }
     } else if (e.key === 'ArrowRight') {
-      // In RTL, right goes back to speaker field
-      if (textarea.selectionStart === 0) {
+      const cursorPos = textarea.selectionStart;
+      const timestampBounds = getTimestampBoundaries(textarea.value, cursorPos);
+      
+      if (timestampBounds) {
+        // If inside timestamp, jump to start of timestamp
         e.preventDefault();
-        onNavigate('speaker', 'text');  // Go back to speaker field
+        textarea.setSelectionRange(timestampBounds.start, timestampBounds.start);
+      } else if (cursorPos === 0) {
+        // At start of text, go to speaker field
+        e.preventDefault();
+        onNavigate('speaker', 'text');
       }
     }
   };
@@ -512,7 +526,14 @@ export default function TextBlock({
 
   // Handle text input change and auto-resize
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    let value = e.target.value;
+    
+    // Check for "..." transformation to timestamp
+    if (value.includes('...')) {
+      const timestamp = formatTimestamp(currentTime || 0);
+      value = value.replace('...', timestamp);
+    }
+    
     setLocalText(value);
     onUpdate(block.id, 'text', value);
     
@@ -537,6 +558,24 @@ export default function TextBlock({
     const secs = Math.floor(seconds % 60);
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+  
+  // Check if cursor is at or within a timestamp
+  const getTimestampBoundaries = (text: string, cursorPos: number): { start: number, end: number } | null => {
+    // Match timestamp pattern HH:MM:SS or MM:SS
+    const timestampPattern = /\d{1,2}:\d{2}(:\d{2})?/g;
+    let match;
+    
+    while ((match = timestampPattern.exec(text)) !== null) {
+      const start = match.index;
+      const end = match.index + match[0].length;
+      
+      if (cursorPos >= start && cursorPos <= end) {
+        return { start, end };
+      }
+    }
+    
+    return null;
+  };
 
   // Handle focus events
   const handleSpeakerFocus = (e: FocusEvent<HTMLInputElement>) => {
@@ -555,8 +594,72 @@ export default function TextBlock({
     setCurrentInputMode(direction);
   };
 
+  // Handle click on block for navigation mode
+  const handleBlockClick = (e: React.MouseEvent) => {
+    // Check if click was on a timestamp in the text
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA') {
+      const textarea = target as HTMLTextAreaElement;
+      const clickPos = textarea.selectionStart;
+      const timestampBounds = getTimestampBoundaries(textarea.value, clickPos);
+      
+      if (timestampBounds) {
+        // Extract and parse the timestamp
+        const timestampText = textarea.value.substring(timestampBounds.start, timestampBounds.end);
+        const parts = timestampText.split(':').map(p => parseInt(p, 10));
+        let seconds = 0;
+        
+        if (parts.length === 3) {
+          // HH:MM:SS
+          seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+          // MM:SS
+          seconds = parts[0] * 60 + parts[1];
+        }
+        
+        // Check navigation mode and seek
+        const navModeEvent = new CustomEvent('checkNavigationMode', {
+          detail: {
+            callback: (isOn: boolean) => {
+              if (isOn) {
+                document.dispatchEvent(new CustomEvent('seekMedia', {
+                  detail: { time: seconds }
+                }));
+              }
+            }
+          }
+        });
+        document.dispatchEvent(navModeEvent);
+        return;
+      }
+    }
+    
+    // Default behavior - seek to block's speaker timestamp
+    const navModeEvent = new CustomEvent('checkNavigationMode', {
+      detail: {
+        callback: (isOn: boolean) => {
+          if (isOn && block.speakerTime !== undefined) {
+            // Seek to this block's timestamp
+            document.dispatchEvent(new CustomEvent('seekMedia', {
+              detail: { time: block.speakerTime }
+            }));
+          }
+        }
+      }
+    });
+    document.dispatchEvent(navModeEvent);
+  };
+
   return (
-    <div className={`text-block ${isActive ? 'active' : ''} ${!isIsolated ? 'non-isolated' : ''}`} style={{ fontSize: `${fontSize}px` }}>
+    <div 
+      className={`text-block ${isActive ? 'active' : ''} ${!isIsolated ? 'non-isolated' : ''}`} 
+      style={{ 
+        fontSize: `${fontSize}px`,
+        borderLeftColor: isIsolated ? speakerColor : '#cbd5e1',
+        borderRightColor: isIsolated ? speakerColor : '#cbd5e1'
+      }}
+      onClick={handleBlockClick}
+    >
       <div className="speaker-input-wrapper">
         <input
         ref={speakerRef}
@@ -569,7 +672,7 @@ export default function TextBlock({
         placeholder="דובר"
         dir={speakerDirection}
         style={{ 
-          color: isIsolated ? speakerColor : '#cbd5e1',
+          color: isIsolated ? '#333' : '#cbd5e1',
           direction: speakerDirection,
           textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
           fontSize: `${fontSize}px`,

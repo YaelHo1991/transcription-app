@@ -30,10 +30,20 @@ export default function TextEditor({
   const [fontSize, setFontSize] = useState(16);
   const [isolatedSpeakers, setIsolatedSpeakers] = useState<Set<string>>(new Set());
   const [showDescriptionTooltips, setShowDescriptionTooltips] = useState(true);
+  const [navigationMode, setNavigationMode] = useState(false);
+  const [savedMediaTime, setSavedMediaTime] = useState<number | null>(null);
+  const [currentMediaTime, setCurrentMediaTime] = useState(0);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
+  
+  // Function to seek media to a specific time
+  const seekToTime = useCallback((time: number) => {
+    document.dispatchEvent(new CustomEvent('seekMedia', { 
+      detail: { time } 
+    }));
+  }, []);
   
   // Initialize blocks
   useEffect(() => {
@@ -105,7 +115,16 @@ export default function TextEditor({
     setActiveArea(newArea);
     setCursorAtStart(false); // Reset cursor position flag
     setBlocks([...blockManagerRef.current.getBlocks()]);
-  }, [isolatedSpeakers]);
+    
+    // If navigation mode is ON and we moved to a new block, seek to its timestamp
+    if (navigationMode && newBlockId && newBlockId !== blockId) {
+      const blocks = blockManagerRef.current.getBlocks();
+      const newBlock = blocks.find(b => b.id === newBlockId);
+      if (newBlock && newBlock.speakerTime !== undefined) {
+        seekToTime(newBlock.speakerTime);
+      }
+    }
+  }, [isolatedSpeakers, navigationMode, seekToTime]);
 
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'speaker' | 'text', value: string) => {
@@ -125,12 +144,12 @@ export default function TextEditor({
   const handleNewBlock = useCallback(() => {
     const currentBlock = blockManagerRef.current.getActiveBlock();
     if (currentBlock) {
-      const newBlock = blockManagerRef.current.addBlock(currentBlock.id);
+      const newBlock = blockManagerRef.current.addBlock(currentBlock.id, currentMediaTime);
       setActiveBlockId(newBlock.id);
       setActiveArea('speaker');
       setBlocks([...blockManagerRef.current.getBlocks()]);
     }
-  }, []);
+  }, [currentMediaTime]);
 
   // Handle block removal
   const handleRemoveBlock = useCallback((id: string) => {
@@ -289,14 +308,32 @@ export default function TextEditor({
       setShowDescriptionTooltips(enabled);
     };
     
+    // Listen for media time updates
+    const handleMediaTimeUpdate = (event: CustomEvent) => {
+      const { time } = event.detail;
+      setCurrentMediaTime(time || 0);
+    };
+    
+    // Handle navigation mode check from child components
+    const handleCheckNavigationMode = (event: CustomEvent) => {
+      const { callback } = event.detail;
+      if (callback) {
+        callback(navigationMode);
+      }
+    };
+    
     document.addEventListener('speakersSelected', handleSpeakersSelected as EventListener);
     document.addEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
+    document.addEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
+    document.addEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
     
     return () => {
       document.removeEventListener('speakersSelected', handleSpeakersSelected as EventListener);
       document.removeEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
+      document.removeEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
+      document.removeEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
     };
-  }, []);
+  }, [navigationMode]);
 
   // Handle mark navigation from editor
   const handleMarkNavigation = useCallback((markId: string) => {
@@ -382,6 +419,26 @@ export default function TextEditor({
           <div className="toolbar-divider" />
           
           <div className="toolbar-section">
+            <button 
+              className={`toolbar-btn ${navigationMode ? 'active' : ''}`} 
+              title={navigationMode ? "כבה מצב ניווט" : "הפעל מצב ניווט"}
+              onClick={() => {
+                if (navigationMode) {
+                  // Turning OFF navigation mode - restore saved time if exists
+                  setNavigationMode(false);
+                  if (savedMediaTime !== null) {
+                    seekToTime(savedMediaTime);
+                    setSavedMediaTime(null);
+                  }
+                } else {
+                  // Turning ON navigation mode - save current time
+                  setNavigationMode(true);
+                  setSavedMediaTime(currentMediaTime);
+                }
+              }}
+            >
+              <span className="toolbar-icon">🧭</span>
+            </button>
             <button className="toolbar-btn" title="הגדרות">
               <span className="toolbar-icon">⚙️</span>
             </button>
@@ -458,7 +515,7 @@ export default function TextEditor({
               onSpeakerTransform={handleSpeakerTransform}
               onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
               speakerColor={speakerColors.get(block.speaker)}
-              currentTime={0}  // DISABLED - not passing actual time
+              currentTime={currentMediaTime}
               fontSize={fontSize}
               isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
               showDescriptionTooltips={showDescriptionTooltips}

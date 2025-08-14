@@ -24,18 +24,18 @@
   transition: all 0.2s ease;
   direction: rtl;
   min-height: 26px;
-  border-left: 1px solid #e0f2f1;
-  border-right: 1px solid #e0f2f1;
+  border-left: 4px solid #e0f2f1;
+  border-right: 4px solid #e0f2f1;
 }
 
 .text-block:hover {
-  border-left-color: #a7f3ed;
-  border-right-color: #a7f3ed;
+  /* Border colors will be set dynamically via inline styles */
 }
 
 .text-block.active {
-  border-left-color: #10b981;
-  border-right-color: #10b981;
+  /* Border colors will be set dynamically via inline styles */
+  border-left-width: 4px;
+  border-right-width: 4px;
 }
 
 /* Speaker input wrapper for autocomplete */
@@ -50,7 +50,7 @@
 /* Speaker area */
 .block-speaker {
   font-weight: 500;
-  color: #0f766e;
+  color: #333;
   width: 100%;
   padding: 4px 4px;
   background-color: transparent;
