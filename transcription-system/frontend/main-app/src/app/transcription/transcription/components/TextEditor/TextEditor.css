@@ -34,7 +34,98 @@
   overflow: hidden;
 }
 
-/* Header Section */
+/* Toolbar Section */
+.text-editor-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(to bottom, #f5fffe, #f0fdfa);
+  border-bottom: 1px solid #d0f2ed;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.toolbar-section {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.toolbar-btn {
+  padding: 6px 8px;
+  background: white;
+  border: 1px solid #e0f2f1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+}
+
+.toolbar-btn:hover {
+  background: #f0fdfa;
+  border-color: #14b8a6;
+  transform: translateY(-1px);
+}
+
+.toolbar-btn:active {
+  transform: translateY(0);
+}
+
+.toolbar-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #d0f2ed;
+  margin: 0 4px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.sync-button {
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #14b8a6;
+  border-radius: 4px;
+  color: #0f766e;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-button:hover {
+  background: #f0fdfa;
+  border-color: #0d9488;
+  transform: translateY(-1px);
+}
+
+.sync-button.active {
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+  border-color: #14b8a6;
+  color: white;
+}
+
+.sync-icon {
+  font-size: 14px;
+}
+
+.sync-text {
+  font-weight: 500;
+}
+
+/* Header Section (deprecated - kept for legacy) */
 .text-editor-header {
   display: flex;
   justify-content: space-between;

@@ -199,6 +199,64 @@ export default function TextEditor({
   return (
     <div className="text-editor-container">
       <div className="text-editor-inner">
+        {/* Toolbar Section */}
+        <div className="text-editor-toolbar">
+          <div className="toolbar-section">
+            <button className="toolbar-btn" title="חדש">
+              <span className="toolbar-icon">📄</span>
+            </button>
+            <button className="toolbar-btn" title="שמור">
+              <span className="toolbar-icon">💾</span>
+            </button>
+            <button className="toolbar-btn" title="הדפס">
+              <span className="toolbar-icon">🖨️</span>
+            </button>
+          </div>
+          
+          <div className="toolbar-divider" />
+          
+          <div className="toolbar-section">
+            <button className="toolbar-btn" title="בטל">
+              <span className="toolbar-icon">↶</span>
+            </button>
+            <button className="toolbar-btn" title="בצע שוב">
+              <span className="toolbar-icon">↷</span>
+            </button>
+          </div>
+          
+          <div className="toolbar-divider" />
+          
+          <div className="toolbar-section">
+            <button className="toolbar-btn" title="חפש">
+              <span className="toolbar-icon">🔍</span>
+            </button>
+            <button className="toolbar-btn" title="החלף">
+              <span className="toolbar-icon">🔄</span>
+            </button>
+          </div>
+          
+          <div className="toolbar-divider" />
+          
+          <div className="toolbar-section">
+            <button className="toolbar-btn" title="הגדרות">
+              <span className="toolbar-icon">⚙️</span>
+            </button>
+          </div>
+          
+          <div className="toolbar-spacer" />
+          
+          <div className="toolbar-section">
+            <button 
+              className={`sync-button ${syncEnabled ? 'active' : ''}`}
+              onClick={() => setSyncEnabled(!syncEnabled)}
+              title="סנכרון עם נגן"
+            >
+              <span className="sync-icon">🔗</span>
+              <span className="sync-text">סנכרון</span>
+            </button>
+          </div>
+        </div>
+        
         <div className="text-editor-body">
         <div className="marks-sidebar">
           <h4>סימונים</h4>
