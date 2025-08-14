@@ -3,8 +3,9 @@
 
 .hovering-bars-layout {
   min-height: 100vh;
+  max-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 /* ===== HEADER TRIGGER AREA ===== */

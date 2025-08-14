@@ -7,7 +7,22 @@
   font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
   color: #201e20;
   position: relative;
-  overflow: hidden;
+  overflow: hidden !important; /* Force no scroll */
+}
+
+/* Remove scrollbar from body when on transcription page */
+body:has(.transcription-work-page) {
+  overflow: hidden !important;
+}
+
+/* Hide all scrollbars in transcription page */
+.transcription-work-page * {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.transcription-work-page *::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 /* Header trigger area */
@@ -121,15 +136,37 @@
     rgba(23, 162, 184, 0.75) 70%,
     rgba(30, 50, 60, 0.8) 100%);
   border-radius: 15px;
-  margin: 10px 0; /* Fixed margin */
+  margin: 15px 15px 5px 15px; /* Reduced spacing: 15px top, 5px bottom */
   padding: 10px 20px; /* Fixed padding */
   height: 50px; /* Fixed height */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
-  width: 100%;
+  width: calc(100% - 30px); /* Account for margins */
   box-sizing: border-box;
   border: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+/* Align header with content padding on larger screens */
+@media (min-width: 1400px) {
+  .workspace-header {
+    margin: 15px 30px 5px 30px;
+    width: calc(100% - 60px);
+  }
+}
+
+@media (min-width: 1800px) {
+  .workspace-header {
+    margin: 15px 50px 5px 50px;
+    width: calc(100% - 100px);
+  }
+}
+
+@media (min-width: 2200px) {
+  .workspace-header {
+    margin: 15px 80px 5px 80px;
+    width: calc(100% - 160px);
+  }
 }
 
 .workspace-header.header-locked {
@@ -333,21 +370,50 @@
 /* ===== MAIN CONTENT ===== */
 .main-content {
   transition: all 0.3s ease;
-  height: calc(100vh - 150px); /* Fixed height instead of clamp */
-  max-height: calc(100vh - 150px); /* Prevent expansion */
-  min-height: 500px; /* Minimum height to prevent crushing */
-  overflow-y: auto; /* Always allow scrolling */
-  overflow-x: auto; /* Allow horizontal scroll if needed */
+  height: calc(100vh - 70px); /* Fill entire viewport minus workspace header */
   display: flex;
   flex-direction: column;
-  /* Margins handled by parent wrapper now */
+  overflow: hidden; /* Prevent main container scroll */
+  padding: 0;
+  margin: 0;
+}
+
+/* Content container - grows with screen */
+.content-container {
+  width: 100%;
+  padding: 10px 15px; /* Reduced top padding */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden; /* Remove scrollbar */
+}
+
+/* Responsive padding that increases with screen size */
+@media (min-width: 1400px) {
+  .content-container {
+    padding: 10px 30px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .content-container {
+    padding: 10px 50px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .content-container {
+    padding: 10px 80px;
+  }
 }
 
 /* Always show scrollbar when content overflows - removed media query that hid it */
 
 /* When header is locked, adjust for the header being part of layout */
 .main-content.header-locked {
-  height: calc(100vh - 180px); /* Account for locked header (80px) + workspace header (50px) + margins (50px) */
+  height: calc(100vh - 140px); /* Account for locked header (80px) + workspace header (60px) */
   margin-top: 0;
 }
 
@@ -440,11 +506,34 @@
 /* ===== WORKSPACE GRID ===== */
 .workspace-grid {
   display: grid;
-  grid-template-columns: 1fr 400px; /* Fixed right column width */
-  gap: 15px; /* Fixed gap */
+  grid-template-columns: 1fr 400px; /* Main area grows, side panel fixed */
+  gap: 20px; /* Base gap */
   height: 100%;
   flex: 1;
-  min-width: 1000px; /* Minimum width to prevent crushing */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Increase gap and side panel on larger screens */
+@media (min-width: 1400px) {
+  .workspace-grid {
+    gap: 35px;
+    grid-template-columns: 1fr 420px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .workspace-grid {
+    gap: 50px;
+    grid-template-columns: 1fr 450px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .workspace-grid {
+    gap: 70px;
+    grid-template-columns: 1fr 480px;
+  }
 }
 
 /* When sidebar is locked, make speakers column smaller */
@@ -477,21 +566,85 @@
 .main-workspace {
   display: flex;
   flex-direction: column;
-  gap: 10px; /* Fixed gap */
+  gap: 15px; /* Base gap */
   height: 100%;
   max-height: 100%;
   overflow: hidden; /* Prevent expansion */
+}
+
+/* Increase gap on larger screens */
+@media (min-width: 1400px) {
+  .main-workspace {
+    gap: 25px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .main-workspace {
+    gap: 35px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .main-workspace {
+    gap: 45px;
+  }
+}
+
+/* Text Editor wrapper - fills remaining space */
+.text-editor-wrapper {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 /* ===== SIDE WORKSPACE ===== */
 .side-workspace {
   display: flex;
   flex-direction: column;
-  gap: clamp(5px, 0.8vw, 20px);
+  gap: 15px; /* Base gap */
   height: 100%;
   width: 100%;
   max-height: 100%;
   overflow: hidden;
+}
+
+/* Increase gap on larger screens */
+@media (min-width: 1400px) {
+  .side-workspace {
+    gap: 25px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .side-workspace {
+    gap: 35px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .side-workspace {
+    gap: 45px;
+  }
+}
+
+/* Speaker container - responsive to helper files */
+.speaker-container {
+  flex: 1;
+  display: flex;
+  transition: all 0.3s ease;
+  min-height: 150px;
+}
+
+.speaker-container.compressed {
+  flex: 0.5;
+  min-height: 100px;
+}
+
+.speaker-container.normal {
+  flex: 1;
 }
 
 /* When sidebar is locked, remove any extra margin */
@@ -820,8 +973,18 @@
 
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 1200px) {
+  .content-container {
+    padding: 10px;
+  }
+  
   .workspace-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .workspace-header {
+    margin: 10px 10px 5px 10px;
+    width: calc(100% - 20px);
   }
   
   .side-workspace {
@@ -836,9 +999,17 @@
 }
 
 @media (max-width: 768px) {
+  .content-container {
+    padding: 8px;
+  }
+  
   .main-content {
-    margin: 10px;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 60px);
+  }
+  
+  .workspace-header {
+    margin: 8px 8px 5px 8px;
+    width: calc(100% - 16px);
   }
   
   .workspace-header,

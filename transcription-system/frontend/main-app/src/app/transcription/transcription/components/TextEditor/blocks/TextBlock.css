@@ -1,0 +1,213 @@
+/* TextBlock Component Styles */
+
+.text-block {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 12px;
+  margin-bottom: 2px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  direction: rtl;
+  min-height: 36px;
+  border: 1px solid transparent;
+}
+
+.text-block:hover {
+  background-color: #f8fffe;
+  border-color: #e0f2f1;
+}
+
+.text-block.active {
+  background-color: #f0fdfa;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.1);
+}
+
+/* Speaker area */
+.block-speaker {
+  font-weight: 600;
+  color: #333;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  padding: 4px 8px;
+  background-color: rgba(23, 162, 184, 0.05);
+  border-radius: 3px;
+  flex-shrink: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.block-speaker:focus {
+  background-color: rgba(23, 162, 184, 0.1);
+  border-color: #17a2b8;
+}
+
+.block-speaker[data-timestamp] {
+  border-bottom: 2px dotted rgba(23, 162, 184, 0.4);
+  cursor: pointer;
+}
+
+.block-speaker[data-timestamp]:hover {
+  background-color: rgba(23, 162, 184, 0.15);
+}
+
+.block-speaker:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  opacity: 0.6;
+  font-weight: normal;
+}
+
+/* Separator */
+.block-separator {
+  color: #64748b;
+  font-weight: 500;
+  user-select: none;
+  align-self: center;
+  padding-top: 2px;
+}
+
+/* Text area */
+.block-text {
+  flex: 1;
+  padding: 4px 8px;
+  outline: none;
+  min-height: 28px;
+  line-height: 1.6;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.block-text:focus {
+  background-color: rgba(23, 162, 184, 0.03);
+  border-color: #e0f2f1;
+}
+
+.block-text:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  opacity: 0.5;
+}
+
+/* Prevent contenteditable artifacts */
+.block-speaker[contenteditable="true"]:focus,
+.block-text[contenteditable="true"]:focus {
+  outline: none;
+}
+
+.block-speaker br,
+.block-text br:first-child {
+  display: none;
+}
+
+/* Tooltip */
+.text-block-tooltip {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease;
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Timestamp styling */
+.block-text .timestamp {
+  color: #0891b2;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background-color: rgba(8, 145, 178, 0.08);
+  transition: all 0.2s ease;
+}
+
+.block-text .timestamp:hover {
+  background-color: rgba(8, 145, 178, 0.15);
+  text-decoration: underline;
+}
+
+/* Word-like appearance */
+.text-block {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.block-speaker,
+.block-text {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Navigation mode indicators */
+.navigation-mode .block-speaker[data-timestamp] {
+  background-color: rgba(102, 126, 234, 0.1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* RTL support */
+.text-block {
+  direction: rtl;
+  text-align: right;
+}
+
+.block-text {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .block-speaker {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+    font-size: 13px;
+  }
+  
+  .text-block {
+    padding: 4px 8px;
+    gap: 8px;
+  }
+}

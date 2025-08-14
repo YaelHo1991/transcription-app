@@ -715,7 +715,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
   // Load media
   useEffect(() => {
+    console.log('MediaPlayer: Loading media', initialMedia);
     if (initialMedia && audioRef.current) {
+      console.log('MediaPlayer: Setting audio source to', initialMedia.url);
       // Reset playback states for new media
       setCurrentTime(0);
       setDuration(0);
@@ -724,6 +726,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       
       audioRef.current.src = initialMedia.url;
       audioRef.current.volume = volume / 100; // Initialize volume
+      audioRef.current.load(); // Force reload the media
       const isVideo = initialMedia.type === 'video';
       setShowVideo(isVideo);
       setShowVideoCube(isVideo && !videoMinimized);
@@ -756,7 +759,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       // Don't analyze waveform automatically - wait for user to enable it
       // This prevents the 3-click issue
     }
-  }, [initialMedia]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialMedia?.url, initialMedia?.name]); // React to URL and name changes only, not volume
   
   // Track previous media URL to detect changes
   const previousMediaUrlRef = useRef<string | null>(null);
@@ -905,7 +908,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [onTimeUpdate, showVideo, volume, playbackRate]);
+  }, [onTimeUpdate, showVideo]); // Don't re-run on volume/playbackRate changes
 
   // Initialize worker manager
   useEffect(() => {

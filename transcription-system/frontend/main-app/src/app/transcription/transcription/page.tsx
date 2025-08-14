@@ -11,6 +11,8 @@ import UploadOptionsModal from './components/UploadOptionsModal/UploadOptionsMod
 import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayer from './components/MediaPlayer';
+import TextEditor from './components/TextEditor';
+import SimpleSpeaker from './components/Speaker/SimpleSpeaker';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -52,6 +54,10 @@ export default function TranscriptionWorkPage() {
   const [showProjectNameModal, setShowProjectNameModal] = useState(false);
   const [pendingProjectFiles, setPendingProjectFiles] = useState<FileList | null>(null);
   const [pendingProjectUrl, setPendingProjectUrl] = useState<string | null>(null);
+  
+  // MediaPlayer and TextEditor synchronization
+  const [currentTime, setCurrentTime] = useState(0);
+  const mediaPlayerRef = useRef<any>(null);
   
   // Project and media management
   const [projects, setProjects] = useState<Project[]>([]);
@@ -272,13 +278,14 @@ export default function TranscriptionWorkPage() {
         progress={45}
       />
 
-      {/* Main Content */}
+      {/* Main Content with max-width container */}
       <div className={`main-content ${
         headerLocked ? 'header-locked' : ''
       } ${
         sidebarLocked ? 'sidebar-locked' : ''
       }`}>
-        <div className="workspace-grid">
+        <div className="content-container">
+          <div className="workspace-grid">
           {/* Main Workspace */}
           <div className="main-workspace">
             {/* Hidden file inputs */}
@@ -322,36 +329,53 @@ export default function TranscriptionWorkPage() {
 
             {/* MediaPlayer Component */}
             <MediaPlayer 
-              initialMedia={currentMedia ? {
-                url: currentMedia.type === 'url' ? currentMedia.url! : URL.createObjectURL(currentMedia.file!),
-                name: currentMedia.name,
-                type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
-              } : undefined}
+              key={`${currentProjectIndex}-${currentMediaIndex}`}
+              initialMedia={currentMedia ? (() => {
+                const mediaUrl = currentMedia.type === 'url' ? currentMedia.url! : URL.createObjectURL(currentMedia.file!);
+                console.log('Page: Creating media object', {
+                  url: mediaUrl,
+                  name: currentMedia.name,
+                  type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio',
+                  file: currentMedia.file
+                });
+                return {
+                  url: mediaUrl,
+                  name: currentMedia.name,
+                  type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
+                };
+              })() : undefined}
               onTimeUpdate={(time) => {
-                // Handle time updates for text editor integration
-                console.log('Time update:', time);
+                // TEMPORARILY DISABLED - checking if this causes playback issues
+                // setCurrentTime(time);
               }}
               onTimestampCopy={(timestamp) => {
                 // Handle timestamp copy for text editor
                 console.log('Timestamp copied:', timestamp);
               }}
             />
+            
+            {/* TextEditor Component */}
+            <div className="text-editor-wrapper">
+              <TextEditor 
+                mediaPlayerRef={mediaPlayerRef}
+                marks={[]}
+                currentTime={currentTime}
+                onSeek={(time) => {
+                  console.log('Seek to time:', time);
+                }}
+                enabled={true}
+              />
+            </div>
 
           </div>
 
           {/* Side Workspace */}
           <div className="side-workspace">
-            {/* Speakers Placeholder */}
-            <div className={`placeholder-container speakers ${
+            {/* Speaker Component */}
+            <div className={`speaker-container ${
               helperFilesExpanded ? 'compressed' : 'normal'
             }`}>
-              <div className="placeholder-header">
-                <span className="placeholder-icon">👥</span>
-                <h3>Speakers</h3>
-              </div>
-              <div className="placeholder-content">
-                Speaker management, color coding, auto-detection
-              </div>
+              <SimpleSpeaker theme="transcription" />
             </div>
 
             {/* Remarks Placeholder */}
@@ -385,6 +409,7 @@ export default function TranscriptionWorkPage() {
               />
             </div>
           </div>
+        </div>
         </div>
       </div>
       
