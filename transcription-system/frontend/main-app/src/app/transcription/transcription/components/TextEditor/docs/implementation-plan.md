@@ -68,7 +68,7 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 
 ## Stage 3: Re-enable & Style Marks Sidebar
 **Status**: ✅ Complete  
-**Commit**: `pending`  
+**Commit**: `ea20c19`  
 **Objective**: Restore marks sidebar with improved styling
 
 ### Changes:

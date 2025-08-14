@@ -2,6 +2,20 @@
 
 ## Recent Commits
 
+### Stage 3: Re-enable marks sidebar & fix RTL text direction
+**Commit Hash**: `ea20c19`
+**Date**: 2025-08-14
+**Description**: Re-enabled marks sidebar and fixed RTL text issues
+**Changes**:
+- Re-enabled marks sidebar with turquoise theme (140px width)
+- Fixed TextEditor layout from row to column direction
+- Moved statistics to footer instead of third column
+- Fixed RTL Hebrew text direction with dir="rtl" and unicode-bidi
+- Added RTL mark (U+200F) for proper Hebrew text handling
+- Changed contenteditable from span to div for better support
+- Fixed cursor positioning for Hebrew text input
+- Partially implemented Stage 6 (RTL navigation) within this stage
+
 ### Stage 1: Fix Layout Responsive Scaling
 **Commit Hash**: `8558795`
 **Date**: 2025-08-14
