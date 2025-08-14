@@ -637,6 +637,73 @@ export default function WaveformCanvas({
     }
   }, [currentTime, isPlaying, playbackMode, loopingMark, markFilter, onSeek]);
 
+  // Setup handlers for keyboard shortcuts
+  useEffect(() => {
+    // Waveform control handler
+    (window as any).__waveformControlHandler = (action: string) => {
+      switch (action) {
+        case 'zoomIn':
+          handleZoomIn();
+          break;
+        case 'zoomOut':
+          handleZoomOut();
+          break;
+        case 'resetZoom':
+          setZoomLevel(1);
+          setScrollOffset(0);
+          break;
+      }
+    };
+
+    // Mark creation handler
+    (window as any).__markCreationHandler = (action: string) => {
+      const typeMap: { [key: string]: MarkType } = {
+        'addImportantMark': MarkType.SKIP,
+        'addQuestionMark': MarkType.UNCLEAR,
+        'addSectionMark': MarkType.BOUNDARY,
+        'addNoteMark': MarkType.NOTES,
+        'addReviewMark': MarkType.REVIEW,
+        'addCustomMark': MarkType.CUSTOM
+      };
+      
+      const markType = typeMap[action];
+      if (markType) {
+        if (markType === MarkType.CUSTOM) {
+          // Open custom mark dialog
+          setShowCustomMarkDialog(true);
+        } else {
+          createMarkAtCurrentTime(markType);
+        }
+      }
+    };
+
+    // Mark management handler
+    (window as any).__markManagementHandler = (action: string) => {
+      switch (action) {
+        case 'clearAllMarks':
+          if (marksManagerRef.current?.clearAllMarks) {
+            marksManagerRef.current.clearAllMarks();
+          }
+          break;
+        case 'exportMarks':
+          exportMarks();
+          break;
+        case 'importMarks':
+          importMarks();
+          break;
+        case 'toggleMarksMenu':
+          setShowMarksMenu(prev => !prev);
+          break;
+      }
+    };
+
+    return () => {
+      delete (window as any).__waveformControlHandler;
+      delete (window as any).__markCreationHandler;
+      delete (window as any).__markManagementHandler;
+    };
+  }, [handleZoomIn, handleZoomOut, createMarkAtCurrentTime, exportMarks, importMarks]);
+
   // Handle mark navigation actions from keyboard shortcuts
   useEffect(() => {
     if (!onMarkNavigationAction) return;

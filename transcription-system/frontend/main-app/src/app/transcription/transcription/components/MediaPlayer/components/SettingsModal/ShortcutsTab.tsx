@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { KeyboardShortcut } from '../../types';
 import { defaultShortcuts } from '../KeyboardShortcuts';
+import { resetShortcutsToDefaults } from '../../utils/settingsManager';
 
 interface ShortcutsTabProps {
   shortcuts: KeyboardShortcut[];
@@ -11,6 +12,7 @@ interface ShortcutsTabProps {
   onShortcutsChange: (shortcuts: KeyboardShortcut[]) => void;
   onShortcutsEnabledChange: (enabled: boolean) => void;
   onRewindOnPauseChange: (settings: { enabled: boolean; amount: number }) => void;
+  showGlobalStatus?: (message: string) => void;
 }
 
 export default function ShortcutsTab({
@@ -19,18 +21,23 @@ export default function ShortcutsTab({
   rewindOnPause,
   onShortcutsChange,
   onShortcutsEnabledChange,
-  onRewindOnPauseChange
+  onRewindOnPauseChange,
+  showGlobalStatus
 }: ShortcutsTabProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [tempKey, setTempKey] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Show status message like original
+  // Show status message - use global if available, otherwise local
   const showStatus = (message: string) => {
-    setStatusMessage(message);
-    setTimeout(() => {
-      setStatusMessage(null);
-    }, 3000);
+    if (showGlobalStatus) {
+      showGlobalStatus(message);
+    } else {
+      setStatusMessage(message);
+      setTimeout(() => {
+        setStatusMessage(null);
+      }, 3000);
+    }
   };
 
   // Group shortcuts by their group property - exactly like original
@@ -163,8 +170,20 @@ export default function ShortcutsTab({
   };
 
   const resetShortcuts = () => {
-    // Reset to default shortcuts
-    onShortcutsChange([...defaultShortcuts]);
+    // Reset shortcuts in localStorage first
+    resetShortcutsToDefaults();
+    
+    // Create fresh copy of defaults for state update
+    const freshDefaults = defaultShortcuts.map(shortcut => ({
+      action: shortcut.action,
+      key: shortcut.key,
+      description: shortcut.description,
+      enabled: shortcut.enabled,
+      group: shortcut.group
+    }));
+    
+    // Update parent component state
+    onShortcutsChange(freshDefaults);
     showStatus('הקיצורים אופסו לברירת המחדל');
   };
 

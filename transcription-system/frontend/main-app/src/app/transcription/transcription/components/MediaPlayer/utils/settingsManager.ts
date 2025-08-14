@@ -129,3 +129,21 @@ export function resetSettings(): void {
   
   localStorage.removeItem('mediaPlayerSettings');
 }
+
+/**
+ * Reset only shortcuts to defaults while preserving other settings
+ */
+export function resetShortcutsToDefaults(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  const currentSettings = loadSettings();
+  const updatedSettings = {
+    ...currentSettings,
+    shortcuts: defaultShortcuts.map(s => ({ ...s })) // Deep copy of defaults
+  };
+  
+  // Save directly to localStorage without merge
+  localStorage.setItem('mediaPlayerSettings', JSON.stringify(updatedSettings));
+}

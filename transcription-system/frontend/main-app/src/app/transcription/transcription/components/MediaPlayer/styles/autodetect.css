@@ -136,6 +136,8 @@
   color: #e0f7f7;
   font-size: 14px;
   text-align: right;
+  min-width: 240px;
+  flex-shrink: 0;
 }
 
 .auto-detect-input {

@@ -3,25 +3,20 @@
  * Handles waveform generation and processing for media files
  */
 
+import React from 'react';
+import { WaveformData } from '../types';
 import { ChunkedWaveformProcessor } from './ChunkedWaveformProcessor';
 import { getWaveformStrategy, WaveformMethod, getFileSizeFromUrl, generateFileId, formatFileSize } from './waveformStrategy';
 import { statusMessages } from './statusManager';
 import { OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 
-interface WaveformData {
-  peaks: number[];
-  duration: number;
-  sampleRate: number;
-  resolution: number;
-}
-
 interface WaveformAnalysisParams {
   url: string;
   workerManager: any;
-  setWaveformLoading: (loading: boolean) => void;
-  setWaveformProgress: (progress: number) => void;
-  setWaveformData: (data: WaveformData | null) => void;
-  setWaveformEnabled: (enabled: boolean) => void;
+  setWaveformLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setWaveformProgress: React.Dispatch<React.SetStateAction<number>>;
+  setWaveformData: React.Dispatch<React.SetStateAction<WaveformData | null>>;
+  setWaveformEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   checkOperation: (type: OperationType, size: number) => Promise<any>;
   showWarning: (check: any) => boolean;
   showGlobalStatus: (message: string) => void;
@@ -51,9 +46,6 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
     const fileSize = await getFileSizeFromUrl(url);
     
     // If file size detection failed (returns 0), use client-side as fallback
-    if (fileSize === 0) {
-      console.warn('Could not determine file size, using client-side processing as fallback');
-    }
     
     // Check system resources before processing
     const resourceCheck = await checkOperation(OperationType.WAVEFORM, fileSize || 50 * 1024 * 1024);
@@ -73,7 +65,6 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
       // If alternative method suggested, switch strategy
       if (resourceCheck.recommendation === Recommendation.USE_SERVER) {
         // Force server-side processing
-        console.log('Switching to server-side processing due to low resources');
       }
     }
     
@@ -89,10 +80,8 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
         threshold: fileSize || 0,
         message: 'מעבד קובץ גדול, אנא המתן...'
       };
-      console.log('Using chunked processing for blob URL (server processing not available for blobs)');
     }
     
-    console.log(`File size: ${fileSize ? formatFileSize(fileSize) : 'Unknown'}, using ${strategy.method} method`);
     
     // Show appropriate message
     setWaveformProgress(1); // Show loading started
@@ -104,7 +93,10 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
     switch (strategy.method) {
       case WaveformMethod.CLIENT:
         // Small files: Original client-side processing
-        if (!workerManager) return;
+        if (!workerManager) {
+          console.error('Worker manager not available');
+          throw new Error('Worker manager not initialized');
+        }
         
         const response = await fetch(url);
         const arrayBuffer = await response.arrayBuffer();
@@ -127,18 +119,29 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
       case WaveformMethod.CHUNKED:
         // Medium files: Process in chunks
         const chunkedProcessor = new ChunkedWaveformProcessor({
-          onProgress: (progress) => setWaveformProgress(progress),
-          onError: (error) => console.error('Chunked processing error:', error)
+          onProgress: (progress) => {
+            setWaveformProgress(progress);
+          },
+          onError: (error) => {
+            throw error;
+          }
         });
         
-        const chunkedResult = await chunkedProcessor.processLargeFile(url);
-        console.log('Chunked processing complete:', chunkedResult);
-        setWaveformData(chunkedResult);
-        setWaveformLoading(false);
-        setWaveformProgress(100);
-        // Force re-render by updating a dummy state if needed
-        if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
-          console.log('Waveform data set successfully, peaks:', chunkedResult.peaks.length);
+        try {
+          const chunkedResult = await chunkedProcessor.processLargeFile(url);
+          
+          // Ensure the data is in the correct format
+          if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
+            setWaveformData(chunkedResult);
+            setWaveformLoading(false);
+            setWaveformProgress(100);
+            showGlobalStatus('צורת גל נטענה בהצלחה');
+          } else {
+            throw new Error('Invalid waveform data received from chunked processor');
+          }
+        } catch (chunkedError) {
+          console.error('Failed to process waveform in chunks:', chunkedError);
+          throw chunkedError;
         }
         break;
         
@@ -180,7 +183,7 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
               if (waveformResponse.ok) {
                 const data = await waveformResponse.json();
                 setWaveformData({
-                  peaks: data.peaks,
+                  peaks: data.peaks instanceof Float32Array ? data.peaks : new Float32Array(data.peaks),
                   duration: data.duration,
                   sampleRate: data.sampleRate || 44100,
                   resolution: data.resolution || 1024
@@ -190,7 +193,6 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
                 break;
               }
             } catch (pollError) {
-              console.log('Still processing...', pollError);
             }
             
             // Update progress based on attempts
@@ -204,7 +206,7 @@ export async function analyzeWaveform(params: WaveformAnalysisParams): Promise<v
         } else {
           // Immediate response (cached or small file)
           setWaveformData({
-            peaks: statusData.peaks,
+            peaks: statusData.peaks instanceof Float32Array ? statusData.peaks : new Float32Array(statusData.peaks),
             duration: statusData.duration,
             sampleRate: statusData.sampleRate || 44100,
             resolution: statusData.resolution || 1024

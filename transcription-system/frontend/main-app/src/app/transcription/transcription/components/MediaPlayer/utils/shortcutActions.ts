@@ -23,14 +23,14 @@ interface ShortcutActionParams {
   handleRewind: (seconds: number) => void;
   handleForward: (seconds: number) => void;
   previousVolumeRef: React.MutableRefObject<number>;
-  setShowSettingsModal?: (show: boolean) => void;
-  setPedalEnabled?: (enabled: boolean) => void;
-  setAutoDetectEnabled?: (enabled: boolean) => void;
-  setAutoDetectMode?: (mode: 'regular' | 'enhanced') => void;
+  setShowSettingsModal?: (show: boolean | ((prev: boolean) => boolean)) => void;
+  setPedalEnabled?: (enabled: boolean | ((prev: boolean) => boolean)) => void;
+  setAutoDetectEnabled?: (enabled: boolean | ((prev: boolean) => boolean)) => void;
+  setAutoDetectMode?: (mode: 'regular' | 'enhanced' | ((prev: 'regular' | 'enhanced') => 'regular' | 'enhanced')) => void;
   setSettings?: (updater: (prev: any) => any) => void;
   showGlobalStatus?: (message: string) => void;
   onTimestampCopy?: (timestamp: string) => void;
-  setShowVideo?: (show: boolean) => void;
+  setShowVideo?: (show: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 // Map pedal actions to shortcut actions
@@ -213,7 +213,7 @@ export function handleShortcutAction(params: ShortcutActionParams): void {
       
     case 'togglePedal':
       if (setPedalEnabled) {
-        setPedalEnabled(prev => {
+        setPedalEnabled((prev: boolean) => {
           const newEnabled = !prev;
           if (showGlobalStatus) {
             showGlobalStatus(newEnabled ? statusMessages.pedal.enabled : statusMessages.pedal.disabled);
@@ -225,7 +225,7 @@ export function handleShortcutAction(params: ShortcutActionParams): void {
       
     case 'toggleAutoDetect':
       if (setAutoDetectEnabled) {
-        setAutoDetectEnabled(prev => {
+        setAutoDetectEnabled((prev: boolean) => {
           const newEnabled = !prev;
           if (showGlobalStatus) {
             showGlobalStatus(newEnabled ? statusMessages.autoDetect.enabled : statusMessages.autoDetect.disabled);
@@ -237,7 +237,7 @@ export function handleShortcutAction(params: ShortcutActionParams): void {
       
     case 'toggleMode':
       if (setAutoDetectMode) {
-        setAutoDetectMode(prev => {
+        setAutoDetectMode((prev: 'regular' | 'enhanced') => {
           const newMode = prev === 'regular' ? 'enhanced' : 'regular';
           if (showGlobalStatus) {
             showGlobalStatus(statusMessages.autoDetect.modeChanged(newMode));
@@ -251,7 +251,7 @@ export function handleShortcutAction(params: ShortcutActionParams): void {
     case 'openSettings':
     case 'toggleSettings':
       if (setShowSettingsModal) {
-        setShowSettingsModal(prev => !prev);
+        setShowSettingsModal((prev: boolean) => !prev);
       }
       break;
     
@@ -274,10 +274,45 @@ export function handleShortcutAction(params: ShortcutActionParams): void {
       }
       break;
     
+    // Waveform Controls
+    case 'zoomIn':
+    case 'zoomOut':
+    case 'resetZoom':
+    case 'toggleWaveform':
+      // Forward to waveform handler
+      if ((window as any).__waveformControlHandler) {
+        (window as any).__waveformControlHandler(action);
+      }
+      break;
+    
+    // Mark Creation
+    case 'addImportantMark':
+    case 'addQuestionMark':
+    case 'addSectionMark':
+    case 'addNoteMark':
+    case 'addReviewMark':
+    case 'addCustomMark':
+      // Forward to mark creation handler
+      if ((window as any).__markCreationHandler) {
+        (window as any).__markCreationHandler(action);
+      }
+      break;
+    
+    // Mark Management
+    case 'clearAllMarks':
+    case 'exportMarks':
+    case 'importMarks':
+    case 'toggleMarksMenu':
+      // Forward to mark management handler
+      if ((window as any).__markManagementHandler) {
+        (window as any).__markManagementHandler(action);
+      }
+      break;
+    
     // Video Mode
     case 'toggleVideo':
       if (setShowVideo) {
-        setShowVideo(prev => !prev);
+        setShowVideo((prev: boolean) => !prev);
       }
       break;
       

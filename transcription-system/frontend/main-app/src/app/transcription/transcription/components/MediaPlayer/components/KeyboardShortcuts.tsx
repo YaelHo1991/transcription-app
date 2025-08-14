@@ -46,6 +46,26 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   
   // Group 6: Settings (הגדרות)
   { action: 'toggleSettings', key: 's', description: 'פתח הגדרות', enabled: true, group: 'הגדרות' },
+  
+  // Group 7: Waveform Controls (בקרת צורת גל)
+  { action: 'zoomIn', key: 'Ctrl+=', description: 'הגדל צורת גל', enabled: true, group: 'בקרת צורת גל' },
+  { action: 'zoomOut', key: 'Ctrl+-', description: 'הקטן צורת גל', enabled: true, group: 'בקרת צורת גל' },
+  { action: 'resetZoom', key: 'Ctrl+0', description: 'אפס זום', enabled: true, group: 'בקרת צורת גל' },
+  { action: 'toggleWaveform', key: 'w', description: 'הצג/הסתר צורת גל', enabled: true, group: 'בקרת צורת גל' },
+  
+  // Group 8: Mark Creation (יצירת סימונים)
+  { action: 'addImportantMark', key: 'Ctrl+1', description: 'הוסף סימון חשוב', enabled: true, group: 'יצירת סימונים' },
+  { action: 'addQuestionMark', key: 'Ctrl+2', description: 'הוסף סימון שאלה', enabled: true, group: 'יצירת סימונים' },
+  { action: 'addSectionMark', key: 'Ctrl+3', description: 'הוסף סימון סעיף', enabled: true, group: 'יצירת סימונים' },
+  { action: 'addNoteMark', key: 'Ctrl+4', description: 'הוסף סימון הערה', enabled: true, group: 'יצירת סימונים' },
+  { action: 'addReviewMark', key: 'Ctrl+5', description: 'הוסף סימון לבדיקה', enabled: true, group: 'יצירת סימונים' },
+  { action: 'addCustomMark', key: 'Ctrl+6', description: 'הוסף סימון מותאם אישית', enabled: true, group: 'יצירת סימונים' },
+  
+  // Group 9: Mark Management (ניהול סימונים)
+  { action: 'clearAllMarks', key: 'Ctrl+Shift+Delete', description: 'מחק את כל הסימונים', enabled: true, group: 'ניהול סימונים' },
+  { action: 'exportMarks', key: 'Ctrl+Shift+e', description: 'ייצא סימונים', enabled: true, group: 'ניהול סימונים' },
+  { action: 'importMarks', key: 'Ctrl+Shift+i', description: 'ייבא סימונים', enabled: true, group: 'ניהול סימונים' },
+  { action: 'toggleMarksMenu', key: 'Ctrl+Shift+m', description: 'פתח/סגור תפריט סימונים', enabled: true, group: 'ניהול סימונים' },
 ];
 
 export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: KeyboardShortcutsProps) {
@@ -253,16 +273,22 @@ function normalizeKey(key: string): string {
   // Handle Ctrl/Alt/Shift combinations with capital letters or F-keys
   const parts = key.split('+');
   if (parts.length > 1) {
-    const lastPart = parts[parts.length - 1];
-    // Keep F-keys as is in combinations
-    if (lastPart.match(/^F([1-9]|1[0-2])$/)) {
-      return key; // Keep F-key combinations as is
-    }
-    // Convert capital letters to lowercase in combinations
-    if (lastPart.length === 1 && /[A-Z]/.test(lastPart)) {
-      parts[parts.length - 1] = lastPart.toLowerCase();
-      return parts.join('+');
-    }
+    const normalizedParts = parts.map((part, index) => {
+      // Don't modify modifier keys
+      if (['Ctrl', 'Alt', 'Shift', 'Meta'].includes(part)) {
+        return part;
+      }
+      // Keep F-keys as is
+      if (part.match(/^F([1-9]|1[0-2])$/)) {
+        return part;
+      }
+      // Convert single capital letters to lowercase
+      if (part.length === 1 && /[A-Z]/.test(part)) {
+        return part.toLowerCase();
+      }
+      return part;
+    });
+    return normalizedParts.join('+');
   }
   
   return key;

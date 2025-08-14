@@ -1,335 +1,350 @@
-        /* Import font for modern look */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
-        /* Import extracted styles */
-        @import './styles/controls.css';
-        @import './styles/layout.css';
-        @import './styles/modal.css';
-        @import './styles/video.css';
-        @import './styles/waveform.css';
-        
-        /* ================================
-           Stage 2: Basic Media Player Styles
-           ================================ */
-        
-        /* ================================
-           Extracted from transcription-page.css
-           ================================ */
-        .placeholder-container.media-player {
-          flex: 0 0 auto; /* Don't grow or shrink */
-          height: 150px; /* Fixed height */
-          min-height: 150px;
-          max-height: 150px;
-          background: linear-gradient(135deg, rgba(23, 162, 184, 0.08) 0%, rgba(32, 201, 151, 0.12) 60%, rgba(40, 167, 69, 0.08) 100%);
-          border-color: rgba(23, 162, 184, 0.3);
-        }
-        
-        .placeholder-container.media-player:hover {
-          border-color: #17a2b8;
-          box-shadow: 0 8px 25px rgba(23, 162, 184, 0.2);
-        }
-        
-        .placeholder-container.media-player h3 {
-          color: #17a2b8;
-        }
-        
-        /* Header locked state */
-        .main-content.header-locked .placeholder-container.media-player {
-          min-height: 120px; /* Fixed height instead of clamp */
-          flex: 1.2;
-        }
-        
-        /* Full screen responsive */
-        @media (min-width: 1201px) {
-          .main-content.header-locked .placeholder-container.media-player {
-            min-height: clamp(90px, 10vh, 120px);
-            flex: 1.1;
-          }
-        }
-        
-        /* Reset and base styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        /* Global Status Display */
-        .media-global-status {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: linear-gradient(135deg, rgba(32, 201, 151, 0.95) 0%, rgba(26, 93, 93, 0.95) 100%);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
-            opacity: 0;
-            transition: all 0.3s ease;
-            z-index: 10000;
-            pointer-events: none;
-        }
-        
-        .media-global-status.visible {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-        
-        /* Layout styles moved to layout.css */
-        
-        /* Audio element moved to video.css */
-        
-        /* Layout styles moved to layout.css */
-        
-        /* Play/Pause Button */
-        .play-pause-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, 
-                rgba(32, 201, 151, 0.9) 0%,
-                rgba(23, 162, 184, 0.9) 100%);
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .play-pause-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(32, 201, 151, 0.4);
-        }
-        
-        .play-pause-btn:active {
-            transform: scale(0.98);
-        }
-        
-        /* Loading display */
-        .loading-display {
-            color: rgba(224, 247, 247, 0.9);
-            font-size: 14px;
-            padding: 10px;
-            text-align: center;
-            opacity: 0.8;
-        }
-        
-        /* Test info display */
-        .test-info {
-            color: rgba(224, 247, 247, 0.9);
-            font-size: 12px;
-            padding: 10px;
-            background: rgba(15, 76, 76, 0.4);
-            border-radius: 6px;
-            margin-top: 10px;
-            direction: ltr; /* LTR for English test messages */
-            border: 1px solid rgba(32, 201, 151, 0.15);
-        }
-        
-        .test-info div {
-            padding: 2px 0;
-        }
-        
-        /* Status indicator */
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin: 0 5px;
-            background: #dc3545;
-        }
-        
-        .status-indicator.ready {
-            background: #28a745;
-        }
-        
-        .status-indicator.playing {
-            background: #28a745;
-            animation: pulse 1s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        /* ================================
-           Stage 3: Progress Bar Styles
-           ================================ */
-        
-        /* Layout styles moved to layout.css */
-        
-        /* Progress Bar Wrapper */
-        /* Progress bar and time display styles moved to controls.css */
-        
-        /* Control buttons styles moved to controls.css */
-        
-        /* Slider styles moved to controls.css */
-        
-        /* ================================
-           Stage 7: Settings Modal Styles
-           ================================ */
-        
-        /* Modal styles moved to modal.css */
-        
-        /* ================================
-           Stage 8: Keyboard Shortcuts Styles
-           ================================ */
-        
-        /* Shortcuts styles are in styles/shortcuts.css */
-        
-        /* ================================
-           Stage 9: Pedal Settings Styles
-           ================================ */
-        
-        /* Pedal styles are in styles/pedal.css */
-        
-        /* ================================
-           Auto-detect Tab Styles
-           ================================ */
-        
-        /* Auto-detect styles are in styles/autodetect.css */
-        
-        /* ================================
-           Responsive Design
-           ================================ */
-        
-        /* Responsive styles moved to layout.css */
-        
-        /* ================================
-           Status Messages
-           ================================ */
-        
-        .media-status-message {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            margin: 10px 0;
-            border-radius: 8px;
-            background: rgba(32, 30, 32, 0.9);
-            border: 1px solid;
-            animation: slideIn 0.3s ease;
-            position: relative;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .media-status-success {
-            border-color: rgba(32, 201, 151, 0.5);
-            background: linear-gradient(135deg, 
-                rgba(32, 201, 151, 0.1) 0%, 
-                rgba(32, 30, 32, 0.9) 100%);
-        }
-        
-        .media-status-warning {
-            border-color: rgba(255, 193, 7, 0.5);
-            background: linear-gradient(135deg, 
-                rgba(255, 193, 7, 0.1) 0%, 
-                rgba(32, 30, 32, 0.9) 100%);
-        }
-        
-        .media-status-error {
-            border-color: rgba(220, 53, 69, 0.5);
-            background: linear-gradient(135deg, 
-                rgba(220, 53, 69, 0.1) 0%, 
-                rgba(32, 30, 32, 0.9) 100%);
-        }
-        
-        .media-status-info {
-            border-color: rgba(23, 162, 184, 0.5);
-            background: linear-gradient(135deg, 
-                rgba(23, 162, 184, 0.1) 0%, 
-                rgba(32, 30, 32, 0.9) 100%);
-        }
-        
-        .media-status-icon {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        
-        .media-status-success .media-status-icon {
-            background: rgba(32, 201, 151, 0.2);
-            color: #20c997;
-        }
-        
-        .media-status-warning .media-status-icon {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
-        }
-        
-        .media-status-error .media-status-icon {
-            background: rgba(220, 53, 69, 0.2);
-            color: #dc3545;
-        }
-        
-        .media-status-info .media-status-icon {
-            background: rgba(23, 162, 184, 0.2);
-            color: #17a2b8;
-        }
-        
-        .media-status-content {
-            flex: 1;
-        }
-        
-        .media-status-title {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 4px;
-            color: rgba(255, 255, 255, 0.95);
-        }
-        
-        .media-status-text {
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
-            line-height: 1.4;
-        }
-        
-        .media-status-close {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.5);
-            cursor: pointer;
-            padding: 4px;
-            font-size: 16px;
-            line-height: 1;
-            transition: color 0.2s ease;
-        }
-        
-        .media-status-close:hover {
-            color: rgba(255, 255, 255, 0.8);
-        }
-        
-        /* Video styles moved to video.css */
+/* ============================================================================
+   MEDIA PLAYER MAIN STYLESHEET
+   
+   This file contains only the core styles for the MediaPlayer component.
+   Component-specific styles are organized in separate files for maintainability.
+   ============================================================================ */
 
-        /* ================================
-           Stage 5: Waveform Styles
-           ================================ */
+/* ================================
+   EXTERNAL DEPENDENCIES
+   ================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-        /* Waveform styles moved to waveform.css */
+/* ================================
+   COMPONENT STYLESHEETS
+   
+   These imports bring in specialized styles for different parts of the player:
+   - common.css: Shared UI components (toggles, spinners, inputs)
+   - controls.css: Play controls, volume, speed, progress bar
+   - layout.css: Overall layout structure and containers
+   - modal.css: Settings modal and tabs
+   - video.css: Video display and cube visualization
+   - waveform.css: Audio waveform visualization
+   
+   Additional component styles (loaded separately):
+   - styles/shortcuts.css: Keyboard shortcuts configuration
+   - styles/pedal.css: Pedal device settings
+   - styles/autodetect.css: Auto-detect feature settings
+   ================================ */
+@import './styles/common.css';
+@import './styles/controls.css';
+@import './styles/layout.css';
+@import './styles/modal.css';
+@import './styles/video.css';
+@import './styles/waveform.css';
+@import './styles/waveformCanvas.css';
+@import './styles/shortcuts.css';
+@import './styles/pedal.css';
+@import './styles/autodetect.css';
+
+/* ================================
+   GLOBAL RESET
+   ================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ================================
+   MEDIA PLAYER CONTAINER
+   Integration with parent transcription page
+   ================================ */
+.placeholder-container.media-player {
+  flex: 0 0 auto;
+  height: 150px;
+  min-height: 150px;
+  max-height: 150px;
+  background: linear-gradient(135deg, 
+    rgba(23, 162, 184, 0.08) 0%, 
+    rgba(32, 201, 151, 0.12) 60%, 
+    rgba(40, 167, 69, 0.08) 100%);
+  border-color: rgba(23, 162, 184, 0.3);
+}
+
+.placeholder-container.media-player:hover {
+  border-color: #17a2b8;
+  box-shadow: 0 8px 25px rgba(23, 162, 184, 0.2);
+}
+
+.placeholder-container.media-player h3 {
+  color: #17a2b8;
+}
+
+/* Container behavior when header is locked */
+.main-content.header-locked .placeholder-container.media-player {
+  min-height: 120px;
+  flex: 1.2;
+}
+
+/* ================================
+   PLAY/PAUSE BUTTON
+   Main control button styling
+   ================================ */
+.play-pause-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, 
+        rgba(32, 201, 151, 0.9) 0%,
+        rgba(23, 162, 184, 0.9) 100%);
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.play-pause-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(32, 201, 151, 0.4);
+}
+
+.play-pause-btn:active {
+    transform: scale(0.98);
+}
+
+/* ================================
+   LOADING & STATUS INDICATORS
+   ================================ */
+
+/* Loading state display */
+.loading-display {
+    color: rgba(224, 247, 247, 0.9);
+    font-size: 14px;
+    padding: 10px;
+    text-align: center;
+    opacity: 0.8;
+}
+
+/* Test/debug information display */
+.test-info {
+    color: rgba(224, 247, 247, 0.9);
+    font-size: 12px;
+    padding: 10px;
+    background: rgba(15, 76, 76, 0.4);
+    border-radius: 6px;
+    margin-top: 10px;
+    direction: ltr; /* Force LTR for technical messages */
+    border: 1px solid rgba(32, 201, 151, 0.15);
+}
+
+.test-info div {
+    padding: 2px 0;
+}
+
+/* Playback status indicator dot */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin: 0 5px;
+    background: #dc3545; /* Red by default (stopped) */
+}
+
+.status-indicator.ready {
+    background: #28a745; /* Green when ready */
+}
+
+.status-indicator.playing {
+    background: #28a745; /* Green when playing */
+    animation: pulse 1s infinite;
+}
+
+/* ================================
+   GLOBAL STATUS NOTIFICATIONS
+   Popup messages for user feedback
+   ================================ */
+.media-global-status {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px); /* Hidden below viewport */
+    background: linear-gradient(135deg, 
+        rgba(32, 201, 151, 0.95) 0%, 
+        rgba(26, 93, 93, 0.95) 100%);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 999999; /* Ensure always on top */
+    pointer-events: none;
+}
+
+.media-global-status.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0); /* Slide up into view */
+}
+
+/* ================================
+   STATUS MESSAGE TYPES
+   Different styles for different message types
+   ================================ */
+.media-status-message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background: rgba(32, 30, 32, 0.9);
+    border: 1px solid;
+    animation: slideIn 0.3s ease;
+    position: relative;
+}
+
+/* Success status (green) */
+.media-status-success {
+    border-color: rgba(32, 201, 151, 0.5);
+    background: linear-gradient(135deg, 
+        rgba(32, 201, 151, 0.1) 0%, 
+        rgba(32, 30, 32, 0.9) 100%);
+}
+
+/* Warning status (yellow) */
+.media-status-warning {
+    border-color: rgba(255, 193, 7, 0.5);
+    background: linear-gradient(135deg, 
+        rgba(255, 193, 7, 0.1) 0%, 
+        rgba(32, 30, 32, 0.9) 100%);
+}
+
+/* Error status (red) */
+.media-status-error {
+    border-color: rgba(220, 53, 69, 0.5);
+    background: linear-gradient(135deg, 
+        rgba(220, 53, 69, 0.1) 0%, 
+        rgba(32, 30, 32, 0.9) 100%);
+}
+
+/* Info status (blue) */
+.media-status-info {
+    border-color: rgba(23, 162, 184, 0.5);
+    background: linear-gradient(135deg, 
+        rgba(23, 162, 184, 0.1) 0%, 
+        rgba(32, 30, 32, 0.9) 100%);
+}
+
+/* Status message icon */
+.media-status-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.media-status-success .media-status-icon {
+    background: rgba(32, 201, 151, 0.2);
+    color: #20c997;
+}
+
+.media-status-warning .media-status-icon {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.media-status-error .media-status-icon {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.media-status-info .media-status-icon {
+    background: rgba(23, 162, 184, 0.2);
+    color: #17a2b8;
+}
+
+/* Status message content */
+.media-status-content {
+    flex: 1;
+}
+
+.media-status-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.media-status-text {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+}
+
+/* Close button for status messages */
+.media-status-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 16px;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.media-status-close:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ================================
+   ANIMATIONS
+   ================================ */
+
+/* Pulse animation for active indicators */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Slide in animation for status messages */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ================================
+   RESPONSIVE DESIGN
+   ================================ */
+@media (min-width: 1201px) {
+  .main-content.header-locked .placeholder-container.media-player {
+    min-height: clamp(90px, 10vh, 120px);
+    flex: 1.1;
+  }
+}
+
+/* ============================================================================
+   END OF MAIN STYLESHEET
+   
+   For component-specific styles, see:
+   - ./styles/controls.css - Playback controls
+   - ./styles/layout.css - Layout and structure
+   - ./styles/modal.css - Settings modal
+   - ./styles/video.css - Video display
+   - ./styles/waveform.css - Waveform visualization
+   - ./styles/shortcuts.css - Keyboard shortcuts
+   - ./styles/pedal.css - Pedal configuration
+   - ./styles/autodetect.css - Auto-detect settings
+   ============================================================================ */

@@ -120,3 +120,30 @@ export function applyPlaybackRateToElements(
     videoRef.current.playbackRate = rate;
   }
 }
+
+/**
+ * Jump to start of media
+ */
+export function jumpToStart(
+  audioRef: React.RefObject<HTMLAudioElement | null>,
+  setCurrentTime: (time: number) => void
+): void {
+  if (audioRef.current) {
+    audioRef.current.currentTime = 0;
+    setCurrentTime(0);
+  }
+}
+
+/**
+ * Jump to end of media
+ */
+export function jumpToEnd(
+  audioRef: React.RefObject<HTMLAudioElement | null>,
+  duration: number,
+  setCurrentTime: (time: number) => void
+): void {
+  if (audioRef.current && duration > 0) {
+    audioRef.current.currentTime = duration;
+    setCurrentTime(duration);
+  }
+}

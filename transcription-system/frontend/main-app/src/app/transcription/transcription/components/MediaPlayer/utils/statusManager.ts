@@ -85,9 +85,34 @@ export function clearGlobalStatus(
 }
 
 /**
+ * Status messages type definition
+ */
+interface StatusMessages {
+  shortcuts: {
+    enabled: string;
+    disabled: string;
+  };
+  pedal: {
+    enabled: string;
+    disabled: string;
+  };
+  autoDetect: {
+    enabled: string;
+    disabled: string;
+    regular: string;
+    enhanced: string;
+    modeChanged: (mode: 'regular' | 'enhanced') => string;
+  };
+  waveform: {
+    canceled: string;
+    error: (error: string) => string;
+  };
+}
+
+/**
  * Format status messages for different modes
  */
-export const statusMessages = {
+export const statusMessages: StatusMessages = {
   shortcuts: {
     enabled: 'קיצורי מקלדת: פעילים',
     disabled: 'קיצורי מקלדת: כבויים'
@@ -100,7 +125,9 @@ export const statusMessages = {
     enabled: 'זיהוי אוטומטי: פעיל',
     disabled: 'זיהוי אוטומטי: כבוי',
     regular: 'מצב זיהוי: רגיל',
-    enhanced: 'מצב זיהוי: משופר'
+    enhanced: 'מצב זיהוי: משופר',
+    modeChanged: (mode: 'regular' | 'enhanced') => 
+      mode === 'enhanced' ? 'מצב זיהוי: משופר' : 'מצב זיהוי: רגיל'
   },
   waveform: {
     canceled: 'ניתוח צורת גל בוטל - אין מספיק משאבים',
@@ -118,8 +145,9 @@ export function getStatusMessage(
   const messages = statusMessages[type];
   
   if (typeof state === 'boolean') {
-    return messages[state ? 'enabled' : 'disabled'] || '';
+    const key = state ? 'enabled' : 'disabled';
+    return (messages as any)[key] || '';
   }
   
-  return messages[state as keyof typeof messages] || '';
+  return (messages as any)[state] || '';
 }

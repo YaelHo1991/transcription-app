@@ -24,6 +24,8 @@
     display: flex;
     align-items: center;
     min-height: 60px;
+    width: 100%;
+    flex: 1;
 }
 
 /* Waveform container styling - match the theme */
