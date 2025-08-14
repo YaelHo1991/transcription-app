@@ -24,6 +24,9 @@ interface TextBlockProps {
   onDeleteAcrossBlocks?: (blockId: string, fromField: 'speaker' | 'text') => void;
   speakerColor?: string;
   currentTime?: number;
+  fontSize?: number;
+  isIsolated?: boolean;
+  showDescriptionTooltips?: boolean;
 }
 
 export default function TextBlock({
@@ -39,7 +42,10 @@ export default function TextBlock({
   onSpeakerTransform,
   onDeleteAcrossBlocks,
   speakerColor = '#333',
-  currentTime = 0
+  currentTime = 0,
+  fontSize = 16,
+  isIsolated = true,
+  showDescriptionTooltips = true
 }: TextBlockProps) {
   const speakerRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -50,6 +56,10 @@ export default function TextBlock({
   const [textDirection, setTextDirection] = useState<'rtl' | 'ltr'>('rtl');
   const [speakerDirection, setSpeakerDirection] = useState<'rtl' | 'ltr'>('rtl');
   const [currentInputMode, setCurrentInputMode] = useState<'rtl' | 'ltr'>('rtl');
+  const [speakerDescription, setSpeakerDescription] = useState<string>('');
+  const [showDescriptionTooltip, setShowDescriptionTooltip] = useState(false);
+  const [nameCompletion, setNameCompletion] = useState<string>('');
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Detect if text is primarily Hebrew/Arabic (RTL) or Latin (LTR)
   const detectTextDirection = (text: string): 'rtl' | 'ltr' => {
@@ -131,14 +141,20 @@ export default function TextBlock({
 
   // Helper function to try speaker transformation
   const tryTransformSpeaker = async (text: string) => {
-    // Try to transform speaker code (can be single or multiple letters)
-    if (text.length > 0 && /^[א-תA-Za-z]+$/.test(text)) {
-      const speakerName = await onSpeakerTransform(text);
-      // Only update if we got a different value (a name, not just the code back)
-      // This prevents updating to the same code value
-      if (speakerName && speakerName !== text) {
-        onUpdate(block.id, 'speaker', speakerName);
-      }
+    if (!text) return;
+    
+    // Allow letters, numbers, and punctuation as valid codes/names
+    const isValid = /^[א-תA-Za-z0-9.,/;:\-*+!?()[\]]+$/.test(text);
+    if (!isValid) return;
+    
+    // Transform based on length:
+    // 1 char = code
+    // 2+ chars = name or code (handled by SimpleSpeaker)
+    const speakerName = await onSpeakerTransform(text);
+    
+    // Only update if we got a different value
+    if (speakerName && speakerName !== text) {
+      onUpdate(block.id, 'speaker', speakerName);
     }
   };
 
@@ -444,6 +460,54 @@ export default function TextBlock({
     const value = e.target.value;
     setLocalSpeaker(value);
     onUpdate(block.id, 'speaker', value);
+    
+    // Check for name completion if 2+ characters
+    if (value.length >= 2) {
+      document.dispatchEvent(new CustomEvent('getSpeakerSuggestion', {
+        detail: {
+          prefix: value,
+          callback: (suggestion: string | null) => {
+            if (suggestion && suggestion.startsWith(value)) {
+              setNameCompletion(suggestion.substring(value.length));
+            } else {
+              setNameCompletion('');
+            }
+          }
+        }
+      }));
+    } else {
+      setNameCompletion('');
+    }
+    
+    // Check for speaker description when typing
+    if (showDescriptionTooltips && value) {
+      // Request speaker info
+      const checkDescription = () => {
+        document.dispatchEvent(new CustomEvent('getSpeakerInfo', {
+          detail: {
+            speakerIdentifier: value,
+            callback: (info: { description?: string } | null) => {
+              if (info?.description) {
+                setSpeakerDescription(info.description);
+                setShowDescriptionTooltip(true);
+                
+                // Clear previous timeout
+                if (tooltipTimeoutRef.current) {
+                  clearTimeout(tooltipTimeoutRef.current);
+                }
+                
+                // Hide tooltip after 2 seconds
+                tooltipTimeoutRef.current = setTimeout(() => {
+                  setShowDescriptionTooltip(false);
+                }, 2000);
+              }
+            }
+          }
+        }));
+      };
+      
+      checkDescription();
+    }
   };
 
   // Handle text input change and auto-resize
@@ -492,8 +556,9 @@ export default function TextBlock({
   };
 
   return (
-    <div className={`text-block ${isActive ? 'active' : ''}`}>
-      <input
+    <div className={`text-block ${isActive ? 'active' : ''} ${!isIsolated ? 'non-isolated' : ''}`} style={{ fontSize: `${fontSize}px` }}>
+      <div className="speaker-input-wrapper">
+        <input
         ref={speakerRef}
         className="block-speaker"
         type="text"
@@ -504,14 +569,22 @@ export default function TextBlock({
         placeholder="דובר"
         dir={speakerDirection}
         style={{ 
-          color: speakerColor,
+          color: isIsolated ? speakerColor : '#cbd5e1',
           direction: speakerDirection,
-          textAlign: speakerDirection === 'rtl' ? 'right' : 'left'
+          textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
+          fontSize: `${fontSize}px`,
+          fontWeight: isIsolated ? 600 : 400
         }}
         data-timestamp={block.speakerTime}
-      />
+        />
+        {nameCompletion && (
+          <span className="name-completion" style={{ fontSize: `${fontSize}px` }}>
+            {nameCompletion}
+          </span>
+        )}
+      </div>
       
-      <span className="block-separator">:</span>
+      <span className="block-separator" style={{ fontSize: `${fontSize}px` }}>:</span>
       
       <textarea
         ref={textRef}
@@ -526,7 +599,10 @@ export default function TextBlock({
           direction: textDirection,
           textAlign: textDirection === 'rtl' ? 'right' : 'left',
           resize: 'none',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          fontSize: `${fontSize}px`,
+          color: isIsolated ? 'inherit' : '#94a3b8',
+          fontWeight: isIsolated ? 'normal' : 300
         }}
         rows={1}
       />
@@ -534,6 +610,11 @@ export default function TextBlock({
       {showTooltip && (
         <div className="text-block-tooltip">
           {tooltipMessage}
+        </div>
+      )}
+      {showDescriptionTooltip && speakerDescription && (
+        <div className="speaker-description-tooltip">
+          {speakerDescription}
         </div>
       )}
     </div>

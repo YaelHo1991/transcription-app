@@ -27,6 +27,9 @@ export default function TextEditor({
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [speakerColors, setSpeakerColors] = useState<Map<string, string>>(new Map());
   const [cursorAtStart, setCursorAtStart] = useState(false);
+  const [fontSize, setFontSize] = useState(16);
+  const [isolatedSpeakers, setIsolatedSpeakers] = useState<Set<string>>(new Set());
+  const [showDescriptionTooltips, setShowDescriptionTooltips] = useState(true);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
   // Track speaker code -> name mappings
@@ -59,8 +62,39 @@ export default function TextEditor({
     highlightDelay: 200
   });
 
-  // Handle block navigation
+  // Handle block navigation with isolation support
   const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'speaker' | 'text', fromField: 'speaker' | 'text' = 'speaker') => {
+    // If isolation is active, skip non-isolated blocks
+    if (isolatedSpeakers.size > 0 && (direction === 'up' || direction === 'down' || direction === 'prev' || direction === 'next')) {
+      const blocks = blockManagerRef.current.getBlocks();
+      const currentIndex = blocks.findIndex(b => b.id === blockId);
+      
+      if (currentIndex !== -1) {
+        let targetIndex = currentIndex;
+        const step = (direction === 'up' || direction === 'prev') ? -1 : 1;
+        
+        // Find next isolated block
+        do {
+          targetIndex += step;
+          if (targetIndex < 0 || targetIndex >= blocks.length) {
+            // Reached boundary, stay on current block
+            return;
+          }
+        } while (blocks[targetIndex] && !isolatedSpeakers.has(blocks[targetIndex].speaker));
+        
+        if (targetIndex >= 0 && targetIndex < blocks.length) {
+          const targetBlock = blocks[targetIndex];
+          blockManagerRef.current.setActiveBlock(targetBlock.id, fromField);
+          setActiveBlockId(targetBlock.id);
+          setActiveArea(fromField);
+          setCursorAtStart(false);
+          setBlocks([...blocks]);
+          return;
+        }
+      }
+    }
+    
+    // Normal navigation
     blockManagerRef.current.setActiveBlock(blockId, fromField);
     blockManagerRef.current.navigate(direction);
     
@@ -71,7 +105,7 @@ export default function TextEditor({
     setActiveArea(newArea);
     setCursorAtStart(false); // Reset cursor position flag
     setBlocks([...blockManagerRef.current.getBlocks()]);
-  }, []);
+  }, [isolatedSpeakers]);
 
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'speaker' | 'text', value: string) => {
@@ -241,6 +275,27 @@ export default function TextEditor({
       document.removeEventListener('speakerUpdated', handleSpeakerUpdated as EventListener);
       document.removeEventListener('speakerCreated', handleSpeakerUpdated as EventListener);
     };
+  }, [speakerColors]);
+  
+  // Listen for speaker selection changes and tooltip toggle
+  useEffect(() => {
+    const handleSpeakersSelected = (event: CustomEvent) => {
+      const { selectedCodes } = event.detail;
+      setIsolatedSpeakers(new Set(selectedCodes));
+    };
+    
+    const handleToggleTooltips = (event: CustomEvent) => {
+      const { enabled } = event.detail;
+      setShowDescriptionTooltips(enabled);
+    };
+    
+    document.addEventListener('speakersSelected', handleSpeakersSelected as EventListener);
+    document.addEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
+    
+    return () => {
+      document.removeEventListener('speakersSelected', handleSpeakersSelected as EventListener);
+      document.removeEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
+    };
   }, []);
 
   // Handle mark navigation from editor
@@ -332,6 +387,26 @@ export default function TextEditor({
             </button>
           </div>
           
+          <div className="toolbar-divider" />
+          
+          <div className="toolbar-section">
+            <button 
+              className="toolbar-btn" 
+              title="הקטן גופן"
+              onClick={() => setFontSize(prev => Math.max(12, prev - 1))}
+            >
+              <span className="toolbar-icon">A-</span>
+            </button>
+            <span className="font-size-display">{fontSize}</span>
+            <button 
+              className="toolbar-btn" 
+              title="הגדל גופן"
+              onClick={() => setFontSize(prev => Math.min(24, prev + 1))}
+            >
+              <span className="toolbar-icon">A+</span>
+            </button>
+          </div>
+          
           <div className="toolbar-spacer" />
           
           <div className="toolbar-section">
@@ -384,6 +459,9 @@ export default function TextEditor({
               onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
               speakerColor={speakerColors.get(block.speaker)}
               currentTime={0}  // DISABLED - not passing actual time
+              fontSize={fontSize}
+              isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
+              showDescriptionTooltips={showDescriptionTooltips}
             />
           ))}
         </div>

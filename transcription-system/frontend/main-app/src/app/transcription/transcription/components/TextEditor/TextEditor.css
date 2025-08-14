@@ -75,6 +75,12 @@
   transform: translateY(0);
 }
 
+.toolbar-btn.active {
+  background: #14b8a6;
+  color: white;
+  border-color: #0f766e;
+}
+
 .toolbar-icon {
   font-size: 16px;
   line-height: 1;
@@ -89,6 +95,19 @@
 
 .toolbar-spacer {
   flex: 1;
+}
+
+.font-size-display {
+  padding: 4px 8px;
+  background: #f0fdfa;
+  border: 1px solid #e0f2f1;
+  border-radius: 4px;
+  color: #0f766e;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+  user-select: none;
 }
 
 .sync-button {

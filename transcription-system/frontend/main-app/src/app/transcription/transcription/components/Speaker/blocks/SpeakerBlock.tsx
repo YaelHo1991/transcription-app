@@ -16,28 +16,42 @@ interface SpeakerBlockProps {
   speaker: SpeakerBlockData;
   isActive: boolean;
   isLastBlock: boolean;
+  isFirstBlock?: boolean;
   activeField: 'code' | 'name' | 'description';
   cursorAtStart?: boolean;
+  isSelected?: boolean;
+  isSelectionMode?: boolean;
   onNavigate: (direction: 'prev' | 'next' | 'up' | 'down' | 'code' | 'name' | 'description', cursorAtStart?: boolean) => void;
   onUpdate: (id: string, field: 'code' | 'name' | 'description', value: string) => void;
   onNewBlock: () => void;
   onRemoveBlock: (id: string, deleteNext?: boolean) => void;
   onValidateCode?: (code: string, excludeId: string) => boolean;
   onExitToRemarks?: () => void;
+  onToggleSelect?: () => void;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
 }
 
 export default function SpeakerBlock({
   speaker,
   isActive,
   isLastBlock,
+  isFirstBlock = false,
   activeField,
   cursorAtStart,
+  isSelected = false,
+  isSelectionMode = false,
   onNavigate,
   onUpdate,
   onNewBlock,
   onRemoveBlock,
   onValidateCode,
-  onExitToRemarks
+  onExitToRemarks,
+  onToggleSelect,
+  onDragStart,
+  onDragOver,
+  onDrop
 }: SpeakerBlockProps) {
   const codeRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -47,6 +61,7 @@ export default function SpeakerBlock({
   const [localDescription, setLocalDescription] = useState(speaker.description);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [codeSuggestion, setCodeSuggestion] = useState('');
 
   // Sync local state with props when speaker data changes
   useEffect(() => {
@@ -54,6 +69,33 @@ export default function SpeakerBlock({
     setLocalName(speaker.name);
     setLocalDescription(speaker.description);
   }, [speaker.code, speaker.name, speaker.description]);
+  
+  // Get suggested code based on name or next available
+  const getSuggestedCode = React.useCallback((name?: string): string => {
+    // Request available codes from parent
+    let availableCode = '';
+    const requestEvent = new CustomEvent('getAvailableCode', {
+      detail: {
+        name: name,
+        excludeId: speaker.id,
+        callback: (code: string) => {
+          availableCode = code;
+        }
+      }
+    });
+    document.dispatchEvent(requestEvent);
+    return availableCode;
+  }, [speaker.id]);
+  
+  // Update suggestion when name changes or code is empty
+  useEffect(() => {
+    if (!localCode && !speaker.code) {
+      const suggestion = getSuggestedCode(localName);
+      setCodeSuggestion(suggestion);
+    } else {
+      setCodeSuggestion('');
+    }
+  }, [localName, localCode, speaker.code, getSuggestedCode]);
 
   // Focus management
   useEffect(() => {
@@ -484,7 +526,24 @@ export default function SpeakerBlock({
   }, [localDescription]);
 
   return (
-    <div className={`speaker-block ${isActive ? 'active' : ''}`}>
+    <div 
+      className={`speaker-block ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isSelectionMode ? 'selection-mode' : ''}`}
+      draggable={!isActive && !isSelectionMode}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      {isSelectionMode && (
+        <div className="speaker-checkbox-container">
+          <input
+            type="checkbox"
+            className="speaker-checkbox"
+            checked={isSelected}
+            onChange={onToggleSelect}
+            title="בחר דובר"
+          />
+        </div>
+      )}
       <div className={`speaker-field ${isActive && activeField === 'code' ? 'active' : ''}`}>
         <input
           ref={codeRef}
@@ -493,7 +552,7 @@ export default function SpeakerBlock({
           onChange={(e) => handleCodeChange(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, 'code')}
           onFocus={() => onNavigate('code')}
-          placeholder="קוד"
+          placeholder={codeSuggestion || 'קוד'}
           className="code-input"
           dir="rtl"
           style={{ color: speaker.color }}

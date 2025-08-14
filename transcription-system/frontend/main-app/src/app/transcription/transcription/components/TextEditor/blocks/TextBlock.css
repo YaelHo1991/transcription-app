@@ -17,13 +17,13 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 4px 12px;
-  margin-bottom: 4px;
+  padding: 2px 12px;
+  margin-bottom: 0;
   background-color: transparent;
   border-radius: 4px;
   transition: all 0.2s ease;
   direction: rtl;
-  min-height: 24px;
+  min-height: 26px;
   border-left: 1px solid #e0f2f1;
   border-right: 1px solid #e0f2f1;
 }
@@ -38,17 +38,23 @@
   border-right-color: #10b981;
 }
 
+/* Speaker input wrapper for autocomplete */
+.speaker-input-wrapper {
+  position: relative;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  flex-shrink: 0;
+}
+
 /* Speaker area */
 .block-speaker {
   font-weight: 500;
   color: #0f766e;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
-  padding: 2px 4px;
+  width: 100%;
+  padding: 4px 4px;
   background-color: transparent;
   border-radius: 3px;
-  flex-shrink: 0;
   direction: rtl !important;
   text-align: right !important;
   unicode-bidi: plaintext !important;
@@ -58,7 +64,25 @@
   outline: none;
   border: none;
   transition: all 0.2s ease;
-  line-height: 1.4;
+  line-height: 1.5;
+  position: relative;
+  z-index: 2;
+}
+
+/* Name completion overlay */
+.name-completion {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #94a3b8;
+  pointer-events: none;
+  direction: rtl;
+  text-align: right;
+  line-height: 1.5;
+  padding: 0;
+  font-weight: 500;
+  opacity: 0.6;
+  z-index: 1;
 }
 
 .block-speaker:focus {
@@ -89,17 +113,17 @@
   user-select: none;
   align-self: flex-start;
   flex-shrink: 0;
-  line-height: 1.4;
-  padding-top: 2px;
+  line-height: 1.5;
+  padding-top: 4px;
 }
 
 /* Text area */
 .block-text {
   flex: 1;
-  padding: 2px 4px;
+  padding: 4px 4px;
   outline: none;
-  min-height: 20px;
-  line-height: 1.4;
+  min-height: 22px;
+  line-height: 1.5;
   border-radius: 3px;
   border: none;
   transition: all 0.2s ease;
@@ -192,8 +216,8 @@
 /* Word-like appearance */
 .text-block {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .block-speaker,
@@ -228,12 +252,68 @@
   text-align: right;
 }
 
+/* Non-isolated block styling */
+.text-block.non-isolated {
+  opacity: 0.5;
+  background-color: rgba(241, 245, 249, 0.3);
+}
+
+.text-block.non-isolated:hover {
+  opacity: 0.7;
+}
+
+.text-block.non-isolated.active {
+  opacity: 1;
+  background-color: transparent;
+}
+
+/* Speaker description tooltip */
+.speaker-description-tooltip {
+  position: absolute;
+  top: -24px;
+  right: 0;
+  background: rgba(15, 118, 110, 0.75);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  z-index: 500;
+  pointer-events: none;
+  animation: fadeInOut 2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  direction: rtl;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .block-speaker {
+  .speaker-input-wrapper {
     width: 80px;
     min-width: 80px;
     max-width: 80px;
+  }
+  
+  .block-speaker {
     font-size: 13px;
   }
   

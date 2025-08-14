@@ -1,7 +1,7 @@
 import { SpeakerBlockData } from './SpeakerBlock';
 
 export default class SpeakerBlockManager {
-  private blocks: SpeakerBlockData[] = [];
+  blocks: SpeakerBlockData[] = [];  // Made public for direct access
   private activeBlockId: string | null = null;
   private activeField: 'code' | 'name' | 'description' = 'code';
   private nextId = 1;
@@ -207,6 +207,11 @@ export default class SpeakerBlockManager {
     if (block) {
       block.count++;
     }
+  }
+
+  // Reorder blocks with new order
+  reorderBlocks(newOrder: SpeakerBlockData[]) {
+    this.blocks = newOrder;
   }
 
   getStatistics() {
