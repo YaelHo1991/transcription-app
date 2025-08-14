@@ -108,26 +108,32 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 ---
 
 ## Stage 4: TextEditor Turquoise Frame
-**Status**: ⏳ Pending  
+**Status**: ✅ Complete  
+**Commit**: `pending`  
 **Objective**: Match MediaPlayer styling
 
 ### Changes:
-- Add turquoise border to text-editor-container
-- Apply consistent shadow and border-radius
-- Match MediaPlayer's visual style
+- Added dark turquoise frame matching MediaPlayer (1.5px border)
+- Applied double-layer design with dark outer frame
+- Restored light turquoise interior sections
+- Added subtle shadows and hover effects
+- Created inner wrapper for proper layout
 
 ### Files:
 - `TextEditor.css`
+- `TextEditor.tsx` (added inner wrapper)
 
 ### Expected Result:
 - Consistent component styling
-- Turquoise theme throughout
+- Dark turquoise frame matching MediaPlayer
+- Light interior sections for readability
 
 ### Testing Checklist:
-- [ ] Border matches MediaPlayer style
-- [ ] Shadow consistent
-- [ ] Border radius appropriate
-- [ ] Theme cohesive
+- [x] Border matches MediaPlayer style
+- [x] Shadow consistent
+- [x] Border radius appropriate
+- [x] Theme cohesive
+- [x] Frame not too bold (1.5px thickness)
 
 ---
 

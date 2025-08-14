@@ -198,8 +198,8 @@ export default function TextEditor({
   
   return (
     <div className="text-editor-container">
-      
-      <div className="text-editor-body">
+      <div className="text-editor-inner">
+        <div className="text-editor-body">
         <div className="marks-sidebar">
           <h4>סימונים</h4>
           <div className="marks-list">
@@ -248,6 +248,7 @@ export default function TextEditor({
             סימון נוכחי: {activeMark.type} ({formatTime(activeMark.time)})
           </span>
         )}
+      </div>
       </div>
     </div>
   );
