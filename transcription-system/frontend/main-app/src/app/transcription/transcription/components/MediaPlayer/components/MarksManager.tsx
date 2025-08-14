@@ -47,7 +47,7 @@ const MarksManager = forwardRef(function MarksManager({
   const [dragStartX, setDragStartX] = useState(0);
   const [editingMarkId, setEditingMarkId] = useState<string | null>(null);
   const [clickCount, setClickCount] = useState(0);
-  const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [clickTimer, setClickTimer] = useState<number | null>(null);
   const [showCustomNameDialog, setShowCustomNameDialog] = useState(false);
   const [customNameInput, setCustomNameInput] = useState('');
   
@@ -286,7 +286,7 @@ const MarksManager = forwardRef(function MarksManager({
     } else {
       // This might be a single click - wait to see if double-click follows
       setClickCount(1);
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         setClickCount(0);
         setClickTimer(null);
         // This was just a single click - let it pass through for seeking

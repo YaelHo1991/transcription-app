@@ -96,13 +96,14 @@ export class ChunkedWaveformProcessor {
       const finalPeaks = this.normalizePeaks(allPeaks, 2000);
       
       return {
-        peaks: finalPeaks,
+        peaks: new Float32Array(finalPeaks),
         duration: totalDuration,
         sampleRate: 44100,
-        resolution: 1024
+        resolution: 10
       };
     } catch (error) {
-      this.onError?.(error instanceof Error ? error.message : String(error));
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.onError?.(errorMessage);
       throw error;
     }
   }
@@ -184,10 +185,10 @@ export class ChunkedWaveformProcessor {
   /**
    * Normalize and resample peaks to target count
    */
-  private normalizePeaks(peaks: number[], targetCount: number): Float32Array {
+  private normalizePeaks(peaks: number[], targetCount: number): number[] {
     // If we have too many peaks, downsample
     if (peaks.length > targetCount) {
-      const result = new Float32Array(targetCount);
+      const result: number[] = [];
       const ratio = peaks.length / targetCount;
       
       for (let i = 0; i < targetCount; i++) {
@@ -200,18 +201,14 @@ export class ChunkedWaveformProcessor {
           maxPeak = Math.max(maxPeak, peaks[j]);
         }
         
-        result[i] = Math.min(1, maxPeak); // Ensure normalized 0-1
+        result.push(Math.min(1, maxPeak)); // Ensure normalized 0-1
       }
       
       return result;
     }
     
     // Normalize to 0-1 range
-    const result = new Float32Array(peaks.length);
-    for (let i = 0; i < peaks.length; i++) {
-      result[i] = Math.min(1, peaks[i]);
-    }
-    return result;
+    return peaks.map(p => Math.min(1, p));
   }
 
   /**
@@ -301,9 +298,6 @@ export class ChunkedWaveformProcessor {
       const peaks = this.extractPeaksOptimized(channelData, targetPeaks);
       this.onProgress?.(90);
       
-      // Get sample rate before cleanup
-      const sampleRate = this.audioContext?.sampleRate || 44100;
-      
       // Close audio context
       if (this.audioContext) {
         await this.audioContext.close();
@@ -315,8 +309,8 @@ export class ChunkedWaveformProcessor {
       return {
         peaks: new Float32Array(peaks),
         duration,
-        sampleRate,
-        resolution: 1024
+        sampleRate: audioBuffer.sampleRate,
+        resolution: 10
       };
     } catch (error) {
       if (this.audioContext) {

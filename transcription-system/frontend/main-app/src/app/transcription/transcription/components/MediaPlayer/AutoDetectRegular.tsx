@@ -20,7 +20,7 @@ export default function AutoDetectRegular({
   onRewind
 }: AutoDetectRegularProps) {
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
   const wasPlayingBeforeTypingRef = useRef(false);
 
   // Check if element is part of text editor
@@ -74,7 +74,7 @@ export default function AutoDetectRegular({
     }
     
     // Set new timeout to resume
-    typingTimeoutRef.current = setTimeout(() => {
+    typingTimeoutRef.current = window.setTimeout(() => {
       if (wasPlayingBeforeTypingRef.current) {
         onPlayPause(); // Resume
         wasPlayingBeforeTypingRef.current = false;

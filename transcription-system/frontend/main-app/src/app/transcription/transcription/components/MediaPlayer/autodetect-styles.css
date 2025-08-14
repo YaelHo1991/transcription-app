@@ -136,8 +136,6 @@
   color: #e0f7f7;
   font-size: 14px;
   text-align: right;
-  min-width: 240px;
-  flex-shrink: 0;
 }
 
 .auto-detect-input {
@@ -152,7 +150,6 @@
   text-align: center;
   -webkit-appearance: none;
   -moz-appearance: textfield;
-  appearance: none;
   position: relative;
 }
 
@@ -160,7 +157,6 @@
 .auto-detect-input::-webkit-inner-spin-button,
 .auto-detect-input::-webkit-outer-spin-button {
   -webkit-appearance: none;
-  appearance: none;
   margin: 0;
 }
 

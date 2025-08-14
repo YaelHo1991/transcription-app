@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { WaveformData } from '../types';
-import MarksManager from './MarksManager';
-import { MarkType, MARK_COLORS } from '../types/marks';
+import { WaveformData } from './types';
+import MarksManager from './components/MarksManager';
+import { MarkType, MARK_COLORS } from './types/marks';
 
 interface WaveformCanvasProps {
   waveformData: WaveformData;
@@ -45,9 +45,9 @@ export default function WaveformCanvas({
   const [showToolbar, setShowToolbar] = useState(false);
   const [hoverToolbar, setHoverToolbar] = useState(false);
   const [showMarksMenu, setShowMarksMenu] = useState(false);
-  const marksMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const marksMenuTimeoutRef = useRef<number | null>(null);
   const [isMarkDragging, setIsMarkDragging] = useState(false);
-  const toolbarHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toolbarHideTimeoutRef = useRef<number | null>(null);
   const [showMarkTypeSelector, setShowMarkTypeSelector] = useState(false);
   const [showCustomMarkDialog, setShowCustomMarkDialog] = useState(false);
   const [customMarkName, setCustomMarkName] = useState('');
@@ -133,7 +133,7 @@ export default function WaveformCanvas({
     
     // If we have too few peaks at high zoom, interpolate
     if (visiblePeaks.length < minPeaksToShow && visiblePeaks.length > 0) {
-      const interpolated = new Float32Array(minPeaksToShow);
+      const interpolated = [];
       for (let i = 0; i < minPeaksToShow; i++) {
         const index = (i / minPeaksToShow) * visiblePeaks.length;
         const lower = Math.floor(index);
@@ -141,12 +141,12 @@ export default function WaveformCanvas({
         const fraction = index - lower;
         
         if (upper < visiblePeaks.length) {
-          interpolated[i] = visiblePeaks[lower] * (1 - fraction) + visiblePeaks[upper] * fraction;
+          interpolated.push(visiblePeaks[lower] * (1 - fraction) + visiblePeaks[upper] * fraction);
         } else {
-          interpolated[i] = visiblePeaks[lower];
+          interpolated.push(visiblePeaks[lower]);
         }
       }
-      visiblePeaks = interpolated;
+      visiblePeaks = new Float32Array(interpolated);
     }
     
     // Ensure we have peaks to draw
@@ -257,7 +257,7 @@ export default function WaveformCanvas({
     }
     
     // Start new timer (5 seconds of inactivity)
-    toolbarHideTimeoutRef.current = setTimeout(() => {
+    toolbarHideTimeoutRef.current = window.setTimeout(() => {
       setShowToolbar(false);
       setShowMarksMenu(false);
       toolbarHideTimeoutRef.current = null;
@@ -637,73 +637,6 @@ export default function WaveformCanvas({
     }
   }, [currentTime, isPlaying, playbackMode, loopingMark, markFilter, onSeek]);
 
-  // Setup handlers for keyboard shortcuts
-  useEffect(() => {
-    // Waveform control handler
-    (window as any).__waveformControlHandler = (action: string) => {
-      switch (action) {
-        case 'zoomIn':
-          handleZoomIn();
-          break;
-        case 'zoomOut':
-          handleZoomOut();
-          break;
-        case 'resetZoom':
-          setZoomLevel(1);
-          setScrollOffset(0);
-          break;
-      }
-    };
-
-    // Mark creation handler
-    (window as any).__markCreationHandler = (action: string) => {
-      const typeMap: { [key: string]: MarkType } = {
-        'addImportantMark': MarkType.SKIP,
-        'addQuestionMark': MarkType.UNCLEAR,
-        'addSectionMark': MarkType.BOUNDARY,
-        'addNoteMark': MarkType.NOTES,
-        'addReviewMark': MarkType.REVIEW,
-        'addCustomMark': MarkType.CUSTOM
-      };
-      
-      const markType = typeMap[action];
-      if (markType) {
-        if (markType === MarkType.CUSTOM) {
-          // Open custom mark dialog
-          setShowCustomMarkDialog(true);
-        } else {
-          createMarkAtCurrentTime(markType);
-        }
-      }
-    };
-
-    // Mark management handler
-    (window as any).__markManagementHandler = (action: string) => {
-      switch (action) {
-        case 'clearAllMarks':
-          if (marksManagerRef.current?.clearAllMarks) {
-            marksManagerRef.current.clearAllMarks();
-          }
-          break;
-        case 'exportMarks':
-          exportMarks();
-          break;
-        case 'importMarks':
-          importMarks();
-          break;
-        case 'toggleMarksMenu':
-          setShowMarksMenu(prev => !prev);
-          break;
-      }
-    };
-
-    return () => {
-      delete (window as any).__waveformControlHandler;
-      delete (window as any).__markCreationHandler;
-      delete (window as any).__markManagementHandler;
-    };
-  }, [handleZoomIn, handleZoomOut, createMarkAtCurrentTime, exportMarks, importMarks]);
-
   // Handle mark navigation actions from keyboard shortcuts
   useEffect(() => {
     if (!onMarkNavigationAction) return;
@@ -872,7 +805,7 @@ export default function WaveformCanvas({
               transition: 'all 0.2s',
               opacity: hoverToolbar || showToolbar ? 1 : 0.3
             }}
-            data-tooltip="כלים"
+            title="כלים"
           >
             ⚙
           </button>
@@ -920,7 +853,7 @@ export default function WaveformCanvas({
                   justifyContent: 'center',
                   padding: 0
                 }}
-                data-tooltip="הקטן"
+                title="הקטן"
               >
                 −
               </button>
@@ -955,7 +888,7 @@ export default function WaveformCanvas({
                   justifyContent: 'center',
                   padding: 0
                 }}
-                data-tooltip="הגדל"
+                title="הגדל"
               >
                 +
               </button>
@@ -987,7 +920,7 @@ export default function WaveformCanvas({
                 onMouseLeave={(e) => {
                   if (zoomLevel > 1) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
                 }}
-                data-tooltip="איפוס זום"
+                title="איפוס זום"
               >
                 ↺
               </button>
@@ -1031,7 +964,7 @@ export default function WaveformCanvas({
                 padding: 0,
                 pointerEvents: 'auto'
               }}
-              data-tooltip="תפריט סימונים"
+              title="תפריט סימונים"
             >
               📍
             </button>
@@ -1057,7 +990,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="הוסף סימון בזמן נוכחי"
+              title="הוסף סימון בזמן נוכחי"
             >
               📌
             </button>
@@ -1082,7 +1015,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="יצירת סימון מותאם אישית"
+              title="יצירת סימון מותאם אישית"
             >
               ➕
             </button>
@@ -1107,7 +1040,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="סנן סימונים לפי סוג"
+              title="סנן סימונים לפי סוג"
             >
               🔍
             </button>
@@ -1132,7 +1065,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="בחר סוג סימון לניווט"
+              title="בחר סוג סימון לניווט"
             >
               🎯
             </button>
@@ -1157,7 +1090,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="אפשרויות הפעלה"
+              title="אפשרויות הפעלה"
             >
               {playbackMode === 'loop-mark' ? '🔄' : playbackMode === 'marked-only' ? '▶️' : playbackMode === 'skip-marked' ? '⏭️' : '▶'}
             </button>
@@ -1193,7 +1126,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="יצא סימונים לקובץ JSON"
+              title="יצא סימונים לקובץ JSON"
             >
               📤
             </button>
@@ -1250,7 +1183,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="יבא סימונים מקובץ JSON"
+              title="יבא סימונים מקובץ JSON"
             >
               📥
             </button>
@@ -1277,7 +1210,7 @@ export default function WaveformCanvas({
                 justifyContent: 'center',
                 padding: 0
               }}
-              data-tooltip="מחק את כל הסימונים"
+              title="מחק את כל הסימונים"
             >
               🗑️
             </button>
@@ -1306,7 +1239,7 @@ export default function WaveformCanvas({
                     justifyContent: 'center',
                     padding: 0
                   }}
-                  data-tooltip="סימון קודם"
+                  title="סימון קודם"
                 >
                   ►
                 </button>
@@ -1332,7 +1265,7 @@ export default function WaveformCanvas({
                     justifyContent: 'center',
                     padding: 0
                   }}
-                  data-tooltip="סימון הבא"
+                  title="סימון הבא"
                 >
                   ◄
                 </button>
@@ -1466,8 +1399,8 @@ export default function WaveformCanvas({
                     {Array.from(new Set(
                       marksManagerRef.current.getMarks()
                         .filter((mark: any) => mark.type === MarkType.CUSTOM && mark.customName)
-                        .map((mark: any) => mark.customName as string)
-                    ) as Set<string>).map((customName) => (
+                        .map((mark: any) => mark.customName)
+                    ) as Set<string>).map((customName: string) => (
                       <button
                         key={customName}
                         onClick={() => {
@@ -1796,7 +1729,7 @@ export default function WaveformCanvas({
                   }
                   
                   // Delay closing to prevent accidental closes
-                  marksMenuTimeoutRef.current = setTimeout(() => {
+                  marksMenuTimeoutRef.current = window.setTimeout(() => {
                     setShowMarksMenu(false);
                     marksMenuTimeoutRef.current = null;
                   }, 500);

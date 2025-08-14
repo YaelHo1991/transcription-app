@@ -301,19 +301,30 @@
   text-align: center;
   -webkit-appearance: none;
   -moz-appearance: textfield;
-  appearance: none;
 }
 
 .pedal-continuous-config input[type="number"]::-webkit-inner-spin-button,
 .pedal-continuous-config input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
-  appearance: none;
   margin: 0;
 }
 
-/* Number input wrapper and spinner button styles moved to common.css */
+/* Custom spinners for pedal tab */
+.number-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 76, 76, 0.6);
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+}
 
-/* Pedal-specific input styling */
+.number-input-wrapper:focus-within {
+  border-color: #20c997;
+  box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
+}
+
 .number-input-wrapper input[type="number"] {
   border: none;
   background: transparent;
@@ -323,6 +334,43 @@
 
 .number-input-wrapper input[type="number"]:focus {
   box-shadow: none;
+}
+
+.spinner-btn {
+  background: rgba(32, 201, 151, 0.2);
+  border: none;
+  color: #20c997;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.spinner-btn:hover:not(:disabled) {
+  background: rgba(32, 201, 151, 0.3);
+}
+
+.spinner-btn:active:not(:disabled) {
+  background: rgba(32, 201, 151, 0.4);
+}
+
+.spinner-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner-btn.decrease {
+  border-right: 1px solid rgba(32, 201, 151, 0.3);
+}
+
+.spinner-btn.increase {
+  border-left: 1px solid rgba(32, 201, 151, 0.3);
 }
 
 /* Reset Section */
@@ -437,13 +485,11 @@
   text-align: center;
   -webkit-appearance: none;
   -moz-appearance: textfield;
-  appearance: none;
 }
 
 .rewind-amount-input::-webkit-inner-spin-button,
 .rewind-amount-input::-webkit-outer-spin-button {
   -webkit-appearance: none;
-  appearance: none;
   margin: 0;
 }
 
@@ -453,7 +499,16 @@
   box-shadow: 0 0 0 2px rgba(32, 201, 151, 0.2);
 }
 
-/* Rewind amount input styles moved to common components */
+.number-input-wrapper .rewind-amount-input {
+  border: none;
+  background: transparent;
+  padding: 6px 5px;
+  width: 60px;
+}
+
+.number-input-wrapper .rewind-amount-input:focus {
+  box-shadow: none;
+}
 
 /* Status Message */
 .pedal-status-message {

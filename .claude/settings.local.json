@@ -52,7 +52,10 @@
       "Bash(del \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\app\\transcription\\transcription\\components\\MediaPlayer\\MediaPlayer.tsx\")",
       "Bash(npm run typecheck:*)",
       "Bash(npm run:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git log:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": []
   }

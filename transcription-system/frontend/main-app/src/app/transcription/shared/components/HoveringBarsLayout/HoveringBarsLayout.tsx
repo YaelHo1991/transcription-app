@@ -26,8 +26,8 @@ export default function HoveringBarsLayout({
   const [sidebarHovered, setSidebarHovered] = useState(false);
   
   // Use refs to track hover timeouts for debouncing
-  const headerHoverTimeout = useRef<NodeJS.Timeout | null>(null);
-  const sidebarHoverTimeout = useRef<NodeJS.Timeout | null>(null);
+  const headerHoverTimeout = useRef<number | null>(null);
+  const sidebarHoverTimeout = useRef<number | null>(null);
 
   // Notify parent components of lock state changes
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function HoveringBarsLayout({
   
   const handleHeaderMouseLeave = useCallback(() => {
     if (headerHoverTimeout.current) clearTimeout(headerHoverTimeout.current);
-    headerHoverTimeout.current = setTimeout(() => {
+    headerHoverTimeout.current = window.setTimeout(() => {
       setHeaderHovered(false);
     }, 100); // Small delay to prevent flicker
   }, []);
@@ -78,7 +78,7 @@ export default function HoveringBarsLayout({
   
   const handleSidebarMouseLeave = useCallback(() => {
     if (sidebarHoverTimeout.current) clearTimeout(sidebarHoverTimeout.current);
-    sidebarHoverTimeout.current = setTimeout(() => {
+    sidebarHoverTimeout.current = window.setTimeout(() => {
       setSidebarHovered(false);
     }, 100); // Small delay to prevent flicker
   }, []);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { MediaPlayerState } from '../types';
+import { MediaPlayerState } from './types';
 
 interface MediaControlsProps {
   state: MediaPlayerState;
@@ -26,7 +26,7 @@ export default function MediaControls({
 }: MediaControlsProps) {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showSpeedSlider, setShowSpeedSlider] = useState(false);
-  const speedClickTimer = useRef<NodeJS.Timeout | null>(null);
+  const speedClickTimer = useRef<number | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const [isDraggingProgress, setIsDraggingProgress] = useState(false);
 
@@ -132,7 +132,7 @@ export default function MediaControls({
       onSpeedChange(1);
     } else {
       // Single click - cycle through speeds
-      speedClickTimer.current = setTimeout(() => {
+      speedClickTimer.current = window.setTimeout(() => {
         speedClickTimer.current = null;
         const speeds = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
         const currentIndex = speeds.indexOf(state.playbackRate);

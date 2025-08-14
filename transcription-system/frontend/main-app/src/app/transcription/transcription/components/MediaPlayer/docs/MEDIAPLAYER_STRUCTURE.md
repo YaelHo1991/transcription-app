@@ -46,21 +46,22 @@ MediaPlayer/
     └── WAVEFORM_ARCHITECTURE.md ✅
 ```
 
-## Final Structure (COMPLETED)
+## Target Structure (After Reorganization)
 ```
 MediaPlayer/
 ├── index.tsx (main component)
 ├── MediaPlayer.css (includes extracted styles)
 ├── components/
-│   ├── KeyboardShortcuts.tsx
 │   ├── MediaControls.tsx
 │   ├── VideoDisplay.tsx
 │   ├── VideoCube.tsx
 │   ├── WaveformCanvas.tsx
+│   ├── KeyboardShortcuts.tsx
 │   ├── MarksManager.tsx
 │   ├── PlaybackOptions.tsx
 │   ├── StatusMessage.tsx
 │   └── SettingsModal/
+│       ├── index.tsx
 │       ├── ShortcutsTab.tsx
 │       ├── PedalTab.tsx
 │       ├── AutoDetectTab.tsx
@@ -136,109 +137,18 @@ MediaPlayer/
 - [x] Rename MediaPlayerOriginal.tsx to index.tsx
 - [x] Update import in page.tsx
 - [x] Create folder structure (styles/, components/SettingsModal/)
-- [x] Move CSS files to styles folder (shortcuts.css, pedal.css, autodetect.css)
-- [x] Update CSS imports in index.tsx
-- [x] Organize SettingsModal components (moved tabs to SettingsModal folder)
-- [x] Update imports for moved tab components
-- [x] Move AutoDetect components to SettingsModal folder
-- [x] Update AutoDetectTab imports
-- [x] Clean up types (moved types.ts to types/index.ts)
-- [x] Fix TypeScript errors in page.tsx
-- [x] Create mediaHelpers.ts utility file
-- [x] Extract MediaPlayer CSS from page.css to MediaPlayer.css
-- [x] Fix shortcuts duplication issue
-- [x] Final verification completed
 
-- [x] Move remaining TSX components to components folder
+### In Progress 🔄
 
-### ✅ REORGANIZATION PHASE 1 COMPLETE!
-
-## Phase 2 Target Structure (Code Extraction)
-```
-MediaPlayer/
-├── index.tsx (main component - target: ~800 lines, current: 1466 lines)
-├── MediaPlayer.css (main styles - target: ~500 lines, current: 2428 lines)
-├── components/
-│   ├── KeyboardShortcuts.tsx
-│   ├── MediaControls.tsx
-│   ├── VideoDisplay.tsx
-│   ├── VideoCube.tsx
-│   ├── WaveformCanvas.tsx
-│   ├── MarksManager.tsx
-│   ├── PlaybackOptions.tsx
-│   ├── StatusMessage.tsx
-│   └── SettingsModal/
-│       ├── ShortcutsTab.tsx
-│       ├── PedalTab.tsx
-│       ├── AutoDetectTab.tsx
-│       ├── AutoDetectEnhanced.tsx
-│       └── AutoDetectRegular.tsx
-├── styles/
-│   ├── shortcuts.css (existing)
-│   ├── pedal.css (existing)
-│   ├── autodetect.css (existing)
-│   ├── controls.css (COMPLETED - control buttons & sliders)
-│   ├── layout.css (COMPLETED - container & responsive)
-│   ├── modal.css (COMPLETED - settings modal)
-│   ├── video.css (COMPLETED - video display)
-│   └── waveform.css (COMPLETED - waveform visualization)
-├── utils/
-│   ├── ChunkedWaveformProcessor.ts (existing)
-│   ├── httpsDetection.ts (existing)
-│   ├── waveformStrategy.ts (existing)
-│   ├── mediaHelpers.ts (existing)
-│   ├── mediaControls.ts (COMPLETED - playback functions)
-│   ├── volumeControls.ts (COMPLETED - volume functions)
-│   ├── speedControls.ts (COMPLETED - speed functions)
-│   ├── settingsManager.ts (COMPLETED - settings persistence)
-│   └── statusManager.ts (COMPLETED - status display)
-├── types/
-│   ├── index.ts
-│   └── marks.ts
-├── workers/
-│   ├── autoDetect.worker.ts
-│   ├── autoDetectWorkerCode.ts
-│   ├── mediaTimer.worker.ts
-│   ├── timerWorkerCode.ts
-│   ├── waveform.worker.ts
-│   ├── waveformWorkerCode.ts
-│   └── workerManager.ts
-└── docs/
-    ├── MEDIA_PLAYER_MIGRATION.md
-    ├── WAVEFORM_ARCHITECTURE.md
-    ├── MEDIAPLAYER_STRUCTURE.md
-    └── MEDIAPLAYER_REORGANIZATION_PLAN.md
-```
-
-## Phase 2 Extraction Details
-
-### New Utility Files
-- **mediaControls.ts**: Core playback control functions (play, pause, seek)
-- **volumeControls.ts**: Volume management and mute toggle
-- **speedControls.ts**: Playback speed control and presets
-- **settingsManager.ts**: localStorage persistence and settings merge
-- **statusManager.ts**: Global status message display
-
-### New Style Files
-- **controls.css**: Button styles, progress bar, control layouts
-- **layout.css**: Container structure, responsive design
-- **modal.css**: Settings modal overlay and content
-- **video.css**: Video display and cube styles
-- **waveform.css**: Waveform visualization styles
-
-## Phase 2 Success Metrics
-- [ ] index.tsx reduced by ~45% (1466 → ~800 lines)
-- [ ] MediaPlayer.css reduced by ~80% (2428 → ~500 lines)
-- [ ] All utilities properly typed with TypeScript
-- [ ] No circular dependencies
-- [ ] All functionality preserved
-- [ ] Improved code organization
-- [ ] Better separation of concerns
+### Pending ⏳
+- [ ] Move CSS files to styles folder
+- [ ] Organize SettingsModal components
+- [ ] Move AutoDetect components
+- [ ] Clean up types
+- [ ] Extract MediaPlayer CSS from page.css
+- [ ] Final verification
 
 ## Notes
 - ProjectNavigator handles media/project imports (not part of MediaPlayer)
 - All media loading and project management stays in page.tsx
 - MediaPlayer is purely a player component with its own controls and settings
-- Settings modal is created inline in index.tsx (no separate SettingsModal component needed)
-- The SettingsModal folder contains only the tab components used by the inline modal
-- Phase 2 focuses on extracting reusable code without changing functionality

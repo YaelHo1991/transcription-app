@@ -24,8 +24,8 @@ export default function AutoDetectEnhanced({
   onRewind
 }: AutoDetectEnhancedProps) {
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const autoResumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const autoResumeTimeoutRef = useRef<number | null>(null);
   const wasPlayingBeforeTypingRef = useRef(false);
   const shouldResumeRef = useRef(false);
   
@@ -104,7 +104,7 @@ export default function AutoDetectEnhanced({
       shouldResumeRef.current = true;
       
       // Set timeout to resume media after typing stops for the configured delay
-      typingTimeoutRef.current = setTimeout(() => {
+      typingTimeoutRef.current = window.setTimeout(() => {
         if (shouldResumeRef.current && onPlayPauseRef.current) {
           // Resume playback
           onPlayPauseRef.current();
@@ -123,7 +123,7 @@ export default function AutoDetectEnhanced({
       shouldResumeRef.current = false; // Not resuming, we're pausing
       
       // Set timeout for first pause - pause media after typing stops for the configured delay
-      typingTimeoutRef.current = setTimeout(() => {
+      typingTimeoutRef.current = window.setTimeout(() => {
         if (onPlayPauseRef.current) {
           // Pause playback
           onPlayPauseRef.current();
@@ -139,7 +139,7 @@ export default function AutoDetectEnhanced({
           
           // STEP 3: Start auto-resume timer after pause
           // If no typing occurs, resume after autoResumeDelay
-          autoResumeTimeoutRef.current = setTimeout(() => {
+          autoResumeTimeoutRef.current = window.setTimeout(() => {
             if (wasPlayingBeforeTypingRef.current && onPlayPauseRef.current) {
               // Resume playback
               onPlayPauseRef.current();

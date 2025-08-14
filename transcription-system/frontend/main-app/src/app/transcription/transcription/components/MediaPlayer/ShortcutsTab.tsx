@@ -1,18 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { KeyboardShortcut } from '../../types';
-import { defaultShortcuts } from '../KeyboardShortcuts';
-import { resetShortcutsToDefaults } from '../../utils/settingsManager';
+import { KeyboardShortcut, RewindOnPauseSettings } from './types';
+import { defaultShortcuts } from './KeyboardShortcuts';
 
 interface ShortcutsTabProps {
   shortcuts: KeyboardShortcut[];
   shortcutsEnabled: boolean;
-  rewindOnPause: { enabled: boolean; amount: number };
+  rewindOnPause: RewindOnPauseSettings;
   onShortcutsChange: (shortcuts: KeyboardShortcut[]) => void;
   onShortcutsEnabledChange: (enabled: boolean) => void;
-  onRewindOnPauseChange: (settings: { enabled: boolean; amount: number }) => void;
-  showGlobalStatus?: (message: string) => void;
+  onRewindOnPauseChange: (settings: RewindOnPauseSettings) => void;
 }
 
 export default function ShortcutsTab({
@@ -21,23 +19,18 @@ export default function ShortcutsTab({
   rewindOnPause,
   onShortcutsChange,
   onShortcutsEnabledChange,
-  onRewindOnPauseChange,
-  showGlobalStatus
+  onRewindOnPauseChange
 }: ShortcutsTabProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [tempKey, setTempKey] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Show status message - use global if available, otherwise local
+  // Show status message like original
   const showStatus = (message: string) => {
-    if (showGlobalStatus) {
-      showGlobalStatus(message);
-    } else {
-      setStatusMessage(message);
-      setTimeout(() => {
-        setStatusMessage(null);
-      }, 3000);
-    }
+    setStatusMessage(message);
+    setTimeout(() => {
+      setStatusMessage(null);
+    }, 3000);
   };
 
   // Group shortcuts by their group property - exactly like original
@@ -113,12 +106,6 @@ export default function ShortcutsTab({
       key = 'ArrowDown';
     } else if (key === 'Escape') {
       key = 'Escape';
-    } else if (key.startsWith('F') && key.length >= 2 && key.length <= 3) {
-      // Handle F1-F12 keys
-      const fNum = key.substring(1);
-      if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
-        key = key; // Keep F-keys as is (F1, F2, etc.)
-      }
     } else if (key.length === 1) {
       // For single character keys, keep lowercase to match defaults
       key = key.toLowerCase();
@@ -170,20 +157,8 @@ export default function ShortcutsTab({
   };
 
   const resetShortcuts = () => {
-    // Reset shortcuts in localStorage first
-    resetShortcutsToDefaults();
-    
-    // Create fresh copy of defaults for state update
-    const freshDefaults = defaultShortcuts.map(shortcut => ({
-      action: shortcut.action,
-      key: shortcut.key,
-      description: shortcut.description,
-      enabled: shortcut.enabled,
-      group: shortcut.group
-    }));
-    
-    // Update parent component state
-    onShortcutsChange(freshDefaults);
+    // Reset to default shortcuts
+    onShortcutsChange([...defaultShortcuts]);
     showStatus('הקיצורים אופסו לברירת המחדל');
   };
 
@@ -297,17 +272,9 @@ export default function ShortcutsTab({
 
       {/* Shortcuts list grouped by category - EXACT original structure */}
       <div className="media-shortcuts-list">
-        {Object.entries(groupedShortcuts).map(([groupName, groupShortcuts]) => {
-          // Check if this is a waveform subgroup
-          const isWaveformGroup = groupName.startsWith('צורת גל >');
-          const displayName = isWaveformGroup ? groupName.split(' > ')[1] : groupName;
-          const isMainWaveformHeader = groupName === 'צורת גל';
-          
-          return (
-          <div key={groupName} className={`media-shortcut-group ${isWaveformGroup ? 'waveform-subgroup' : ''}`}>
-            <div className={`group-header ${isWaveformGroup ? 'subgroup-header' : ''} ${isMainWaveformHeader ? 'main-waveform-header' : ''}`}>
-              {getGroupIcon(groupName)} {displayName}
-            </div>
+        {Object.entries(groupedShortcuts).map(([groupName, groupShortcuts]) => (
+          <div key={groupName} className="media-shortcut-group">
+            <div className="group-header">{getGroupIcon(groupName)} {groupName}</div>
             
             {groupShortcuts.map(shortcut => (
               <div key={shortcut.index} className="media-shortcut-item">
@@ -348,7 +315,7 @@ export default function ShortcutsTab({
               </div>
             ))}
           </div>
-        )})}
+        ))}
       </div>
 
       {/* Rewind on Pause Section - EXACT original structure */}

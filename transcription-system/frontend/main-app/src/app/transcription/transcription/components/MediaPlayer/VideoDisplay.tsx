@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface VideoDisplayProps {
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 type VideoState = 'default' | 'minimized' | 'closed';

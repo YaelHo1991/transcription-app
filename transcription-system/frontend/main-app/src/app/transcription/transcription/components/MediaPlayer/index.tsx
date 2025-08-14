@@ -3,67 +3,26 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MediaPlayerState, MediaFile, MediaPlayerSettings, MediaPlayerAPI, WaveformData } from './types';
 import { WorkerManager } from './workers/workerManager';
-import KeyboardShortcuts, { defaultShortcuts } from './components/KeyboardShortcuts';
-import ShortcutsTab from './components/SettingsModal/ShortcutsTab';
-import PedalTab from './components/SettingsModal/PedalTab';
-import AutoDetectTab from './components/SettingsModal/AutoDetectTab';
-import VideoCube from './components/VideoCube';
-import WaveformCanvas from './components/WaveformCanvas';
-import { analyzeWaveform as analyzeWaveformUtil } from './utils/waveformAnalysis';
-import { handleShortcutAction as handleShortcutActionUtil } from './utils/shortcutActions';
+import KeyboardShortcuts, { defaultShortcuts } from './KeyboardShortcuts';
+import ShortcutsTab from './ShortcutsTab';
+import PedalTab from './PedalTab';
+import AutoDetectTab from './AutoDetectTab';
+import VideoCube from './VideoCube';
+import WaveformCanvas from './WaveformCanvas';
 import { 
-  parseTimeString,
-  enableTimeEdit as enableTimeEditUtil,
-  handleTimeEditChange as handleTimeEditChangeUtil,
-  applyTimeEdit,
-  cancelTimeEdit
-} from './utils/timeEditing';
-import * as videoCubeUtils from './utils/videoCubeHandlers';
-import { setupMediaEventHandlers } from './utils/mediaEventHandlers';
-import { setupWorkerManager } from './utils/workerSetup';
-import { 
-  formatTime, 
-  togglePlayPause as togglePlayPauseUtil,
-  handleRewind as handleRewindUtil,
-  handleForward as handleForwardUtil,
-  handleProgressClick as handleProgressClickUtil,
-  getActiveMediaElement,
-  applyVolumeToElements,
-  applyPlaybackRateToElements,
-  jumpToStart as jumpToStartUtil,
-  jumpToEnd as jumpToEndUtil
-} from './utils/mediaControls';
-import {
-  handleVolumeChange as handleVolumeChangeUtil,
-  toggleMute as toggleMuteUtil,
-  getVolumeIcon,
-  formatVolumePercentage
-} from './utils/volumeControls';
-import {
-  cycleSpeed as cycleSpeedUtil,
-  resetSpeed as resetSpeedUtil,
-  handleSpeedChange as handleSpeedChangeUtil,
-  formatSpeed,
-  SPEED_PRESETS
-} from './utils/speedControls';
-import {
-  loadSettings,
-  saveSettings,
-  mergeShortcuts,
-  DEFAULT_SETTINGS
-} from './utils/settingsManager';
-import {
-  showGlobalStatus as showGlobalStatusUtil,
-  statusMessages,
-  getStatusMessage
-} from './utils/statusManager';
-import { resourceMonitor, OperationType } from '@/lib/services/resourceMonitor';
+  getWaveformStrategy, 
+  getFileSizeFromUrl, 
+  generateFileId,
+  WaveformMethod,
+  formatFileSize 
+} from './utils/waveformStrategy';
+import { ChunkedWaveformProcessor } from './utils/ChunkedWaveformProcessor';
+import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import './MediaPlayer.css';
-import './styles/shortcuts.css';
-import './styles/pedal.css';
-import './styles/autodetect.css';
-import './styles/tooltip.css';
+import './shortcuts-styles.css';
+import './pedal-styles.css';
+import './autodetect-styles.css';
 
 interface MediaPlayerProps {
   initialMedia?: MediaFile;
@@ -88,7 +47,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(100);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [speedSliderValue, setSpeedSliderValue] = useState(100); // Speed slider value (50-200)
   const [isMuted, setIsMuted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [globalStatus, setGlobalStatus] = useState<string | null>(null);
@@ -111,37 +69,33 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const [keyboardSettings, setKeyboardSettings] = useState({
     shortcuts: defaultShortcuts || [],
     shortcutsEnabled: true,
-    rewindOnPause: { enabled: false, amount: 0.5 }
+    rewindOnPause: { enabled: false, amount: 0.5, source: 'keyboard' as 'keyboard' | 'pedal' | 'autodetect' | 'all' }
   });
   
   // Load and merge shortcuts from localStorage on mount
   useEffect(() => {
-    const savedSettings = loadSettings();
-    
-    setKeyboardSettings({
-      shortcuts: savedSettings.shortcuts,
-      shortcutsEnabled: savedSettings.shortcutsEnabled,
-      rewindOnPause: savedSettings.rewindOnPause
-    });
-    
-    // Load other settings
-    if (savedSettings.pedalEnabled !== undefined) {
-      setPedalEnabled(savedSettings.pedalEnabled);
-    }
-    if (savedSettings.autoDetectEnabled !== undefined) {
-      setAutoDetectEnabled(savedSettings.autoDetectEnabled);
-    }
-    if (savedSettings.autoDetectMode) {
-      setAutoDetectMode(savedSettings.autoDetectMode);
-    }
-    if (savedSettings.volume !== undefined) {
-      setVolume(savedSettings.volume);
-      applyVolumeToElements(savedSettings.volume, audioRef, videoRef);
-    }
-    if (savedSettings.playbackRate !== undefined) {
-      setPlaybackRate(savedSettings.playbackRate);
-      setSpeedSliderValue(savedSettings.playbackRate * 100);
-      applyPlaybackRateToElements(savedSettings.playbackRate, audioRef, videoRef);
+    if (typeof window !== 'undefined') {
+      const savedSettings = localStorage.getItem('mediaPlayerSettings');
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.shortcuts) {
+            // Merge new shortcuts from defaults that don't exist in saved
+            const savedActions = new Set(parsed.shortcuts.map((s: any) => s.action));
+            const newShortcuts = defaultShortcuts.filter(s => !savedActions.has(s.action));
+            const mergedShortcuts = [...parsed.shortcuts, ...newShortcuts];
+            
+            setKeyboardSettings(prev => ({
+              ...prev,
+              shortcuts: mergedShortcuts,
+              shortcutsEnabled: parsed.shortcutsEnabled !== undefined ? parsed.shortcutsEnabled : prev.shortcutsEnabled,
+              rewindOnPause: parsed.rewindOnPause || prev.rewindOnPause
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to load shortcuts:', error);
+        }
+      }
     }
   }, []);
   
@@ -157,106 +111,382 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const [waveformLoading, setWaveformLoading] = useState(false);
   const [waveformProgress, setWaveformProgress] = useState(0);
   const [waveformEnabled, setWaveformEnabled] = useState(false); // Toggle state
-  
 
   // Show global status message
   const showGlobalStatus = (message: string) => {
-    showGlobalStatusUtil(message, setGlobalStatus);
+    setGlobalStatus(message);
+    setTimeout(() => {
+      setGlobalStatus(null);
+    }, 3000);
   };
 
-  // Play/Pause wrapper
+  // Format time
+  const formatTime = (time: number) => {
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = Math.floor(time % 60);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Play/Pause
   const togglePlayPause = () => {
-    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
-    togglePlayPauseUtil(mediaElement);
+    // Use video element for video files, audio element for audio files
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    
+    if (!mediaElement) {
+      return;
+    }
+    
+    // Check actual media state, not React state
+    if (!mediaElement.paused) {
+      mediaElement.pause();
+    } else {
+      mediaElement.play()
+        .catch(err => {
+          // Ignore AbortError as it's just a play/pause conflict
+          if (err.name !== 'AbortError') {
+            console.error('Play failed:', err);
+          }
+        });
+    }
   };
 
-  // Seek functions wrappers
+  // Seek functions
   const handleRewind = (seconds: number) => {
-    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
-    handleRewindUtil(mediaElement, seconds);
+    console.log('handleRewind called with seconds:', seconds);
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!mediaElement) {
+      console.log('No media element found');
+      return;
+    }
+    const newTime = Math.max(0, mediaElement.currentTime - seconds);
+    console.log('Setting time from', mediaElement.currentTime, 'to', newTime);
+    mediaElement.currentTime = newTime;
   };
 
   const handleForward = (seconds: number) => {
-    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
-    handleForwardUtil(mediaElement, seconds, duration);
+    console.log('handleForward called with seconds:', seconds);
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!mediaElement) {
+      console.log('No media element found');
+      return;
+    }
+    // Use mediaElement.duration if duration state is not set
+    const maxDuration = duration || mediaElement.duration || 0;
+    const newTime = Math.min(maxDuration, mediaElement.currentTime + seconds);
+    console.log('Forward: duration=', maxDuration, 'current=', mediaElement.currentTime, 'new=', newTime);
+    mediaElement.currentTime = newTime;
   };
 
-  // Progress bar click wrapper
+  // Progress bar click
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const mediaElement = getActiveMediaElement(showVideo, videoRef, audioRef);
-    handleProgressClickUtil(e, progressBarRef, mediaElement, duration);
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!progressBarRef.current || !mediaElement) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    // RTL: Right is 0%, left is 100%
+    const progress = 1 - (x / rect.width);
+    mediaElement.currentTime = progress * duration;
   };
 
   // Volume control
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = Number(e.target.value);
-    handleVolumeChangeUtil(newVolume, audioRef, videoRef, setVolume, setIsMuted, previousVolumeRef);
-    saveSettings({ volume: newVolume });
+    setVolume(newVolume);
+    
+    // Apply volume to both audio and video elements
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume / 100;
+    }
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume / 100;
+    }
+    
+    setIsMuted(newVolume === 0);
+    // Track non-zero volume for unmute
+    if (newVolume > 0) {
+      previousVolumeRef.current = newVolume;
+    }
   };
 
   const toggleMute = () => {
-    toggleMuteUtil(showVideo, audioRef, videoRef, setVolume, setIsMuted, previousVolumeRef);
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (!mediaElement) return;
+    
+    // Check actual media volume instead of React state to avoid closure issues
+    if (mediaElement.volume === 0) {
+      // Currently muted, unmute it
+      const newVolume = previousVolumeRef.current / 100;
+      if (audioRef.current) audioRef.current.volume = newVolume;
+      if (videoRef.current) videoRef.current.volume = newVolume;
+      setVolume(previousVolumeRef.current);
+      setIsMuted(false);
+    } else {
+      // Currently has volume, mute it
+      // Save current volume before muting
+      previousVolumeRef.current = mediaElement.volume * 100;
+      if (audioRef.current) audioRef.current.volume = 0;
+      if (videoRef.current) videoRef.current.volume = 0;
+      setVolume(0);
+      setIsMuted(true);
+    }
   };
 
   // Speed control
   const handleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSpeed = Number(e.target.value);
-    handleSpeedChangeUtil(newSpeed, audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
-    saveSettings({ playbackRate: newSpeed / 100 });
+    const newSpeed = Number(e.target.value) / 100;
+    setPlaybackRate(newSpeed);
+    
+    // Apply speed to both audio and video elements
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newSpeed;
+    }
+    if (videoRef.current) {
+      videoRef.current.playbackRate = newSpeed;
+    }
   };
 
   // Cycle through speed presets
   const cycleSpeed = () => {
-    cycleSpeedUtil(playbackRate, audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
+    const currentSpeed = playbackRate * 100;
+    let nextSpeed;
+    
+    if (currentSpeed <= 75) {
+      nextSpeed = 100; // 0.75x -> 1.0x
+    } else if (currentSpeed <= 100) {
+      nextSpeed = 125; // 1.0x -> 1.25x
+    } else if (currentSpeed <= 125) {
+      nextSpeed = 150; // 1.25x -> 1.5x
+    } else if (currentSpeed <= 150) {
+      nextSpeed = 175; // 1.5x -> 1.75x
+    } else if (currentSpeed <= 175) {
+      nextSpeed = 200; // 1.75x -> 2.0x
+    } else {
+      nextSpeed = 75; // 2.0x -> 0.75x (wrap around)
+    }
+    
+    const newRate = nextSpeed / 100;
+    setPlaybackRate(newRate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newRate;
+    }
   };
 
   // Reset speed to normal
   const resetSpeed = () => {
-    resetSpeedUtil(audioRef, videoRef, setPlaybackRate, setSpeedSliderValue);
+    setPlaybackRate(1);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = 1;
+    }
   };
 
   // Handle keyboard shortcut actions
   const handleShortcutAction = useCallback((action: string) => {
-    // Handle toggleWaveform here
-    if (action === 'toggleWaveform') {
-      const newEnabled = !waveformEnabled;
-      setWaveformEnabled(newEnabled);
-      
-      // If enabling and we don't have data, analyze
-      // We'll trigger the analysis through a useEffect instead to avoid circular dependency
+    console.log('handleShortcutAction called with:', action);
+    if (!audioRef.current && action !== 'openSettings' && action !== 'toggleSettings') {
+      console.log('No audio ref, returning');
       return;
     }
+
+    // Map pedal actions to shortcut actions (note the dot vs underscore difference)
+    const actionMap: { [key: string]: string } = {
+      'skipBackward2.5': 'rewind2_5',
+      'skipForward2.5': 'forward2_5',
+      'skipBackward5': 'rewind5',
+      'skipForward5': 'forward5',
+      'skipBackward10': 'rewind10',
+      'skipForward10': 'forward10'
+    };
     
-    handleShortcutActionUtil({
-      action,
-      audioRef,
-      videoRef,
-      duration,
-      volume,
-      playbackRate,
-      currentTime,
-      isPlaying,
-      setVolume,
-      setIsMuted,
-      setIsPlaying,
-      setPlaybackRate,
-      setSpeedSliderValue,
-      handleRewind,
-      handleForward,
-      previousVolumeRef,
-      setShowSettingsModal: setShowSettings,
-      setPedalEnabled,
-      setAutoDetectEnabled,
-      setAutoDetectMode,
-      setSettings: setKeyboardSettings,
-      showGlobalStatus,
-      onTimestampCopy,
-      setShowVideo
-    });
-  }, [audioRef, duration, volume, playbackRate, onTimestampCopy, currentTime, isPlaying, handleRewind, handleForward, waveformEnabled]);
+    // Use mapped action if available, otherwise use original
+    const mappedAction = actionMap[action] || action;
+    console.warn('ACTION MAPPING:', action, '->', mappedAction);  // Using warn to be more visible
+
+    switch (mappedAction) {
+      // Playback Control
+      case 'playPause':
+        if (!audioRef.current) {
+          return;
+        }
+        
+        console.log('PlayPause action - current paused state:', audioRef.current.paused);
+        
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
+          console.log('Paused audio');
+        } else {
+          audioRef.current.play()
+            .then(() => console.log('Playing audio'))
+            .catch(err => {
+              // Ignore AbortError as it's just a play/pause conflict
+              if (err.name !== 'AbortError') {
+                console.error('Play failed:', err);
+              }
+            });
+        }
+        break;
+      case 'stop':
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          setIsPlaying(false);
+        }
+        break;
+      
+      // Navigation
+      case 'rewind5':
+        handleRewind(5);
+        break;
+      case 'forward5':
+        handleForward(5);
+        break;
+      case 'rewind2_5':
+        handleRewind(2.5);
+        break;
+      case 'forward2_5':
+        handleForward(2.5);
+        break;
+      case 'rewind10':
+        handleRewind(10);
+        break;
+      case 'forward10':
+        handleForward(10);
+        break;
+      case 'jumpToStart':
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+        }
+        break;
+      case 'jumpToEnd':
+        if (audioRef.current) {
+          audioRef.current.currentTime = duration;
+        }
+        break;
+      
+      // Volume & Speed
+      case 'volumeUp':
+        if (!audioRef.current) return;
+        // Get current volume from audio element to avoid closure issues
+        const currentVolumeUp = Math.round(audioRef.current.volume * 100);
+        const newVolumeUp = Math.min(100, currentVolumeUp + 5); // Increase by 5%
+        setVolume(newVolumeUp);
+        if (audioRef.current) {
+          audioRef.current.volume = newVolumeUp / 100;
+        }
+        // Track non-zero volume for unmute
+        if (newVolumeUp > 0) {
+          previousVolumeRef.current = newVolumeUp;
+          setIsMuted(false);
+        }
+        break;
+      case 'volumeDown':
+        if (!audioRef.current) return;
+        // Get current volume from audio element to avoid closure issues
+        const currentVolumeDown = Math.round(audioRef.current.volume * 100);
+        const newVolumeDown = Math.max(0, currentVolumeDown - 5); // Decrease by 5%
+        setVolume(newVolumeDown);
+        if (audioRef.current) {
+          audioRef.current.volume = newVolumeDown / 100;
+        }
+        // Update mute state if volume reaches 0
+        setIsMuted(newVolumeDown === 0);
+        // Track non-zero volume for unmute
+        if (newVolumeDown > 0) {
+          previousVolumeRef.current = newVolumeDown;
+        }
+        break;
+      case 'mute':
+        toggleMute();
+        break;
+      case 'speedUp':
+        const newSpeedUp = Math.min(2, playbackRate + 0.25);
+        setPlaybackRate(newSpeedUp);
+        if (audioRef.current) {
+          audioRef.current.playbackRate = newSpeedUp;
+        }
+        break;
+      case 'speedDown':
+        const newSpeedDown = Math.max(0.5, playbackRate - 0.25);
+        setPlaybackRate(newSpeedDown);
+        if (audioRef.current) {
+          audioRef.current.playbackRate = newSpeedDown;
+        }
+        break;
+      case 'speedReset':
+        resetSpeed();
+        break;
+      
+      // Work Modes
+      case 'toggleShortcuts':
+        setKeyboardSettings(prev => {
+          const newEnabled = !prev.shortcutsEnabled;
+          showGlobalStatus(`קיצורי מקלדת: ${newEnabled ? 'פעילים' : 'כבויים'}`);
+          return { ...prev, shortcutsEnabled: newEnabled };
+        });
+        break;
+      case 'togglePedal':
+        setPedalEnabled(prev => {
+          const newEnabled = !prev;
+          showGlobalStatus(`דוושה: ${newEnabled ? 'פעילה' : 'כבויה'}`);
+          return newEnabled;
+        });
+        break;
+      case 'toggleAutoDetect':
+        setAutoDetectEnabled(prev => {
+          const newEnabled = !prev;
+          showGlobalStatus(`זיהוי אוטומטי: ${newEnabled ? 'פעיל' : 'כבוי'}`);
+          return newEnabled;
+        });
+        break;
+      case 'toggleMode':
+        // Toggle between regular and enhanced auto-detect modes
+        setAutoDetectMode(prev => {
+          const newMode = prev === 'regular' ? 'enhanced' : 'regular';
+          showGlobalStatus(`מצב זיהוי: ${newMode === 'regular' ? 'רגיל' : 'משופר'}`);
+          return newMode;
+        });
+        break;
+      
+      // Special Functions
+      case 'openSettings':
+      case 'toggleSettings':
+        setShowSettings(true);
+        break;
+      case 'insertTimestamp':
+        const timestamp = formatTime(currentTime);
+        if (onTimestampCopy) {
+          onTimestampCopy(timestamp);
+        } else {
+          // Copy to clipboard
+          navigator.clipboard.writeText(timestamp);
+        }
+        break;
+      
+      // Mark Navigation Actions
+      case 'previousMark':
+      case 'nextMark':
+      case 'cyclePlaybackMode':
+      case 'loopCurrentMark':
+      case 'cycleMarkFilter':
+        // Pass these actions to the WaveformCanvas
+        if ((window as any).__markNavigationHandler) {
+          (window as any).__markNavigationHandler(action);
+        }
+        break;
+      
+      // Video Mode
+      case 'toggleVideo':
+        setShowVideo(prev => !prev);
+        break;
+      case 'toggleFullscreen':
+        // Will be implemented in Stage 4
+        break;
+    }
+  }, [audioRef, duration, volume, playbackRate, onTimestampCopy, currentTime, isPlaying]);
 
   // Handle speed icon click with double-click detection
-  const speedClickTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const speedClickTimerRef = useRef<number | null>(null);
   const handleSpeedIconClick = () => {
     if (speedClickTimerRef.current) {
       // Double click detected
@@ -265,7 +495,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       resetSpeed();
     } else {
       // Single click - wait to see if it's a double click
-      speedClickTimerRef.current = setTimeout(() => {
+      speedClickTimerRef.current = window.setTimeout(() => {
         speedClickTimerRef.current = null;
         cycleSpeed();
       }, 250);
@@ -274,18 +504,213 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
   // Analyze waveform for loaded media with smart strategy
   const analyzeWaveform = useCallback(async (url: string) => {
-    await analyzeWaveformUtil({
-      url,
-      workerManager: workerManagerRef.current,
-      setWaveformLoading,
-      setWaveformProgress,
-      setWaveformData,
-      setWaveformEnabled,
-      checkOperation,
-      showWarning,
-      showGlobalStatus,
-      resourceMonitor
-    });
+    try {
+      setWaveformLoading(true);
+      setWaveformProgress(0);
+      setWaveformData(null);
+
+      // Get file size to determine strategy
+      const fileSize = await getFileSizeFromUrl(url);
+      
+      // If file size detection failed (returns 0), use client-side as fallback
+      if (fileSize === 0) {
+        console.warn('Could not determine file size, using client-side processing as fallback');
+      }
+      
+      // Check system resources before processing
+      const resourceCheck = await checkOperation(OperationType.WAVEFORM, fileSize || 50 * 1024 * 1024);
+      
+      if (!resourceCheck.safe) {
+        // Show warning and handle user response
+        const proceed = showWarning(resourceCheck);
+        
+        if (!proceed) {
+          // User cancelled, disable waveform
+          setWaveformEnabled(false);
+          setWaveformLoading(false);
+          showGlobalStatus('ניתוח צורת גל בוטל - אין מספיק משאבים');
+          return;
+        }
+        
+        // If alternative method suggested, switch strategy
+        if (resourceCheck.recommendation === Recommendation.USE_SERVER) {
+          // Force server-side processing
+          console.log('Switching to server-side processing due to low resources');
+        }
+      }
+      
+      // Check if it's a blob URL (can't be processed server-side)
+      const isBlobUrl = url.startsWith('blob:');
+      
+      let strategy = getWaveformStrategy(fileSize || 1); // Use 1 byte if 0 to get client strategy
+      
+      // Override to chunked processing for blob URLs that would normally use server
+      if (isBlobUrl && strategy.method === WaveformMethod.SERVER) {
+        strategy = { 
+          method: WaveformMethod.CHUNKED, 
+          threshold: fileSize || 0,
+          message: 'Processing waveform locally (blob URL)'
+        };
+        console.log('Using chunked processing for blob URL (server processing not available for blobs)');
+      }
+      
+      console.log(`File size: ${fileSize ? formatFileSize(fileSize) : 'Unknown'}, using ${strategy.method} method`);
+      
+      // Show appropriate message
+      setWaveformProgress(1); // Show loading started
+      
+      // Log operation start for metrics
+      const startTime = Date.now();
+      const startMemory = (await resourceMonitor.getStatus()).memoryUsed;
+      
+      switch (strategy.method) {
+        case WaveformMethod.CLIENT:
+          // Small files: Original client-side processing
+          if (!workerManagerRef.current) return;
+          
+          const response = await fetch(url);
+          const arrayBuffer = await response.arrayBuffer();
+
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const decodedData = await audioContext.decodeAudioData(arrayBuffer.slice());
+
+          const channelData = decodedData.getChannelData(0);
+          const duration = decodedData.duration;
+          
+          audioContext.close();
+
+          workerManagerRef.current.analyzeWaveform(channelData.buffer as ArrayBuffer, decodedData.sampleRate, duration);
+          break;
+          
+        case WaveformMethod.CHUNKED:
+          // Medium files: Process in chunks
+          const chunkedProcessor = new ChunkedWaveformProcessor({
+            onProgress: (progress) => setWaveformProgress(progress),
+            onError: (error) => console.error('Chunked processing error:', error)
+          });
+          
+          const chunkedResult = await chunkedProcessor.processLargeFile(url);
+          console.log('Chunked processing complete:', chunkedResult);
+          setWaveformData(chunkedResult);
+          setWaveformLoading(false);
+          setWaveformProgress(100);
+          // Force re-render by updating a dummy state if needed
+          if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
+            console.log('Waveform data set successfully, peaks:', chunkedResult.peaks.length);
+          }
+          break;
+          
+        case WaveformMethod.SERVER:
+          // Large files: Request from server
+          const fileId = generateFileId(url);
+          
+          // First, trigger generation on server
+          const generateResponse = await fetch('http://localhost:5000/api/waveform/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              fileId,
+              fileUrl: url,
+              fileSize
+            })
+          });
+          
+          if (!generateResponse.ok) {
+            throw new Error('Failed to generate waveform on server');
+          }
+          
+          // Check generation status first
+          const statusData = await generateResponse.json();
+          
+          // If processing in background (large files), poll for completion
+          if (statusData.status === 'processing') {
+            let attempts = 0;
+            const maxAttempts = 600; // 10 minutes timeout for very large files
+            
+            while (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+              
+              try {
+                const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+                
+                if (waveformResponse.ok) {
+                  const data = await waveformResponse.json();
+                  setWaveformData({
+                    peaks: data.peaks,
+                    duration: data.duration,
+                    sampleRate: data.sampleRate || 44100,
+                    resolution: data.resolution || 10
+                  });
+                  setWaveformLoading(false);
+                  setWaveformProgress(100);
+                  break;
+                }
+              } catch (pollError) {
+                console.log('Still processing...', pollError);
+              }
+              
+              attempts++;
+              setWaveformProgress(Math.min(95, 20 + (attempts * 0.25))); // Slower progress for large files
+            }
+            
+            if (attempts >= maxAttempts) {
+              throw new Error('Waveform generation timeout - file too large');
+            }
+          } else if (statusData.status === 'completed') {
+            // Small files complete immediately
+            const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+            
+            if (waveformResponse.ok) {
+              const data = await waveformResponse.json();
+              setWaveformData({
+                peaks: data.peaks,
+                duration: data.duration,
+                sampleRate: data.sampleRate || 44100,
+                resolution: data.resolution || 10
+              });
+              setWaveformLoading(false);
+              setWaveformProgress(100);
+            } else {
+              throw new Error('Failed to retrieve waveform data');
+            }
+          }
+          break;
+      }
+      
+      // Log operation completion for metrics
+      const endMemory = (await resourceMonitor.getStatus()).memoryUsed;
+      resourceMonitor.logOperation({
+        type: OperationType.WAVEFORM,
+        timestamp: startTime,
+        fileSize: fileSize || 0,
+        memoryBefore: startMemory,
+        memoryAfter: endMemory,
+        duration: Date.now() - startTime,
+        success: true
+      });
+      
+    } catch (error) {
+      console.error('Failed to analyze waveform:', error);
+      setWaveformLoading(false);
+      setWaveformProgress(0);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Log operation failure
+      resourceMonitor.logOperation({
+        type: OperationType.WAVEFORM,
+        timestamp: Date.now(),
+        fileSize: 0,
+        memoryBefore: 0,
+        success: false,
+        error: errorMessage
+      });
+      
+      // Show error message to user
+      showGlobalStatus(`שגיאה בטעינת צורת גל: ${errorMessage}`);
+    }
   }, [checkOperation, showWarning]);
 
   // Load media
@@ -300,8 +725,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       audioRef.current.src = initialMedia.url;
       audioRef.current.volume = volume / 100; // Initialize volume
       const isVideo = initialMedia.type === 'video';
-      
-      // Don't set onloadeddata handler - let useEffect handle waveform loading
       setShowVideo(isVideo);
       setShowVideoCube(isVideo && !videoMinimized);
       
@@ -324,9 +747,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           if (videoRef.current) {
             videoRef.current.src = initialMedia.url;
             videoRef.current.volume = volume / 100;
-            
-            // Don't set onloadeddata handler - let useEffect handle waveform loading
-            
             // Ensure video is ready to play
             videoRef.current.load();
           }
@@ -365,10 +785,28 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   }, [videoMinimized, showVideo]);
 
   // Video cube handlers
-  const handleVideoCubeMinimize = () => videoCubeUtils.handleVideoCubeMinimize(setVideoMinimized, setShowVideoCube);
-  const handleVideoCubeClose = () => videoCubeUtils.handleVideoCubeClose(setShowVideoCube, setVideoMinimized);
-  const handleVideoRestore = () => videoCubeUtils.handleVideoRestore(setVideoMinimized, setShowVideo, setShowVideoCube);
-  const handleVideoCubeRestore = () => videoCubeUtils.handleVideoCubeRestore();
+  const handleVideoCubeMinimize = () => {
+    setVideoMinimized(true);
+    setShowVideoCube(false);
+  };
+
+  const handleVideoCubeClose = () => {
+    setShowVideoCube(false);
+    setVideoMinimized(true); // Set to true so restore button appears
+    // Keep video enabled (don't set setShowVideo(false))
+  };
+
+  const handleVideoRestore = () => {
+    setVideoMinimized(false);
+    setShowVideo(true); // Make sure video is enabled again
+    setShowVideoCube(true);
+  };
+
+  // Handle video cube restore to defaults
+  const handleVideoCubeRestore = () => {
+    // Just a callback for when restore button is clicked
+    // The VideoCube component handles the actual restore logic
+  };
 
   // Waveform seek handler
   const handleWaveformSeek = useCallback((time: number) => {
@@ -380,39 +818,117 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
   // Audio event handlers
   useEffect(() => {
-    return setupMediaEventHandlers(
-      audioRef.current,
-      setDuration,
-      setIsReady,
-      setCurrentTime,
-      setIsPlaying,
-      onTimeUpdate,
-      volume
-    );
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Initialize audio volume
+    audio.volume = volume / 100;
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+      setIsReady(true);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      onTimeUpdate?.(audio.currentTime);
+    };
+    
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
   }, [onTimeUpdate]);
 
   // Video event handlers
   useEffect(() => {
-    if (!showVideo) return;
-    return setupMediaEventHandlers(
-      videoRef.current,
-      setDuration,
-      setIsReady,
-      setCurrentTime,
-      setIsPlaying,
-      onTimeUpdate,
-      volume,
-      playbackRate
-    );
+    const video = videoRef.current;
+    if (!video || !showVideo) return;
+
+    // Initialize video volume
+    video.volume = volume / 100;
+    video.playbackRate = playbackRate;
+
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+      setIsReady(true);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      onTimeUpdate?.(video.currentTime);
+    };
+    
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+    };
   }, [onTimeUpdate, showVideo, volume, playbackRate]);
 
   // Initialize worker manager
   useEffect(() => {
-    workerManagerRef.current = setupWorkerManager(
-      setWaveformProgress,
-      setWaveformData,
-      setWaveformLoading
-    );
+    workerManagerRef.current = new WorkerManager();
+    
+    // Set up waveform event listeners
+    if (workerManagerRef.current) {
+      workerManagerRef.current.on('waveform:progress', (progress: number) => {
+        setWaveformProgress(progress);
+      });
+
+      workerManagerRef.current.on('waveform:complete', (data: WaveformData) => {
+        setWaveformData(data);
+        setWaveformLoading(false);
+        setWaveformProgress(100);
+      });
+
+      workerManagerRef.current.on('waveform:error', (error: string) => {
+        console.error('Waveform analysis error:', error);
+        setWaveformLoading(false);
+        setWaveformProgress(0);
+      });
+    }
     
     return () => {
       workerManagerRef.current?.terminate();
@@ -423,19 +939,52 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   // Jump to start
-  const jumpToStart = () => jumpToStartUtil(audioRef, setCurrentTime);
+  const jumpToStart = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      setCurrentTime(0);
+    }
+  };
 
   // Jump to end
-  const jumpToEnd = () => jumpToEndUtil(audioRef, duration, setCurrentTime);
+  const jumpToEnd = () => {
+    if (audioRef.current && duration > 0) {
+      audioRef.current.currentTime = duration;
+      setCurrentTime(duration);
+    }
+  };
 
+  // Parse time string (HH:MM:SS) to seconds
+  const parseTimeString = (timeStr: string): number => {
+    const parts = timeStr.split(':').map(p => parseInt(p, 10));
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+    return parts[0] || 0;
+  };
 
   // Enable time editing
   const [editingTime, setEditingTime] = useState<'current' | 'total' | null>(null);
   const [editTimeValue, setEditTimeValue] = useState('');
-  const editTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const editTimeoutRef = useRef<number | null>(null);
 
   const enableTimeEdit = (type: 'current' | 'total') => {
-    enableTimeEditUtil(type, currentTime, duration, setEditingTime, setEditTimeValue, editTimeoutRef);
+    setEditingTime(type);
+    // Keep the original time value
+    setEditTimeValue(type === 'current' ? formatTime(currentTime) : formatTime(duration));
+    
+    // Clear any existing timeout
+    if (editTimeoutRef.current) {
+      clearTimeout(editTimeoutRef.current);
+    }
+    
+    // Set timeout to cancel editing after 10 seconds
+    editTimeoutRef.current = window.setTimeout(() => {
+      setEditingTime(null);
+      setEditTimeValue('');
+    }, 10000);
   };
 
   const handleTimeEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -453,21 +1002,45 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       value = value.slice(0, 2) + ':' + value.slice(2);
     }
     
-    handleTimeEditChangeUtil(value, setEditTimeValue, editTimeoutRef);
+    setEditTimeValue(value);
   };
   
   const handleTimeEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Handle Enter
     if (e.key === 'Enter') {
-      applyTimeEdit(editingTime, editTimeValue, audioRef, videoRef, showVideo, duration, setCurrentTime, setEditingTime, setEditTimeValue, editTimeoutRef);
+      const time = parseTimeString(editTimeValue);
+      if (audioRef.current && !isNaN(time)) {
+        audioRef.current.currentTime = Math.min(time, duration);
+        setCurrentTime(audioRef.current.currentTime);
+      }
+      setEditingTime(null);
+      setEditTimeValue('');
+      if (editTimeoutRef.current) {
+        clearTimeout(editTimeoutRef.current);
+      }
       e.preventDefault();
-    } else if (e.key === 'Escape') {
-      cancelTimeEdit(setEditingTime, setEditTimeValue, editTimeoutRef);
+      return;
+    }
+    
+    // Handle Escape
+    if (e.key === 'Escape') {
+      setEditingTime(null);
+      setEditTimeValue('');
+      if (editTimeoutRef.current) {
+        clearTimeout(editTimeoutRef.current);
+      }
       e.preventDefault();
+      return;
     }
   };
   
   const handleTimeEditBlur = () => {
-    cancelTimeEdit(setEditingTime, setEditTimeValue, editTimeoutRef);
+    // Cancel editing when focus is lost
+    setEditingTime(null);
+    setEditTimeValue('');
+    if (editTimeoutRef.current) {
+      clearTimeout(editTimeoutRef.current);
+    }
   };
 
   return (
@@ -486,31 +1059,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       
       {/* Media Player Component */}
       <div className={`media-player-container ${showVideoCube ? 'video-active' : ''}`} id="mediaPlayerContainer">
-        {/* Settings Button - positioned at top right */}
-        <button 
-          className="settings-btn" 
-          id="settingsBtn" 
-          data-tooltip="הגדרות"
-          onClick={() => setShowSettings(true)}
-          style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            zIndex: 100,
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '8px',
-            fontSize: '20px',
-            cursor: 'pointer',
-            transition: 'background 0.3s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-        >
-          ⚙️
-        </button>
-        
         {/* Media Player Content Wrapper */}
         <div className="media-player-content">
           {/* Hidden Audio Element */}
@@ -524,7 +1072,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           <button 
             className="collapse-toggle" 
             id="controlsToggle" 
-            data-tooltip="הסתר/הצג פקדי הפעלה"
+            title="הסתר/הצג פקדי הפעלה"
             onClick={() => setControlsCollapsed(!controlsCollapsed)}
           >
             <span className="toggle-icon">{controlsCollapsed ? '▲' : '▼'}</span>
@@ -535,28 +1083,28 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             {/* Control Buttons (RTL: rewind on left, forward on right) */}
             <div className="control-buttons">
               {/* Rewind buttons (left side in RTL) */}
-              <button className="control-btn" id="rewind5Btn" data-tooltip="אחורה 5 שניות" onClick={() => handleRewind(5)}>
+              <button className="control-btn" id="rewind5Btn" title="אחורה 5 שניות" onClick={() => handleRewind(5)}>
                 ➡️
                 <span className="skip-amount">5</span>
               </button>
               
-              <button className="control-btn" id="rewind2_5Btn" data-tooltip="אחורה 2.5 שניות" onClick={() => handleRewind(2.5)}>
+              <button className="control-btn" id="rewind2_5Btn" title="אחורה 2.5 שניות" onClick={() => handleRewind(2.5)}>
                 ➡️
                 <span className="skip-amount">2.5</span>
               </button>
               
               {/* Play/Pause Button (center) */}
-              <button className="play-pause-btn" id="playPauseBtn" data-tooltip="הפעל/השהה" onClick={togglePlayPause}>
+              <button className="play-pause-btn" id="playPauseBtn" title="הפעל/השהה" onClick={togglePlayPause}>
                 <span id="playIcon">{isPlaying ? '⏸️' : '▶️'}</span>
               </button>
               
               {/* Forward buttons (right side in RTL) */}
-              <button className="control-btn" id="forward2_5Btn" data-tooltip="קדימה 2.5 שניות" onClick={() => handleForward(2.5)}>
+              <button className="control-btn" id="forward2_5Btn" title="קדימה 2.5 שניות" onClick={() => handleForward(2.5)}>
                 ⬅️
                 <span className="skip-amount">2.5</span>
               </button>
               
-              <button className="control-btn" id="forward5Btn" data-tooltip="קדימה 5 שניות" onClick={() => handleForward(5)}>
+              <button className="control-btn" id="forward5Btn" title="קדימה 5 שניות" onClick={() => handleForward(5)}>
                 ⬅️
                 <span className="skip-amount">5</span>
               </button>
@@ -594,7 +1142,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className="time-display" 
                 id="currentTime" 
-                data-tooltip="לחץ לקפיצה להתחלה, קליק ימני לעריכה"
+                title="לחץ לקפיצה להתחלה, קליק ימני לעריכה"
                 onClick={jumpToStart}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -705,7 +1253,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className="time-display" 
                 id="totalTime" 
-                data-tooltip="לחץ לקפיצה לסוף, קליק ימני לעריכה"
+                title="לחץ לקפיצה לסוף, קליק ימני לעריכה"
                 onClick={jumpToEnd}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -720,7 +1268,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             <button 
               className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''}`}
               id="waveformToggleBtn" 
-              data-tooltip={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
+              title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
               onClick={() => {
                 const newEnabled = !waveformEnabled;
                 setWaveformEnabled(newEnabled);
@@ -742,7 +1290,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           <button 
             className="collapse-toggle" 
             id="slidersToggle" 
-            data-tooltip="הסתר/הצג בקרות עוצמה ומהירות"
+            title="הסתר/הצג בקרות עוצמה ומהירות"
             onClick={() => setSlidersCollapsed(!slidersCollapsed)}
           >
             <span className="toggle-icon">{slidersCollapsed ? '▲' : '▼'}</span>
@@ -755,10 +1303,10 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className={`slider-icon ${isMuted ? 'muted' : ''}`} 
                 id="volumeIcon" 
-                data-tooltip="השתק/בטל השתקה"
+                title="השתק/בטל השתקה"
                 onClick={toggleMute}
               >
-                {getVolumeIcon(volume, isMuted)}
+                {isMuted || volume === 0 ? '🔇' : volume < 50 ? '🔉' : '🔊'}
               </span>
               <input 
                 type="range" 
@@ -767,11 +1315,11 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 min="0" 
                 max="100" 
                 value={isMuted ? 0 : (volume || 0)} 
-                data-tooltip="עוצמת קול"
+                title="עוצמת קול"
                 onChange={handleVolumeChange}
               />
               <span className="slider-value" id="volumeValue">
-                {formatVolumePercentage(isMuted ? 0 : volume)}
+                {isMuted ? '0' : volume}%
               </span>
             </div>
             
@@ -780,7 +1328,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <span 
                 className="slider-icon" 
                 id="speedIcon" 
-                data-tooltip="לחץ להחלפת מהירות, לחץ פעמיים לאיפוס"
+                title="לחץ להחלפת מהירות, לחץ פעמיים לאיפוס"
                 onClick={handleSpeedIconClick}
                 style={{ cursor: 'pointer' }}
               >⚡</span>
@@ -790,13 +1338,13 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 id="speedSlider" 
                 min="50" 
                 max="200" 
-                value={speedSliderValue} 
+                value={(playbackRate || 1) * 100} 
                 step="5" 
-                data-tooltip="מהירות הפעלה"
+                title="מהירות הפעלה"
                 onChange={handleSpeedChange}
               />
               <span className="slider-value" id="speedValue">
-                {formatSpeed(playbackRate)}
+                {playbackRate.toFixed(1)}x
               </span>
             </div>
           </div>
@@ -812,6 +1360,16 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             🎬 שחזר
           </button>
         )}
+        
+          {/* Settings Button */}
+          <button 
+            className="settings-btn" 
+            id="settingsBtn" 
+            title="הגדרות"
+            onClick={() => setShowSettings(true)}
+          >
+            ⚙️
+          </button>
         </div>
         
         {/* Video Cube - part of layout when video is shown */}
@@ -878,19 +1436,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 shortcuts={keyboardSettings.shortcuts}
                 shortcutsEnabled={keyboardSettings.shortcutsEnabled}
                 rewindOnPause={keyboardSettings.rewindOnPause}
-                onShortcutsChange={(shortcuts) => {
-                  setKeyboardSettings(prev => ({ ...prev, shortcuts }));
-                  saveSettings({ shortcuts });
-                }}
-                onShortcutsEnabledChange={(enabled) => {
-                  setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: enabled }));
-                  saveSettings({ shortcutsEnabled: enabled });
-                }}
-                onRewindOnPauseChange={(rewindSettings) => {
-                  setKeyboardSettings(prev => ({ ...prev, rewindOnPause: rewindSettings }));
-                  saveSettings({ rewindOnPause: rewindSettings });
-                }}
-                showGlobalStatus={showGlobalStatus}
+                onShortcutsChange={(shortcuts) => setKeyboardSettings(prev => ({ ...prev, shortcuts }))}
+                onShortcutsEnabledChange={(enabled) => setKeyboardSettings(prev => ({ ...prev, shortcutsEnabled: enabled }))}
+                onRewindOnPauseChange={(rewindSettings) => setKeyboardSettings(prev => ({ ...prev, rewindOnPause: rewindSettings }))}
               />
             </div>
             
@@ -898,11 +1446,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             <div className={`settings-tab-content ${activeTab === 'pedal' ? 'active' : ''}`} id="pedal-tab">
               <PedalTab
                 pedalEnabled={pedalEnabled}
-                onPedalEnabledChange={(enabled) => {
-                  setPedalEnabled(enabled);
-                  saveSettings({ pedalEnabled: enabled });
-                  showGlobalStatus(getStatusMessage('pedal', enabled));
-                }}
+                onPedalEnabledChange={setPedalEnabled}
                 onPedalAction={handleShortcutAction}
               />
             </div>
@@ -911,16 +1455,8 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             <div className={`settings-tab-content ${activeTab === 'autodetect' ? 'active' : ''}`} id="autodetect-tab">
               <AutoDetectTab
                 autoDetectEnabled={autoDetectEnabled}
-                mode={autoDetectMode}
-                onAutoDetectEnabledChange={(enabled) => {
-                  setAutoDetectEnabled(enabled);
-                  saveSettings({ autoDetectEnabled: enabled });
-                  showGlobalStatus(getStatusMessage('autoDetect', enabled));
-                }}
-                onModeChange={(mode) => {
-                  setAutoDetectMode(mode);
-                  saveSettings({ autoDetectMode: mode });
-                }}
+                onAutoDetectEnabledChange={setAutoDetectEnabled}
+                onModeChange={setAutoDetectMode}
                 isPlaying={isPlaying}
                 onPlayPause={togglePlayPause}
                 onRewind={handleRewind}

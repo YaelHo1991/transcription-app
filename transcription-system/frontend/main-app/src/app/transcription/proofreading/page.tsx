@@ -20,8 +20,8 @@ export default function ProofreadingPage() {
   const [loading, setLoading] = useState(true);
   const [showHeader, setShowHeader] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [headerTimeout, setHeaderTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [sidebarTimeout, setSidebarTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [headerTimeout, setHeaderTimeout] = useState<number | null>(null);
+  const [sidebarTimeout, setSidebarTimeout] = useState<number | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [userFullName, setUserFullName] = useState('');
@@ -126,7 +126,7 @@ export default function ProofreadingPage() {
           setShowSidebar(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowHeader(false);
             setShowSidebar(false);
           }, 1500);
@@ -142,7 +142,7 @@ export default function ProofreadingPage() {
           setShowHeader(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowHeader(false);
           }, 1500);
           setHeaderTimeout(timeout);
@@ -179,7 +179,7 @@ export default function ProofreadingPage() {
           setShowSidebar(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowSidebar(false);
           }, 1500);
           setSidebarTimeout(timeout);
@@ -194,7 +194,7 @@ export default function ProofreadingPage() {
           setShowSidebar(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowSidebar(false);
           }, 1500);
           setSidebarTimeout(timeout);

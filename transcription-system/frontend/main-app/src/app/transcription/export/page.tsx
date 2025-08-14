@@ -27,8 +27,8 @@ export default function ExportPage() {
   const [loading, setLoading] = useState(true);
   const [showHeader, setShowHeader] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [headerTimeout, setHeaderTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [sidebarTimeout, setSidebarTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [headerTimeout, setHeaderTimeout] = useState<number | null>(null);
+  const [sidebarTimeout, setSidebarTimeout] = useState<number | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(null);
   const [projects, setProjects] = useState<ExportProject[]>([]);
   const [userFullName, setUserFullName] = useState('');
@@ -161,7 +161,7 @@ export default function ExportPage() {
           setShowSidebar(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowHeader(false);
             setShowSidebar(false);
           }, 1500);
@@ -177,7 +177,7 @@ export default function ExportPage() {
           setShowHeader(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowHeader(false);
           }, 1500);
           setHeaderTimeout(timeout);
@@ -214,7 +214,7 @@ export default function ExportPage() {
           setShowSidebar(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowSidebar(false);
           }, 1500);
           setSidebarTimeout(timeout);
@@ -229,7 +229,7 @@ export default function ExportPage() {
           setShowSidebar(true);
         }}
         onMouseLeave={() => {
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             setShowSidebar(false);
           }, 1500);
           setSidebarTimeout(timeout);

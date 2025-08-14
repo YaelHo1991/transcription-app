@@ -457,7 +457,7 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
       }}
       onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}
-      data-tooltip={isDetached ? (isDragMode ? "מצב גרירה פעיל - גרור או לחץ פעמיים לביטול" : "לחץ פעמיים להפעלת גרירה") : "לחץ פעמיים לניתוק מהפריסה"}
+      title={isDetached ? (isDragMode ? "מצב גרירה פעיל - גרור או לחץ פעמיים לביטול" : "לחץ פעמיים להפעלת גרירה") : "לחץ פעמיים לניתוק מהפריסה"}
     >
       <div className="video-cube-header" 
            style={{ cursor: isDragMode ? 'grab' : 'default' }}
@@ -470,7 +470,7 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
           <button 
             className="video-control-btn"
             onClick={handleRestore}
-            data-tooltip={isDetached ? "חזור לפריסה" : "אפס גודל"}
+            title={isDetached ? "חזור לפריסה" : "אפס גודל"}
           >
             ⌂
           </button>
@@ -487,14 +487,14 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
               }
               onMinimize();
             }}
-            data-tooltip="מזער (שמור מיקום וגודל)"
+            title="מזער (שמור מיקום וגודל)"
           >
             −
           </button>
           <button 
             className="video-control-btn"
             onClick={handleClose}
-            data-tooltip="סגור ואפס מיקום"
+            title="סגור ואפס מיקום"
           >
             ×
           </button>

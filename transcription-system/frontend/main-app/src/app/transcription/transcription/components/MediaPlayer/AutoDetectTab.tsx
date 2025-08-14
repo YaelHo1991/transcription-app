@@ -6,7 +6,6 @@ import AutoDetectEnhanced from './AutoDetectEnhanced';
 
 interface AutoDetectTabProps {
   autoDetectEnabled: boolean;
-  mode?: 'regular' | 'enhanced';
   onAutoDetectEnabledChange: (enabled: boolean) => void;
   onModeChange?: (mode: 'regular' | 'enhanced') => void;
   isPlaying?: boolean;
@@ -16,7 +15,6 @@ interface AutoDetectTabProps {
 
 export default function AutoDetectTab({ 
   autoDetectEnabled, 
-  mode: propMode,
   onAutoDetectEnabledChange,
   onModeChange,
   isPlaying = false,
@@ -46,9 +44,8 @@ export default function AutoDetectTab({
     };
   };
 
-  // Use prop mode if provided, otherwise maintain internal state
-  const [internalMode, setInternalMode] = useState<'regular' | 'enhanced'>('regular');
-  const mode = propMode || internalMode;
+  // State - use defaults initially to avoid hydration mismatch
+  const [mode, setMode] = useState<'regular' | 'enhanced'>('regular');
   const [regularDelay, setRegularDelay] = useState(2.0);
   const [enhancedFirstPauseDelay, setEnhancedFirstPauseDelay] = useState(1.5);
   const [enhancedSecondPauseDelay, setEnhancedSecondPauseDelay] = useState(1.5);
@@ -58,10 +55,7 @@ export default function AutoDetectTab({
   // Load saved settings after mount to avoid hydration issues
   useEffect(() => {
     const initialSettings = loadAutoDetectSettings();
-    // Only set mode from localStorage if no prop is provided
-    if (!propMode) {
-      setInternalMode(initialSettings.mode);
-    }
+    setMode(initialSettings.mode);
     setRegularDelay(initialSettings.regularDelay);
     setEnhancedFirstPauseDelay(initialSettings.enhancedFirstPauseDelay);
     setEnhancedSecondPauseDelay(initialSettings.enhancedSecondPauseDelay);
@@ -97,14 +91,7 @@ export default function AutoDetectTab({
 
   // Handle mode change
   const handleModeChange = (newMode: 'regular' | 'enhanced') => {
-    if (!propMode) {
-      // Only update internal state if not controlled by prop
-      setInternalMode(newMode);
-    }
-    // Always notify parent of change
-    if (onModeChange) {
-      onModeChange(newMode);
-    }
+    setMode(newMode);
   };
 
   return (
@@ -194,7 +181,7 @@ export default function AutoDetectTab({
         <h3>הגדרות זיהוי</h3>
         <div className="auto-detect-settings">
           {/* Regular Mode Settings */}
-          <div className={`regular-mode-settings ${mode === 'regular' ? 'show' : 'hide'}`}>
+          <div className="regular-mode-settings" style={{ display: mode === 'regular' ? 'block' : 'none' }}>
             <div className="setting-item">
               <label>השהייה לפני חידוש הנגינה (שניות):</label>
               <div className="number-input-wrapper">
@@ -231,7 +218,7 @@ export default function AutoDetectTab({
           </div>
 
           {/* Enhanced Mode Settings */}
-          <div className={`enhanced-mode-settings ${mode === 'enhanced' ? 'show' : 'hide'}`}>
+          <div className="enhanced-mode-settings" style={{ display: mode === 'enhanced' ? 'block' : 'none' }}>
             <div className="setting-item">
               <label>השהייה עד הפסקה ראשונה (שניות):</label>
               <div className="number-input-wrapper">
@@ -340,7 +327,7 @@ export default function AutoDetectTab({
         <h3>מצב נוכחי</h3>
         <div className="auto-detect-status">
           <div className={`status-indicator ${autoDetectEnabled ? 'active' : ''}`}>
-            <span className={`status-icon ${autoDetectEnabled ? 'active' : 'inactive'}`}>•</span>
+            <span className="status-icon" style={{ color: autoDetectEnabled ? '#20c997' : '#666' }}>•</span>
             <span className="status-text">{autoDetectEnabled ? 'פעיל' : 'כבוי'}</span>
           </div>
         </div>

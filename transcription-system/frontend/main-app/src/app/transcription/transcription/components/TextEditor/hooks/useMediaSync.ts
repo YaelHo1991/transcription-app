@@ -51,7 +51,7 @@ export function useMediaSync({
   const [cursorPosition, setCursorPosition] = useState<EditorPosition | null>(null);
   const [segments, setSegments] = useState<TimedSegment[]>([]);
   
-  const highlightTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const highlightTimeoutRef = useRef<number | undefined>(undefined);
   const lastHighlightedMarkRef = useRef<string | null>(null);
   const lastHighlightedSegmentRef = useRef<string | null>(null);
 
@@ -66,7 +66,7 @@ export function useMediaSync({
         clearTimeout(highlightTimeoutRef.current);
       }
       
-      highlightTimeoutRef.current = setTimeout(() => {
+      highlightTimeoutRef.current = window.setTimeout(() => {
         setActiveMark(mark);
         lastHighlightedMarkRef.current = mark?.id || null;
       }, highlightDelay);

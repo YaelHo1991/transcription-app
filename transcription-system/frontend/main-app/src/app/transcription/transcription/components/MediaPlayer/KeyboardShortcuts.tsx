@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
-import { KeyboardShortcut } from '../types';
+import React, { useEffect, useRef } from 'react';
+import { KeyboardShortcut } from './types';
 
 interface KeyboardShortcutsProps {
   shortcuts: KeyboardShortcut[];
@@ -31,43 +31,21 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   { action: 'speedDown', key: '-', description: 'הנמך מהירות', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'speedReset', key: '0', description: 'אפס מהירות', enabled: true, group: 'עוצמה ומהירות' },
   
-  // Group 4: Work Modes (מצבי עבודה) - ordered by tabs like original
-  { action: 'toggleShortcuts', key: 'Ctrl+Shift+s', description: 'הפעל/כבה קיצורים', enabled: true, group: 'מצבי עבודה' },
-  { action: 'togglePedal', key: 'p', description: 'הפעל/כבה דוושה', enabled: true, group: 'מצבי עבודה' },
-  { action: 'toggleAutoDetect', key: 'a', description: 'הפעל/כבה זיהוי אוטומטי', enabled: true, group: 'מצבי עבודה' },
-  { action: 'toggleMode', key: 'Ctrl+m', description: 'החלף מצב רגיל/משופר', enabled: true, group: 'מצבי עבודה' },
-  
-  // Group 5: Mark Navigation (ניווט סימונים) - moved up as requested
+  // Group 4: Mark Navigation (ניווט סימונים)
   { action: 'previousMark', key: 'Alt+ArrowRight', description: 'סימון קודם', enabled: true, group: 'ניווט סימונים' },
   { action: 'nextMark', key: 'Alt+ArrowLeft', description: 'סימון הבא', enabled: true, group: 'ניווט סימונים' },
   { action: 'cyclePlaybackMode', key: 'Ctrl+p', description: 'החלף מצב הפעלה', enabled: true, group: 'ניווט סימונים' },
   { action: 'loopCurrentMark', key: 'l', description: 'לולאה בסימון נוכחי', enabled: true, group: 'ניווט סימונים' },
   { action: 'cycleMarkFilter', key: 'f', description: 'החלף סינון סימונים', enabled: true, group: 'ניווט סימונים' },
   
+  // Group 5: Work Modes (מצבי עבודה) - ordered by tabs like original
+  { action: 'toggleShortcuts', key: 'Ctrl+Shift+s', description: 'הפעל/כבה קיצורים', enabled: true, group: 'מצבי עבודה' },
+  { action: 'togglePedal', key: 'p', description: 'הפעל/כבה דוושה', enabled: true, group: 'מצבי עבודה' },
+  { action: 'toggleAutoDetect', key: 'a', description: 'הפעל/כבה זיהוי אוטומטי', enabled: true, group: 'מצבי עבודה' },
+  { action: 'toggleMode', key: 'Ctrl+m', description: 'החלף מצב רגיל/משופר', enabled: true, group: 'מצבי עבודה' },
+  
   // Group 6: Settings (הגדרות)
   { action: 'toggleSettings', key: 's', description: 'פתח הגדרות', enabled: true, group: 'הגדרות' },
-  
-  // === WAVEFORM SECTION === //
-  
-  // Group 7: Waveform Display (תצוגת צורת גל)
-  { action: 'toggleWaveform', key: 'w', description: 'הצג/הסתר צורת גל', enabled: true, group: 'צורת גל > תצוגה' },
-  { action: 'zoomIn', key: 'Ctrl+=', description: 'הגדל צורת גל', enabled: true, group: 'צורת גל > זום' },
-  { action: 'zoomOut', key: 'Ctrl+-', description: 'הקטן צורת גל', enabled: true, group: 'צורת גל > זום' },
-  { action: 'resetZoom', key: 'Ctrl+0', description: 'אפס זום', enabled: true, group: 'צורת גל > זום' },
-  
-  // Group 8: Mark Creation (יצירת סימונים)
-  { action: 'addImportantMark', key: 'Ctrl+1', description: 'הוסף סימון חשוב', enabled: true, group: 'צורת גל > יצירת סימונים' },
-  { action: 'addQuestionMark', key: 'Ctrl+2', description: 'הוסף סימון שאלה', enabled: true, group: 'צורת גל > יצירת סימונים' },
-  { action: 'addSectionMark', key: 'Ctrl+3', description: 'הוסף סימון סעיף', enabled: true, group: 'צורת גל > יצירת סימונים' },
-  { action: 'addNoteMark', key: 'Ctrl+4', description: 'הוסף סימון הערה', enabled: true, group: 'צורת גל > יצירת סימונים' },
-  { action: 'addReviewMark', key: 'Ctrl+5', description: 'הוסף סימון לבדיקה', enabled: true, group: 'צורת גל > יצירת סימונים' },
-  { action: 'addCustomMark', key: 'Ctrl+6', description: 'הוסף סימון מותאם אישית', enabled: true, group: 'צורת גל > יצירת סימונים' },
-  
-  // Group 9: Mark Management (ניהול סימונים)
-  { action: 'clearAllMarks', key: 'Ctrl+Shift+Delete', description: 'מחק את כל הסימונים', enabled: true, group: 'צורת גל > ניהול' },
-  { action: 'exportMarks', key: 'Ctrl+Shift+e', description: 'ייצא סימונים', enabled: true, group: 'צורת גל > ניהול' },
-  { action: 'importMarks', key: 'Ctrl+Shift+i', description: 'ייבא סימונים', enabled: true, group: 'צורת גל > ניהול' },
-  { action: 'toggleMarksMenu', key: 'Ctrl+Shift+m', description: 'פתח/סגור תפריט סימונים', enabled: true, group: 'צורת גל > ניהול' },
 ];
 
 export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: KeyboardShortcutsProps) {
@@ -83,66 +61,6 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       }
     });
   }, [shortcuts]);
-
-  // Helper function to build key string - use useCallback to prevent re-renders
-  const buildKeyString = useCallback((e: KeyboardEvent): string => {
-    const parts: string[] = [];
-    
-    if (e.ctrlKey) parts.push('Ctrl');
-    if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('Shift');
-    if (e.metaKey) parts.push('Meta');
-    
-    // Handle special keys
-    let key = e.key;
-    
-    // Handle F1-F12 keys
-    if (key.startsWith('F') && key.length >= 2 && key.length <= 3) {
-      const fNum = key.substring(1);
-      if (!isNaN(Number(fNum)) && Number(fNum) >= 1 && Number(fNum) <= 12) {
-        // Keep F-keys as is (F1, F2, etc.)
-        // Don't modify them
-      }
-    }
-    // Convert to lowercase for letter keys (to handle capital letters)
-    else if (key.length === 1 && /[A-Z]/.test(key)) {
-      key = key.toLowerCase();
-    }
-    
-    // Handle numpad keys - use the actual number/operator
-    if (e.code && e.code.startsWith('Numpad')) {
-      // Special handling for Numpad0-9
-      if (e.code === 'Numpad0') key = '0';
-      else if (e.code === 'Numpad1') key = '1';
-      else if (e.code === 'Numpad2') key = '2';
-      else if (e.code === 'Numpad3') key = '3';
-      else if (e.code === 'Numpad4') key = '4';
-      else if (e.code === 'Numpad5') key = '5';
-      else if (e.code === 'Numpad6') key = '6';
-      else if (e.code === 'Numpad7') key = '7';
-      else if (e.code === 'Numpad8') key = '8';
-      else if (e.code === 'Numpad9') key = '9';
-      else if (e.code === 'NumpadDivide') key = '/';
-      else if (e.code === 'NumpadMultiply') key = '*';
-      else if (e.code === 'NumpadSubtract') key = '-';
-      else if (e.code === 'NumpadAdd') key = '+';
-      else if (e.code === 'NumpadEnter') key = 'Enter';
-      else if (e.code === 'NumpadDecimal') key = '.';
-    }
-    
-    if (key === ' ') key = 'Space';
-    if (key === 'ArrowLeft') key = 'ArrowLeft';
-    if (key === 'ArrowRight') key = 'ArrowRight';
-    if (key === 'ArrowUp') key = 'ArrowUp';
-    if (key === 'ArrowDown') key = 'ArrowDown';
-    
-    // Don't add modifier keys themselves
-    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-      parts.push(key);
-    }
-    
-    return parts.join('+');
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -171,15 +89,8 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       // Check if this is a key combination (not just a single key)
       const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
       
-      // Check if it's an F-key (F1-F12)
-      const isFKey = e.key.match(/^F([1-9]|1[0-2])$/);
-      
-      // If it's an F-key and it's a registered shortcut, prevent default immediately
-      // to stop browser default F-key behaviors (F1=help, F3=search, F5=refresh, etc.)
-      if (isFKey && shortcut && shortcut.enabled && enabled) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      // Check if it's an F-key
+      const isFKey = e.key.startsWith('F') && e.key.length <= 3;
       
       // Check if it's a numpad key
       const isNumpadKey = e.code && e.code.startsWith('Numpad');
@@ -228,6 +139,56 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       isPressed.current.delete(key);
     };
 
+    const buildKeyString = (e: KeyboardEvent): string => {
+      const parts: string[] = [];
+      
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      if (e.metaKey) parts.push('Meta');
+      
+      // Handle special keys
+      let key = e.key;
+      
+      // Convert to lowercase for letter keys (to handle capital letters)
+      if (key.length === 1 && /[A-Z]/.test(key)) {
+        key = key.toLowerCase();
+      }
+      
+      // Handle numpad keys - use the actual number/operator
+      if (e.code && e.code.startsWith('Numpad')) {
+        // Special handling for Numpad0-9
+        if (e.code === 'Numpad0') key = '0';
+        else if (e.code === 'Numpad1') key = '1';
+        else if (e.code === 'Numpad2') key = '2';
+        else if (e.code === 'Numpad3') key = '3';
+        else if (e.code === 'Numpad4') key = '4';
+        else if (e.code === 'Numpad5') key = '5';
+        else if (e.code === 'Numpad6') key = '6';
+        else if (e.code === 'Numpad7') key = '7';
+        else if (e.code === 'Numpad8') key = '8';
+        else if (e.code === 'Numpad9') key = '9';
+        else if (e.code === 'NumpadDivide') key = '/';
+        else if (e.code === 'NumpadMultiply') key = '*';
+        else if (e.code === 'NumpadSubtract') key = '-';
+        else if (e.code === 'NumpadAdd') key = '+';
+        else if (e.code === 'NumpadEnter') key = 'Enter';
+        else if (e.code === 'NumpadDecimal') key = '.';
+      }
+      
+      if (key === ' ') key = 'Space';
+      if (key === 'ArrowLeft') key = 'ArrowLeft';
+      if (key === 'ArrowRight') key = 'ArrowRight';
+      if (key === 'ArrowUp') key = 'ArrowUp';
+      if (key === 'ArrowDown') key = 'ArrowDown';
+      
+      // Don't add modifier keys themselves
+      if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+        parts.push(key);
+      }
+      
+      return parts.join('+');
+    };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -237,7 +198,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       window.removeEventListener('keyup', handleKeyUp);
       isPressed.current.clear();
     };
-  }, [enabled, onAction, buildKeyString]);
+  }, [enabled, onAction]);
 
   return null; // This component doesn't render anything
 }
@@ -258,11 +219,6 @@ function normalizeKey(key: string): string {
   // Normalize escape
   if (key === 'Esc' || key === 'Escape') return 'Escape';
   
-  // Handle F1-F12 keys - keep them as is
-  if (key.match(/^F([1-9]|1[0-2])$/)) {
-    return key; // Keep F1-F12 as is
-  }
-  
   // Handle Shift combinations
   if (key.includes('Shift+→')) return 'Shift+ArrowRight';
   if (key.includes('Shift+←')) return 'Shift+ArrowLeft';
@@ -272,25 +228,14 @@ function normalizeKey(key: string): string {
     return key.toLowerCase();
   }
   
-  // Handle Ctrl/Alt/Shift combinations with capital letters or F-keys
+  // Handle Ctrl/Alt/Shift combinations with capital letters
   const parts = key.split('+');
   if (parts.length > 1) {
-    const normalizedParts = parts.map((part, index) => {
-      // Don't modify modifier keys
-      if (['Ctrl', 'Alt', 'Shift', 'Meta'].includes(part)) {
-        return part;
-      }
-      // Keep F-keys as is
-      if (part.match(/^F([1-9]|1[0-2])$/)) {
-        return part;
-      }
-      // Convert single capital letters to lowercase
-      if (part.length === 1 && /[A-Z]/.test(part)) {
-        return part.toLowerCase();
-      }
-      return part;
-    });
-    return normalizedParts.join('+');
+    const lastPart = parts[parts.length - 1];
+    if (lastPart.length === 1 && /[A-Z]/.test(lastPart)) {
+      parts[parts.length - 1] = lastPart.toLowerCase();
+      return parts.join('+');
+    }
   }
   
   return key;

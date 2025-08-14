@@ -120,9 +120,9 @@ export default function TextEditor({
           contentEditable={enabled}
           onInput={(e) => handleContentChange(e.currentTarget.textContent || '')}
           data-placeholder="התחל להקליד כאן..."
-        >
-          {content}
-        </div>
+          suppressContentEditableWarning={true}
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
       </div>
       
       <div className="text-editor-footer">
