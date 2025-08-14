@@ -40,6 +40,19 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 - Text direction switching retained without visual indicators
 - Cleaner appearance when switching between Hebrew/English
 
+### Speaker Code Field Enhancements
+**Status**: ✅ Complete  
+**Commit**: `56c8720`  
+**Date**: 2025-08-14  
+
+**Changes**:
+- Allow multiple letters in code field (not just single letter)
+- Remove spaces automatically from code input
+- Add duplicate validation only when navigating away, not while typing
+- Show error message "הקוד [code] כבר קיים" for 3 seconds when duplicate detected
+- Validation added to all navigation keys: SPACE, TAB, ENTER, arrows, END
+- Error tooltip with red gradient background and white text
+
 ---
 
 ## Original Stages (Completed)

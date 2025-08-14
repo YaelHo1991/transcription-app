@@ -2,6 +2,16 @@
 
 ## Recent Commits
 
+### Fix: Add duplicate validation to all navigation keys in Speaker code field
+**Commit Hash**: `56c8720`
+**Date**: 2025-08-14
+**Description**: Added comprehensive duplicate code validation for Speaker component
+**Changes**:
+- Added duplicate validation to all navigation keys (SPACE, TAB, ENTER, arrows, END)
+- Shows error message "הקוד [code] כבר קיים" for 3 seconds
+- Prevents navigation when duplicate code is detected
+- Validation only triggers when navigating away, not while typing
+
 ### Fix: Remove gray visual mode indicators
 **Commit Hash**: `c3cdcc9`
 **Date**: 2025-08-14
