@@ -1,5 +1,18 @@
 /* TextBlock Component Styles */
 
+/* Force all contenteditable to be RTL */
+[contenteditable="true"] {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Ensure proper RTL for contenteditable in Firefox and Chrome */
+[contenteditable="true"]:empty:before {
+  content: '\200F'; /* Right-to-left mark */
+  display: inline;
+}
+
 .text-block {
   position: relative;
   display: flex;
@@ -37,13 +50,16 @@
   background-color: rgba(23, 162, 184, 0.05);
   border-radius: 3px;
   flex-shrink: 0;
-  text-align: right;
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   outline: none;
   border: 1px solid transparent;
   transition: all 0.2s ease;
+  display: inline-block;
 }
 
 .block-speaker:focus {
@@ -88,11 +104,44 @@
   transition: all 0.2s ease;
   word-wrap: break-word;
   white-space: pre-wrap;
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important;
+  display: inline-block;
 }
 
 .block-text:focus {
   background-color: rgba(23, 162, 184, 0.03);
   border-color: #e0f2f1;
+}
+
+/* RTL cursor styling */
+.block-text[dir="rtl"]:focus,
+.block-speaker[dir="rtl"]:focus,
+.block-text.rtl-mode:focus,
+.block-speaker.rtl-mode:focus {
+  caret-color: #0891b2;
+  caret-shape: block;
+}
+
+/* LTR cursor styling */
+.block-text[dir="ltr"]:focus,
+.block-speaker[dir="ltr"]:focus,
+.block-text.ltr-mode:focus,
+.block-speaker.ltr-mode:focus {
+  caret-color: #333;
+  caret-shape: bar;
+}
+
+/* Visual mode indicators */
+.block-text.rtl-mode,
+.block-speaker.rtl-mode {
+  border-right: 2px solid rgba(8, 145, 178, 0.2) !important;
+}
+
+.block-text.ltr-mode,
+.block-speaker.ltr-mode {
+  border-left: 2px solid rgba(51, 51, 51, 0.2) !important;
 }
 
 .block-text:empty::before {

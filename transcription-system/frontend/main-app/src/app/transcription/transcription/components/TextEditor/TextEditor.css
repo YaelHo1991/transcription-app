@@ -4,7 +4,7 @@
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   background-color: #ffffff;
   border-radius: 8px;
   overflow: hidden;
@@ -73,28 +73,31 @@
 .text-editor-body {
   flex: 1;
   display: flex;
+  flex-direction: row;
   overflow: hidden;
   width: 100%;
-  height: 100%;
+  min-height: 0;
 }
 
 /* Marks Sidebar */
 .marks-sidebar {
-  width: 200px;
-  background: #f8fffe;
-  border-right: 1px solid #e0f2f1;
-  padding: 16px;
+  width: 140px;
+  background: linear-gradient(to bottom, #e6f7f5, #f0fdfb);
+  border-right: 2px solid #14b8a6;
+  padding: 12px;
   overflow-y: auto;
   direction: rtl;
+  flex-shrink: 0;
 }
 
 .marks-sidebar h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
   color: #0f766e;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 2px solid #14b8a6;
+  text-align: center;
 }
 
 .marks-list {
@@ -104,15 +107,16 @@
 }
 
 .mark-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: white;
-  border: 1px solid #e0f2f1;
+  border: 1px solid #d0f2ed;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  font-size: 11px;
 }
 
 .mark-item:hover {
@@ -128,22 +132,25 @@
 }
 
 .mark-time {
-  font-size: 12px;
+  font-size: 11px;
   color: #0891b2;
   font-family: 'Courier New', monospace;
   font-weight: 500;
 }
 
 .mark-type {
-  font-size: 11px;
+  font-size: 10px;
   color: #64748b;
   text-transform: uppercase;
 }
 
 .mark-name {
-  font-size: 12px;
+  font-size: 10px;
   color: #475569;
   font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Editor Content - Blocks Container */
@@ -152,7 +159,8 @@
   padding: 20px;
   background: white;
   overflow-y: auto;
-  direction: rtl;
+  direction: rtl !important;
+  unicode-bidi: embed !important;
 }
 
 .text-editor-content.blocks-container {
@@ -169,13 +177,16 @@
 /* Footer Section */
 .text-editor-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 20px;
   padding: 10px 20px;
   background: linear-gradient(to top, #f0fdfa, #ffffff);
   border-top: 1px solid #e0f2f1;
   font-size: 12px;
   color: #64748b;
+  flex-shrink: 0;
+  height: 40px;
 }
 
 .word-count,
@@ -228,30 +239,32 @@
 /* Scrollbar styling */
 .text-editor-content::-webkit-scrollbar,
 .marks-sidebar::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .text-editor-content::-webkit-scrollbar-track,
 .marks-sidebar::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .text-editor-content::-webkit-scrollbar-thumb,
 .marks-sidebar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: #14b8a6;
+  border-radius: 3px;
+  opacity: 0.6;
 }
 
 .text-editor-content::-webkit-scrollbar-thumb:hover,
 .marks-sidebar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #0d9488;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .marks-sidebar {
-    width: 150px;
+    width: 120px;
+    padding: 10px 8px;
   }
   
   .text-editor-controls {

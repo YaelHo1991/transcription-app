@@ -200,7 +200,6 @@ export default function TextEditor({
     <div className="text-editor-container">
       
       <div className="text-editor-body">
-        {/* DISABLED - Marks sidebar temporarily disabled
         <div className="marks-sidebar">
           <h4>סימונים</h4>
           <div className="marks-list">
@@ -217,7 +216,6 @@ export default function TextEditor({
             ))}
           </div>
         </div>
-        */}
         
         <div 
           ref={editorRef}
