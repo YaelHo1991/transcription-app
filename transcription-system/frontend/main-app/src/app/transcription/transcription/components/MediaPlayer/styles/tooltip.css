@@ -8,6 +8,23 @@
   position: relative;
 }
 
+/* Ensure tooltips are visible above containers */
+.media-player-container {
+  overflow: visible !important;
+}
+
+.media-player-content {
+  overflow: visible !important;
+}
+
+.section-wrapper {
+  overflow: visible !important;
+}
+
+.sliders-container {
+  overflow: visible !important;
+}
+
 /* Tooltip content styling */
 [data-tooltip]::after {
   content: attr(data-tooltip);

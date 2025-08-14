@@ -31,41 +31,43 @@ export const defaultShortcuts: KeyboardShortcut[] = [
   { action: 'speedDown', key: '-', description: 'הנמך מהירות', enabled: true, group: 'עוצמה ומהירות' },
   { action: 'speedReset', key: '0', description: 'אפס מהירות', enabled: true, group: 'עוצמה ומהירות' },
   
-  // Group 4: Mark Navigation (ניווט סימונים)
-  { action: 'previousMark', key: 'Alt+ArrowRight', description: 'סימון קודם', enabled: true, group: 'ניווט סימונים' },
-  { action: 'nextMark', key: 'Alt+ArrowLeft', description: 'סימון הבא', enabled: true, group: 'ניווט סימונים' },
-  { action: 'cyclePlaybackMode', key: 'Ctrl+p', description: 'החלף מצב הפעלה', enabled: true, group: 'ניווט סימונים' },
-  { action: 'loopCurrentMark', key: 'l', description: 'לולאה בסימון נוכחי', enabled: true, group: 'ניווט סימונים' },
-  { action: 'cycleMarkFilter', key: 'f', description: 'החלף סינון סימונים', enabled: true, group: 'ניווט סימונים' },
-  
-  // Group 5: Work Modes (מצבי עבודה) - ordered by tabs like original
+  // Group 4: Work Modes (מצבי עבודה) - ordered by tabs like original
   { action: 'toggleShortcuts', key: 'Ctrl+Shift+s', description: 'הפעל/כבה קיצורים', enabled: true, group: 'מצבי עבודה' },
   { action: 'togglePedal', key: 'p', description: 'הפעל/כבה דוושה', enabled: true, group: 'מצבי עבודה' },
   { action: 'toggleAutoDetect', key: 'a', description: 'הפעל/כבה זיהוי אוטומטי', enabled: true, group: 'מצבי עבודה' },
   { action: 'toggleMode', key: 'Ctrl+m', description: 'החלף מצב רגיל/משופר', enabled: true, group: 'מצבי עבודה' },
   
-  // Group 6: Settings (הגדרות)
+  // Group 5: Settings (הגדרות)
   { action: 'toggleSettings', key: 's', description: 'פתח הגדרות', enabled: true, group: 'הגדרות' },
   
-  // Group 7: Waveform Controls (בקרת צורת גל)
-  { action: 'zoomIn', key: 'Ctrl+=', description: 'הגדל צורת גל', enabled: true, group: 'בקרת צורת גל' },
-  { action: 'zoomOut', key: 'Ctrl+-', description: 'הקטן צורת גל', enabled: true, group: 'בקרת צורת גל' },
-  { action: 'resetZoom', key: 'Ctrl+0', description: 'אפס זום', enabled: true, group: 'בקרת צורת גל' },
-  { action: 'toggleWaveform', key: 'w', description: 'הצג/הסתר צורת גל', enabled: true, group: 'בקרת צורת גל' },
+  // === WAVEFORM SECTION === //
+  
+  // Group 6: Waveform Display (תצוגת צורת גל)
+  { action: 'toggleWaveform', key: 'w', description: 'הצג/הסתר צורת גל', enabled: true, group: 'צורת גל > תצוגה' },
+  { action: 'zoomIn', key: 'Ctrl+=', description: 'הגדל צורת גל', enabled: true, group: 'צורת גל > זום' },
+  { action: 'zoomOut', key: 'Ctrl+-', description: 'הקטן צורת גל', enabled: true, group: 'צורת גל > זום' },
+  { action: 'resetZoom', key: 'Ctrl+0', description: 'אפס זום', enabled: true, group: 'צורת גל > זום' },
+  
+  // Group 7: Mark Navigation (ניווט בסימונים)
+  { action: 'previousMark', key: 'Alt+ArrowRight', description: 'סימון קודם', enabled: true, group: 'צורת גל > ניווט' },
+  { action: 'nextMark', key: 'Alt+ArrowLeft', description: 'סימון הבא', enabled: true, group: 'צורת גל > ניווט' },
+  { action: 'cyclePlaybackMode', key: 'Ctrl+p', description: 'החלף מצב הפעלה', enabled: true, group: 'צורת גל > ניווט' },
+  { action: 'loopCurrentMark', key: 'l', description: 'לולאה בסימון נוכחי', enabled: true, group: 'צורת גל > ניווט' },
+  { action: 'cycleMarkFilter', key: 'f', description: 'החלף סינון סימונים', enabled: true, group: 'צורת גל > ניווט' },
   
   // Group 8: Mark Creation (יצירת סימונים)
-  { action: 'addImportantMark', key: 'Ctrl+1', description: 'הוסף סימון חשוב', enabled: true, group: 'יצירת סימונים' },
-  { action: 'addQuestionMark', key: 'Ctrl+2', description: 'הוסף סימון שאלה', enabled: true, group: 'יצירת סימונים' },
-  { action: 'addSectionMark', key: 'Ctrl+3', description: 'הוסף סימון סעיף', enabled: true, group: 'יצירת סימונים' },
-  { action: 'addNoteMark', key: 'Ctrl+4', description: 'הוסף סימון הערה', enabled: true, group: 'יצירת סימונים' },
-  { action: 'addReviewMark', key: 'Ctrl+5', description: 'הוסף סימון לבדיקה', enabled: true, group: 'יצירת סימונים' },
-  { action: 'addCustomMark', key: 'Ctrl+6', description: 'הוסף סימון מותאם אישית', enabled: true, group: 'יצירת סימונים' },
+  { action: 'addImportantMark', key: 'Ctrl+1', description: 'הוסף סימון חשוב', enabled: true, group: 'צורת גל > יצירת סימונים' },
+  { action: 'addQuestionMark', key: 'Ctrl+2', description: 'הוסף סימון שאלה', enabled: true, group: 'צורת גל > יצירת סימונים' },
+  { action: 'addSectionMark', key: 'Ctrl+3', description: 'הוסף סימון סעיף', enabled: true, group: 'צורת גל > יצירת סימונים' },
+  { action: 'addNoteMark', key: 'Ctrl+4', description: 'הוסף סימון הערה', enabled: true, group: 'צורת גל > יצירת סימונים' },
+  { action: 'addReviewMark', key: 'Ctrl+5', description: 'הוסף סימון לבדיקה', enabled: true, group: 'צורת גל > יצירת סימונים' },
+  { action: 'addCustomMark', key: 'Ctrl+6', description: 'הוסף סימון מותאם אישית', enabled: true, group: 'צורת גל > יצירת סימונים' },
   
   // Group 9: Mark Management (ניהול סימונים)
-  { action: 'clearAllMarks', key: 'Ctrl+Shift+Delete', description: 'מחק את כל הסימונים', enabled: true, group: 'ניהול סימונים' },
-  { action: 'exportMarks', key: 'Ctrl+Shift+e', description: 'ייצא סימונים', enabled: true, group: 'ניהול סימונים' },
-  { action: 'importMarks', key: 'Ctrl+Shift+i', description: 'ייבא סימונים', enabled: true, group: 'ניהול סימונים' },
-  { action: 'toggleMarksMenu', key: 'Ctrl+Shift+m', description: 'פתח/סגור תפריט סימונים', enabled: true, group: 'ניהול סימונים' },
+  { action: 'clearAllMarks', key: 'Ctrl+Shift+Delete', description: 'מחק את כל הסימונים', enabled: true, group: 'צורת גל > ניהול' },
+  { action: 'exportMarks', key: 'Ctrl+Shift+e', description: 'ייצא סימונים', enabled: true, group: 'צורת גל > ניהול' },
+  { action: 'importMarks', key: 'Ctrl+Shift+i', description: 'ייבא סימונים', enabled: true, group: 'צורת גל > ניהול' },
+  { action: 'toggleMarksMenu', key: 'Ctrl+Shift+m', description: 'פתח/סגור תפריט סימונים', enabled: true, group: 'צורת גל > ניהול' },
 ];
 
 export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: KeyboardShortcutsProps) {

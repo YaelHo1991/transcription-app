@@ -486,6 +486,31 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       
       {/* Media Player Component */}
       <div className={`media-player-container ${showVideoCube ? 'video-active' : ''}`} id="mediaPlayerContainer">
+        {/* Settings Button - positioned at top right */}
+        <button 
+          className="settings-btn" 
+          id="settingsBtn" 
+          data-tooltip="הגדרות"
+          onClick={() => setShowSettings(true)}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            zIndex: 100,
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px',
+            fontSize: '20px',
+            cursor: 'pointer',
+            transition: 'background 0.3s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+        >
+          ⚙️
+        </button>
+        
         {/* Media Player Content Wrapper */}
         <div className="media-player-content">
           {/* Hidden Audio Element */}
@@ -787,16 +812,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             🎬 שחזר
           </button>
         )}
-        
-          {/* Settings Button */}
-          <button 
-            className="settings-btn" 
-            id="settingsBtn" 
-            data-tooltip="הגדרות"
-            onClick={() => setShowSettings(true)}
-          >
-            ⚙️
-          </button>
         </div>
         
         {/* Video Cube - part of layout when video is shown */}

@@ -297,9 +297,17 @@ export default function ShortcutsTab({
 
       {/* Shortcuts list grouped by category - EXACT original structure */}
       <div className="media-shortcuts-list">
-        {Object.entries(groupedShortcuts).map(([groupName, groupShortcuts]) => (
-          <div key={groupName} className="media-shortcut-group">
-            <div className="group-header">{getGroupIcon(groupName)} {groupName}</div>
+        {Object.entries(groupedShortcuts).map(([groupName, groupShortcuts]) => {
+          // Check if this is a waveform subgroup
+          const isWaveformGroup = groupName.startsWith('צורת גל >');
+          const displayName = isWaveformGroup ? groupName.split(' > ')[1] : groupName;
+          const isMainWaveformHeader = groupName === 'צורת גל';
+          
+          return (
+          <div key={groupName} className={`media-shortcut-group ${isWaveformGroup ? 'waveform-subgroup' : ''}`}>
+            <div className={`group-header ${isWaveformGroup ? 'subgroup-header' : ''} ${isMainWaveformHeader ? 'main-waveform-header' : ''}`}>
+              {getGroupIcon(groupName)} {displayName}
+            </div>
             
             {groupShortcuts.map(shortcut => (
               <div key={shortcut.index} className="media-shortcut-item">
@@ -340,7 +348,7 @@ export default function ShortcutsTab({
               </div>
             ))}
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Rewind on Pause Section - EXACT original structure */}

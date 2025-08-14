@@ -67,6 +67,30 @@
   text-align: center;
 }
 
+/* Waveform subgroup styling */
+.waveform-subgroup {
+  margin-right: 20px;
+  border-right: 3px solid rgba(32, 201, 151, 0.2);
+  padding-right: 10px;
+}
+
+.waveform-subgroup .subgroup-header {
+  background: rgba(32, 201, 151, 0.05);
+  color: #20c997;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(32, 201, 151, 0.2);
+}
+
+/* Main waveform section separator */
+.media-shortcut-group[class*="צורת גל"]:first-of-type {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid rgba(32, 201, 151, 0.3);
+}
+
 .media-shortcut-item {
   display: flex;
   align-items: center;
