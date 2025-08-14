@@ -129,23 +129,29 @@ export default function TextBlock({
     setTimeout(() => setShowTooltip(false), 3000);
   };
 
+  // Helper function to try speaker transformation
+  const tryTransformSpeaker = async (text: string) => {
+    // Try to transform speaker code (can be single or multiple letters)
+    if (text.length > 0 && /^[א-תA-Za-z]+$/.test(text)) {
+      const speakerName = await onSpeakerTransform(text);
+      // Only update if we got a different value (a name, not just the code back)
+      // This prevents updating to the same code value
+      if (speakerName && speakerName !== text) {
+        onUpdate(block.id, 'speaker', speakerName);
+      }
+    }
+  };
+
   // Handle speaker keydown
   const handleSpeakerKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
     const text = input.value;
 
-    // SPACE - Transform single letter or navigate to text area
+    // SPACE - Transform speaker code or navigate to text area
     if (e.key === ' ' && !e.shiftKey) {
       e.preventDefault();
       
-      // If single letter, transform to speaker name
-      if (text.length === 1 && (isHebrewLetter(text) || isEnglishLetter(text))) {
-        const speakerName = await onSpeakerTransform(text);
-        if (speakerName) {
-          onUpdate(block.id, 'speaker', speakerName);
-        }
-        // Don't show tooltip - just navigate to text
-      }
+      await tryTransformSpeaker(text);
       
       // Store speaker timestamp when leaving
       if (currentTime && speakerRef.current) {
@@ -157,15 +163,17 @@ export default function TextBlock({
       return;
     }
 
-    // TAB - Navigate to next block
+    // TAB - Transform speaker and navigate to next block
     if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
+      await tryTransformSpeaker(text);
       onNavigate('next', 'speaker');
     }
 
-    // ENTER - Create new block
+    // ENTER - Transform speaker and create new block
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      await tryTransformSpeaker(text);
       onNewBlock();
     }
 
@@ -226,8 +234,9 @@ export default function TextBlock({
     // END key - Move to end or navigate to next field  
     if (e.key === 'End') {
       if (input.selectionStart === input.value.length) {
-        // Already at end, navigate to text field
+        // Already at end, transform speaker and navigate to text field
         e.preventDefault();
+        await tryTransformSpeaker(text);
         onNavigate('text', 'speaker');
       } else {
         // Move to end of field
@@ -239,14 +248,17 @@ export default function TextBlock({
     // Arrow navigation - UP/DOWN for blocks, LEFT/RIGHT for fields (RTL aware)
     if (e.key === 'ArrowUp') {
       e.preventDefault();
+      await tryTransformSpeaker(text);
       onNavigate('up', 'speaker');  // Go to previous block, same field (speaker)
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
+      await tryTransformSpeaker(text);
       onNavigate('down', 'speaker');  // Go to next block, same field (speaker)
     } else if (e.key === 'ArrowLeft') {
       // In RTL, left goes to next field when at end of text
       if (input.selectionStart === input.value.length) {
         e.preventDefault();
+        await tryTransformSpeaker(text);
         onNavigate('text', 'speaker');  // Go to text field
       }
       // Otherwise let cursor move naturally through text
@@ -254,6 +266,7 @@ export default function TextBlock({
       // In RTL, right goes to previous field when at start of text
       if (input.selectionStart === 0) {
         e.preventDefault();
+        await tryTransformSpeaker(text);
         onNavigate('prev', 'speaker');  // Go to previous block's text field
       }
       // Otherwise let cursor move naturally through text

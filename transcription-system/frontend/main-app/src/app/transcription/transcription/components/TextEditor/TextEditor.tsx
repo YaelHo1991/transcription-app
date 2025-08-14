@@ -29,6 +29,8 @@ export default function TextEditor({
   const [cursorAtStart, setCursorAtStart] = useState(false);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
+  // Track speaker code -> name mappings
+  const speakerNamesRef = useRef<Map<string, string>>(new Map());
   
   // Initialize blocks
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function TextEditor({
     setBlocks([...initialBlocks]);
     if (initialBlocks.length > 0) {
       setActiveBlockId(initialBlocks[0].id);
+      setActiveArea('speaker');
     }
   }, []);
 
@@ -142,6 +145,18 @@ export default function TextEditor({
     return new Promise((resolve) => {
       const handleResponse = (event: CustomEvent) => {
         document.removeEventListener('speakerCreated', handleResponse as EventListener);
+        
+        // Track which blocks belong to this speaker code
+        if (!speakerBlocksRef.current.has(code)) {
+          speakerBlocksRef.current.set(code, new Set());
+        }
+        
+        // Add current block to the speaker's block set
+        const currentBlockId = blockManagerRef.current.getActiveBlockId();
+        if (currentBlockId) {
+          speakerBlocksRef.current.get(code)!.add(currentBlockId);
+        }
+        
         resolve(event.detail.name);
       };
       
@@ -155,6 +170,20 @@ export default function TextEditor({
             if (!name) {
               document.removeEventListener('speakerCreated', handleResponse as EventListener);
             }
+            
+            // Track which blocks belong to this speaker code
+            if (name && code) {
+              if (!speakerBlocksRef.current.has(code)) {
+                speakerBlocksRef.current.set(code, new Set());
+              }
+              
+              // Add current block to the speaker's block set
+              const currentBlockId = blockManagerRef.current.getActiveBlockId();
+              if (currentBlockId) {
+                speakerBlocksRef.current.get(code)!.add(currentBlockId);
+              }
+            }
+            
             resolve(name);
           }
         }
@@ -162,19 +191,46 @@ export default function TextEditor({
     });
   }, []);
 
+  // Track which blocks belong to which speaker code
+  const speakerBlocksRef = useRef<Map<string, Set<string>>>(new Map());
+  
   // Listen for speaker updates
   useEffect(() => {
     const handleSpeakerUpdated = (event: CustomEvent) => {
       const { code, name, color } = event.detail;
-      setSpeakerColors(prev => new Map(prev).set(name, color));
       
-      // Update all blocks with this speaker
+      // Update color mapping - use name if available, otherwise use code
+      const speakerKey = name && name.trim() ? name : code;
+      setSpeakerColors(prev => new Map(prev).set(speakerKey, color));
+      
+      // Track speaker name updates
+      if (name && name.trim()) {
+        speakerNamesRef.current.set(code, name);
+      }
+      
+      // Get or create the set of blocks for this speaker code
+      if (!speakerBlocksRef.current.has(code)) {
+        speakerBlocksRef.current.set(code, new Set());
+      }
+      const speakerBlockIds = speakerBlocksRef.current.get(code)!;
+      
+      // Update all blocks that belong to this speaker
       const blocks = blockManagerRef.current.getBlocks();
       blocks.forEach(block => {
-        if (block.speaker === code || block.speaker === name) {
-          blockManagerRef.current.updateBlock(block.id, 'speaker', name);
+        // Check if this block belongs to this speaker (by code or any partial name)
+        // The block could have the code or any version of the name
+        if (block.speaker === code || speakerBlockIds.has(block.id)) {
+          // Track this block as belonging to this speaker
+          speakerBlockIds.add(block.id);
+          
+          // Update to the new name if we have one
+          const newValue = name && name.trim() ? name : code;
+          if (block.speaker !== newValue) {
+            blockManagerRef.current.updateBlock(block.id, 'speaker', newValue);
+          }
         }
       });
+      
       setBlocks([...blockManagerRef.current.getBlocks()]);
     };
     

@@ -48,6 +48,13 @@ export default function SpeakerBlock({
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Sync local state with props when speaker data changes
+  useEffect(() => {
+    setLocalCode(speaker.code);
+    setLocalName(speaker.name);
+    setLocalDescription(speaker.description);
+  }, [speaker.code, speaker.name, speaker.description]);
+
   // Focus management
   useEffect(() => {
     if (isActive) {
@@ -73,6 +80,7 @@ export default function SpeakerBlock({
   const handleKeyDown = (e: React.KeyboardEvent, field: 'code' | 'name' | 'description') => {
     // Code field navigation
     if (field === 'code') {
+      // SPACE key - always navigate to name field (no spaces allowed in code)
       if (e.key === ' ') {
         e.preventDefault();
         // Check for duplicate code before moving
@@ -417,6 +425,23 @@ export default function SpeakerBlock({
 
   // Handle field changes
   const handleCodeChange = (value: string) => {
+    // Check if user tried to type a space
+    if (value.includes(' ')) {
+      // Don't update the value, just navigate to next field
+      // Check for duplicate code before navigating
+      if (localCode && !validateUniqueCode(localCode)) {
+        setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+        setShowError(true);
+        setTimeout(() => {
+          setShowError(false);
+          setErrorMessage('');
+        }, 3000);
+        return;
+      }
+      onNavigate('name');
+      return;
+    }
+    
     // Allow multiple letters but no spaces
     const code = value.toUpperCase().replace(/\s/g, '');
     

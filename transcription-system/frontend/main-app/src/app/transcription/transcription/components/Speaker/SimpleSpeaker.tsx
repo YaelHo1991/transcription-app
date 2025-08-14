@@ -22,9 +22,7 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
   useEffect(() => {
     const initialBlocks = blockManagerRef.current.getBlocks();
     setBlocks([...initialBlocks]);
-    if (initialBlocks.length > 0) {
-      setActiveBlockId(initialBlocks[0].id);
-    }
+    // Don't set any block as active by default - wait for user interaction
   }, []);
 
   // Handle block navigation
@@ -119,8 +117,30 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
       let block = blockManagerRef.current.findByCode(code);
       
       if (!block) {
-        block = blockManagerRef.current.addBlock(code, '', '');
-        setBlocks([...blockManagerRef.current.getBlocks()]);
+        // Check if there's an empty block we can use
+        const emptyBlock = blockManagerRef.current.getBlocks().find(
+          b => !b.code && !b.name && !b.description
+        );
+        
+        if (emptyBlock) {
+          // Use the empty block
+          blockManagerRef.current.updateBlock(emptyBlock.id, 'code', code);
+          // Leave the name empty initially
+          blockManagerRef.current.updateBlock(emptyBlock.id, 'name', '');
+          
+          // Get the updated block
+          block = blockManagerRef.current.getBlocks().find(b => b.id === emptyBlock.id);
+        } else {
+          // Only create a new block if no empty blocks exist
+          // Leave the name empty initially
+          block = blockManagerRef.current.addBlock(code, '', '');
+        }
+        
+        // Get fresh blocks and force complete re-render
+        const allBlocks = blockManagerRef.current.getBlocks();
+        
+        // Force React to see this as a new array
+        setBlocks(() => [...allBlocks]);
         
         // Notify TextEditor of new speaker
         document.dispatchEvent(new CustomEvent('speakerCreated', {
@@ -133,7 +153,10 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
       }
       
       if (callback) {
-        callback(block.name);
+        // Return the name if it's not empty, otherwise return the code
+        // Note: empty string is falsy but we need to check explicitly
+        const returnValue = block.name && block.name.trim() ? block.name : block.code;
+        callback(returnValue);
       }
     };
 
