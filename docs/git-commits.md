@@ -2,6 +2,18 @@
 
 ## Recent Commits
 
+### Stage 5: Add Toolbar to TextEditor
+**Commit Hash**: `212f06c`
+**Date**: 2025-08-14
+**Description**: Added toolbar section with editing controls
+**Changes**:
+- Added toolbar section at top of TextEditor
+- Multiple button sections separated by dividers
+- Buttons for New, Save, Print, Undo, Redo, Find, Replace, Settings
+- Sync button with toggle active state
+- Turquoise theme styling matching TextEditor
+- Statistics already in footer from Stage 3
+
 ### Stage 4: Add dark turquoise frame to TextEditor
 **Commit Hash**: `28f446f`
 **Date**: 2025-08-14

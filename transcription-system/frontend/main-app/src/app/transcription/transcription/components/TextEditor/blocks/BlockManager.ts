@@ -98,7 +98,7 @@ export class BlockManager {
     if (this.activeBlockId === id) {
       if (index > 0) {
         this.activeBlockId = this.blocks[index - 1].id;
-        this.activeArea = 'text';
+        this.activeArea = 'text';  // Focus on text field of previous block
       } else if (this.blocks.length > 0) {
         this.activeBlockId = this.blocks[0].id;
         this.activeArea = 'speaker';
@@ -116,8 +116,8 @@ export class BlockManager {
     }
   }
 
-  // Navigate between blocks
-  navigate(direction: 'prev' | 'next' | 'speaker' | 'text'): void {
+  // Navigate between blocks - RTL aware
+  navigate(direction: 'prev' | 'next' | 'up' | 'down' | 'speaker' | 'text'): void {
     if (!this.activeBlockId) return;
 
     const currentIndex = this.blocks.findIndex(b => b.id === this.activeBlockId);
@@ -125,25 +125,49 @@ export class BlockManager {
 
     switch (direction) {
       case 'prev':
+        // In RTL, 'prev' means going backwards (to the right)
         if (this.activeArea === 'text') {
+          // From text, go back to speaker in same block
           this.activeArea = 'speaker';
         } else if (currentIndex > 0) {
+          // From speaker, go to previous block's text
           this.activeBlockId = this.blocks[currentIndex - 1].id;
           this.activeArea = 'text';
         }
         break;
 
       case 'next':
+        // In RTL, 'next' means going forward (to the left)
         if (this.activeArea === 'speaker') {
+          // From speaker, go to text in same block
           this.activeArea = 'text';
         } else if (currentIndex < this.blocks.length - 1) {
+          // From text, go to next block's speaker
           this.activeBlockId = this.blocks[currentIndex + 1].id;
           this.activeArea = 'speaker';
         } else {
-          // Add new block at the end
-          const newBlock = this.addBlock(this.activeBlockId);
-          this.activeBlockId = newBlock.id;
-          this.activeArea = 'speaker';
+          // At the last block's text - optionally add new block
+          // For now, just stay where we are
+          // Could uncomment below to auto-add new block:
+          // const newBlock = this.addBlock(this.activeBlockId);
+          // this.activeBlockId = newBlock.id;
+          // this.activeArea = 'speaker';
+        }
+        break;
+
+      case 'up':
+        // Go to previous block, keeping the same field (speaker or text)
+        if (currentIndex > 0) {
+          this.activeBlockId = this.blocks[currentIndex - 1].id;
+          // Keep the same activeArea (speaker or text)
+        }
+        break;
+
+      case 'down':
+        // Go to next block, keeping the same field (speaker or text)
+        if (currentIndex < this.blocks.length - 1) {
+          this.activeBlockId = this.blocks[currentIndex + 1].id;
+          // Keep the same activeArea (speaker or text)
         }
         break;
 

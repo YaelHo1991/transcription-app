@@ -112,8 +112,8 @@
 }
 
 .sync-button.active {
-  background: linear-gradient(135deg, #14b8a6, #06b6d4);
-  border-color: #14b8a6;
+  background: linear-gradient(135deg, #0f4c4c, #1a5d5d);
+  border-color: #0f4c4c;
   color: white;
 }
 
@@ -170,8 +170,8 @@
 }
 
 .sync-button.active {
-  background: linear-gradient(135deg, #14b8a6, #06b6d4);
-  border-color: #14b8a6;
+  background: linear-gradient(135deg, #0f4c4c, #1a5d5d);
+  border-color: #0f4c4c;
   color: white;
 }
 
@@ -197,7 +197,6 @@
 .marks-sidebar {
   width: 140px;
   background: linear-gradient(to bottom, #e6f7f5, #f0fdfb);
-  border-right: 2px solid #14b8a6;
   padding: 12px;
   overflow-y: auto;
   direction: rtl;
@@ -272,16 +271,17 @@
 /* Editor Content - Blocks Container */
 .text-editor-content {
   flex: 1;
-  padding: 20px;
+  padding: 8px 12px;
   background: white;
   overflow-y: auto;
+  overflow-x: hidden;
   direction: rtl !important;
   unicode-bidi: embed !important;
   margin: 0;
 }
 
 .text-editor-content.blocks-container {
-  padding: 16px 20px;
+  padding: 8px 12px;
   background: linear-gradient(to bottom, #ffffff, #fafafa);
 }
 
@@ -297,14 +297,14 @@
   justify-content: flex-start;
   align-items: center;
   gap: 20px;
-  padding: 10px 20px;
+  padding: 8px 20px;
   background: linear-gradient(to top, #f0fdfa, #ffffff);
   border-top: 1px solid #e0f2f1;
   backdrop-filter: blur(5px);
   font-size: 12px;
   color: #64748b;
   flex-shrink: 0;
-  height: 40px;
+  height: 32px;
 }
 
 .word-count,

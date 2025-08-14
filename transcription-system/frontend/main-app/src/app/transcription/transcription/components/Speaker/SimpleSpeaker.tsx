@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SpeakerManager } from './utils/speakerManager';
+import SpeakerBlock, { SpeakerBlockData } from './blocks/SpeakerBlock';
+import SpeakerBlockManager from './blocks/SpeakerBlockManager';
 import './SimpleSpeaker.css';
 
 interface SimpleSpeakerProps {
@@ -9,32 +11,129 @@ interface SimpleSpeakerProps {
 }
 
 export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeakerProps) {
-  const [speakers, setSpeakers] = useState([
-    { id: '1', code: 'א', name: 'דובר 1', color: '#667eea', count: 0 },
-    { id: '2', code: 'ג', name: 'דובר 3', color: '#10b981', count: 0 }
-  ]);
+  const [blocks, setBlocks] = useState<SpeakerBlockData[]>([]);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [activeField, setActiveField] = useState<'code' | 'name' | 'description'>('code');
+  const [cursorAtStart, setCursorAtStart] = useState(false);
+  const blockManagerRef = useRef<SpeakerBlockManager>(new SpeakerBlockManager());
   const [speakerManager] = useState(() => new SpeakerManager());
+  
+  // Initialize blocks
+  useEffect(() => {
+    const initialBlocks = blockManagerRef.current.getBlocks();
+    setBlocks([...initialBlocks]);
+    if (initialBlocks.length > 0) {
+      setActiveBlockId(initialBlocks[0].id);
+    }
+  }, []);
 
+  // Handle block navigation
+  const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'code' | 'name' | 'description', cursorStart = false) => {
+    blockManagerRef.current.setActiveBlock(blockId, activeField);
+    const result = blockManagerRef.current.navigate(direction);
+    
+    const newBlockId = blockManagerRef.current.getActiveBlockId();
+    const newField = blockManagerRef.current.getActiveField();
+    
+    setActiveBlockId(newBlockId);
+    setActiveField(newField);
+    setCursorAtStart(cursorStart);
+    setBlocks([...blockManagerRef.current.getBlocks()]);
+    
+    // If TAB from last block's description, focus remarks immediately
+    if (result === 'exit-to-remarks') {
+      // Small timeout to ensure focus has left the block
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent('focusRemarks'));
+      }, 0);
+    }
+  }, [activeField]);
+  
+  // Handle block update
+  const handleBlockUpdate = useCallback((id: string, field: 'code' | 'name' | 'description', value: string) => {
+    // Validate unique code if updating code field
+    if (field === 'code' && value) {
+      if (!blockManagerRef.current.validateUniqueCode(value, id)) {
+        // Code already exists - don't update
+        return false;
+      }
+    }
+    
+    blockManagerRef.current.updateBlock(id, field, value);
+    setBlocks([...blockManagerRef.current.getBlocks()]);
+    
+    // Notify TextEditor of speaker update
+    if (field === 'name' || field === 'code') {
+      const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
+      if (block) {
+        document.dispatchEvent(new CustomEvent('speakerUpdated', {
+          detail: {
+            code: block.code,
+            name: block.name,
+            color: block.color
+          }
+        }));
+      }
+    }
+  }, []);
+  
+  // Handle new block creation
+  const handleNewBlock = useCallback(() => {
+    const currentBlock = blockManagerRef.current.getActiveBlock();
+    if (currentBlock) {
+      const newBlock = blockManagerRef.current.addBlock('', '', '', currentBlock.id);
+      setActiveBlockId(newBlock.id);
+      setActiveField('code');
+      setBlocks([...blockManagerRef.current.getBlocks()]);
+    }
+  }, []);
+  
+  // Handle block removal
+  const handleRemoveBlock = useCallback((id: string, deleteNext = false) => {
+    const direction = deleteNext ? 'next' : 'current';
+    
+    // Store the current state before removal
+    const wasRemovingCurrent = direction === 'current';
+    
+    blockManagerRef.current.removeBlock(id, direction);
+    
+    const newActiveId = blockManagerRef.current.getActiveBlockId();
+    const newField = blockManagerRef.current.getActiveField();
+    
+    setActiveBlockId(newActiveId);
+    setActiveField(newField);
+    
+    // When removing current block via BACKSPACE, ensure cursor is at end of description
+    if (wasRemovingCurrent && newField === 'description') {
+      setCursorAtStart(false);
+    }
+    
+    setBlocks([...blockManagerRef.current.getBlocks()]);
+  }, []);
+  
   useEffect(() => {
     // Listen for speaker requests from TextEditor
     const handleSpeakerRequest = (event: CustomEvent) => {
       const { code, callback } = event.detail;
       
-      let speaker = speakerManager.findByCode(code);
+      let block = blockManagerRef.current.findByCode(code);
       
-      if (!speaker) {
-        speaker = speakerManager.addSpeaker(code);
-        setSpeakers(prev => [...prev, {
-          id: speaker!.id,
-          code: speaker!.code,
-          name: speaker!.name,
-          color: speaker!.color,
-          count: 0
-        }]);
+      if (!block) {
+        block = blockManagerRef.current.addBlock(code, '', '');
+        setBlocks([...blockManagerRef.current.getBlocks()]);
+        
+        // Notify TextEditor of new speaker
+        document.dispatchEvent(new CustomEvent('speakerCreated', {
+          detail: {
+            code: block.code,
+            name: block.name,
+            color: block.color
+          }
+        }));
       }
       
       if (callback) {
-        callback(speaker.name);
+        callback(block.name);
       }
     };
 
@@ -42,62 +141,82 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     return () => {
       document.removeEventListener('speakerTabRequest', handleSpeakerRequest as EventListener);
     };
-  }, [speakerManager]);
+  }, []);
 
   const handleAddSpeaker = () => {
-    const newSpeaker = speakerManager.addSpeaker();
-    setSpeakers(prev => [...prev, {
-      id: newSpeaker.id,
-      code: newSpeaker.code,
-      name: newSpeaker.name,
-      color: newSpeaker.color,
-      count: 0
-    }]);
+    const newBlock = blockManagerRef.current.addBlock();
+    setActiveBlockId(newBlock.id);
+    setActiveField('code');
+    setBlocks([...blockManagerRef.current.getBlocks()]);
   };
+  
+  const stats = blockManagerRef.current.getStatistics();
+
+  const handlePanelClick = (e: React.MouseEvent) => {
+    // If clicking on the panel background (not on a block), exit editing
+    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('speaker-list')) {
+      setActiveBlockId(null);
+      setActiveField('code');
+    }
+  };
+  
+  // Handle TAB when no block is active
+  const panelRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle TAB if the speaker panel contains the active element
+      if (e.key === 'Tab' && !activeBlockId && panelRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        // Focus remarks in TextEditor
+        document.dispatchEvent(new CustomEvent('focusRemarks'));
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeBlockId]);
 
   return (
-    <div className="simple-speaker-panel">
+    <div className="simple-speaker-panel" ref={panelRef} onClick={handlePanelClick}>
       <div className="speaker-panel-header">
         <h3>רשימת דוברים</h3>
+        {stats.totalSpeakers > 0 && (
+          <span className="speaker-count-badge">{stats.totalSpeakers}</span>
+        )}
       </div>
-      
-      <button className="add-speaker-btn" onClick={handleAddSpeaker}>
-        + דובר חדש
-      </button>
-      
-      <div className="speaker-stats">
-        <div className="stat-item">
-          <div className="stat-value">0</div>
-          <div className="stat-label">אנגלית</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-value">2</div>
-          <div className="stat-label">עברית</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-value">2</div>
-          <div className="stat-label">דוברים</div>
-        </div>
+      <div className="speaker-table-header">
+        <span>קוד</span>
+        <span>שם</span>
+        <span>תיאור</span>
+        <span></span>
       </div>
-      
-      <div className="speaker-list">
-        {speakers.map(speaker => (
-          <div key={speaker.id} className="speaker-item">
-            <span className="speaker-count">(0)</span>
-            <span className="speaker-name">
-              {speaker.name} <span className="speaker-code">{speaker.code}</span>
-            </span>
-            <span className="speaker-dot" style={{ backgroundColor: speaker.color }}></span>
-          </div>
+      <div className="speaker-list" onClick={handlePanelClick}>
+        {blocks.map((block, index) => (
+          <SpeakerBlock
+            key={block.id}
+            speaker={block}
+            isActive={block.id === activeBlockId}
+            isLastBlock={index === blocks.length - 1}
+            activeField={block.id === activeBlockId ? activeField : 'code'}
+            cursorAtStart={block.id === activeBlockId ? cursorAtStart : false}
+            onNavigate={(direction, cursorStart) => handleNavigate(block.id, direction, cursorStart)}
+            onUpdate={handleBlockUpdate}
+            onNewBlock={handleNewBlock}
+            onRemoveBlock={handleRemoveBlock}
+            onValidateCode={(code, excludeId) => blockManagerRef.current.validateUniqueCode(code, excludeId)}
+            onExitToRemarks={() => {
+              setActiveBlockId(null);
+              setActiveField('code');
+              document.dispatchEvent(new CustomEvent('focusRemarks'));
+            }}
+          />
         ))}
       </div>
       
-      <div className="speaker-shortcuts">
-        <div className="shortcut-title">קיצורי דרך</div>
-        <div className="shortcut-item">אות עברית + TAB = דובר עברי</div>
-        <div className="shortcut-item">אות אנגלית + TAB = דובר אנגלי</div>
-        <div className="shortcut-item">רווח = מעבר בין בלוקים</div>
-      </div>
     </div>
   );
 }

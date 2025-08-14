@@ -138,7 +138,8 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 ---
 
 ## Stage 5: Add Toolbar & Reorganize Statistics
-**Status**: ⏳ Pending  
+**Status**: ✅ Complete  
+**Commit**: `212f06c`  
 **Objective**: Add toolbar, move stats to footer
 
 ### Changes:
@@ -155,10 +156,17 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 - Statistics in footer bar
 
 ### Testing Checklist:
-- [ ] Toolbar displays at top
-- [ ] Statistics in footer
-- [ ] Styling consistent
-- [ ] Layout not broken
+- [x] Toolbar displays at top
+- [x] Statistics in footer
+- [x] Styling consistent
+- [x] Layout not broken
+
+### Completion Notes:
+- Successfully added toolbar with multiple sections
+- Buttons include New, Save, Print, Undo, Redo, Find, Replace, Settings
+- Sync button toggles active state
+- Statistics were already in footer from Stage 3
+- Turquoise theme consistent with rest of TextEditor
 
 ---
 
@@ -191,56 +199,79 @@ This plan addresses layout issues, TextEditor improvements, Speaker component re
 
 ---
 
-## Stage 7: Speaker Component Redesign - Structure
-**Status**: ⏳ Pending  
-**Objective**: Create block-based speaker component
+## Stage 7-8 Combined: Complete Speaker Redesign & Integration
+**Status**: 🔄 In Progress  
+**Objective**: Complete redesign of Speaker component with full TextEditor integration
 
-### Changes:
-- Create new SpeakerBlock component
-- Three fields: Code, Name, Description
-- Similar structure to TextEditor blocks
+### Visual Design Changes:
+1. **Container Styling**:
+   - Dark teal header "רשימת דוברים" (like MediaPlayer) with WHITE text
+   - Remove "דובר חדש" button (auto-add speakers)
+   - Remove statistics section (אנגלית/עברית/דוברים counts)
+   - Remove keyboard shortcuts section (saves space)
+   - Add vertical scrollbar for list
 
-### Files:
-- Create `SpeakerBlock.tsx`
-- Create `SpeakerBlock.css`
-- Update `SimpleSpeaker.tsx`
+2. **Speaker Block Layout**:
+   - Table-like grid: Code (50px) | Name (1fr) | Description (2fr)
+   - Blocks grow vertically with content
+   - NO horizontal scrolling - text wraps
+   - Clean, minimal design
 
-### Expected Result:
-- Block-based speaker interface
-- Three editable fields per speaker
+### Navigation Rules:
+1. **Code Field** (single character, unique):
+   - SPACE → Move to Name field
+   - ENTER → Create new speaker block
+   - Validation: No duplicate codes allowed
+
+2. **Name Field** (can have spaces):
+   - TAB → Move to Description field
+   - SHIFT+TAB → Back to Code field
+   - ENTER → Create new speaker block
+
+3. **Description Field** (multiline):
+   - SHIFT+ENTER → New line within field
+   - ENTER → Create new speaker block
+   - TAB → Next block's Code field
+
+### Integration Features:
+1. **Auto-Add Speakers**:
+   - Unknown code in TextEditor → auto-create in Speaker list
+   - Assign color automatically
+   - Create placeholder name
+
+2. **Color Synchronization**:
+   - Same color in both components
+   - Persists across all blocks
+
+3. **Name Transformation**:
+   - Code in TextEditor → transform to name when leaving field
+   - Support multi-char codes (א vs אא)
+   - Update all instances when name changes
+
+### Scrolling Behavior:
+- Speaker list: Fixed height container with vertical scroll
+- TextEditor blocks: Fixed container with vertical scroll
+- Individual blocks: Auto-height, text wraps
+
+### Files to Modify:
+- `SimpleSpeaker.tsx` - Remove elements, add validation
+- `SimpleSpeaker.css` - Dark header, table layout, scrolling
+- `SpeakerBlock.tsx` - Navigation logic, multiline support
+- `SpeakerBlock.css` - Vertical growth, text wrapping
+- `SpeakerBlockManager.ts` - Unique code validation
+- `TextEditor.css` - Add scrolling to blocks
+- `TextBlock.tsx` - Trigger speaker creation
 
 ### Testing Checklist:
-- [ ] Speaker blocks display correctly
-- [ ] Three fields editable
-- [ ] Visual design matches requirements
-- [ ] Data persists correctly
-
----
-
-## Stage 8: Speaker Navigation & Integration
-**Status**: ⏳ Pending  
-**Objective**: Implement SPACE navigation and color sync
-
-### Changes:
-- SPACE navigation between speaker blocks
-- Synchronize colors with TextEditor
-- Maintain speaker state across components
-
-### Files:
-- `SpeakerBlock.tsx`
-- `SimpleSpeaker.tsx`
-- `TextEditor.tsx`
-
-### Expected Result:
-- Consistent navigation pattern
-- Color synchronization
-- Unified speaker management
-
-### Testing Checklist:
-- [ ] SPACE navigation works
+- [ ] Dark teal header with white text
+- [ ] No duplicate codes allowed
+- [ ] SPACE/TAB/ENTER navigation works correctly
+- [ ] SHIFT+ENTER creates new lines in description
+- [ ] Vertical scrolling works (no horizontal scroll)
+- [ ] Auto-add speakers from TextEditor
 - [ ] Colors sync between components
-- [ ] State maintained correctly
-- [ ] No navigation bugs
+- [ ] Names update across all blocks
+- [ ] Blocks grow vertically as needed
 
 ---
 

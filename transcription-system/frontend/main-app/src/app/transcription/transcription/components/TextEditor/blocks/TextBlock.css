@@ -1,16 +1,15 @@
 /* TextBlock Component Styles */
 
-/* Force all contenteditable to be RTL */
-[contenteditable="true"] {
-  direction: rtl !important;
-  text-align: right !important;
-  unicode-bidi: plaintext !important;
-}
-
-/* Ensure proper RTL for contenteditable in Firefox and Chrome */
-[contenteditable="true"]:empty:before {
-  content: '\200F'; /* Right-to-left mark */
-  display: inline;
+/* Input and textarea base styles */
+.text-block input,
+.text-block textarea {
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  resize: none;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 .text-block {
@@ -18,36 +17,36 @@
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 6px 12px;
-  margin-bottom: 2px;
-  background-color: #ffffff;
+  padding: 4px 12px;
+  margin-bottom: 4px;
+  background-color: transparent;
   border-radius: 4px;
   transition: all 0.2s ease;
   direction: rtl;
-  min-height: 36px;
-  border: 1px solid transparent;
+  min-height: 24px;
+  border-left: 1px solid #e0f2f1;
+  border-right: 1px solid #e0f2f1;
 }
 
 .text-block:hover {
-  background-color: #f8fffe;
-  border-color: #e0f2f1;
+  border-left-color: #a7f3ed;
+  border-right-color: #a7f3ed;
 }
 
 .text-block.active {
-  background-color: #f0fdfa;
-  border-color: #14b8a6;
-  box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.1);
+  border-left-color: #10b981;
+  border-right-color: #10b981;
 }
 
 /* Speaker area */
 .block-speaker {
-  font-weight: 600;
-  color: #333;
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
-  padding: 4px 8px;
-  background-color: rgba(23, 162, 184, 0.05);
+  font-weight: 500;
+  color: #0f766e;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  padding: 2px 4px;
+  background-color: transparent;
   border-radius: 3px;
   flex-shrink: 0;
   direction: rtl !important;
@@ -57,14 +56,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   outline: none;
-  border: 1px solid transparent;
+  border: none;
   transition: all 0.2s ease;
-  display: inline-block;
+  line-height: 1.4;
 }
 
 .block-speaker:focus {
-  background-color: rgba(23, 162, 184, 0.1);
-  border-color: #17a2b8;
+  outline: none;
 }
 
 .block-speaker[data-timestamp] {
@@ -76,8 +74,9 @@
   background-color: rgba(23, 162, 184, 0.15);
 }
 
-.block-speaker:empty::before {
-  content: attr(data-placeholder);
+/* Placeholder styles for input/textarea */
+.block-speaker::placeholder,
+.block-text::placeholder {
   color: #94a3b8;
   opacity: 0.6;
   font-weight: normal;
@@ -88,31 +87,34 @@
   color: #64748b;
   font-weight: 500;
   user-select: none;
-  align-self: center;
+  align-self: flex-start;
+  flex-shrink: 0;
+  line-height: 1.4;
   padding-top: 2px;
 }
 
 /* Text area */
 .block-text {
   flex: 1;
-  padding: 4px 8px;
+  padding: 2px 4px;
   outline: none;
-  min-height: 28px;
-  line-height: 1.6;
+  min-height: 20px;
+  line-height: 1.4;
   border-radius: 3px;
-  border: 1px solid transparent;
+  border: none;
   transition: all 0.2s ease;
   word-wrap: break-word;
   white-space: pre-wrap;
   direction: rtl !important;
   text-align: right !important;
   unicode-bidi: plaintext !important;
-  display: inline-block;
+  overflow-y: hidden;
+  resize: none;
+  background: transparent;
 }
 
 .block-text:focus {
-  background-color: rgba(23, 162, 184, 0.03);
-  border-color: #e0f2f1;
+  outline: none;
 }
 
 /* RTL cursor styling */
@@ -144,21 +146,10 @@
   border-left: 2px solid rgba(51, 51, 51, 0.2) !important;
 }
 
-.block-text:empty::before {
-  content: attr(data-placeholder);
-  color: #94a3b8;
-  opacity: 0.5;
-}
-
-/* Prevent contenteditable artifacts */
-.block-speaker[contenteditable="true"]:focus,
-.block-text[contenteditable="true"]:focus {
+/* Remove default input/textarea outlines */
+.block-speaker:focus,
+.block-text:focus {
   outline: none;
-}
-
-.block-speaker br,
-.block-text br:first-child {
-  display: none;
 }
 
 /* Tooltip */
@@ -249,14 +240,14 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .block-speaker {
-    width: 100px;
-    min-width: 100px;
-    max-width: 100px;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
     font-size: 13px;
   }
   
   .text-block {
-    padding: 4px 8px;
-    gap: 8px;
+    padding: 2px 8px;
+    gap: 6px;
   }
 }

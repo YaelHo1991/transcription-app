@@ -1,0 +1,147 @@
+/* SpeakerBlock Component Styles - Table Layout */
+
+.speaker-block {
+  display: grid;
+  grid-template-columns: 50px minmax(120px, 1fr) minmax(150px, 2fr) 40px;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 16px;
+  min-height: 40px;
+  background: white;
+  border-bottom: none;
+  transition: all 0.2s;
+  direction: rtl;
+}
+
+.speaker-block:hover {
+  background: #f9fafb;
+}
+
+.speaker-block.active {
+  background: #f0fdfa;
+  box-shadow: inset 3px 0 0 #14b8a6;
+}
+
+
+/* Individual fields */
+.speaker-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.speaker-field.active {
+  position: relative;
+}
+
+.speaker-field.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #14b8a6;
+}
+
+.code-input {
+  width: 100%;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  background: transparent;
+  transition: all 0.2s;
+  height: 24px;
+  line-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.code-input:focus {
+  outline: none;
+  border-color: #14b8a6;
+  background: white;
+}
+
+.name-input {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 13px;
+  background: transparent;
+  transition: all 0.2s;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 24px;
+  line-height: 20px;
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: #14b8a6;
+  background: white;
+}
+
+.description-input {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 12px;
+  background: transparent;
+  transition: all 0.2s;
+  color: #64748b;
+  resize: none;
+  height: 24px;
+  line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: inherit;
+}
+
+.description-input:focus {
+  outline: none;
+  border-color: #14b8a6;
+  background: white;
+}
+
+/* Placeholder styling */
+.code-input::placeholder,
+.name-input::placeholder,
+.description-input::placeholder {
+  color: #cbd5e1;
+  opacity: 0.6;
+}
+
+/* Count display */
+.speaker-count {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: #f8fafc;
+  border-radius: 3px;
+  text-align: center;
+  align-self: center;
+}
+
+
+/* Color dot indicator */
+.speaker-color-dot {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}

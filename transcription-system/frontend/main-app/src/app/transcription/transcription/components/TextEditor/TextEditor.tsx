@@ -26,6 +26,7 @@ export default function TextEditor({
   const [activeArea, setActiveArea] = useState<'speaker' | 'text'>('speaker');
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [speakerColors, setSpeakerColors] = useState<Map<string, string>>(new Map());
+  const [cursorAtStart, setCursorAtStart] = useState(false);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
   
@@ -56,8 +57,8 @@ export default function TextEditor({
   });
 
   // Handle block navigation
-  const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'speaker' | 'text') => {
-    blockManagerRef.current.setActiveBlock(blockId, activeArea);
+  const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'speaker' | 'text', fromField: 'speaker' | 'text' = 'speaker') => {
+    blockManagerRef.current.setActiveBlock(blockId, fromField);
     blockManagerRef.current.navigate(direction);
     
     const newBlockId = blockManagerRef.current.getActiveBlockId();
@@ -65,8 +66,9 @@ export default function TextEditor({
     
     setActiveBlockId(newBlockId);
     setActiveArea(newArea);
+    setCursorAtStart(false); // Reset cursor position flag
     setBlocks([...blockManagerRef.current.getBlocks()]);
-  }, [activeArea]);
+  }, []);
 
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'speaker' | 'text', value: string) => {
@@ -102,6 +104,37 @@ export default function TextEditor({
     setActiveBlockId(newActiveId);
     setActiveArea(newArea);
     setBlocks([...blockManagerRef.current.getBlocks()]);
+  }, []);
+
+  // Handle DELETE key for cross-block deletion
+  const handleDeleteAcrossBlocks = useCallback((currentBlockId: string, fromField: 'speaker' | 'text') => {
+    const blocks = blockManagerRef.current.getBlocks();
+    const currentIndex = blocks.findIndex(b => b.id === currentBlockId);
+    
+    if (currentIndex < blocks.length - 1) {
+      const nextBlock = blocks[currentIndex + 1];
+      
+      // Check if next block is completely empty
+      if (!nextBlock.speaker && !nextBlock.text) {
+        // Both speaker and text are empty, remove the next block
+        blockManagerRef.current.removeBlock(nextBlock.id);
+        // Stay in current position
+      } else if (nextBlock.speaker && nextBlock.speaker.length > 0) {
+        // Navigate to next block's speaker and position cursor at start
+        blockManagerRef.current.setActiveBlock(nextBlock.id, 'speaker');
+        setActiveBlockId(nextBlock.id);
+        setActiveArea('speaker');
+        setCursorAtStart(true);
+      } else if (nextBlock.text && nextBlock.text.length > 0) {
+        // Speaker is empty but text has content, navigate to text
+        blockManagerRef.current.setActiveBlock(nextBlock.id, 'text');
+        setActiveBlockId(nextBlock.id);
+        setActiveArea('text');
+        setCursorAtStart(true);
+      }
+      
+      setBlocks([...blockManagerRef.current.getBlocks()]);
+    }
   }, []);
 
   // Handle speaker transformation
@@ -279,17 +312,20 @@ export default function TextEditor({
           ref={editorRef}
           className="text-editor-content blocks-container"
         >
-          {blocks.map((block) => (
+          {blocks.map((block, index) => (
             <TextBlock
               key={block.id}
               block={block}
               isActive={block.id === activeBlockId}
+              isFirstBlock={index === 0}
               activeArea={block.id === activeBlockId ? activeArea : 'speaker'}
-              onNavigate={(direction) => handleNavigate(block.id, direction)}
+              cursorAtStart={block.id === activeBlockId && cursorAtStart}
+              onNavigate={(direction, fromField) => handleNavigate(block.id, direction, fromField)}
               onUpdate={handleBlockUpdate}
               onNewBlock={handleNewBlock}
               onRemoveBlock={handleRemoveBlock}
               onSpeakerTransform={handleSpeakerTransform}
+              onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
               speakerColor={speakerColors.get(block.speaker)}
               currentTime={0}  // DISABLED - not passing actual time
             />
