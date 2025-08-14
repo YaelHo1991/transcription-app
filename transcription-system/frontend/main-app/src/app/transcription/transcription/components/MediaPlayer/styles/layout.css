@@ -17,7 +17,7 @@
     font-family: 'Segoe UI', Tahoma, -apple-system, sans-serif;
     position: relative;
     border: 1px solid rgba(32, 201, 151, 0.2);
-    overflow-x: hidden;
+    overflow: visible !important;
     box-sizing: border-box;
     display: flex;
     flex-direction: row;
@@ -83,7 +83,7 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(32, 201, 151, 0.15);
     transition: all 0.3s ease;
-    overflow: hidden;
+    overflow: visible !important;
 }
 
 /* Toggle Wrapper - stays visible when collapsed */
@@ -93,6 +93,7 @@
     box-sizing: border-box;
     padding: 0;
     margin: 0;
+    overflow: visible !important;
 }
 
 /* Ensure wrapper has minimum height when collapsed to show toggle */
