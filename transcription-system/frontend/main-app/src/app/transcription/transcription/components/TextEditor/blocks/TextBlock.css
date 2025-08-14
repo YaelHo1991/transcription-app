@@ -135,16 +135,7 @@
   caret-shape: bar;
 }
 
-/* Visual mode indicators */
-.block-text.rtl-mode,
-.block-speaker.rtl-mode {
-  border-right: 2px solid rgba(8, 145, 178, 0.2) !important;
-}
-
-.block-text.ltr-mode,
-.block-speaker.ltr-mode {
-  border-left: 2px solid rgba(51, 51, 51, 0.2) !important;
-}
+/* Visual mode indicators - removed to avoid gray bars */
 
 /* Remove default input/textarea outlines */
 .block-speaker:focus,

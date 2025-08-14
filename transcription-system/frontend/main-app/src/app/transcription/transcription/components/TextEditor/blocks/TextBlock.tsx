@@ -317,8 +317,6 @@ export default function TextBlock({
           textarea.dir = 'rtl';
           textarea.style.direction = 'rtl';
           textarea.style.textAlign = 'right';
-          textarea.classList.remove('ltr-mode');
-          textarea.classList.add('rtl-mode');
         }
       } 
       // Check if it's an English character
@@ -328,8 +326,6 @@ export default function TextBlock({
           textarea.dir = 'ltr';
           textarea.style.direction = 'ltr';
           textarea.style.textAlign = 'left';
-          textarea.classList.remove('rtl-mode');
-          textarea.classList.add('ltr-mode');
         }
       }
     }

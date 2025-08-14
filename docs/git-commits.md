@@ -2,6 +2,33 @@
 
 ## Recent Commits
 
+### Fix: Remove gray visual mode indicators
+**Commit Hash**: `c3cdcc9`
+**Date**: 2025-08-14
+**Description**: Removed gray bars that appeared when typing English text
+**Changes**:
+- Removed visual mode indicator borders from CSS
+- Removed classList manipulation for rtl-mode/ltr-mode
+- Kept text direction switching without visual indicators
+- Cleaner appearance when switching between Hebrew/English
+
+### Major refactor: Convert TextEditor to input/textarea and improve navigation
+**Commit Hash**: `caee207`
+**Date**: 2025-08-14
+**Description**: Complete overhaul of TextEditor using standard form elements
+**Changes**:
+- Converted TextEditor from contentEditable to input/textarea elements
+- Fixed BACKSPACE navigation with reliable selectionStart
+- UP/DOWN arrows navigate within multiline text first
+- LEFT/RIGHT arrows navigate through text in Speaker blocks
+- HOME/END keys work within lines and between blocks
+- DELETE key positions cursor correctly
+- Changed focus outline to green (1px solid)
+- Made block borders subtle
+- Added textarea auto-resize functionality
+- Fixed Speaker component navigation and auto-resize
+- Removed outdated TAB tooltip message
+
 ### Stage 5: Add Toolbar to TextEditor
 **Commit Hash**: `212f06c`
 **Date**: 2025-08-14
