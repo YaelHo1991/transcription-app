@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { authenticateToken, requirePermission, requireAnyPermission, AuthRequest } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
+import shortcutsRouter from './shortcuts/routes';
 
 const router = Router();
 
 // All transcription routes require authentication
 router.use(authenticateToken);
+
+// Mount shortcuts routes
+router.use('/shortcuts', shortcutsRouter);
 
 // Mock transcription projects data
 const mockProjects = [
@@ -239,44 +243,45 @@ router.get('/export/formats', requirePermission('F'), asyncHandler(async (req: A
   });
 }));
 
-// GET /api/transcription/export/:id - Get projects available for export
-router.get('/export/:id?', requirePermission('F'), asyncHandler(async (req: AuthRequest, res) => {
+// GET /api/transcription/export - Get projects available for export  
+router.get('/export', requirePermission('F'), asyncHandler(async (req: AuthRequest, res) => {
+  // Get all completed projects
+  const completedProjects = mockProjects.filter(p => p.status === 'completed');
+  
+  res.json({
+    success: true,
+    projects: completedProjects,
+    total: completedProjects.length,
+    availableFormats: exportFormats
+  });
+}));
+
+// GET /api/transcription/export/:id - Get specific project for export
+router.get('/export/:id', requirePermission('F'), asyncHandler(async (req: AuthRequest, res) => {
   const { id } = req.params;
   
-  if (id) {
-    // Get specific project for export
-    const project = mockProjects.find(p => p.id === id);
-    
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'פרויקט לא נמצא'
-      });
-    }
-
-    if (project.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'ניתן לייצא רק פרויקטים מושלמים'
-      });
-    }
-
-    res.json({
-      success: true,
-      project,
-      availableFormats: exportFormats
-    });
-  } else {
-    // Get all completed projects
-    const completedProjects = mockProjects.filter(p => p.status === 'completed');
-    
-    res.json({
-      success: true,
-      projects: completedProjects,
-      total: completedProjects.length,
-      availableFormats: exportFormats
+  // Get specific project for export
+  const project = mockProjects.find(p => p.id === id);
+  
+  if (!project) {
+    return res.status(404).json({
+      success: false,
+      message: 'פרויקט לא נמצא'
     });
   }
+
+  if (project.status !== 'completed') {
+    return res.status(400).json({
+      success: false,
+      message: 'ניתן לייצא רק פרויקטים מושלמים'
+    });
+  }
+
+  res.json({
+    success: true,
+    project,
+    availableFormats: exportFormats
+  });
 }));
 
 // POST /api/transcription/export/:id - Export project in specified format

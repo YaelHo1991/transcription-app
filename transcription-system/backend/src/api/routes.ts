@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './auth/routes';
 import devRoutes from './dev/routes';
 import licensesRoutes from './licenses/routes';
+import transcriptionRoutes from './transcription/routes';
 import { initWaveformRoutes } from '../routes/waveformRoutes';
 import { db } from '../db/connection';
 
@@ -14,6 +15,9 @@ router.use('/auth', authRoutes);
 
 // License management endpoints
 router.use('/licenses', licensesRoutes);
+
+// Transcription endpoints (includes shortcuts)
+router.use('/transcription', transcriptionRoutes);
 
 // Waveform endpoints
 router.use('/waveform', initWaveformRoutes(db));
@@ -35,13 +39,6 @@ router.get('/crm/dashboard', (req, res) => {
   res.json({
     success: true,
     message: 'CRM dashboard endpoint - Stage 5 in progress'
-  });
-});
-
-router.get('/transcription/projects', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Transcription projects endpoint - Stage 5 in progress'
   });
 });
 
