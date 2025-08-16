@@ -2,14 +2,22 @@ import { Router } from 'express';
 import { authenticateToken, requirePermission, requireAnyPermission, AuthRequest } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import shortcutsRouter from './shortcuts/routes';
+import projectsRouter from './projects/routes';
+import transcriptionsRouter from './transcriptions/routes';
+import backupsRouter from './backups/routes';
+import mediaRouter from './media/routes';
 
 const router = Router();
 
 // All transcription routes require authentication
 router.use(authenticateToken);
 
-// Mount shortcuts routes
+// Mount sub-routes
 router.use('/shortcuts', shortcutsRouter);
+router.use('/projects', projectsRouter);
+router.use('/transcriptions', transcriptionsRouter);
+router.use('/backups', backupsRouter);
+router.use('/media', mediaRouter);
 
 // Mock transcription projects data
 const mockProjects = [
