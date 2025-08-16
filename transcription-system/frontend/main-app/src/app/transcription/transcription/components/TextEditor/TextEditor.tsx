@@ -371,10 +371,30 @@ export default function TextEditor({
     const handleSpeakerUpdated = (event: CustomEvent) => {
       const { speakerId, code, name, color, oldCode } = event.detail;
       
-      // Track by speaker ID for persistent connection
+      // Get all current blocks first
+      const blocks = blockManagerRef.current.getBlocks();
+      
+      // Build a set of all values that should be updated
+      // This includes the old code, and any blocks that currently match this speaker
+      const valuesToUpdate = new Set<string>();
+      
+      // Add the old code if it was changed
+      if (oldCode) {
+        valuesToUpdate.add(oldCode);
+      }
+      
+      // Add the current code
+      if (code) {
+        valuesToUpdate.add(code);
+      }
+      
+      // If we have a speaker ID, check what blocks were previously tracked
       if (speakerId) {
-        // Get the old code if it was changed
+        // Get the previously tracked code for this speaker ID
         const previousCode = oldCode || speakerIdToCodeRef.current.get(speakerId);
+        if (previousCode) {
+          valuesToUpdate.add(previousCode);
+        }
         
         // Update speaker ID to code mapping
         if (code) {
@@ -387,62 +407,72 @@ export default function TextEditor({
         }
         const speakerBlockIds = speakerBlocksRef.current.get(speakerId)!;
         
-        // Update all blocks that belong to this speaker
-        const blocks = blockManagerRef.current.getBlocks();
+        // Find all blocks that were previously tracked for this speaker
         blocks.forEach(block => {
-          // Check if this block belongs to this speaker
-          let belongsToSpeaker = false;
-          
-          // Check by tracked block IDs
-          if (speakerBlockIds.has(block.id)) {
-            belongsToSpeaker = true;
-          }
-          // Check by previous code
-          else if (previousCode && block.speaker === previousCode) {
-            belongsToSpeaker = true;
-            speakerBlockIds.add(block.id);
-          }
-          // Check by current code
-          else if (code && block.speaker === code) {
-            belongsToSpeaker = true;
-            speakerBlockIds.add(block.id);
-          }
-          // Check by name
-          else if (name && block.speaker === name) {
-            belongsToSpeaker = true;
-            speakerBlockIds.add(block.id);
-          }
-          
-          // Update the block if it belongs to this speaker
-          if (belongsToSpeaker) {
-            // Determine what value to use: prioritize name, then code
-            const newValue = (name && name.trim()) ? name : (code || '');
-            if (block.speaker !== newValue) {
-              blockManagerRef.current.updateBlock(block.id, 'speaker', newValue);
-            }
+          if (speakerBlockIds.has(block.id) && block.speaker) {
+            valuesToUpdate.add(block.speaker);
           }
         });
-        
-        // Update color mapping
-        const speakerKey = (name && name.trim()) ? name : (code || '');
-        if (speakerKey) {
-          setSpeakerColors(prev => {
-            const newMap = new Map(prev);
-            // Remove old color entries
-            if (previousCode && previousCode !== code) {
-              newMap.delete(previousCode);
+      }
+      
+      // Also check if any blocks currently have a name that matches the code
+      // This handles the case where blocks might show "JOHN" when the code is "J"
+      if (code && speakerNamesRef.current.has(code)) {
+        const previousName = speakerNamesRef.current.get(code);
+        if (previousName) {
+          valuesToUpdate.add(previousName);
+        }
+      }
+      
+      // Determine the new value to use (prioritize name over code)
+      const newValue = (name && name.trim()) ? name : (code || '');
+      
+      // Track speaker name updates
+      if (code && name && name.trim()) {
+        speakerNamesRef.current.set(code, name);
+      } else if (code && !name) {
+        speakerNamesRef.current.delete(code);
+      }
+      
+      // Now update all blocks that match any of the values we identified
+      let hasUpdates = false;
+      blocks.forEach(block => {
+        // Check if this block's speaker matches any value that needs updating
+        if (block.speaker && valuesToUpdate.has(block.speaker)) {
+          // Update the block if the value is different
+          if (block.speaker !== newValue) {
+            blockManagerRef.current.updateBlock(block.id, 'speaker', newValue);
+            hasUpdates = true;
+          }
+          
+          // Track this block for future updates
+          if (speakerId) {
+            const blockIds = speakerBlocksRef.current.get(speakerId)!;
+            blockIds.add(block.id);
+          }
+        }
+      });
+      
+      // Update color mapping
+      if (color) {
+        setSpeakerColors(prev => {
+          const newMap = new Map(prev);
+          
+          // Remove old color entries for all values that were updated
+          valuesToUpdate.forEach(val => {
+            if (val !== newValue) {
+              newMap.delete(val);
             }
-            // Set new color
-            newMap.set(speakerKey, color);
-            return newMap;
           });
-        }
-        
-        // Track speaker name updates
-        if (code && name && name.trim()) {
-          speakerNamesRef.current.set(code, name);
-        }
-        
+          
+          // Set new color
+          newMap.set(newValue, color);
+          return newMap;
+        });
+      }
+      
+      // Force re-render if there were updates
+      if (hasUpdates || valuesToUpdate.size > 0) {
         setBlocks([...blockManagerRef.current.getBlocks()]);
       }
     };

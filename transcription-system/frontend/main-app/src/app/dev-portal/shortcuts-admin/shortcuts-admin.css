@@ -336,6 +336,36 @@
   min-height: 60px;
 }
 
+/* Inline checkbox styling */
+.form-group.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-group.checkbox-inline label {
+  margin-bottom: 0;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.form-group.checkbox-inline input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Special option in select dropdown */
+.form-group select option[value="__new__"] {
+  font-weight: bold;
+  background: #f8f8f8;
+  color: #1a5d5d;
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;

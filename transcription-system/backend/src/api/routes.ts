@@ -3,6 +3,7 @@ import authRoutes from './auth/routes';
 import devRoutes from './dev/routes';
 import licensesRoutes from './licenses/routes';
 import transcriptionRoutes from './transcription/routes';
+import adminShortcutsRoutes from './admin/shortcuts/routes';
 import { initWaveformRoutes } from '../routes/waveformRoutes';
 import { db } from '../db/connection';
 
@@ -47,6 +48,9 @@ router.get('/transcription/shortcuts/public', async (req, res) => {
 
 // Transcription endpoints (includes shortcuts)
 router.use('/transcription', transcriptionRoutes);
+
+// Admin endpoints for managing system shortcuts (auth handled in the route)
+router.use('/admin/shortcuts', adminShortcutsRoutes);
 
 // Waveform endpoints
 router.use('/waveform', initWaveformRoutes(db));

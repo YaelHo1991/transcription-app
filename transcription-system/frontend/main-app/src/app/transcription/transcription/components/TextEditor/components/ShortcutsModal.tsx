@@ -261,7 +261,7 @@ export default function ShortcutsModal({
         </div>
 
         {activeTab === 'personal' && (
-          <div className="shortcuts-footer">
+          <div className="text-editor-shortcuts-footer">
             <button 
               className="add-shortcut-btn"
               onClick={() => {

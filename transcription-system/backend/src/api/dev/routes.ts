@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { db } from '../../db/connection';
 import { developmentHTML } from '../../dev-tools/development-html';
+import shortcutsAdminRoutes from './shortcuts-admin-routes';
 
 const router = Router();
 
@@ -9,6 +10,9 @@ const router = Router();
 router.get('/', (req, res) => {
   res.send(developmentHTML);
 });
+
+// Mount shortcuts admin routes
+router.use('/admin', shortcutsAdminRoutes);
 
 // Debug endpoint to check environment
 router.get('/check-env', (req: Request, res: Response) => {

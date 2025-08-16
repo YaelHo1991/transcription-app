@@ -68,67 +68,80 @@ export default function ShortcutsAdminPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load from public API
-      const response = await fetch('http://localhost:5000/api/transcription/shortcuts/public');
-      if (response.ok) {
-        const data = await response.json();
+      // First try to load from public API for reading
+      const publicResponse = await fetch('http://localhost:5000/api/transcription/shortcuts/public');
+      
+      if (publicResponse.ok) {
+        const publicData = await publicResponse.json();
         
-        // Define default categories
-        const defaultCategories: Category[] = [
-          { id: '1', name: 'legal', label: 'משפטי', shortcut_count: 0, is_active: true },
-          { id: '2', name: 'medical', label: 'רפואי', shortcut_count: 0, is_active: true },
-          { id: '3', name: 'punctuation', label: 'סימני פיסוק', shortcut_count: 0, is_active: true },
-          { id: '4', name: 'common', label: 'ביטויים נפוצים', shortcut_count: 0, is_active: true },
-          { id: '5', name: 'business', label: 'עסקי', shortcut_count: 0, is_active: true },
-          { id: '6', name: 'academic', label: 'אקדמי', shortcut_count: 0, is_active: true },
-          { id: '7', name: 'technical', label: 'טכני', shortcut_count: 0, is_active: true }
-        ];
-        
-        const categoryMap = new Map<string, Category>();
-        defaultCategories.forEach(cat => categoryMap.set(cat.name, cat));
-        
-        // Process shortcuts from API
+        // Process shortcuts from public API
         const systemShortcuts: SystemShortcut[] = [];
-        data.shortcuts.forEach(([shortcut, shortcutData]: [string, any], index: number) => {
-          if (shortcutData.source === 'system') {
-            const category = shortcutData.category || 'common';
+        let idCounter = 1;
+        
+        publicData.shortcuts.forEach(([shortcut, data]: [string, any]) => {
+          if (data.source === 'system') {
             systemShortcuts.push({
-              id: String(index + 1),
-              shortcut,
-              expansion: shortcutData.expansion,
-              category,
-              description: shortcutData.description,
+              id: String(idCounter++),
+              shortcut: shortcut,
+              expansion: data.expansion,
+              category: data.category || 'common',
+              description: data.description,
               is_active: true,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             });
-            
-            if (categoryMap.has(category)) {
-              categoryMap.get(category)!.shortcut_count++;
-            }
           }
         });
         
-        setCategories(Array.from(categoryMap.values()));
+        // Process categories with labels for display
+        const categoryLabels: { [key: string]: string } = {
+          legal: 'משפטי',
+          medical: 'רפואי',
+          common: 'ביטויים נפוצים',
+          academic: 'אקדמי',
+          business: 'עסקי',
+          technical: 'טכני',
+          english: 'מילים באנגלית',
+          punctuation: 'סימני פיסוק'
+        };
+        
+        const categoriesData: Category[] = publicData.categories.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          label: categoryLabels[c.name] || c.name,
+          shortcut_count: systemShortcuts.filter(s => s.category === c.name).length,
+          is_active: true
+        }));
+        
         setShortcuts(systemShortcuts);
+        setCategories(categoriesData.length > 0 ? categoriesData : getDefaultCategories());
+        setError('');
       } else {
-        // Use default empty data
-        setCategories([
-          { id: '1', name: 'legal', label: 'משפטי', shortcut_count: 0, is_active: true },
-          { id: '2', name: 'medical', label: 'רפואי', shortcut_count: 0, is_active: true },
-          { id: '3', name: 'punctuation', label: 'סימני פיסוק', shortcut_count: 0, is_active: true },
-          { id: '4', name: 'common', label: 'ביטויים נפוצים', shortcut_count: 0, is_active: true },
-          { id: '5', name: 'business', label: 'עסקי', shortcut_count: 0, is_active: true },
-          { id: '6', name: 'academic', label: 'אקדמי', shortcut_count: 0, is_active: true },
-          { id: '7', name: 'technical', label: 'טכני', shortcut_count: 0, is_active: true }
-        ]);
+        // Fallback to empty data
+        setCategories(getDefaultCategories());
         setShortcuts([]);
       }
     } catch (err) {
       console.error('Error loading data:', err);
+      setError('שגיאה בטעינת הנתונים');
+      setCategories(getDefaultCategories());
+      setShortcuts([]);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const getDefaultCategories = (): Category[] => {
+    return [
+      { id: '1', name: 'legal', label: 'משפטי', shortcut_count: 0, is_active: true },
+      { id: '2', name: 'medical', label: 'רפואי', shortcut_count: 0, is_active: true },
+      { id: '3', name: 'punctuation', label: 'סימני פיסוק', shortcut_count: 0, is_active: true },
+      { id: '4', name: 'common', label: 'ביטויים נפוצים', shortcut_count: 0, is_active: true },
+      { id: '5', name: 'business', label: 'עסקי', shortcut_count: 0, is_active: true },
+      { id: '6', name: 'academic', label: 'אקדמי', shortcut_count: 0, is_active: true },
+      { id: '7', name: 'technical', label: 'טכני', shortcut_count: 0, is_active: true },
+      { id: '8', name: 'english', label: 'מילים באנגלית', shortcut_count: 0, is_active: true }
+    ];
   };
 
   // Generate suggestion for duplicate shortcuts
@@ -146,78 +159,129 @@ export default function ShortcutsAdminPage() {
   const handleShortcutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check for duplicates
-    const isDuplicate = shortcuts.some(s => 
-      s.shortcut === formData.shortcut && s.id !== editingShortcut?.id
-    );
-    
-    if (isDuplicate) {
-      const suggestion = generateSuggestion(formData.shortcut);
-      if (!confirm(`הקיצור "${formData.shortcut}" כבר קיים!\n\nהצעה חלופית: "${suggestion}"\n\nהאם להשתמש בהצעה?`)) {
-        return;
+    try {
+      if (editingShortcut) {
+        // Update existing shortcut - use dev endpoint
+        const response = await fetch(`http://localhost:5000/dev/admin/shortcuts/${editingShortcut.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...formData,
+            originalShortcut: editingShortcut.shortcut // Pass original shortcut to find in DB
+          })
+        });
+        
+        if (response.ok) {
+          await loadData(); // Reload data from server
+        } else {
+          const error = await response.json();
+          alert(`שגיאה: ${error.error}`);
+          return;
+        }
+      } else {
+        // Add new shortcut - use dev endpoint
+        const response = await fetch('http://localhost:5000/dev/admin/shortcuts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+          await loadData(); // Reload data from server
+        } else {
+          const error = await response.json();
+          // Check for duplicates locally
+          const isDuplicate = shortcuts.some(s => s.shortcut === formData.shortcut);
+          if (isDuplicate) {
+            const suggestion = generateSuggestion(formData.shortcut);
+            if (confirm(`הקיצור "${formData.shortcut}" כבר קיים!\n\nהצעה חלופית: "${suggestion}"\n\nהאם להשתמש בהצעה?`)) {
+              formData.shortcut = suggestion;
+              await handleShortcutSubmit(e); // Retry with suggestion
+              return;
+            }
+          } else {
+            alert(`שגיאה: ${error.error}`);
+          }
+          return;
+        }
       }
-      formData.shortcut = suggestion;
-    }
-    
-    if (editingShortcut) {
-      setShortcuts(prev => prev.map(s => 
-        s.id === editingShortcut.id 
-          ? { ...s, ...formData, updated_at: new Date().toISOString() }
-          : s
-      ));
-    } else {
-      const newShortcut: SystemShortcut = {
-        id: Date.now().toString(),
-        ...formData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      setShortcuts(prev => [...prev, newShortcut]);
       
-      // Update category count
-      setCategories(prev => prev.map(cat => 
-        cat.name === formData.category 
-          ? { ...cat, shortcut_count: cat.shortcut_count + 1 }
-          : cat
-      ));
+      setFormData({ shortcut: '', expansion: '', category: '', description: '', is_active: true });
+      setShowAddForm(false);
+      setEditingShortcut(null);
+    } catch (error) {
+      console.error('Error saving shortcut:', error);
+      alert('שגיאה בשמירת הקיצור');
     }
-    
-    setFormData({ shortcut: '', expansion: '', category: '', description: '', is_active: true });
-    setShowAddForm(false);
-    setEditingShortcut(null);
   };
 
   // Handle category form submission
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isDuplicate = categories.some(c => 
-      c.name === categoryFormData.name && c.id !== editingCategory?.id
-    );
-    
-    if (isDuplicate) {
-      alert(`הקטגוריה "${categoryFormData.name}" כבר קיימת!`);
-      return;
-    }
-    
-    if (editingCategory) {
-      setCategories(prev => prev.map(c => 
-        c.id === editingCategory.id 
-          ? { ...c, ...categoryFormData }
-          : c
-      ));
-    } else {
+    try {
+      // For now, just add to local state since we don't have a label column in DB
+      // Categories will be created automatically when shortcuts are added to them
+      
+      if (editingCategory) {
+        // Update locally
+        setCategories(prev => prev.map(c => 
+          c.id === editingCategory.id 
+            ? { ...c, ...categoryFormData }
+            : c
+        ));
+      } else {
+        // Add new category - use dev endpoint
+        const response = await fetch('http://localhost:5000/dev/admin/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(categoryFormData)
+        });
+        
+        if (!response.ok) {
+          // If fails, just add locally
+          const newCategory: Category = {
+            id: Date.now().toString(),
+            ...categoryFormData,
+            shortcut_count: 0
+          };
+          setCategories(prev => [...prev, newCategory]);
+        }
+        
+        // If we're adding a category from the shortcut form, select it automatically
+        if (showAddForm) {
+          setFormData(prev => ({ ...prev, category: categoryFormData.name }));
+        }
+      }
+      
+      await loadData(); // Reload data from server
+      setCategoryFormData({ name: '', label: '', is_active: true });
+      setShowCategoryForm(false);
+      setEditingCategory(null);
+    } catch (error) {
+      console.error('Error saving category:', error);
+      // Just add locally if error
       const newCategory: Category = {
         id: Date.now().toString(),
         ...categoryFormData,
         shortcut_count: 0
       };
       setCategories(prev => [...prev, newCategory]);
+      
+      if (showAddForm) {
+        setFormData(prev => ({ ...prev, category: categoryFormData.name }));
+      }
+      
+      setCategoryFormData({ name: '', label: '', is_active: true });
+      setShowCategoryForm(false);
+      setEditingCategory(null);
     }
-    
-    setCategoryFormData({ name: '', label: '', is_active: true });
-    setShowCategoryForm(false);
-    setEditingCategory(null);
   };
 
   // Filter shortcuts
@@ -361,15 +425,27 @@ export default function ShortcutsAdminPage() {
                       </button>
                       <button 
                         className="delete-btn"
-                        onClick={() => {
+                        onClick={async () => {
                           if (confirm('למחוק קיצור זה?')) {
-                            setShortcuts(prev => prev.filter(s => s.id !== shortcut.id));
-                            // Update category count
-                            setCategories(prev => prev.map(cat => 
-                              cat.name === shortcut.category 
-                                ? { ...cat, shortcut_count: Math.max(0, cat.shortcut_count - 1) }
-                                : cat
-                            ));
+                            try {
+                              // Use the shortcut text as identifier for deletion
+                              const response = await fetch(`http://localhost:5000/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}`, {
+                                method: 'DELETE',
+                                headers: {
+                                  'Content-Type': 'application/json'
+                                }
+                              });
+                              
+                              if (response.ok) {
+                                await loadData(); // Reload data from server
+                              } else {
+                                const error = await response.json();
+                                alert(`שגיאה במחיקה: ${error.error}`);
+                              }
+                            } catch (error) {
+                              console.error('Error deleting shortcut:', error);
+                              alert('שגיאה במחיקת הקיצור');
+                            }
                           }
                         }}
                       >
@@ -514,7 +590,17 @@ export default function ShortcutsAdminPage() {
                 <label>קטגוריה:</label>
                 <select
                   value={formData.category}
-                  onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  onChange={e => {
+                    const value = e.target.value;
+                    if (value === '__new__') {
+                      // Open category form to add new category
+                      setShowCategoryForm(true);
+                      setEditingCategory(null);
+                      setCategoryFormData({ name: '', label: '', is_active: true });
+                    } else {
+                      setFormData(prev => ({ ...prev, category: value }));
+                    }
+                  }}
                   required
                 >
                   <option value="">בחר קטגוריה</option>
@@ -523,6 +609,9 @@ export default function ShortcutsAdminPage() {
                       {cat.label}
                     </option>
                   ))}
+                  <option value="__new__" style={{ fontWeight: 'bold', borderTop: '1px solid #ddd' }}>
+                    + הוסף קטגוריה חדשה
+                  </option>
                 </select>
               </div>
               
@@ -535,15 +624,14 @@ export default function ShortcutsAdminPage() {
                 />
               </div>
               
-              <div className="form-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={e => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                  />
-                  פעיל באפליקציה
-                </label>
+              <div className="form-group checkbox-inline">
+                <input
+                  type="checkbox"
+                  id="is_active_checkbox"
+                  checked={formData.is_active}
+                  onChange={e => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                />
+                <label htmlFor="is_active_checkbox">פעיל באפליקציה</label>
               </div>
               
               <div className="form-actions">

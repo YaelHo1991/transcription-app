@@ -388,9 +388,7 @@ export default function ShortcutsTab({
 
       {/* Footer with reset button - EXACT original structure */}
       <div className="shortcuts-footer">
-        <button className="reset-shortcuts-btn" onClick={resetShortcuts}>
-          אפס לברירת מחדל
-        </button>
+        <button className="reset-shortcuts-btn" onClick={resetShortcuts}>אפס לברירת מחדל</button>
         <div className={`media-shortcuts-status ${statusMessage ? 'visible' : ''}`} id="mediaShortcutsStatus">
           {statusMessage}
         </div>

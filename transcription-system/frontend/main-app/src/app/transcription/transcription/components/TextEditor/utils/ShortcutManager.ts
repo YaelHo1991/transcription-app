@@ -6,10 +6,12 @@ import {
   AddShortcutRequest,
   ShortcutCategory
 } from '../types/shortcuts';
+import { ShortcutCache, getShortcutCache } from './ShortcutCache';
 
 /**
  * ShortcutManager - Manages text shortcuts for the TextEditor
  * Handles both system and user shortcuts with real-time text processing
+ * Now with optimized caching for high-performance operations
  */
 export class ShortcutManager {
   private shortcuts: Map<string, ShortcutData> = new Map();
@@ -20,6 +22,7 @@ export class ShortcutManager {
   private apiUrl: string = '/api/transcription/shortcuts';
   private lastFetchTime: number = 0;
   private cacheTimeout: number = 5 * 60 * 1000; // 5 minutes cache
+  private cache: ShortcutCache;
   
   // Hebrew prefixes that can combine with shortcuts
   private readonly hebrewPrefixes = ['ו', 'ה', 'ש', 'וש', 'כש', 'ב', 'ל', 'מ', 'כ', 'מה'];
@@ -31,6 +34,8 @@ export class ShortcutManager {
     if (apiUrl) {
       this.apiUrl = apiUrl;
     }
+    // Initialize high-performance cache
+    this.cache = getShortcutCache(2000); // Support up to 2000 shortcuts in cache
   }
   
   /**
@@ -74,16 +79,28 @@ export class ShortcutManager {
       
       // Clear and rebuild shortcuts map
       this.shortcuts.clear();
+      const cacheData: Array<[string, any]> = [];
+      
       data.shortcuts.forEach(([shortcut, shortcutData]) => {
         this.shortcuts.set(shortcut, shortcutData);
+        // Prepare cache data
+        cacheData.push([shortcut, {
+          expansion: shortcutData.expansion,
+          category: shortcutData.category,
+          description: shortcutData.description,
+          source: shortcutData.source
+        }]);
       });
+      
+      // Bulk load into cache for optimal performance
+      this.cache.bulkLoad(cacheData);
       
       // Update quota and categories
       this.quota = data.quota;
       this.categories = data.categories || [];
       this.lastFetchTime = now;
       
-      console.log(`ShortcutManager: Loaded ${this.shortcuts.size} shortcuts`);
+      console.log(`ShortcutManager: Loaded ${this.shortcuts.size} shortcuts (Cache hit rate: ${(this.cache.getStats().hitRate * 100).toFixed(1)}%)`)
     } catch (error) {
       console.error('ShortcutManager: Error loading shortcuts:', error);
     }
@@ -91,11 +108,29 @@ export class ShortcutManager {
   
   /**
    * Process text for shortcuts at the current cursor position
+   * Optimized with cache for high-performance lookups
    */
   processText(text: string, cursorPosition: number): ProcessTextResult {
     const beforeCursor = text.substring(0, cursorPosition);
     const afterCursor = text.substring(cursorPosition);
     
+    // First, try cache lookup for fast matching
+    const cacheMatch = this.cache.findMatch(beforeCursor);
+    if (cacheMatch) {
+      const startPos = cursorPosition - cacheMatch.shortcut.length;
+      const newText = text.substring(0, startPos) + cacheMatch.expansion + afterCursor;
+      const newCursorPos = startPos + cacheMatch.expansion.length;
+      
+      return {
+        text: newText,
+        cursorPosition: newCursorPos,
+        expanded: true,
+        expandedShortcut: cacheMatch.shortcut,
+        expandedTo: cacheMatch.expansion
+      };
+    }
+    
+    // Fall back to full search for special cases (Hebrew variations, etc.)
     // Sort shortcuts by length (longest first) for proper matching
     const sortedShortcuts = Array.from(this.shortcuts.keys())
       .sort((a, b) => b.length - a.length);
@@ -426,6 +461,29 @@ export class ShortcutManager {
    * Clear cache and force reload
    */
   async refresh(): Promise<void> {
+    this.cache.clear();
     await this.loadShortcuts(true);
+  }
+  
+  /**
+   * Get cache performance statistics
+   */
+  getCacheStats(): {
+    size: number;
+    maxSize: number;
+    hitRate: number;
+    hits: number;
+    misses: number;
+  } {
+    return this.cache.getStats();
+  }
+  
+  /**
+   * Pre-warm cache with most commonly used shortcuts
+   */
+  warmUpCache(commonShortcuts?: string[]): void {
+    const defaultCommon = ['ע\'ד', 'ביהמ\'ש', 'ב\'ר', 'וכו\'', 'ד\'ר', 'פרופ\''];
+    const toWarm = commonShortcuts || defaultCommon;
+    this.cache.warmUp(toWarm);
   }
 }
