@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import TextBlock, { TextBlockData } from './blocks/TextBlock';
 import BlockManager from './blocks/BlockManager';
 import { SpeakerManager } from '../Speaker/utils/speakerManager';
+import { ShortcutManager } from './utils/ShortcutManager';
+import { ProcessTextResult } from './types/shortcuts';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import './TextEditor.css';
@@ -33,8 +35,10 @@ export default function TextEditor({
   const [navigationMode, setNavigationMode] = useState(false);
   const [savedMediaTime, setSavedMediaTime] = useState<number | null>(null);
   const [currentMediaTime, setCurrentMediaTime] = useState(0);
+  const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
+  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager('http://localhost:5000/api/transcription/shortcuts'));
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
   
@@ -45,7 +49,7 @@ export default function TextEditor({
     }));
   }, []);
   
-  // Initialize blocks from block manager
+  // Initialize blocks from block manager and shortcuts
   useEffect(() => {
     const initialBlocks = blockManagerRef.current.getBlocks();
     setBlocks([...initialBlocks]);
@@ -56,6 +60,33 @@ export default function TextEditor({
       if (currentMediaTime > 0) {
         blockManagerRef.current.setFirstBlockTimestamp(currentMediaTime);
       }
+    }
+    
+    // Initialize shortcuts manager
+    const initShortcuts = async () => {
+      try {
+        // Load shortcuts from public endpoint (no auth required for now)
+        const response = await fetch('http://localhost:5000/api/transcription/shortcuts/public');
+        if (response.ok) {
+          const data = await response.json();
+          const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+          shortcutsMap.clear();
+          data.shortcuts.forEach(([shortcut, shortcutData]: [string, any]) => {
+            shortcutsMap.set(shortcut, shortcutData);
+          });
+          console.log('TextEditor: Loaded', shortcutsMap.size, 'shortcuts');
+        }
+      } catch (error) {
+        console.error('TextEditor: Failed to load shortcuts:', error);
+      }
+    };
+    
+    initShortcuts();
+    
+    // Load shortcuts enabled preference
+    const savedEnabled = localStorage.getItem('textEditorShortcutsEnabled');
+    if (savedEnabled !== null) {
+      setShortcutsEnabled(savedEnabled === 'true');
     }
   }, []);
 
@@ -129,6 +160,19 @@ export default function TextEditor({
       }
     }
   }, [isolatedSpeakers, navigationMode, seekToTime]);
+
+  // Process shortcuts in text
+  const processShortcuts = useCallback((text: string, cursorPosition: number): ProcessTextResult | null => {
+    if (!shortcutsEnabled || !shortcutManagerRef.current) {
+      return null;
+    }
+    
+    const result = shortcutManagerRef.current.processText(text, cursorPosition);
+    
+    // Remove visual feedback - just process silently
+    
+    return result;
+  }, [shortcutsEnabled]);
 
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'speaker' | 'text', value: string) => {
@@ -511,6 +555,22 @@ export default function TextEditor({
           
           <div className="toolbar-section">
             <button 
+              className={`toolbar-btn ${shortcutsEnabled ? 'active' : ''}`} 
+              title={shortcutsEnabled ? "כבה קיצורים" : "הפעל קיצורים"}
+              onClick={() => {
+                const newState = !shortcutsEnabled;
+                setShortcutsEnabled(newState);
+                localStorage.setItem('textEditorShortcutsEnabled', String(newState));
+              }}
+            >
+              <span className="toolbar-icon">⌨️</span>
+            </button>
+          </div>
+          
+          <div className="toolbar-divider" />
+          
+          <div className="toolbar-section">
+            <button 
               className={`toolbar-btn ${navigationMode ? 'active' : ''}`} 
               title={navigationMode ? "כבה מצב ניווט" : "הפעל מצב ניווט"}
               onClick={() => {
@@ -605,6 +665,7 @@ export default function TextEditor({
               onRemoveBlock={handleRemoveBlock}
               onSpeakerTransform={handleSpeakerTransform}
               onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
+              onProcessShortcuts={processShortcuts}
               speakerColor={speakerColors.get(block.speaker)}
               currentTime={currentMediaTime}
               fontSize={fontSize}

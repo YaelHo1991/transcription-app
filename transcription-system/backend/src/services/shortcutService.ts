@@ -306,6 +306,24 @@ export class ShortcutService {
   }
 
   /**
+   * Get all categories
+   */
+  async getCategories(): Promise<any[]> {
+    try {
+      const result = await db.query(`
+        SELECT id, name, description, display_order
+        FROM shortcut_categories
+        WHERE is_active = true
+        ORDER BY display_order
+      `);
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw new Error('Failed to fetch categories');
+    }
+  }
+
+  /**
    * Get system shortcuts only (for admin)
    */
   async getSystemShortcuts(): Promise<SystemShortcut[]> {

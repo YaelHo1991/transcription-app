@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, KeyboardEvent, FocusEvent } from 'react';
+import { ProcessTextResult } from '../types/shortcuts';
 import './TextBlock.css';
 
 export interface TextBlockData {
@@ -22,6 +23,7 @@ interface TextBlockProps {
   onRemoveBlock: (id: string) => void;
   onSpeakerTransform: (code: string) => Promise<string | null>;
   onDeleteAcrossBlocks?: (blockId: string, fromField: 'speaker' | 'text') => void;
+  onProcessShortcuts?: (text: string, cursorPosition: number) => ProcessTextResult | null;
   speakerColor?: string;
   currentTime?: number;
   fontSize?: number;
@@ -41,6 +43,7 @@ export default function TextBlock({
   onRemoveBlock,
   onSpeakerTransform,
   onDeleteAcrossBlocks,
+  onProcessShortcuts,
   speakerColor = '#333',
   currentTime = 0,
   fontSize = 16,
@@ -527,6 +530,30 @@ export default function TextBlock({
   // Handle text input change and auto-resize
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     let value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    // Check for shortcuts processing (on space)
+    if (onProcessShortcuts && localText.length < value.length && cursorPos > 0 && value[cursorPos - 1] === ' ') {
+      // Process the text BEFORE the space
+      const textBeforeSpace = value.substring(0, cursorPos - 1);
+      const result = onProcessShortcuts(textBeforeSpace, textBeforeSpace.length);
+      
+      if (result && result.expanded) {
+        // Add the space after the expansion
+        value = result.text + ' ' + value.substring(cursorPos);
+        
+        // Set cursor position after React updates
+        setTimeout(() => {
+          if (textRef.current) {
+            textRef.current.value = value;
+            const newPos = result.cursorPosition + 1; // +1 for the space
+            textRef.current.selectionStart = newPos;
+            textRef.current.selectionEnd = newPos;
+            textRef.current.focus();
+          }
+        }, 0);
+      }
+    }
     
     // Check for "..." transformation to timestamp
     if (value.includes('...')) {

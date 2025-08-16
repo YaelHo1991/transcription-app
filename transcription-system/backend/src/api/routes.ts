@@ -16,6 +16,35 @@ router.use('/auth', authRoutes);
 // License management endpoints
 router.use('/licenses', licensesRoutes);
 
+// Public shortcuts endpoint (for testing without auth)
+router.get('/transcription/shortcuts/public', async (req, res) => {
+  try {
+    const { shortcutService } = require('../services/shortcutService');
+    const systemShortcuts = await shortcutService.getSystemShortcuts();
+    const categories = await shortcutService.getCategories();
+    
+    // Convert to frontend format
+    const shortcuts: Array<[string, any]> = [];
+    systemShortcuts.forEach((shortcut: any) => {
+      shortcuts.push([shortcut.shortcut, {
+        expansion: shortcut.expansion,
+        source: 'system',
+        category: shortcut.category_name || shortcut.category,
+        description: shortcut.description
+      }]);
+    });
+    
+    res.json({
+      shortcuts,
+      quota: { max: 100, used: 0 },
+      categories
+    });
+  } catch (error) {
+    console.error('Error fetching public shortcuts:', error);
+    res.status(500).json({ error: 'Failed to fetch shortcuts' });
+  }
+});
+
 // Transcription endpoints (includes shortcuts)
 router.use('/transcription', transcriptionRoutes);
 

@@ -32,6 +32,7 @@
   background: #ffffff;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 }
 
 /* Toolbar Section */
@@ -411,4 +412,24 @@
   .cursor-position {
     display: none;
   }
+}/* Shortcuts feedback */
+.shortcuts-feedback {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 76, 76, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: fadeInOut 2s ease;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
 }
