@@ -24,6 +24,9 @@ export class ShortcutManager {
   // Hebrew prefixes that can combine with shortcuts
   private readonly hebrewPrefixes = ['ו', 'ה', 'ש', 'וש', 'כש', 'ב', 'ל', 'מ', 'כ', 'מה'];
   
+  // Special handling for English words category
+  private readonly englishWordsCategory = 'english';
+  
   constructor(apiUrl?: string) {
     if (apiUrl) {
       this.apiUrl = apiUrl;
@@ -97,16 +100,61 @@ export class ShortcutManager {
     const sortedShortcuts = Array.from(this.shortcuts.keys())
       .sort((a, b) => b.length - a.length);
     
-    // Check each shortcut
+    // Check each shortcut (including variations)
     for (const shortcut of sortedShortcuts) {
+      const shortcutData = this.shortcuts.get(shortcut);
+      if (!shortcutData) continue;
+      
+      // Check for special variations with ה in the middle (for multi-word expansions)
+      // Example: ב'ס -> בית ספר, ב'הס -> בית הספר
+      if (shortcut.includes("'") && shortcutData.expansion.includes(' ')) {
+        const shortcutWithHe = shortcut.replace("'", "'ה");
+        if (beforeCursor.endsWith(shortcutWithHe)) {
+          const expansionWithHe = this.addHeToMultiWord(shortcutData.expansion);
+          const startPos = cursorPosition - shortcutWithHe.length;
+          const newText = text.substring(0, startPos) + expansionWithHe + afterCursor;
+          const newCursorPos = startPos + expansionWithHe.length;
+          
+          return {
+            text: newText,
+            cursorPosition: newCursorPos,
+            expanded: true,
+            expandedShortcut: shortcutWithHe,
+            expandedTo: expansionWithHe
+          };
+        }
+        
+        // Check with prefix + ה variation
+        // Example: וב'הס -> ובית הספר
+        for (const prefix of this.hebrewPrefixes) {
+          const prefixedWithHe = prefix + shortcutWithHe;
+          if (beforeCursor.endsWith(prefixedWithHe)) {
+            const expansionWithHe = prefix + this.addHeToMultiWord(shortcutData.expansion);
+            const startPos = cursorPosition - prefixedWithHe.length;
+            const newText = text.substring(0, startPos) + expansionWithHe + afterCursor;
+            const newCursorPos = startPos + expansionWithHe.length;
+            
+            return {
+              text: newText,
+              cursorPosition: newCursorPos,
+              expanded: true,
+              expandedShortcut: prefixedWithHe,
+              expandedTo: expansionWithHe
+            };
+          }
+        }
+      }
+      
+      // Regular shortcut check
       if (beforeCursor.endsWith(shortcut)) {
-        const shortcutData = this.shortcuts.get(shortcut);
-        if (!shortcutData) continue;
+        let expansion = shortcutData.expansion;
         
-        const expansion = shortcutData.expansion;
+        // Special handling for English words
+        if (shortcutData.category === this.englishWordsCategory) {
+          // English words get special formatting
+          expansion = expansion; // Keep as is
+        }
         
-        // Check if we should expand (usually on space, punctuation, or enter)
-        // This check can be customized based on requirements
         const startPos = cursorPosition - shortcut.length;
         const newText = text.substring(0, startPos) + expansion + afterCursor;
         const newCursorPos = startPos + expansion.length;
@@ -131,9 +179,18 @@ export class ShortcutManager {
           
           let expansion = shortcutData.expansion;
           
-          // Special handling for ה prefix with words starting with ה
-          if (prefix === 'ה' && expansion.startsWith('ה')) {
-            // Keep single ה
+          // Special handling for English words with prefix
+          if (shortcutData.category === this.englishWordsCategory) {
+            // For English words, add "- " after the prefix
+            // Example: ווואטסאפ -> ו-WhatsApp
+            if (prefix === 'ו' && shortcut.startsWith('וו')) {
+              // Special case: ווואטסאפ -> ו-WhatsApp
+              expansion = prefix + '- ' + expansion;
+            } else {
+              expansion = prefix + expansion;
+            }
+          } else if (prefix === 'ה' && expansion.startsWith('ה')) {
+            // Keep single ה for Hebrew words starting with ה
             expansion = expansion;
           } else {
             expansion = prefix + expansion;
@@ -160,6 +217,22 @@ export class ShortcutManager {
       cursorPosition,
       expanded: false
     };
+  }
+  
+  /**
+   * Add ה to the second word in multi-word expansions
+   * Example: "בית ספר" -> "בית הספר"
+   */
+  private addHeToMultiWord(expansion: string): string {
+    const words = expansion.split(' ');
+    if (words.length >= 2) {
+      // Add ה to the second word if it doesn't already have it
+      if (!words[1].startsWith('ה')) {
+        words[1] = 'ה' + words[1];
+      }
+      return words.join(' ');
+    }
+    return expansion;
   }
   
   /**

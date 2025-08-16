@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShortcutData } from '../types/shortcuts';
 import AddShortcutForm from './AddShortcutForm';
+import ImportExportModal from './ImportExportModal';
 import './ShortcutsModal.css';
 
 interface ShortcutsModalProps {
@@ -34,6 +35,7 @@ export default function ShortcutsModal({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingShortcut, setEditingShortcut] = useState<{ shortcut: string; expansion: string; description?: string } | undefined>();
   const [deletingShortcut, setDeletingShortcut] = useState<string | null>(null);
+  const [showImportExport, setShowImportExport] = useState(false);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -159,15 +161,25 @@ export default function ShortcutsModal({
             </span>
           </div>
 
-          <div className="shortcuts-search">
-            <input
-              type="text"
-              placeholder="חיפוש קיצורים..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <span className="search-icon">🔍</span>
+          <div className="shortcuts-actions">
+            <button 
+              className="import-export-btn"
+              onClick={() => setShowImportExport(true)}
+              title="ייבוא/ייצוא קיצורים"
+            >
+              📥📤
+            </button>
+            
+            <div className="shortcuts-search">
+              <input
+                type="text"
+                placeholder="חיפוש קיצורים..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+              <span className="search-icon">🔍</span>
+            </div>
           </div>
         </div>
 
@@ -286,6 +298,21 @@ export default function ShortcutsModal({
         onEdit={editingShortcut ? handleEditShortcut : undefined}
         editingShortcut={editingShortcut}
         existingShortcuts={new Set(Array.from(shortcuts.keys()))}
+      />
+      
+      {/* Import/Export Modal */}
+      <ImportExportModal
+        isOpen={showImportExport}
+        onClose={() => setShowImportExport(false)}
+        shortcuts={shortcuts}
+        onImport={async (importedShortcuts) => {
+          // Handle bulk import
+          for (const item of importedShortcuts) {
+            await onAddShortcut?.(item.shortcut, item.expansion, item.description);
+          }
+          setShowImportExport(false);
+        }}
+        userQuota={userQuota}
       />
     </div>
   );

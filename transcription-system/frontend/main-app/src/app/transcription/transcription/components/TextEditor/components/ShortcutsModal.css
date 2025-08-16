@@ -147,6 +147,29 @@
   font-weight: 500;
 }
 
+.shortcuts-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.import-export-btn {
+  background: #1a5d5d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.import-export-btn:hover {
+  background: #0f4c4c;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 93, 93, 0.3);
+}
+
 .shortcuts-search {
   position: relative;
   width: 250px;

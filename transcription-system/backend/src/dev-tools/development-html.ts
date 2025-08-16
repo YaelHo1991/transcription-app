@@ -325,6 +325,9 @@ export const developmentHTML = `<!DOCTYPE html>
                 <a href="http://localhost:3002/transcription">
                     🎯 תמלול
                 </a>
+                <a href="http://localhost:3002/dev-portal/shortcuts-admin">
+                    ⌨️ קיצורים
+                </a>
                 <a href="http://localhost:5000" target="_blank">
                     🖥️ שרת
                 </a>
@@ -415,6 +418,15 @@ export const developmentHTML = `<!DOCTYPE html>
                         <button class="tool-btn success" onclick="window.location.href='http://localhost:3004/licenses'">הוסף משתמשים</button>
                         <button class="tool-btn warning" onclick="testConnections()">בדוק חיבורים</button>
                         <button class="tool-btn danger" onclick="showDemoMessage('איפוס מערכת')">איפוס מערכת</button>
+                    </div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>📝 ניהול קיצורים</h4>
+                    <div class="tool-buttons">
+                        <button class="tool-btn primary" onclick="window.location.href='http://localhost:3002/dev-portal/shortcuts-admin'">ניהול קיצורי מערכת</button>
+                        <button class="tool-btn success" onclick="showShortcutsStats()">סטטיסטיקות קיצורים</button>
+                        <button class="tool-btn warning" onclick="exportSystemShortcuts()">ייצא קיצורי מערכת</button>
                     </div>
                 </div>
             </div>
@@ -674,6 +686,25 @@ export const developmentHTML = `<!DOCTYPE html>
 
         function showDemoMessage(toolName) {
             alert(\`כלי "\${toolName}" זמין במצב הדגמה בלבד.\\n\\nבמצב פיתוח מלא, הכלי יבצע את הפעולה הנדרשת.\`);
+        }
+
+        function showShortcutsStats() {
+            // Mock data for now
+            alert(\`סטטיסטיקות קיצורים\\n\\n🔤 קיצורי מערכת: 45\\n👤 קיצורים אישיים (ממוצע): 12\\n📊 קטגוריות: 7\\n🔥 הכי נפוץ: ע'ד (עורך דין)\\n\\n📈 סה"כ שימושים החודש: 1,234\`);
+        }
+
+        function exportSystemShortcuts() {
+            // Mock export for now
+            const csv = 'קיצור,טקסט מלא,קטגוריה\\n' +
+                       'ע\\'ד,עורך דין,משפטי\\n' +
+                       'ביהמ\\'ש,בית המשפט,משפטי\\n' +
+                       'ב\\'ר,בריא,רפואי\\n';
+            
+            const blob = new Blob(['\\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'system_shortcuts_' + new Date().toISOString().slice(0,10) + '.csv';
+            link.click();
         }
 
         function toggleMode() {
