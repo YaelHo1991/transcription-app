@@ -6,6 +6,7 @@ import BlockManager from './blocks/BlockManager';
 import { SpeakerManager } from '../Speaker/utils/speakerManager';
 import { ShortcutManager } from './utils/ShortcutManager';
 import { ProcessTextResult } from './types/shortcuts';
+import ShortcutsModal from './components/ShortcutsModal';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import './TextEditor.css';
@@ -36,6 +37,9 @@ export default function TextEditor({
   const [savedMediaTime, setSavedMediaTime] = useState<number | null>(null);
   const [currentMediaTime, setCurrentMediaTime] = useState(0);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [loadedShortcuts, setLoadedShortcuts] = useState<Map<string, any>>(new Map());
+  const [userQuota, setUserQuota] = useState({ used: 0, max: 100 });
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
   const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager('http://localhost:5000/api/transcription/shortcuts'));
@@ -75,6 +79,7 @@ export default function TextEditor({
             shortcutsMap.set(shortcut, shortcutData);
           });
           console.log('TextEditor: Loaded', shortcutsMap.size, 'shortcuts');
+          setLoadedShortcuts(new Map(shortcutsMap));
         }
       } catch (error) {
         console.error('TextEditor: Failed to load shortcuts:', error);
@@ -173,6 +178,52 @@ export default function TextEditor({
     
     return result;
   }, [shortcutsEnabled]);
+
+  // Handle adding personal shortcut
+  const handleAddShortcut = useCallback(async (shortcut: string, expansion: string, description?: string) => {
+    // For now, just add to local shortcuts since we're using public endpoint
+    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+    shortcutsMap.set(shortcut, {
+      expansion,
+      source: 'user',
+      description,
+      category: 'custom'
+    });
+    setLoadedShortcuts(new Map(shortcutsMap));
+    
+    // Update quota
+    const userShortcuts = Array.from(shortcutsMap.values()).filter(s => s.source === 'user');
+    setUserQuota(prev => ({ ...prev, used: userShortcuts.length }));
+  }, []);
+
+  // Handle editing personal shortcut
+  const handleEditShortcut = useCallback(async (oldShortcut: string, newShortcut: string, expansion: string, description?: string) => {
+    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+    
+    // Remove old shortcut
+    shortcutsMap.delete(oldShortcut);
+    
+    // Add new/updated shortcut
+    shortcutsMap.set(newShortcut, {
+      expansion,
+      source: 'user',
+      description,
+      category: 'custom'
+    });
+    
+    setLoadedShortcuts(new Map(shortcutsMap));
+  }, []);
+
+  // Handle deleting personal shortcut
+  const handleDeleteShortcut = useCallback(async (shortcut: string) => {
+    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+    shortcutsMap.delete(shortcut);
+    setLoadedShortcuts(new Map(shortcutsMap));
+    
+    // Update quota
+    const userShortcuts = Array.from(shortcutsMap.values()).filter(s => s.source === 'user');
+    setUserQuota(prev => ({ ...prev, used: userShortcuts.length }));
+  }, []);
 
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'speaker' | 'text', value: string) => {
@@ -556,12 +607,8 @@ export default function TextEditor({
           <div className="toolbar-section">
             <button 
               className={`toolbar-btn ${shortcutsEnabled ? 'active' : ''}`} 
-              title={shortcutsEnabled ? "כבה קיצורים" : "הפעל קיצורים"}
-              onClick={() => {
-                const newState = !shortcutsEnabled;
-                setShortcutsEnabled(newState);
-                localStorage.setItem('textEditorShortcutsEnabled', String(newState));
-              }}
+              title="ניהול קיצורים"
+              onClick={() => setShowShortcutsModal(true)}
             >
               <span className="toolbar-icon">⌨️</span>
             </button>
@@ -687,6 +734,23 @@ export default function TextEditor({
         )}
       </div>
       </div>
+      
+      {/* Shortcuts Modal */}
+      <ShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+        shortcuts={loadedShortcuts}
+        onToggleShortcuts={() => {
+          const newState = !shortcutsEnabled;
+          setShortcutsEnabled(newState);
+          localStorage.setItem('textEditorShortcutsEnabled', String(newState));
+        }}
+        shortcutsEnabled={shortcutsEnabled}
+        onAddShortcut={handleAddShortcut}
+        onEditShortcut={handleEditShortcut}
+        onDeleteShortcut={handleDeleteShortcut}
+        userQuota={userQuota}
+      />
     </div>
   );
 }

@@ -1,0 +1,230 @@
+/* Add Shortcut Form Styles */
+
+.add-shortcut-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: fadeIn 0.3s ease;
+}
+
+.add-shortcut-form {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #f0f0f0;
+  background: linear-gradient(135deg, 
+    rgba(15, 76, 76, 0.05) 0%,
+    rgba(26, 93, 93, 0.03) 100%);
+}
+
+.form-header h3 {
+  margin: 0;
+  color: #0f4c4c;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.form-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.form-close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.add-shortcut-form form {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+  transition: all 0.3s ease;
+  direction: rtl;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #1a5d5d;
+  box-shadow: 0 0 0 3px rgba(26, 93, 93, 0.1);
+}
+
+.form-group input:disabled,
+.form-group textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.char-count {
+  position: absolute;
+  bottom: -18px;
+  left: 12px;
+  font-size: 11px;
+  color: #999;
+}
+
+.form-error {
+  background: #fee;
+  color: #c00;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid #fcc;
+}
+
+.form-preview {
+  background: #f8fffe;
+  border: 1px solid #e0f2f1;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.preview-title {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.preview-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+
+.preview-shortcut {
+  font-weight: 600;
+  color: #0f4c4c;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.preview-arrow {
+  color: #999;
+}
+
+.preview-expansion {
+  color: #333;
+  font-weight: 500;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.cancel-btn,
+.submit-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.submit-btn {
+  background: #1a5d5d;
+  color: white;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #0f4c4c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 93, 93, 0.3);
+}
+
+.cancel-btn:disabled,
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* RTL Support */
+[dir="rtl"] .add-shortcut-form {
+  direction: rtl;
+}
+
+[dir="rtl"] .char-count {
+  left: auto;
+  right: 12px;
+}
+
+[dir="rtl"] .form-actions {
+  justify-content: flex-start;
+}

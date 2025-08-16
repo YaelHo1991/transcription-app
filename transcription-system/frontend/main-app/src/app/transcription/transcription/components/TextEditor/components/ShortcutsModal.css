@@ -1,0 +1,494 @@
+/* Shortcuts Modal Styles */
+
+.shortcuts-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.shortcuts-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shortcuts-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #f0f0f0;
+  background: linear-gradient(135deg, 
+    rgba(15, 76, 76, 0.05) 0%,
+    rgba(26, 93, 93, 0.03) 100%);
+}
+
+.shortcuts-modal-header h2 {
+  margin: 0;
+  color: #0f4c4c;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.modal-close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.shortcuts-modal-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.shortcuts-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #1a5d5d;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.shortcuts-search {
+  position: relative;
+  width: 250px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 35px 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  border-color: #1a5d5d;
+  box-shadow: 0 0 0 3px rgba(26, 93, 93, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: #666;
+}
+
+.shortcuts-tabs {
+  display: flex;
+  padding: 0 20px;
+  gap: 10px;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tab-btn {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.tab-btn.active {
+  color: #1a5d5d;
+  border-bottom-color: #1a5d5d;
+}
+
+.tab-btn:hover:not(.active) {
+  color: #333;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.shortcuts-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 20px;
+}
+
+.category-filter {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: 200px;
+}
+
+.category-filter:focus {
+  border-color: #1a5d5d;
+}
+
+.filter-results {
+  font-size: 12px;
+  color: #888;
+  padding: 5px 10px;
+  background: #f8f8f8;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.shortcuts-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: white;
+}
+
+.no-shortcuts {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 16px;
+}
+
+.shortcuts-category {
+  margin-bottom: 30px;
+}
+
+.category-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a5d5d;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e8f5f5;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8fffe;
+  border: 1px solid #e0f2f1;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.shortcut-item:hover {
+  background: #e8f5f5;
+  border-color: #1a5d5d;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(26, 93, 93, 0.1);
+}
+
+.shortcut-item.user-shortcut {
+  background: #fff8f0;
+  border-color: #ffe0cc;
+}
+
+.shortcut-item.user-shortcut:hover {
+  background: #fff0e0;
+  border-color: #ff9966;
+}
+
+.shortcut-key {
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+  font-weight: 600;
+  color: #0f4c4c;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  min-width: 50px;
+  text-align: center;
+  direction: rtl;
+}
+
+.shortcut-arrow {
+  margin: 0 8px;
+  color: #999;
+  font-size: 14px;
+}
+
+.shortcut-expansion {
+  flex: 1;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.shortcut-description {
+  position: absolute;
+  bottom: -20px;
+  left: 12px;
+  font-size: 11px;
+  color: #999;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.shortcut-item:hover .shortcut-description {
+  opacity: 1;
+}
+
+.shortcuts-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-top: 2px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.add-shortcut-btn {
+  padding: 10px 20px;
+  background: #1a5d5d;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-shortcut-btn:hover {
+  background: #0f4c4c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 93, 93, 0.3);
+}
+
+.quota-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.quota-info {
+  font-size: 14px;
+  color: #666;
+}
+
+.quota-bar {
+  width: 200px;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.quota-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1a5d5d, #2a7d7d);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Action buttons for shortcuts */
+.shortcut-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.shortcut-item:hover .action-btn {
+  opacity: 1;
+}
+
+.action-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.1);
+}
+
+.action-btn.edit-btn:hover {
+  background: rgba(0, 100, 200, 0.1);
+}
+
+.action-btn.delete-btn:hover {
+  background: rgba(200, 0, 0, 0.1);
+}
+
+.action-btn.delete-btn.confirming {
+  opacity: 1;
+  animation: pulse 0.5s infinite;
+  color: #ff0000;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.add-shortcut-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* RTL Support */
+[dir="rtl"] .shortcuts-modal {
+  direction: rtl;
+}
+
+[dir="rtl"] .search-icon {
+  right: auto;
+  left: 12px;
+}
+
+[dir="rtl"] .search-input {
+  padding: 8px 12px 8px 35px;
+}
+
+/* Arrow already in correct direction */
+
+/* Scrollbar styling - Dark green to match header */
+.shortcuts-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shortcuts-list::-webkit-scrollbar-track {
+  background: #f0fffe;
+  border-radius: 4px;
+}
+
+.shortcuts-list::-webkit-scrollbar-thumb {
+  background: #0f4c4c;
+  border-radius: 4px;
+  border: 1px solid #0a3838;
+}
+
+.shortcuts-list::-webkit-scrollbar-thumb:hover {
+  background: #1a5d5d;
+  border: 1px solid #0f4c4c;
+}
