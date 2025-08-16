@@ -8,6 +8,7 @@ import { ShortcutManager } from './utils/ShortcutManager';
 import { ProcessTextResult } from './types/shortcuts';
 import ShortcutsModal from './components/ShortcutsModal';
 import BackupStatusIndicator from './components/BackupStatusIndicator';
+import NewTranscriptionModal from './components/NewTranscriptionModal';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import backupService from '../../../../../services/backupService';
@@ -40,6 +41,7 @@ export default function TextEditor({
   const [currentMediaTime, setCurrentMediaTime] = useState(0);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showNewTranscriptionModal, setShowNewTranscriptionModal] = useState(false);
   const [loadedShortcuts, setLoadedShortcuts] = useState<Map<string, any>>(new Map());
   const [userQuota, setUserQuota] = useState({ used: 0, max: 100 });
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
@@ -262,6 +264,34 @@ export default function TextEditor({
     // Update quota
     const userShortcuts = Array.from(shortcutsMap.values()).filter(s => s.source === 'user');
     setUserQuota(prev => ({ ...prev, used: userShortcuts.length }));
+  }, []);
+
+  // Handle new transcription creation
+  const handleTranscriptionCreated = useCallback((transcription: any) => {
+    console.log('New transcription created:', transcription);
+    // In a real implementation, you would:
+    // 1. Switch to the new transcription
+    // 2. Clear current blocks
+    // 3. Load transcription data
+    // 4. Update backup service with new transcription ID
+    
+    // For now, just clear the current content
+    blockManagerRef.current = new BlockManager();
+    speakerManagerRef.current = new SpeakerManager();
+    setBlocks([]);
+    setActiveBlockId(null);
+    
+    // Initialize with first block
+    const initialBlocks = blockManagerRef.current.getBlocks();
+    setBlocks([...initialBlocks]);
+    if (initialBlocks.length > 0) {
+      setActiveBlockId(initialBlocks[0].id);
+      setActiveArea('speaker');
+    }
+    
+    // Update backup service with new transcription ID
+    backupService.stopAutoSave();
+    backupService.initAutoSave(transcription.id, 60000);
   }, []);
 
   // Handle block update
@@ -647,7 +677,11 @@ export default function TextEditor({
         {/* Toolbar Section */}
         <div className="text-editor-toolbar">
           <div className="toolbar-section">
-            <button className="toolbar-btn" title="חדש">
+            <button 
+              className="toolbar-btn" 
+              title="תמלול חדש"
+              onClick={() => setShowNewTranscriptionModal(true)}
+            >
               <span className="toolbar-icon">📄</span>
             </button>
             <button className="toolbar-btn" title="שמור">
@@ -833,6 +867,13 @@ export default function TextEditor({
         onEditShortcut={handleEditShortcut}
         onDeleteShortcut={handleDeleteShortcut}
         userQuota={userQuota}
+      />
+      
+      {/* New Transcription Modal */}
+      <NewTranscriptionModal
+        isOpen={showNewTranscriptionModal}
+        onClose={() => setShowNewTranscriptionModal(false)}
+        onTranscriptionCreated={handleTranscriptionCreated}
       />
     </div>
   );
