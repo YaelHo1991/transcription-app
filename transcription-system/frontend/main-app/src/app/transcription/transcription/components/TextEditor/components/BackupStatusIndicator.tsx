@@ -131,9 +131,12 @@ export default function BackupStatusIndicator({ onShowHistory }: BackupStatusInd
             <div className="detail-actions">
               <button 
                 className="backup-action-btn"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  backupService.forceBackup(backupService.getBackupDataCallback?.() || { blocks: [], speakers: [] });
+                  const data = (backupService as any).getBackupDataCallback?.();
+                  if (data) {
+                    await backupService.forceBackup(data);
+                  }
                 }}
                 disabled={status.isBackingUp || !status.hasChanges}
               >
