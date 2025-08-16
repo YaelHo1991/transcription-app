@@ -314,9 +314,8 @@
 /* Footer Section */
 .text-editor-footer {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
-  gap: 20px;
   padding: 8px 20px;
   background: linear-gradient(to top, #f0fdfa, #ffffff);
   border-top: 1px solid #e0f2f1;
@@ -325,6 +324,17 @@
   color: #64748b;
   flex-shrink: 0;
   height: 32px;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
 }
 
 .word-count,

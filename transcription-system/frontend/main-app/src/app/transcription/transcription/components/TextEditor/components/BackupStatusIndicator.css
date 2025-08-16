@@ -1,0 +1,257 @@
+/* Backup Status Indicator Styles */
+
+.backup-status-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.backup-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.backup-status-indicator:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.backup-status-indicator.saved {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.backup-status-indicator.saving {
+  border-color: #2196f3;
+  background: rgba(33, 150, 243, 0.05);
+  animation: pulse 1.5s infinite;
+}
+
+.backup-status-indicator.unsaved {
+  border-color: #ff9800;
+  background: rgba(255, 152, 0, 0.05);
+}
+
+.backup-status-indicator.error {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.05);
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.status-icon {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-text {
+  color: #666;
+  font-weight: 500;
+}
+
+.status-version {
+  color: #999;
+  font-size: 11px;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  margin-left: 4px;
+}
+
+/* Details Popup */
+.backup-details-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideDown 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.backup-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(26, 93, 93, 0.05) 0%, rgba(26, 93, 93, 0.02) 100%);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.backup-details-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #1a5d5d;
+  font-weight: 600;
+}
+
+.close-details {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.close-details:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.backup-details-content {
+  padding: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.detail-row:last-of-type {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #333;
+  font-weight: 600;
+}
+
+.detail-value.saved {
+  color: #4caf50;
+}
+
+.detail-value.saving {
+  color: #2196f3;
+}
+
+.detail-value.unsaved {
+  color: #ff9800;
+}
+
+.detail-value.error {
+  color: #f44336;
+}
+
+.detail-row.error {
+  background: rgba(244, 67, 54, 0.05);
+  margin: 0 -16px;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.backup-action-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: #1a5d5d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.backup-action-btn:hover:not(:disabled) {
+  background: #0f4c4c;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 93, 93, 0.3);
+}
+
+.backup-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auto-save-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  background: rgba(33, 150, 243, 0.05);
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  border-radius: 8px;
+}
+
+.info-icon {
+  font-size: 14px;
+  color: #2196f3;
+}
+
+.info-text {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* RTL Support */
+[dir="rtl"] .backup-details-popup {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .status-version {
+  margin-left: 0;
+  margin-right: 4px;
+}

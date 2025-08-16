@@ -7,8 +7,10 @@ import { SpeakerManager } from '../Speaker/utils/speakerManager';
 import { ShortcutManager } from './utils/ShortcutManager';
 import { ProcessTextResult } from './types/shortcuts';
 import ShortcutsModal from './components/ShortcutsModal';
+import BackupStatusIndicator from './components/BackupStatusIndicator';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
+import backupService from '../../../../../services/backupService';
 import './TextEditor.css';
 
 /**
@@ -45,6 +47,13 @@ export default function TextEditor({
   const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager('http://localhost:5000/api/transcription/shortcuts'));
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
+  
+  // Auto-save state
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [currentTranscriptionId] = useState(() => {
+    // For now, use a mock ID. In real app, this would come from props or context
+    return 'mock-transcription-' + Date.now();
+  });
   
   // Function to seek media to a specific time
   const seekToTime = useCallback((time: number) => {
@@ -93,7 +102,37 @@ export default function TextEditor({
     if (savedEnabled !== null) {
       setShortcutsEnabled(savedEnabled === 'true');
     }
-  }, []);
+    
+    // Initialize auto-save
+    if (autoSaveEnabled && currentTranscriptionId) {
+      backupService.initAutoSave(currentTranscriptionId, 60000); // 1 minute
+      
+      // Set up data callback for backup service
+      backupService.setDataCallback(() => {
+        const blocks = blockManagerRef.current.getBlocks();
+        const speakers = speakerManagerRef.current.getAllSpeakers();
+        
+        return {
+          blocks: blocks.map(block => ({
+            id: block.id,
+            text: block.text,
+            speaker: block.speaker,
+            timestamp: block.speakerTime ? formatTime(block.speakerTime) : undefined
+          })),
+          speakers: speakers.map(speaker => ({
+            code: speaker.code,
+            name: speaker.name,
+            description: speaker.description
+          }))
+        };
+      });
+    }
+    
+    // Cleanup auto-save on unmount
+    return () => {
+      backupService.stopAutoSave();
+    };
+  }, [autoSaveEnabled, currentTranscriptionId]);
 
   // Use the media sync hook for synchronization - DISABLED
   const {
@@ -237,6 +276,9 @@ export default function TextEditor({
         setSpeakerColors(prev => new Map(prev).set(value, speaker.color));
       }
     }
+    
+    // Mark changes for auto-save
+    backupService.markChanges();
   }, []);
 
   // Handle new block creation
@@ -247,6 +289,9 @@ export default function TextEditor({
       setActiveBlockId(newBlock.id);
       setActiveArea('speaker');
       setBlocks([...blockManagerRef.current.getBlocks()]);
+      
+      // Mark changes for auto-save
+      backupService.markChanges();
     }
   }, [currentMediaTime]);
 
@@ -259,6 +304,9 @@ export default function TextEditor({
     setActiveBlockId(newActiveId);
     setActiveArea(newArea);
     setBlocks([...blockManagerRef.current.getBlocks()]);
+    
+    // Mark changes for auto-save
+    backupService.markChanges();
   }, []);
 
   // Handle DELETE key for cross-block deletion
@@ -754,14 +802,19 @@ export default function TextEditor({
       </div>
       
       <div className="text-editor-footer">
-        <span className="word-count">מילים: {stats.totalWords}</span>
-        <span className="char-count">תווים: {stats.totalCharacters}</span>
-        <span className="speaker-count">דוברים: {stats.speakers.size}</span>
-        {activeMark && (
-          <span className="current-mark-indicator">
-            סימון נוכחי: {activeMark.type} ({formatTime(activeMark.time)})
-          </span>
-        )}
+        <div className="footer-left">
+          <span className="word-count">מילים: {stats.totalWords}</span>
+          <span className="char-count">תווים: {stats.totalCharacters}</span>
+          <span className="speaker-count">דוברים: {stats.speakers.size}</span>
+          {activeMark && (
+            <span className="current-mark-indicator">
+              סימון נוכחי: {activeMark.type} ({formatTime(activeMark.time)})
+            </span>
+          )}
+        </div>
+        <div className="footer-right">
+          <BackupStatusIndicator />
+        </div>
       </div>
       </div>
       
