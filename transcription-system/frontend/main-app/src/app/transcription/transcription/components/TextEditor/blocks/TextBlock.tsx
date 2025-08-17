@@ -72,6 +72,7 @@ export default function TextBlock({
   const [speakerDirection, setSpeakerDirection] = useState<'rtl' | 'ltr'>('rtl');
   const [currentInputMode, setCurrentInputMode] = useState<'rtl' | 'ltr'>('rtl');
   const [cursorColor, setCursorColor] = useState<'hebrew' | 'english'>('hebrew');
+  const [inputLanguage, setInputLanguage] = useState<'hebrew' | 'english'>('hebrew');
   const [speakerDescription, setSpeakerDescription] = useState<string>('');
   const [showDescriptionTooltip, setShowDescriptionTooltip] = useState(false);
   const [nameCompletion, setNameCompletion] = useState<string>('');
@@ -106,6 +107,15 @@ export default function TextBlock({
     };
   }, [isActive, activeArea, block.id, onUpdate]);
   
+  // Helper function to switch input language
+  const switchLanguage = (lang: 'hebrew' | 'english') => {
+    setCursorColor(lang);
+    setInputLanguage(lang);
+    
+    // Visual feedback - the cursor color will change
+    // You could also trigger keyboard layout change here if needed
+  };
+
   // Detect if text is primarily Hebrew/Arabic (RTL) or Latin (LTR)
   const detectTextDirection = (text: string): 'rtl' | 'ltr' => {
     if (!text || text.length === 0) return 'rtl'; // Default to RTL for Hebrew
@@ -566,8 +576,8 @@ export default function TextBlock({
     const textarea = e.currentTarget;
     const text = textarea.value;
     
-    // Update cursor color when moving with arrow keys
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+    // Update cursor color and handle Word-like language switching
+    if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
       setTimeout(() => {
         const pos = textarea.selectionStart;
         if (pos >= 0 && text) {
@@ -577,11 +587,39 @@ export default function TextBlock({
           const hebrewPattern = /[\u0590-\u05FF]/;
           const englishPattern = /[A-Za-z]/;
           
+          // Auto-detect language when cursor touches text
           if (hebrewPattern.test(charBeforeCursor) || hebrewPattern.test(charAtCursor)) {
-            setCursorColor('hebrew');
+            switchLanguage('hebrew');
           } else if (englishPattern.test(charBeforeCursor) || englishPattern.test(charAtCursor)) {
-            setCursorColor('english');
+            switchLanguage('english');
+          } else if (pos === text.length) {
+            // At end of text - switch to Hebrew (default)
+            switchLanguage('hebrew');
           }
+        }
+      }, 0);
+    }
+    
+    // Arrow Up/Down - switch to Hebrew by default (Word-like behavior)
+    if (['ArrowUp', 'ArrowDown'].includes(e.key)) {
+      setTimeout(() => {
+        const pos = textarea.selectionStart;
+        if (pos >= 0 && text) {
+          const charAtCursor = text[pos] || '';
+          const hebrewPattern = /[\u0590-\u05FF]/;
+          const englishPattern = /[A-Za-z]/;
+          
+          // Check what we landed on
+          if (hebrewPattern.test(charAtCursor)) {
+            switchLanguage('hebrew');
+          } else if (englishPattern.test(charAtCursor)) {
+            switchLanguage('english');
+          } else {
+            // Default to Hebrew when moving up/down
+            switchLanguage('hebrew');
+          }
+        } else {
+          switchLanguage('hebrew');
         }
       }, 0);
     }
@@ -660,26 +698,27 @@ export default function TextBlock({
       }
     }
     
-    // END key - Move to end of current line or navigate
+    // END key - Move to end of current line and switch to Hebrew (Word-like)
     if (e.key === 'End') {
+      e.preventDefault();
       const cursorPos = textarea.selectionStart;
       const textAfterCursor = textarea.value.substring(cursorPos);
       const nextNewlineIndex = textAfterCursor.indexOf('\n');
       
-      if (nextNewlineIndex === -1 && cursorPos === textarea.value.length) {
-        // Already at end of last line, navigate to next block
-        e.preventDefault();
-        onNavigate('next', 'text');
-      } else if (nextNewlineIndex === -1) {
-        // On last line but not at end, go to end
-        e.preventDefault();
+      if (nextNewlineIndex === -1) {
+        // On last line or single line - go to end of text
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
       } else {
         // Not on last line, go to end of current line
-        e.preventDefault();
         const endOfLinePos = cursorPos + nextNewlineIndex;
         textarea.setSelectionRange(endOfLinePos, endOfLinePos);
       }
+      
+      // Switch to Hebrew when pressing END (Word-like behavior)
+      switchLanguage('hebrew');
+      
+      // Force focus to ensure cursor is visible
+      textarea.focus();
     }
     
     // Detect language when typing letters
@@ -723,10 +762,16 @@ export default function TextBlock({
       onNavigate('speaker', 'text');
     }
 
-    // ENTER - Create new block
+    // ENTER - Create new block and maintain language (Word-like)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      // Store current cursor language for the new block
+      const currentLanguage = inputLanguage;
       onNewBlock();
+      // The new block will inherit the language from the previous block
+      setTimeout(() => {
+        switchLanguage(currentLanguage);
+      }, 0);
     }
 
     // SHIFT+ENTER - Insert line break and continue list if applicable
@@ -997,8 +1042,45 @@ export default function TextBlock({
     let value = e.target.value;
     const cursorPos = e.target.selectionStart;
     
-    // Remove the RLM handling for now - it might be causing the jumping
-    // Just let the browser handle mixed text naturally
+    // Handle English text to keep it on the right side in RTL mode
+    // We need to wrap continuous English sequences with RLM marks
+    if (value.length > localText.length) {
+      // User is typing - check if they typed an English letter
+      const typedChar = value[cursorPos - 1];
+      if (/[A-Za-z]/.test(typedChar)) {
+        // Find the start and end of the English word/sequence
+        let start = cursorPos - 1;
+        let end = cursorPos;
+        
+        // Find start of English sequence
+        while (start > 0 && /[A-Za-z\s]/.test(value[start - 1])) {
+          start--;
+        }
+        
+        // Find end of English sequence
+        while (end < value.length && /[A-Za-z\s]/.test(value[end])) {
+          end++;
+        }
+        
+        // Check if this English sequence needs RLM marks
+        const beforeSeq = value.substring(0, start);
+        const englishSeq = value.substring(start, end);
+        const afterSeq = value.substring(end);
+        
+        // Only add RLM if we're not already inside RLM marks
+        if (!beforeSeq.endsWith('\u200F') && !afterSeq.startsWith('\u200F')) {
+          // Wrap the English sequence with RLM marks to keep it on the right
+          value = beforeSeq + '\u200F' + englishSeq + '\u200F' + afterSeq;
+          
+          // Adjust cursor position (it should stay after the typed character)
+          setTimeout(() => {
+            if (textRef.current) {
+              textRef.current.setSelectionRange(cursorPos + 1, cursorPos + 1);
+            }
+          }, 0);
+        }
+      }
+    }
     
     // Check for list formatting when space is pressed
     if (value.length > localText.length && value[cursorPos - 1] === ' ') {
@@ -1093,11 +1175,11 @@ export default function TextBlock({
       const englishPattern = /[A-Za-z]/;
       
       if (hebrewPattern.test(charBeforeCursor) || hebrewPattern.test(charAtCursor)) {
-        setCursorColor('hebrew');
+        switchLanguage('hebrew');
       } else if (englishPattern.test(charBeforeCursor) || englishPattern.test(charAtCursor)) {
-        setCursorColor('english');
+        switchLanguage('english');
       }
-      // Otherwise keep current color
+      // Otherwise keep current language
     }
     
     // Auto-resize textarea
@@ -1164,6 +1246,29 @@ export default function TextBlock({
     setCurrentInputMode('rtl');
     // Reset selection tracking
     wasFullySelected.current = false;
+    
+    // Detect language at cursor position when focusing
+    const textarea = e.currentTarget;
+    setTimeout(() => {
+      const pos = textarea.selectionStart;
+      const text = textarea.value;
+      if (pos >= 0 && text) {
+        const charBeforeCursor = text[pos - 1] || '';
+        const charAtCursor = text[pos] || '';
+        
+        const hebrewPattern = /[\u0590-\u05FF]/;
+        const englishPattern = /[A-Za-z]/;
+        
+        if (hebrewPattern.test(charBeforeCursor) || hebrewPattern.test(charAtCursor)) {
+          switchLanguage('hebrew');
+        } else if (englishPattern.test(charBeforeCursor) || englishPattern.test(charAtCursor)) {
+          switchLanguage('english');
+        } else {
+          // Default to Hebrew
+          switchLanguage('hebrew');
+        }
+      }
+    }, 0);
   };
   
   const handleTextBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
@@ -1327,7 +1432,7 @@ export default function TextBlock({
             fontSize: `${fontSize}px`,
             fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
             color: isIsolated ? 'inherit' : '#94a3b8',
-            caretColor: cursorColor === 'english' ? '#2196f3' : '#e91e63',
+            caretColor: inputLanguage === 'english' ? '#2196f3' : '#e91e63',
             fontWeight: isIsolated ? 'normal' : 300,
             position: 'relative',
             zIndex: 2,
