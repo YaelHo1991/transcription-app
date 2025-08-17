@@ -4,11 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import './ToolbarGroup.css';
 
 interface ToolbarButton {
-  icon: string;
-  title: string;
-  onClick: () => void;
+  icon?: string;
+  title?: string;
+  onClick?: () => void;
   active?: boolean;
   className?: string;
+  style?: React.CSSProperties;
+  customElement?: React.ReactNode;
 }
 
 interface ToolbarGroupProps {
@@ -84,23 +86,32 @@ export default function ToolbarGroup({
         className={`toolbar-group-buttons ${expanded ? 'visible' : ''} ${animating ? 'animating' : ''}`}
         ref={buttonsRef}
       >
-        {buttons.map((button, index) => (
-          <button
-            key={index}
-            className={`toolbar-btn ${button.active ? 'active' : ''} ${button.className || ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (button.onClick) {
-                button.onClick();
-              }
-              // Keep group open after clicking buttons
-            }}
-            title={button.title}
-          >
-            <span className="toolbar-icon">{button.icon}</span>
-          </button>
-        ))}
+        {buttons.map((button, index) => {
+          // If button has customElement, render it directly
+          if (button.customElement) {
+            return <React.Fragment key={index}>{button.customElement}</React.Fragment>;
+          }
+          
+          // Otherwise render normal button
+          return (
+            <button
+              key={index}
+              className={`toolbar-btn ${button.active ? 'active' : ''} ${button.className || ''}`}
+              style={button.style}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (button.onClick) {
+                  button.onClick();
+                }
+                // Keep group open after clicking buttons
+              }}
+              title={button.title}
+            >
+              <span className="toolbar-icon">{button.icon}</span>
+            </button>
+          );
+        })}
         {customElement}
       </div>
     </div>

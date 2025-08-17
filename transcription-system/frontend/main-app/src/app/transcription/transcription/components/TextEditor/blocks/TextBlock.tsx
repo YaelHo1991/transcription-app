@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, KeyboardEvent, FocusEvent } from 'react';
 import { ProcessTextResult } from '../types/shortcuts';
 import TextHighlightOverlay from '../components/TextHighlightOverlay';
+import { AutoCorrectEngine } from '../utils/AutoCorrectEngine';
 import './TextBlock.css';
 
 export interface TextBlockData {
@@ -35,6 +36,8 @@ interface TextBlockProps {
   speakerHighlights?: Array<{ startIndex: number; endIndex: number; isCurrent?: boolean }>;
   textHighlights?: Array<{ startIndex: number; endIndex: number; isCurrent?: boolean }>;
   onClick?: (ctrlKey: boolean, shiftKey: boolean) => void;
+  autoCorrectEngine?: AutoCorrectEngine;
+  previousSpeaker?: string;
 }
 
 export default function TextBlock({
@@ -59,7 +62,9 @@ export default function TextBlock({
   blockViewEnabled = true,
   speakerHighlights = [],
   textHighlights = [],
-  onClick
+  onClick,
+  autoCorrectEngine,
+  previousSpeaker = ''
 }: TextBlockProps) {
   const speakerRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -109,11 +114,14 @@ export default function TextBlock({
   
   // Helper function to switch input language
   const switchLanguage = (lang: 'hebrew' | 'english') => {
+    console.log('Switching language to:', lang);
     setCursorColor(lang);
     setInputLanguage(lang);
     
-    // Visual feedback - the cursor color will change
-    // You could also trigger keyboard layout change here if needed
+    // Force update the textarea cursor color immediately
+    if (textRef.current) {
+      textRef.current.style.caretColor = lang === 'english' ? '#2196f3' : '#e91e63';
+    }
   };
 
   // Detect if text is primarily Hebrew/Arabic (RTL) or Latin (LTR)
@@ -344,6 +352,9 @@ export default function TextBlock({
     setShowTooltip(true);
     setTimeout(() => setShowTooltip(false), 3000);
   };
+  
+  // Alias for consistency with the code
+  const showTooltipMessage = displayTooltip;
 
   // Helper function to try speaker transformation
   const tryTransformSpeaker = async (text: string) => {
@@ -464,6 +475,16 @@ export default function TextBlock({
       e.preventDefault();
       await tryTransformSpeaker(text);
       setNameCompletion(''); // Clear completion when navigating
+      
+      // Check duplicate speaker before moving forward
+      if (autoCorrectEngine) {
+        const duplicateSpeakerResult = autoCorrectEngine.validateDuplicateSpeaker(text, previousSpeaker);
+        if (!duplicateSpeakerResult.isValid) {
+          displayTooltip(duplicateSpeakerResult.message || '');
+          return;
+        }
+      }
+      
       onNavigate('next', 'speaker');
     }
 
@@ -573,8 +594,57 @@ export default function TextBlock({
 
   // Handle text keydown
   const handleTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    console.log('Key pressed in text area:', e.key);
     const textarea = e.currentTarget;
     const text = textarea.value;
+    
+    // Handle END key first - highest priority
+    if (e.key === 'End') {
+      console.log('END key detected');
+      // Stop propagation to prevent MediaPlayer from handling it
+      e.stopPropagation();
+      
+      // After cursor moves to end, set up Hebrew mode
+      setTimeout(() => {
+        if (textRef.current) {
+          console.log('Activating Hebrew mode');
+          
+          // Update our internal state
+          setInputLanguage('hebrew');
+          setCursorColor('hebrew');
+          textRef.current.style.caretColor = '#e91e63';
+          textRef.current.dataset.language = 'hebrew';
+          
+          // Set language attributes
+          textRef.current.lang = 'he';
+          textRef.current.dir = 'rtl';
+          
+          // Focus to apply changes
+          textRef.current.focus();
+          
+          // Create a custom event to signal language change
+          const langChangeEvent = new CustomEvent('languageChange', {
+            detail: { language: 'hebrew' },
+            bubbles: true
+          });
+          textRef.current.dispatchEvent(langChangeEvent);
+          
+          console.log('Hebrew mode activated - cursor should be pink');
+        }
+      }, 50);
+      return; // Exit early to ensure this takes priority
+    }
+    
+    // HOME key - Navigate to speaker if at beginning, otherwise move to start of text
+    if (e.key === 'Home') {
+      if (textarea.selectionStart === 0) {
+        // Already at beginning of text, navigate to speaker
+        e.preventDefault();
+        onNavigate('speaker', 'text');
+      }
+      // Otherwise let default HOME behavior work (move to start of text)
+      return;
+    }
     
     // Update cursor color and handle Word-like language switching
     if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -677,49 +747,7 @@ export default function TextBlock({
     }
 
 
-    // HOME key - Move to beginning of current line or navigate
-    if (e.key === 'Home') {
-      const cursorPos = textarea.selectionStart;
-      const textBeforeCursor = textarea.value.substring(0, cursorPos);
-      const lastNewlineIndex = textBeforeCursor.lastIndexOf('\n');
-      
-      if (lastNewlineIndex === -1 && cursorPos === 0) {
-        // Already at beginning of first line, navigate to speaker
-        e.preventDefault();
-        onNavigate('speaker', 'text');
-      } else if (lastNewlineIndex === -1) {
-        // On first line but not at beginning, go to beginning
-        e.preventDefault();
-        textarea.setSelectionRange(0, 0);
-      } else {
-        // On a subsequent line, go to beginning of current line
-        e.preventDefault();
-        textarea.setSelectionRange(lastNewlineIndex + 1, lastNewlineIndex + 1);
-      }
-    }
     
-    // END key - Move to end of current line and switch to Hebrew (Word-like)
-    if (e.key === 'End') {
-      e.preventDefault();
-      const cursorPos = textarea.selectionStart;
-      const textAfterCursor = textarea.value.substring(cursorPos);
-      const nextNewlineIndex = textAfterCursor.indexOf('\n');
-      
-      if (nextNewlineIndex === -1) {
-        // On last line or single line - go to end of text
-        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-      } else {
-        // Not on last line, go to end of current line
-        const endOfLinePos = cursorPos + nextNewlineIndex;
-        textarea.setSelectionRange(endOfLinePos, endOfLinePos);
-      }
-      
-      // Switch to Hebrew when pressing END (Word-like behavior)
-      switchLanguage('hebrew');
-      
-      // Force focus to ensure cursor is visible
-      textarea.focus();
-    }
     
     // Detect language when typing letters
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -765,6 +793,24 @@ export default function TextBlock({
     // ENTER - Create new block and maintain language (Word-like)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      
+      // Apply AutoCorrect validations before creating new block
+      if (autoCorrectEngine) {
+        // Validate duplicate speaker
+        const duplicateSpeakerResult = autoCorrectEngine.validateDuplicateSpeaker(localSpeaker, previousSpeaker);
+        if (!duplicateSpeakerResult.isValid) {
+          displayTooltip(duplicateSpeakerResult.message || '');
+          return;
+        }
+        
+        // Validate block transition (punctuation, parentheses, quotes)
+        const transitionResult = autoCorrectEngine.validateBlockTransition(text);
+        if (!transitionResult.isValid) {
+          displayTooltip(transitionResult.message || '');
+          return;
+        }
+      }
+      
       // Store current cursor language for the new block
       const currentLanguage = inputLanguage;
       onNewBlock();
@@ -1042,6 +1088,24 @@ export default function TextBlock({
     let value = e.target.value;
     const cursorPos = e.target.selectionStart;
     
+    // Apply auto-corrections if enabled
+    if (autoCorrectEngine) {
+      const originalValue = value;
+      value = autoCorrectEngine.applyAutoCorrections(value);
+      
+      // If text was auto-corrected, adjust cursor position
+      if (value !== originalValue) {
+        // Try to maintain cursor position relative to the correction
+        const lengthDiff = value.length - originalValue.length;
+        setTimeout(() => {
+          if (textRef.current) {
+            const newPos = Math.min(cursorPos + lengthDiff, value.length);
+            textRef.current.setSelectionRange(newPos, newPos);
+          }
+        }, 0);
+      }
+    }
+    
     // Handle English text to keep it on the right side in RTL mode
     // We need to wrap continuous English sequences with RLM marks
     if (value.length > localText.length) {
@@ -1196,6 +1260,76 @@ export default function TextBlock({
     }
   }, [localText]);
 
+  // Listen for toolbar language change
+  useEffect(() => {
+    const handleToolbarLanguageChange = (event: CustomEvent) => {
+      if (isActive && activeArea === 'text') {
+        const { language } = event.detail;
+        console.log('Toolbar language change detected:', language);
+        setInputLanguage(language);
+        setCursorColor(language);
+        
+        if (textRef.current) {
+          textRef.current.style.caretColor = language === 'hebrew' ? '#e91e63' : '#2196f3';
+          textRef.current.dataset.language = language;
+          textRef.current.focus();
+        }
+      }
+    };
+
+    document.addEventListener('toolbarLanguageChange', handleToolbarLanguageChange);
+    return () => {
+      document.removeEventListener('toolbarLanguageChange', handleToolbarLanguageChange);
+    };
+  }, [isActive, activeArea]);
+
+  // Add global keydown listener for END key with highest priority
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Check if this is our text area
+      if (isActive && activeArea === 'text' && textRef.current && document.activeElement === textRef.current) {
+        if (e.key === 'End') {
+          console.log('END key CAPTURED globally for block:', block.id);
+          
+          // Stop propagation immediately at capture phase
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          
+          // Don't prevent default - let cursor move naturally
+          // Switch to Hebrew after cursor moves
+          setTimeout(() => {
+            console.log('Executing Hebrew switch from CAPTURE');
+            setInputLanguage('hebrew');
+            setCursorColor('hebrew');
+            
+            // Force cursor color update
+            if (textRef.current) {
+              textRef.current.style.caretColor = '#e91e63';
+              console.log('Cursor color set to pink from CAPTURE');
+              
+              // Force re-render
+              const pos = textRef.current.selectionEnd;
+              textRef.current.blur();
+              textRef.current.focus();
+              textRef.current.setSelectionRange(pos, pos);
+            }
+          }, 50);
+        }
+      }
+    };
+
+    // Add at capture phase with highest priority
+    document.addEventListener('keydown', handleGlobalKeyDown, true);
+    
+    // Also add to window for extra insurance
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, true);
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, [isActive, activeArea, block.id]);
+
   // Format timestamp
   const formatTimestamp = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -1239,6 +1373,7 @@ export default function TextBlock({
   };
 
   const handleTextFocus = (e: FocusEvent<HTMLTextAreaElement>) => {
+    console.log('Text area FOCUSED - block:', block.id);
     // ALWAYS keep RTL - never change direction
     if (textDirection !== 'rtl') {
       setTextDirection('rtl');

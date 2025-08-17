@@ -57,7 +57,34 @@ export default function SpeakerSwapModal({
   }, [isOpen]); // Removed other dependencies to prevent loops
 
   const handleSwap = () => {
-    // Apply all swaps
+    // Check if we have exactly 2 swaps that are bidirectional
+    const swapEntries = Array.from(speakerSwaps.entries());
+    
+    if (swapEntries.length === 2) {
+      const [speaker1, target1] = swapEntries[0];
+      const [speaker2, target2] = swapEntries[1];
+      
+      // Check if it's a bidirectional swap (A->B and B->A)
+      if (speaker1 === target2 && speaker2 === target1) {
+        console.log('Bidirectional swap detected:', speaker1, '<->', speaker2);
+        
+        // For bidirectional swap, we need to pass both speakers to the parent
+        // The parent should handle the swap atomically
+        // Create a special event for bidirectional swap
+        const event = new CustomEvent('bidirectionalSwap', {
+          detail: {
+            speaker1,
+            speaker2,
+            applyToSelected: swapMode === 'selected'
+          }
+        });
+        document.dispatchEvent(event);
+        onClose();
+        return;
+      }
+    }
+    
+    // Regular swaps (not bidirectional)
     speakerSwaps.forEach((toSpeaker, fromSpeaker) => {
       if (fromSpeaker !== toSpeaker) {
         onSwap(fromSpeaker, toSpeaker, swapMode === 'selected');
@@ -74,6 +101,22 @@ export default function SpeakerSwapModal({
         newMap.delete(speaker);
       } else {
         newMap.set(speaker, newValue);
+        
+        // AUTO-DETECT BIDIRECTIONAL SWAP
+        // If user selected A->B, check if B is already mapped
+        // If B is not mapped, automatically set B->A
+        const existingSwapForTarget = Array.from(newMap.entries()).find(
+          ([from, to]) => from === newValue && from !== speaker
+        );
+        
+        if (!existingSwapForTarget) {
+          // Check if this creates a bidirectional swap opportunity
+          // Only auto-swap if the target speaker exists and isn't already swapped
+          if (speakers.includes(newValue) && !newMap.has(newValue)) {
+            console.log('Auto-detecting bidirectional swap:', newValue, '->', speaker);
+            newMap.set(newValue, speaker);
+          }
+        }
       }
       return newMap;
     });

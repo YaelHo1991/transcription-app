@@ -28,6 +28,10 @@ interface ToolbarContentProps {
   multiSelectMode?: boolean;
   setMultiSelectMode?: (mode: boolean) => void;
   setShowSpeakerSwapModal?: (show: boolean) => void;
+  inputLanguage?: 'hebrew' | 'english';
+  setInputLanguage?: (lang: 'hebrew' | 'english') => void;
+  setShowAutoCorrectModal?: (show: boolean) => void;
+  autoCorrectEnabled?: boolean;
   
   // Special features
   navigationMode: boolean;
@@ -50,6 +54,7 @@ interface ToolbarContentProps {
 }
 
 export default function ToolbarContent(props: ToolbarContentProps) {
+  console.log('ToolbarContent rendering with language:', props.inputLanguage);
   const {
     showTranscriptionSwitcher,
     setShowTranscriptionSwitcher,
@@ -84,7 +89,8 @@ export default function ToolbarContent(props: ToolbarContentProps) {
   const [allExpanded, setAllExpanded] = useState(false);
   const [groupStates, setGroupStates] = useState({
     document: false,
-    textEdit: false,
+    word: false,
+    blocks: false,
     special: false
   });
 
@@ -93,7 +99,8 @@ export default function ToolbarContent(props: ToolbarContentProps) {
     setAllExpanded(newState);
     setGroupStates({
       document: newState,
-      textEdit: newState,
+      word: newState,
+      blocks: newState,
       special: newState
     });
   };
@@ -189,14 +196,14 @@ export default function ToolbarContent(props: ToolbarContentProps) {
       
       <div className="toolbar-divider" />
       
-      {/* Text Editing Group */}
+      {/* Word Processing Group - Undo/Redo, Font, Search */}
       <ToolbarGroup
-        groupIcon="✏️"
-        groupTitle="עריכת טקסט"
-        expanded={groupStates.textEdit}
+        groupIcon="📝"
+        groupTitle="עיבוד תמלילים"
+        expanded={groupStates.word}
         onExpandChange={(expanded) => {
-          setGroupStates(prev => ({ ...prev, textEdit: expanded }));
-          setAllExpanded(expanded && groupStates.document && groupStates.special);
+          setGroupStates(prev => ({ ...prev, word: expanded }));
+          setAllExpanded(expanded && groupStates.document && groupStates.blocks && groupStates.special);
         }}
         buttons={[
           {
@@ -221,6 +228,46 @@ export default function ToolbarContent(props: ToolbarContentProps) {
             icon: '🔍',
             title: 'חפש והחלף',
             onClick: () => props.setShowSearchReplaceModal(true)
+          },
+          {
+            icon: 'A-',
+            title: 'הקטן גופן',
+            onClick: () => setFontSize(prev => Math.max(12, prev - 1))
+          },
+          {
+            customElement: <span className="font-size-display">{fontSize}</span>
+          },
+          {
+            icon: 'A+',
+            title: 'הגדל גופן',
+            onClick: () => setFontSize(prev => Math.min(24, prev + 1))
+          },
+          {
+            icon: fontFamily === 'david' ? 'א' : 'D',
+            title: fontFamily === 'david' ? 'חזור לגופן רגיל' : 'גופן דוד',
+            onClick: () => setFontFamily(fontFamily === 'david' ? 'default' : 'david'),
+            active: fontFamily === 'david'
+          }
+        ]}
+      />
+      
+      <div className="toolbar-divider" />
+      
+      {/* Blocks Management Group */}
+      <ToolbarGroup
+        groupIcon="▣"
+        groupTitle="ניהול בלוקים"
+        expanded={groupStates.blocks}
+        onExpandChange={(expanded) => {
+          setGroupStates(prev => ({ ...prev, blocks: expanded }));
+          setAllExpanded(expanded && groupStates.document && groupStates.word && groupStates.special);
+        }}
+        buttons={[
+          {
+            icon: '▣',
+            title: blockViewEnabled ? 'תצוגה רגילה' : 'תצוגת בלוקים',
+            onClick: () => setBlockViewEnabled(!blockViewEnabled),
+            active: blockViewEnabled
           },
           {
             icon: '☰',
@@ -251,29 +298,16 @@ export default function ToolbarContent(props: ToolbarContentProps) {
             }
           },
           {
-            icon: '▣',
-            title: blockViewEnabled ? 'תצוגה רגילה' : 'תצוגת בלוקים',
-            onClick: () => setBlockViewEnabled(!blockViewEnabled),
-            active: blockViewEnabled
-          },
-          {
-            icon: 'A-',
-            title: 'הקטן גופן',
-            onClick: () => setFontSize(prev => Math.max(12, prev - 1))
-          },
-          {
-            icon: 'A+',
-            title: 'הגדל גופן',
-            onClick: () => setFontSize(prev => Math.min(24, prev + 1))
-          },
-          {
-            icon: fontFamily === 'david' ? 'א' : 'D',
-            title: fontFamily === 'david' ? 'חזור לגופן רגיל' : 'גופן דוד',
-            onClick: () => setFontFamily(fontFamily === 'david' ? 'default' : 'david'),
-            active: fontFamily === 'david'
+            icon: '✓',
+            title: props.autoCorrectEnabled ? 'תיקון אוטומטי פעיל' : 'תיקון אוטומטי כבוי',
+            onClick: () => {
+              if (props.setShowAutoCorrectModal) {
+                props.setShowAutoCorrectModal(true);
+              }
+            },
+            active: props.autoCorrectEnabled
           }
         ]}
-        customElement={<span className="font-size-display">{fontSize}</span>}
       />
       
       <div className="toolbar-divider" />
@@ -285,7 +319,7 @@ export default function ToolbarContent(props: ToolbarContentProps) {
         expanded={groupStates.special}
         onExpandChange={(expanded) => {
           setGroupStates(prev => ({ ...prev, special: expanded }));
-          setAllExpanded(expanded && groupStates.document && groupStates.textEdit);
+          setAllExpanded(expanded && groupStates.document && groupStates.word && groupStates.blocks);
         }}
         buttons={[
           {

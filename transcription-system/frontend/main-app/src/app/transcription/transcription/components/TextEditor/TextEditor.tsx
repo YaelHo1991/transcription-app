@@ -14,6 +14,8 @@ import VersionHistoryModal from './components/VersionHistoryModal';
 import MediaLinkModal from './components/MediaLinkModal';
 import SearchReplaceModal, { SearchOptions, SearchResult } from './components/SearchReplaceModal';
 import SpeakerSwapModal from './components/SpeakerSwapModal';
+import AutoCorrectModal, { AutoCorrectSettings } from './components/AutoCorrectModal';
+import { AutoCorrectEngine } from './utils/AutoCorrectEngine';
 import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
@@ -67,6 +69,29 @@ export default function TextEditor({
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
   const [showSpeakerSwapModal, setShowSpeakerSwapModal] = useState(false);
+  const [inputLanguage, setInputLanguage] = useState<'hebrew' | 'english'>('hebrew');
+  const [showAutoCorrectModal, setShowAutoCorrectModal] = useState(false);
+  const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>({
+    blockDuplicateSpeakers: true,
+    requirePunctuation: true,
+    preventDoubleSpace: true,
+    fixSpaceBeforePunctuation: true,
+    validateParentheses: true,
+    validateQuotes: true,
+    autoCapitalize: false,
+    fixNumberFormatting: false
+  });
+  const autoCorrectEngineRef = useRef(new AutoCorrectEngine(autoCorrectSettings));
+  
+  // Update AutoCorrect engine when settings change
+  useEffect(() => {
+    autoCorrectEngineRef.current.updateSettings(autoCorrectSettings);
+  }, [autoCorrectSettings]);
+  
+  // Debug language changes
+  useEffect(() => {
+    console.log('TextEditor language state changed to:', inputLanguage);
+  }, [inputLanguage]);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
   const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager('http://localhost:5000/api/transcription/shortcuts'));
@@ -378,7 +403,7 @@ export default function TextEditor({
       // Clear both range and multi-select
       setSelectedBlockRange(null);
       setSelectedBlocks(new Set());
-      showFeedback('בחירת הבלוקים בוטלה');
+      // Removed annoying feedback message
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -1118,6 +1143,70 @@ export default function TextEditor({
   // Track speaker ID to code mapping
   const speakerIdToCodeRef = useRef<Map<string, string>>(new Map());
   
+  // Listen for bidirectional swap event
+  useEffect(() => {
+    const handleBidirectionalSwap = (event: CustomEvent) => {
+      const { speaker1, speaker2, applyToSelected } = event.detail;
+      console.log('Handling bidirectional swap:', speaker1, '<->', speaker2);
+      
+      const currentBlocks = blockManagerRef.current.getBlocks();
+      const updatedBlocks = [...currentBlocks];
+      let swapCount = 0;
+      
+      if (applyToSelected && (selectedBlocksRef.current.size > 0 || selectedBlockRangeRef.current)) {
+        // Apply to selected blocks only
+        const selectedIndices = new Set<number>();
+        
+        if (selectedBlocksRef.current.size > 0) {
+          selectedBlocksRef.current.forEach(idx => selectedIndices.add(idx));
+        }
+        
+        if (selectedBlockRangeRef.current) {
+          for (let i = selectedBlockRangeRef.current.start; i <= selectedBlockRangeRef.current.end; i++) {
+            selectedIndices.add(i);
+          }
+        }
+        
+        selectedIndices.forEach(idx => {
+          if (updatedBlocks[idx]) {
+            if (updatedBlocks[idx].speaker === speaker1) {
+              updatedBlocks[idx] = { ...updatedBlocks[idx], speaker: speaker2 };
+              swapCount++;
+            } else if (updatedBlocks[idx].speaker === speaker2) {
+              updatedBlocks[idx] = { ...updatedBlocks[idx], speaker: speaker1 };
+              swapCount++;
+            }
+          }
+        });
+      } else {
+        // Apply to all blocks - swap atomically
+        updatedBlocks.forEach((block, idx) => {
+          if (block.speaker === speaker1) {
+            updatedBlocks[idx] = { ...block, speaker: speaker2 };
+            swapCount++;
+          } else if (block.speaker === speaker2) {
+            updatedBlocks[idx] = { ...block, speaker: speaker1 };
+            swapCount++;
+          }
+        });
+      }
+      
+      // Update all blocks at once
+      blockManagerRef.current.setBlocks(updatedBlocks);
+      setBlocks(updatedBlocks);
+      
+      if (swapCount > 0) {
+        showFeedback(`הוחלפו ${swapCount} בלוקים`);
+        saveToHistoryRef.current?.(updatedBlocks);
+      }
+    };
+    
+    document.addEventListener('bidirectionalSwap', handleBidirectionalSwap);
+    return () => {
+      document.removeEventListener('bidirectionalSwap', handleBidirectionalSwap);
+    };
+  }, []);
+
   // Listen for speaker updates
   useEffect(() => {
     const handleSpeakerUpdated = (event: CustomEvent) => {
@@ -1359,6 +1448,10 @@ export default function TextEditor({
             multiSelectMode={multiSelectMode}
             setMultiSelectMode={setMultiSelectMode}
             setShowSpeakerSwapModal={setShowSpeakerSwapModal}
+            inputLanguage={inputLanguage}
+            setInputLanguage={setInputLanguage}
+            setShowAutoCorrectModal={setShowAutoCorrectModal}
+            autoCorrectEnabled={Object.values(autoCorrectSettings).some(v => v)}
             navigationMode={navigationMode}
             setNavigationMode={setNavigationMode}
             savedMediaTime={savedMediaTime}
@@ -1407,7 +1500,7 @@ export default function TextEditor({
               if (selectedBlockRange || selectedBlocks.size > 0) {
                 setSelectedBlockRange(null);
                 setSelectedBlocks(new Set());
-                showFeedback('בחירת הבלוקים בוטלה');
+                // Removed annoying feedback message
               }
             }
           }}
@@ -1485,6 +1578,8 @@ export default function TextEditor({
                     speakerHighlights={speakerHighlights}
                     textHighlights={textHighlights}
                     onClick={(ctrlKey, shiftKey) => handleBlockClick(index, ctrlKey, shiftKey)}
+                    autoCorrectEngine={autoCorrectEngineRef.current}
+                    previousSpeaker={index > 0 ? blocks[index - 1].speaker : ''}
                   />
                 </div>
               );
@@ -1591,6 +1686,13 @@ export default function TextEditor({
         selectedBlocks={selectedBlocks}
         selectedBlockRange={selectedBlockRange}
         onSwap={handleSpeakerSwap}
+      />
+      
+      <AutoCorrectModal
+        isOpen={showAutoCorrectModal}
+        onClose={() => setShowAutoCorrectModal(false)}
+        settings={autoCorrectSettings}
+        onSettingsChange={setAutoCorrectSettings}
       />
       
       {/* Feedback Message Display */}

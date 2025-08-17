@@ -80,7 +80,9 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
         activeElement.contentEditable === 'true' ||
         activeElement.closest('.transcription-textarea') ||
         activeElement.closest('.text-editor-container') ||
-        activeElement.closest('.transcription-text');
+        activeElement.closest('.transcription-text') ||
+        activeElement.closest('.block-text') ||
+        activeElement.classList.contains('block-text');
       
       // Build the key string first to check if it's a registered shortcut
       const key = buildKeyString(e);
@@ -101,9 +103,17 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       // If it's a numpad key that's registered as a shortcut, it should work in text editor
       const isRegisteredNumpadShortcut = isNumpadKey && shortcut && shortcut.enabled;
       
-      // Block single keys in text editor (except F-keys, registered numpad shortcuts, combinations)
+      // Special handling for END and HOME keys in text editor - they should work normally
+      const isNavigationKey = ['End', 'Home'].includes(e.key);
+      
+      // Block single keys in text editor (except F-keys, registered numpad shortcuts, combinations, navigation keys)
       if (inTextEditor && !hasModifier && !isFKey && !isRegisteredNumpadShortcut && !isShiftNumpad) {
-        return; // Block single keys that would type characters
+        // If it's a navigation key (End/Home) in text editor, let it work normally
+        if (isNavigationKey) {
+          console.log('Navigation key in text editor - allowing default behavior:', e.key);
+          return; // Let the text editor handle it
+        }
+        return; // Block other single keys that would type characters
       }
       
       // Prevent key repeat
