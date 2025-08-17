@@ -1,0 +1,21 @@
+# This file ensures the user_data directory is tracked by git
+# User data structure:
+# user_data/
+# └── user_[userId]/
+#     ├── projects/
+#     │   └── [project_name]/
+#     │       ├── transcriptions/
+#     │       │   └── [transcription_id]/
+#     │       │       ├── backups/
+#     │       │       │   ├── v1_2024-01-16_14-30.txt
+#     │       │       │   └── metadata.json
+#     │       ├── media/
+#     │       ├── crm/
+#     │       └── archives/
+#     ├── standalone_transcriptions/
+#     │   └── [media_name]/
+#     │       └── [transcription_id]/
+#     │           └── backups/
+#     ├── uploads/
+#     ├── crm/
+#     └── settings/

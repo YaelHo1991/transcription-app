@@ -200,6 +200,33 @@ export default class SpeakerBlockManager {
     return !this.blocks.some(b => b.code === code && b.id !== excludeId);
   }
 
+  // Validate that a name is unique
+  validateUniqueName(name: string, excludeId?: string): boolean {
+    if (!name) return true; // Empty is valid
+    return !this.blocks.some(b => b.name === name && b.id !== excludeId);
+  }
+
+  // Generate unique name by appending numbers if needed
+  generateUniqueName(baseName: string, excludeId?: string): string {
+    if (!baseName) return baseName;
+    
+    // Check if base name is unique
+    if (this.validateUniqueName(baseName, excludeId)) {
+      return baseName;
+    }
+    
+    // Try appending numbers until we find a unique name
+    let counter = 1;
+    let uniqueName = `${baseName}1`;
+    
+    while (this.blocks.some(b => b.name === uniqueName && b.id !== excludeId)) {
+      counter++;
+      uniqueName = `${baseName}${counter}`;
+    }
+    
+    return uniqueName;
+  }
+
   incrementCount(speakerIdentifier: string) {
     const block = this.blocks.find(b => 
       b.code === speakerIdentifier || b.name === speakerIdentifier

@@ -21,15 +21,16 @@
 
 .new-transcription-modal {
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s ease;
   overflow: hidden;
+  border: 1px solid rgba(15, 76, 76, 0.2);
 }
 
 @keyframes slideUp {
@@ -47,43 +48,48 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 2px solid #f0f0f0;
-  background: linear-gradient(135deg, 
-    rgba(15, 76, 76, 0.05) 0%,
-    rgba(26, 93, 93, 0.03) 100%);
+  padding: 10px 16px;
+  border-bottom: 1px solid #e0f2f1;
+  background: linear-gradient(to bottom, #f5fffe, #f0fdfa);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  min-height: 40px;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #0f4c4c;
-  font-size: 20px;
+  color: #0f766e;
+  font-size: 14px;
   font-weight: 600;
+  text-align: right;
+  letter-spacing: 0.5px;
 }
 
 .modal-close-btn {
   background: none;
   border: none;
-  font-size: 20px;
-  color: #666;
+  font-size: 16px;
+  color: #999;
   cursor: pointer;
   padding: 0;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+  border-radius: 4px;
+  transition: all 0.2s ease;
 }
 
 .modal-close-btn:hover {
-  background: #f0f0f0;
-  color: #333;
+  background: rgba(15, 76, 76, 0.1);
+  color: #0f766e;
 }
 
 .modal-content {
-  padding: 20px;
+  padding: 30px 20px 20px 20px;
+  margin-top: 10px;
   flex: 1;
   overflow-y: auto;
 }

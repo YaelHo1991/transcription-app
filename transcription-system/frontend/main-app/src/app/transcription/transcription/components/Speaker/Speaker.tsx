@@ -101,6 +101,10 @@ export default function Speaker({
 
   // Handle speaker name edit
   const handleSpeakerEdit = (id: string, newName: string) => {
+    // Get the old name before updating
+    const oldSpeaker = speakerManager.getSpeaker(id);
+    const oldName = oldSpeaker?.name;
+    
     const speaker = speakerManager.updateSpeakerName(id, newName);
     if (speaker) {
       setSpeakers([...speakerManager.getAllSpeakers()]);
@@ -109,9 +113,13 @@ export default function Speaker({
         onSpeakerUpdate(speaker);
       }
       
-      // Notify TextEditor of name change
+      // Notify TextEditor of name change with old name
       document.dispatchEvent(new CustomEvent('speakerUpdated', {
-        detail: speaker
+        detail: {
+          ...speaker,
+          speakerId: speaker.id,
+          oldName: oldName !== newName ? oldName : undefined
+        }
       }));
     }
   };

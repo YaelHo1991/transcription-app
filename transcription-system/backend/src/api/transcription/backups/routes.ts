@@ -3,12 +3,12 @@ import { BackupModel } from '../../../models/backup.model';
 import { TranscriptionModel } from '../../../models/transcription.model';
 import { ProjectModel } from '../../../models/project.model';
 import { BackupService, BackupContent } from '../../../services/backupService';
-import { authMiddleware } from '../../../middleware/auth.middleware';
+import { authenticateToken } from '../../../middleware/auth.middleware';
 
 const router = Router();
 
 // Trigger a backup for a transcription
-router.post('/trigger/:transcriptionId', authMiddleware, async (req: Request, res: Response) => {
+router.post('/trigger/:transcriptionId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { transcriptionId } = req.params;
     const { blocks, speakers } = req.body;
@@ -79,7 +79,7 @@ router.post('/trigger/:transcriptionId', authMiddleware, async (req: Request, re
 });
 
 // Get backup history for a transcription
-router.get('/history/:transcriptionId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/history/:transcriptionId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { transcriptionId } = req.params;
     const { limit = 50 } = req.query;
@@ -107,7 +107,7 @@ router.get('/history/:transcriptionId', authMiddleware, async (req: Request, res
 });
 
 // Preview a backup
-router.get('/preview/:backupId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/preview/:backupId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { backupId } = req.params;
     const userId = (req as any).user.id;
@@ -143,7 +143,7 @@ router.get('/preview/:backupId', authMiddleware, async (req: Request, res: Respo
 });
 
 // Restore from a backup
-router.post('/restore/:backupId', authMiddleware, async (req: Request, res: Response) => {
+router.post('/restore/:backupId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { backupId } = req.params;
     const userId = (req as any).user.id;
@@ -187,7 +187,7 @@ router.post('/restore/:backupId', authMiddleware, async (req: Request, res: Resp
 });
 
 // Cleanup old backups
-router.delete('/cleanup/:transcriptionId', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/cleanup/:transcriptionId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { transcriptionId } = req.params;
     const { keepCount = 100 } = req.query;

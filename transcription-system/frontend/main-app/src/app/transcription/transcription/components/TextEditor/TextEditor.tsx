@@ -9,6 +9,12 @@ import { ProcessTextResult } from './types/shortcuts';
 import ShortcutsModal from './components/ShortcutsModal';
 import BackupStatusIndicator from './components/BackupStatusIndicator';
 import NewTranscriptionModal from './components/NewTranscriptionModal';
+import TranscriptionSwitcher from './components/TranscriptionSwitcher';
+import VersionHistoryModal from './components/VersionHistoryModal';
+import MediaLinkModal from './components/MediaLinkModal';
+import SearchReplaceModal, { SearchOptions, SearchResult } from './components/SearchReplaceModal';
+import SpeakerSwapModal from './components/SpeakerSwapModal';
+import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import backupService from '../../../../../services/backupService';
@@ -24,7 +30,9 @@ export default function TextEditor({
   currentTime = 0,
   onSeek,
   onMarkClick,
-  enabled = true
+  enabled = true,
+  mediaFileName = '',
+  currentProjectId = ''
 }: TextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
@@ -34,21 +42,51 @@ export default function TextEditor({
   const [speakerColors, setSpeakerColors] = useState<Map<string, string>>(new Map());
   const [cursorAtStart, setCursorAtStart] = useState(false);
   const [fontSize, setFontSize] = useState(16);
+  const [fontFamily, setFontFamily] = useState<'default' | 'david'>('default');
   const [isolatedSpeakers, setIsolatedSpeakers] = useState<Set<string>>(new Set());
   const [showDescriptionTooltips, setShowDescriptionTooltips] = useState(true);
+  const [blockViewEnabled, setBlockViewEnabled] = useState(true);
   const [navigationMode, setNavigationMode] = useState(false);
   const [savedMediaTime, setSavedMediaTime] = useState<number | null>(null);
   const [currentMediaTime, setCurrentMediaTime] = useState(0);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showNewTranscriptionModal, setShowNewTranscriptionModal] = useState(false);
+  const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
+  const [showTranscriptionSwitcher, setShowTranscriptionSwitcher] = useState(false);
+  const [showMediaLinkModal, setShowMediaLinkModal] = useState(false);
+  const [showSearchReplaceModal, setShowSearchReplaceModal] = useState(false);
+  const [searchHighlights, setSearchHighlights] = useState<SearchResult[]>([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [linkedMediaId, setLinkedMediaId] = useState<string>('');
+  const [feedbackMessage, setFeedbackMessage] = useState<string>('');
+  const feedbackTimeoutRef = useRef<NodeJS.Timeout>();
   const [loadedShortcuts, setLoadedShortcuts] = useState<Map<string, any>>(new Map());
   const [userQuota, setUserQuota] = useState({ used: 0, max: 100 });
+  const [selectedBlockRange, setSelectedBlockRange] = useState<{start: number, end: number} | null>(null);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
+  const [showSpeakerSwapModal, setShowSpeakerSwapModal] = useState(false);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
   const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager('http://localhost:5000/api/transcription/shortcuts'));
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
+  
+  
+  // Undo/Redo history
+  const [history, setHistory] = useState<TextBlockData[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const isUndoRedoAction = useRef(false);
+  
+  // Use refs for history to avoid stale closures
+  const historyRef = useRef<TextBlockData[][]>([]);
+  const historyIndexRef = useRef(-1);
+  const lastSavedHistoryRef = useRef<string>('');
+  const saveToHistoryRef = useRef<(blocks: TextBlockData[]) => void>();
+  
+  // NOTE: We update refs immediately in the functions that change state,
+  // not in useEffect, to avoid race conditions
   
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -56,6 +94,33 @@ export default function TextEditor({
     // For now, use a mock ID. In real app, this would come from props or context
     return 'mock-transcription-' + Date.now();
   });
+  const [currentMediaFileName, setCurrentMediaFileName] = useState<string>('');  // Track current media file name
+  
+  // Refs for frequently changing values (to avoid re-creating event handlers)
+  const activeBlockIdRef = useRef(activeBlockId);
+  const activeAreaRef = useRef(activeArea);
+  const selectedBlockRangeRef = useRef(selectedBlockRange);
+  const selectedBlocksRef = useRef(selectedBlocks);
+  const blocksRef = useRef(blocks);
+  
+  // Update refs when values change
+  useEffect(() => { activeBlockIdRef.current = activeBlockId; }, [activeBlockId]);
+  useEffect(() => { activeAreaRef.current = activeArea; }, [activeArea]);
+  useEffect(() => { selectedBlockRangeRef.current = selectedBlockRange; }, [selectedBlockRange]);
+  useEffect(() => { selectedBlocksRef.current = selectedBlocks; }, [selectedBlocks]);
+  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
+  
+  
+  // Function to show feedback message with auto-dismiss
+  const showFeedback = useCallback((message: string, duration: number = 3000) => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+    setFeedbackMessage(message);
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedbackMessage('');
+    }, duration);
+  }, []);
   
   // Function to seek media to a specific time
   const seekToTime = useCallback((time: number) => {
@@ -63,6 +128,268 @@ export default function TextEditor({
       detail: { time } 
     }));
   }, []);
+  
+  // Save to history - simple immediate save
+  const saveToHistory = useCallback((newBlocks: TextBlockData[]) => {
+    if (isUndoRedoAction.current) {
+      return; // Skipping save - undo/redo in progress
+    }
+    
+    // Convert blocks to string for comparison
+    const blocksString = JSON.stringify(newBlocks);
+    
+    // Don't save if nothing changed
+    if (blocksString === lastSavedHistoryRef.current) {
+      return; // Skipping save - no changes
+    }
+    
+    // Save the snapshot immediately
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+    
+    const newHistory = currentHistory.slice(0, currentIndex + 1);
+    newHistory.push([...newBlocks]);
+    
+    // Limit history size
+    if (newHistory.length > 100) {
+      newHistory.shift();
+    }
+    
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    // IMPORTANT: Update the refs immediately!
+    historyRef.current = newHistory;
+    historyIndexRef.current = newHistory.length - 1;
+    lastSavedHistoryRef.current = blocksString;
+  }, []);
+  
+  // Store in ref for use in effects
+  saveToHistoryRef.current = saveToHistory;
+  
+  // Undo function - use browser's native undo
+  const handleUndo = useCallback(() => {
+    // Try to use the browser's native undo on the focused element
+    const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement;
+    if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+      // Use execCommand to trigger native undo
+      document.execCommand('undo');
+      showFeedback('ביטול פעולה');
+    } else {
+      // No textarea/input focused, try global undo
+      document.execCommand('undo');
+      showFeedback('ביטול פעולה');
+    }
+  }, [showFeedback]);
+  
+  // Redo function - use browser's native redo
+  const handleRedo = useCallback(() => {
+    // Try to use the browser's native redo on the focused element
+    const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement;
+    if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+      // Use execCommand to trigger native redo
+      document.execCommand('redo');
+      showFeedback('ביצוע חוזר');
+    } else {
+      // No textarea/input focused, try global redo
+      document.execCommand('redo');
+      showFeedback('ביצוע חוזר');
+    }
+  }, [showFeedback]);
+  
+  // Update media file name when it changes
+  useEffect(() => {
+    if (mediaFileName) {
+      setCurrentMediaFileName(mediaFileName);
+    }
+  }, [mediaFileName]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      
+      // Get current values from refs
+      const currentBlocks = blocksRef.current;
+      const currentActiveId = activeBlockIdRef.current;
+      const currentActiveArea = activeAreaRef.current;
+      const currentSelectedRange = selectedBlockRangeRef.current;
+      
+      // Shift+Ctrl+Arrow for multi-block selection
+      if (e.shiftKey && e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const currentIndex = currentBlocks.findIndex(b => b.id === currentActiveId);
+        
+        if (currentIndex === -1) return;
+        
+        if (!currentSelectedRange) {
+          // Start new selection from current block
+          setSelectedBlockRange({ start: currentIndex, end: currentIndex });
+        }
+        
+        // Extend selection
+        const newRange = { ...currentSelectedRange || { start: currentIndex, end: currentIndex } };
+        
+        if (e.key === 'ArrowUp' && currentIndex > 0) {
+          // Extend selection up
+          if (currentIndex <= newRange.start) {
+            newRange.start = currentIndex - 1;
+          } else {
+            newRange.end = currentIndex - 1;
+          }
+          // Move active block up
+          const newActiveId = currentBlocks[currentIndex - 1].id;
+          setActiveBlockId(newActiveId);
+          blockManagerRef.current.setActiveBlock(newActiveId, currentActiveArea);
+        } else if (e.key === 'ArrowDown' && currentIndex < currentBlocks.length - 1) {
+          // Extend selection down
+          if (currentIndex >= newRange.end) {
+            newRange.end = currentIndex + 1;
+          } else {
+            newRange.start = currentIndex + 1;
+          }
+          // Move active block down
+          const newActiveId = currentBlocks[currentIndex + 1].id;
+          setActiveBlockId(newActiveId);
+          blockManagerRef.current.setActiveBlock(newActiveId, currentActiveArea);
+        }
+        
+        setSelectedBlockRange(newRange);
+        
+        // Copy selected text to clipboard (always include current block)
+        const minIndex = Math.min(newRange.start, newRange.end, currentIndex);
+        const maxIndex = Math.max(newRange.start, newRange.end, currentIndex);
+        const selectedBlocks = currentBlocks.slice(minIndex, maxIndex + 1);
+        
+        // Get text from all selected blocks including partial selection in current block
+        let selectedText = '';
+        
+        // For the current block, try to get the selected text from the active textarea/input
+        const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement;
+        if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+          const selectionStart = activeElement.selectionStart || 0;
+          const selectionEnd = activeElement.selectionEnd || activeElement.value.length;
+          
+          // Build the full text with current selection
+          selectedText = selectedBlocks.map((b, idx) => {
+            if (b.id === currentActiveId && selectionStart !== selectionEnd) {
+              // For current block with text selection, use the selected portion
+              const selectedPortion = activeElement.value.substring(selectionStart, selectionEnd);
+              return `${b.speaker}: ${selectedPortion}`;
+            }
+            return `${b.speaker}: ${b.text}`;
+          }).join('\n');
+        } else {
+          // No active selection, use full text
+          selectedText = selectedBlocks.map(b => `${b.speaker}: ${b.text}`).join('\n');
+        }
+        
+        navigator.clipboard.writeText(selectedText).then(() => {
+          showFeedback(`${selectedBlocks.length} בלוקים נבחרו`);
+        });
+        return;
+      }
+      
+      // Clear selection on any non-shift key (except Delete)
+      if (!e.shiftKey && currentSelectedRange && e.key !== 'Delete') {
+        setSelectedBlockRange(null);
+      }
+      
+      // Handle Delete key when blocks are selected
+      if (e.key === 'Delete' && currentSelectedRange) {
+        e.preventDefault();
+        
+        // Delete all text in selected blocks
+        const minIndex = Math.min(currentSelectedRange.start, currentSelectedRange.end);
+        const maxIndex = Math.max(currentSelectedRange.start, currentSelectedRange.end);
+        
+        // Clear text in selected blocks
+        const updatedBlocks = currentBlocks.map((block, index) => {
+          if (index >= minIndex && index <= maxIndex) {
+            // Clear both speaker and text
+            blockManagerRef.current.updateBlock(block.id, 'speaker', '');
+            blockManagerRef.current.updateBlock(block.id, 'text', '');
+            return { ...block, speaker: '', text: '' };
+          }
+          return block;
+        });
+        
+        setBlocks(updatedBlocks);
+        setSelectedBlockRange(null);
+        if (saveToHistoryRef.current) {
+          saveToHistoryRef.current(updatedBlocks);
+        }
+        showFeedback('הטקסט בבלוקים הנבחרים נמחק');
+        return;
+      }
+      
+      // Remove custom Ctrl+Z/Y handling - let browser's native undo work
+      // The icons will trigger the same native undo via execCommand
+      // Ctrl+A for select all
+      if (e.ctrlKey && e.key === 'a') {
+        const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement;
+        
+        if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+          // Check if text is already selected (before this Ctrl+A)
+          const wasSelected = activeElement.selectionStart === 0 && 
+                              activeElement.selectionEnd === activeElement.value.length && 
+                              activeElement.value.length > 0;
+          
+          if (wasSelected) {
+            // Field was already fully selected - select all blocks
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Call our select all blocks function
+            handleSelectAllBlocksEvent();
+          } else {
+            // First Ctrl+A - let browser select current field
+            // Check again after a short delay
+            setTimeout(() => {
+              const nowSelected = activeElement.selectionStart === 0 && 
+                                 activeElement.selectionEnd === activeElement.value.length;
+              if (nowSelected && activeElement.value.length > 0) {
+                showFeedback('לחץ Ctrl+A שוב לבחירת כל הבלוקים');
+              }
+            }, 50);
+          }
+        }
+      }
+    };
+
+    const handleSelectAllBlocksEvent = () => {
+      // Get current blocks from ref
+      const allBlocks = blocksRef.current;
+      
+      // Select all blocks visually
+      setSelectedBlockRange({ start: 0, end: allBlocks.length - 1 });
+      
+      // Get all text content
+      const allText = allBlocks.map(b => {
+        const speaker = b.speaker ? `${b.speaker}: ` : '';
+        return `${speaker}${b.text}`;
+      }).join('\n');
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(allText).then(() => {
+        showFeedback('כל הבלוקים נבחרו - לחץ Delete למחיקה או Ctrl+Shift+A לביטול');
+      });
+    };
+    
+    const handleClearBlockSelection = () => {
+      // Clear both range and multi-select
+      setSelectedBlockRange(null);
+      setSelectedBlocks(new Set());
+      showFeedback('בחירת הבלוקים בוטלה');
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('selectAllBlocks', handleSelectAllBlocksEvent);
+    document.addEventListener('clearBlockSelection', handleClearBlockSelection);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('selectAllBlocks', handleSelectAllBlocksEvent);
+      document.removeEventListener('clearBlockSelection', handleClearBlockSelection);
+    };
+  }, [handleUndo, handleRedo, showFeedback]); // Include all dependencies used in the effect
   
   // Initialize blocks from block manager and shortcuts
   useEffect(() => {
@@ -76,6 +403,12 @@ export default function TextEditor({
         blockManagerRef.current.setFirstBlockTimestamp(currentMediaTime);
       }
     }
+    // Initialize history with initial state
+    const initialHistory = [[...initialBlocks]];
+    setHistory(initialHistory);
+    setHistoryIndex(0);
+    historyRef.current = initialHistory; // Sync the ref with initial state
+    historyIndexRef.current = 0; // Sync the ref with initial state
     
     // Initialize shortcuts manager
     const initShortcuts = async () => {
@@ -294,10 +627,72 @@ export default function TextEditor({
     backupService.initAutoSave(transcription.id, 60000);
   }, []);
 
+  // Handle transcription change from switcher
+  const handleTranscriptionChange = useCallback((transcription: any) => {
+    console.log('Switching to transcription:', transcription);
+    // In a real implementation, you would:
+    // 1. Save current transcription state
+    // 2. Load the selected transcription data
+    // 3. Update blocks and speakers
+    // 4. Update backup service with new transcription ID
+    
+    // For now, just update the current transcription ID
+    backupService.stopAutoSave();
+    backupService.initAutoSave(transcription.id, 60000);
+    
+    // Update media file name (mock data for now)
+    const mockMediaFiles = {
+      'trans-1': 'interview_part1.mp3',
+      'trans-2': 'interview_part2.mp3',
+      'trans-3': 'draft_recording.wav'
+    };
+    setCurrentMediaFileName(mockMediaFiles[transcription.id as keyof typeof mockMediaFiles] || '');
+    
+    // Close the switcher dropdown
+    setShowTranscriptionSwitcher(false);
+    
+    // TODO: Load transcription data from API
+    // This would fetch the transcription content and populate the editor
+  }, []);
+
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'speaker' | 'text', value: string) => {
+    const currentBlocks = blockManagerRef.current.getBlocks();
+    const blockIndex = currentBlocks.findIndex(b => b.id === id);
+    const originalSpeaker = currentBlocks[blockIndex]?.speaker;
+    
+    // Update the specific block
     blockManagerRef.current.updateBlock(id, field, value);
-    setBlocks([...blockManagerRef.current.getBlocks()]);
+    
+    // If speaker field changed and we have selected blocks, update all selected blocks with the same original speaker
+    if (field === 'speaker' && (selectedBlocksRef.current.size > 0 || selectedBlockRangeRef.current)) {
+      const blocksToUpdate = new Set<number>();
+      
+      // Collect indices from multi-select
+      if (selectedBlocksRef.current.size > 0) {
+        selectedBlocksRef.current.forEach(idx => blocksToUpdate.add(idx));
+      }
+      
+      // Collect indices from range select
+      if (selectedBlockRangeRef.current) {
+        for (let i = selectedBlockRangeRef.current.start; i <= selectedBlockRangeRef.current.end; i++) {
+          blocksToUpdate.add(i);
+        }
+      }
+      
+      // Update all selected blocks that have the same original speaker
+      blocksToUpdate.forEach(idx => {
+        if (idx !== blockIndex && currentBlocks[idx]?.speaker === originalSpeaker) {
+          blockManagerRef.current.updateBlock(currentBlocks[idx].id, 'speaker', value);
+        }
+      });
+    }
+    
+    const newBlocks = [...blockManagerRef.current.getBlocks()];
+    setBlocks(newBlocks);
+    
+    // Save to history immediately for all changes
+    saveToHistory(newBlocks);
     
     // Update speaker colors if speaker changed
     if (field === 'speaker' && value) {
@@ -309,7 +704,7 @@ export default function TextEditor({
     
     // Mark changes for auto-save
     backupService.markChanges();
-  }, []);
+  }, [saveToHistory]);
 
   // Handle new block creation
   const handleNewBlock = useCallback(() => {
@@ -318,26 +713,163 @@ export default function TextEditor({
       const newBlock = blockManagerRef.current.addBlock(currentBlock.id, currentMediaTime);
       setActiveBlockId(newBlock.id);
       setActiveArea('speaker');
-      setBlocks([...blockManagerRef.current.getBlocks()]);
+      const newBlocks = [...blockManagerRef.current.getBlocks()];
+      setBlocks(newBlocks);
+      
+      // Save to history immediately for structural changes
+      saveToHistory(newBlocks);
       
       // Mark changes for auto-save
       backupService.markChanges();
     }
-  }, [currentMediaTime]);
+  }, [currentMediaTime, saveToHistory]);
+
+  // Handle block click for multi-select
+  const handleBlockClick = useCallback((blockIndex: number, ctrlKey: boolean, shiftKey: boolean) => {
+    if (multiSelectMode || ctrlKey) {
+      // Multi-select mode: toggle individual block selection
+      setSelectedBlocks(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(blockIndex)) {
+          newSet.delete(blockIndex);
+        } else {
+          newSet.add(blockIndex);
+        }
+        return newSet;
+      });
+      // Clear range selection when using multi-select
+      setSelectedBlockRange(null);
+    } else if (shiftKey && selectedBlocks.size > 0) {
+      // Shift+click: select range from last selected to clicked
+      const lastSelected = Math.max(...Array.from(selectedBlocks));
+      const start = Math.min(lastSelected, blockIndex);
+      const end = Math.max(lastSelected, blockIndex);
+      const newSet = new Set(selectedBlocks);
+      for (let i = start; i <= end; i++) {
+        newSet.add(i);
+      }
+      setSelectedBlocks(newSet);
+    } else {
+      // Regular click: clear multi-select
+      setSelectedBlocks(new Set());
+      setSelectedBlockRange(null);
+    }
+  }, [multiSelectMode]);
+
+  // Handle select all blocks
+  const handleSelectAllBlocks = useCallback(() => {
+    const allBlocks = blocks;
+    
+    // Select all blocks visually
+    setSelectedBlockRange({ start: 0, end: allBlocks.length - 1 });
+    
+    // Get all text content
+    const allText = allBlocks.map(b => {
+      const speaker = b.speaker ? `${b.speaker}: ` : '';
+      return `${speaker}${b.text}`;
+    }).join('\n');
+    
+    // Try to select all text in all textareas
+    const textareas = document.querySelectorAll('.block-text');
+    const inputs = document.querySelectorAll('.block-speaker');
+    
+    // Select text in all fields
+    textareas.forEach((textarea: any) => {
+      if (textarea.value) {
+        textarea.select();
+      }
+    });
+    
+    inputs.forEach((input: any) => {
+      if (input.value) {
+        input.select();
+      }
+    });
+    
+    // Focus on the first textarea to allow deletion
+    if (textareas.length > 0) {
+      const firstTextarea = textareas[0] as HTMLTextAreaElement;
+      firstTextarea.focus();
+      firstTextarea.select();
+      
+      // Also copy to clipboard
+      navigator.clipboard.writeText(allText).then(() => {
+        showFeedback('כל הבלוקים נבחרו - לחץ Delete למחיקה או Ctrl+C להעתקה');
+      });
+    } else {
+      // No textareas, just copy
+      navigator.clipboard.writeText(allText).then(() => {
+        showFeedback('הטקסט הועתק');
+      });
+    }
+  }, [blocks, showFeedback]);
+
+  // Handle speaker swap
+  const handleSpeakerSwap = useCallback((fromSpeaker: string, toSpeaker: string, applyToSelected: boolean) => {
+    const currentBlocks = blockManagerRef.current.getBlocks();
+    let updatedCount = 0;
+    
+    if (applyToSelected && (selectedBlocksRef.current.size > 0 || selectedBlockRangeRef.current)) {
+      // Apply to selected blocks only
+      const selectedIndices = new Set<number>();
+      
+      if (selectedBlocksRef.current.size > 0) {
+        selectedBlocksRef.current.forEach(idx => selectedIndices.add(idx));
+      }
+      
+      if (selectedBlockRangeRef.current) {
+        for (let i = selectedBlockRangeRef.current.start; i <= selectedBlockRangeRef.current.end; i++) {
+          selectedIndices.add(i);
+        }
+      }
+      
+      selectedIndices.forEach(idx => {
+        if (currentBlocks[idx]?.speaker === fromSpeaker) {
+          blockManagerRef.current.updateBlock(currentBlocks[idx].id, 'speaker', toSpeaker);
+          updatedCount++;
+        }
+      });
+    } else {
+      // Apply to all blocks
+      currentBlocks.forEach(block => {
+        if (block.speaker === fromSpeaker) {
+          blockManagerRef.current.updateBlock(block.id, 'speaker', toSpeaker);
+          updatedCount++;
+        }
+      });
+    }
+    
+    const newBlocks = [...blockManagerRef.current.getBlocks()];
+    setBlocks(newBlocks);
+    saveToHistory(newBlocks);
+    backupService.markChanges();
+    
+    // Update speaker colors
+    const speaker = speakerManagerRef.current.findByName(toSpeaker);
+    if (speaker) {
+      setSpeakerColors(prev => new Map(prev).set(toSpeaker, speaker.color));
+    }
+    
+    showFeedback(`${updatedCount} בלוקים עודכנו: ${fromSpeaker} → ${toSpeaker}`);
+  }, [saveToHistory, showFeedback]);
 
   // Handle block removal
   const handleRemoveBlock = useCallback((id: string) => {
     blockManagerRef.current.removeBlock(id);
     const newActiveId = blockManagerRef.current.getActiveBlockId();
     const newArea = blockManagerRef.current.getActiveArea();
+    const newBlocks = [...blockManagerRef.current.getBlocks()];
     
     setActiveBlockId(newActiveId);
     setActiveArea(newArea);
-    setBlocks([...blockManagerRef.current.getBlocks()]);
+    setBlocks(newBlocks);
+    
+    // Save to history immediately for structural changes
+    saveToHistory(newBlocks, true);
     
     // Mark changes for auto-save
     backupService.markChanges();
-  }, []);
+  }, [saveToHistory]);
 
   // Handle DELETE key for cross-block deletion
   const handleDeleteAcrossBlocks = useCallback((currentBlockId: string, fromField: 'speaker' | 'text') => {
@@ -439,6 +971,148 @@ export default function TextEditor({
     });
   }, []);
 
+  // Search and Replace handlers
+  const handleSearch = useCallback((text: string, options: SearchOptions): SearchResult[] => {
+    const results: SearchResult[] = [];
+    const blocks = blockManagerRef.current.getBlocks();
+    
+    if (!text) {
+      setSearchHighlights([]);
+      return results;
+    }
+    
+    blocks.forEach(block => {
+      // Build search pattern
+      let pattern: RegExp;
+      if (options.useRegex) {
+        try {
+          pattern = new RegExp(text, options.caseSensitive ? 'g' : 'gi');
+        } catch {
+          return; // Invalid regex
+        }
+      } else {
+        let escapedText = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (options.wholeWord) {
+          escapedText = `\\b${escapedText}\\b`;
+        }
+        pattern = new RegExp(escapedText, options.caseSensitive ? 'g' : 'gi');
+      }
+      
+      // Search in speaker field
+      if (block.speaker) {
+        const matches = [...block.speaker.matchAll(pattern)];
+        matches.forEach(match => {
+          if (match.index !== undefined) {
+            results.push({
+              blockId: block.id,
+              field: 'speaker',
+              startIndex: match.index,
+              endIndex: match.index + match[0].length,
+              matchText: match[0]
+            });
+          }
+        });
+      }
+      
+      // Search in text field
+      if (block.text) {
+        const matches = [...block.text.matchAll(pattern)];
+        matches.forEach(match => {
+          if (match.index !== undefined) {
+            results.push({
+              blockId: block.id,
+              field: 'text',
+              startIndex: match.index,
+              endIndex: match.index + match[0].length,
+              matchText: match[0]
+            });
+          }
+        });
+      }
+    });
+    
+    setSearchHighlights(results);
+    setCurrentSearchIndex(0);
+    
+    // Scroll to first result if any, but don't focus
+    if (results.length > 0) {
+      const result = results[0];
+      const blockElement = document.getElementById(`block-${result.blockId}`);
+      if (blockElement) {
+        blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    
+    return results;
+  }, []);
+
+  const handleReplace = useCallback((text: string, replacement: string, options: SearchOptions) => {
+    const results = handleSearch(text, options);
+    if (results.length > 0) {
+      const firstResult = results[0];
+      const block = blockManagerRef.current.getBlocks().find(b => b.id === firstResult.blockId);
+      
+      if (block) {
+        const field = firstResult.field;
+        const currentText = block[field] || '';
+        const newText = currentText.substring(0, firstResult.startIndex) + 
+                       replacement + 
+                       currentText.substring(firstResult.endIndex);
+        
+        blockManagerRef.current.updateBlock(firstResult.blockId, field, newText);
+        setBlocks([...blockManagerRef.current.getBlocks()]);
+        showFeedback('הוחלף בהצלחה');
+      }
+    }
+  }, [handleSearch]);
+
+  const handleReplaceAll = useCallback((text: string, replacement: string, options: SearchOptions) => {
+    const results = handleSearch(text, options);
+    let replacedCount = 0;
+    
+    // Group results by block and field for efficient replacement
+    const groupedResults = new Map<string, Map<'speaker' | 'text', SearchResult[]>>();
+    
+    results.forEach(result => {
+      if (!groupedResults.has(result.blockId)) {
+        groupedResults.set(result.blockId, new Map());
+      }
+      const blockMap = groupedResults.get(result.blockId)!;
+      if (!blockMap.has(result.field)) {
+        blockMap.set(result.field, []);
+      }
+      blockMap.get(result.field)!.push(result);
+    });
+    
+    // Process replacements
+    groupedResults.forEach((fields, blockId) => {
+      const block = blockManagerRef.current.getBlocks().find(b => b.id === blockId);
+      if (block) {
+        fields.forEach((fieldResults, field) => {
+          let currentText = block[field] || '';
+          // Sort results by index in reverse to maintain indices during replacement
+          const sortedResults = fieldResults.sort((a, b) => b.startIndex - a.startIndex);
+          
+          sortedResults.forEach(result => {
+            currentText = currentText.substring(0, result.startIndex) + 
+                         replacement + 
+                         currentText.substring(result.endIndex);
+            replacedCount++;
+          });
+          
+          blockManagerRef.current.updateBlock(blockId, field, currentText);
+        });
+      }
+    });
+    
+    if (replacedCount > 0) {
+      setBlocks([...blockManagerRef.current.getBlocks()]);
+      showFeedback(`הוחלפו ${replacedCount} מופעים`);
+    } else {
+      showFeedback('לא נמצאו מופעים להחלפה');
+    }
+  }, [handleSearch]);
+
   // Track which blocks belong to which speaker (by speaker ID)
   const speakerBlocksRef = useRef<Map<string, Set<string>>>(new Map());
   // Track speaker ID to code mapping
@@ -447,111 +1121,71 @@ export default function TextEditor({
   // Listen for speaker updates
   useEffect(() => {
     const handleSpeakerUpdated = (event: CustomEvent) => {
-      const { speakerId, code, name, color, oldCode } = event.detail;
+      const { speakerId, code, name, color, oldCode, oldName } = event.detail;
       
       // Get all current blocks first
       const blocks = blockManagerRef.current.getBlocks();
       
-      // Build a set of all values that should be updated
-      // This includes the old code, and any blocks that currently match this speaker
-      const valuesToUpdate = new Set<string>();
+      // Determine what exactly we're updating from and to
+      let updateFrom: string | null = null;
+      let updateTo: string | null = null;
       
-      // Add the old code if it was changed
-      if (oldCode) {
-        valuesToUpdate.add(oldCode);
+      // If this is a name change for an existing speaker
+      if (oldName && oldName !== name) {
+        updateFrom = oldName;
+        updateTo = (name && name.trim()) ? name : code;
+      }
+      // If this is a code change for an existing speaker
+      else if (oldCode && oldCode !== code) {
+        updateFrom = oldCode;
+        updateTo = (name && name.trim()) ? name : code;
+      }
+      // If this is a new name being set for a code
+      else if (code && name && !oldName) {
+        // Check if blocks currently show the code and should show the name
+        updateFrom = code;
+        updateTo = name;
       }
       
-      // Add the current code
-      if (code) {
-        valuesToUpdate.add(code);
-      }
-      
-      // If we have a speaker ID, check what blocks were previously tracked
-      if (speakerId) {
-        // Get the previously tracked code for this speaker ID
-        const previousCode = oldCode || speakerIdToCodeRef.current.get(speakerId);
-        if (previousCode) {
-          valuesToUpdate.add(previousCode);
-        }
+      // Only proceed if we have something to update
+      if (updateFrom && updateTo && updateFrom !== updateTo) {
+        let hasUpdates = false;
         
-        // Update speaker ID to code mapping
-        if (code) {
-          speakerIdToCodeRef.current.set(speakerId, code);
-        }
-        
-        // Get or create the set of blocks for this speaker ID
-        if (!speakerBlocksRef.current.has(speakerId)) {
-          speakerBlocksRef.current.set(speakerId, new Set());
-        }
-        const speakerBlockIds = speakerBlocksRef.current.get(speakerId)!;
-        
-        // Find all blocks that were previously tracked for this speaker
+        // Update ONLY blocks that EXACTLY match the updateFrom value
         blocks.forEach(block => {
-          if (speakerBlockIds.has(block.id) && block.speaker) {
-            valuesToUpdate.add(block.speaker);
-          }
-        });
-      }
-      
-      // Also check if any blocks currently have a name that matches the code
-      // This handles the case where blocks might show "JOHN" when the code is "J"
-      if (code && speakerNamesRef.current.has(code)) {
-        const previousName = speakerNamesRef.current.get(code);
-        if (previousName) {
-          valuesToUpdate.add(previousName);
-        }
-      }
-      
-      // Determine the new value to use (prioritize name over code)
-      const newValue = (name && name.trim()) ? name : (code || '');
-      
-      // Track speaker name updates
-      if (code && name && name.trim()) {
-        speakerNamesRef.current.set(code, name);
-      } else if (code && !name) {
-        speakerNamesRef.current.delete(code);
-      }
-      
-      // Now update all blocks that match any of the values we identified
-      let hasUpdates = false;
-      blocks.forEach(block => {
-        // Check if this block's speaker matches any value that needs updating
-        if (block.speaker && valuesToUpdate.has(block.speaker)) {
-          // Update the block if the value is different
-          if (block.speaker !== newValue) {
-            blockManagerRef.current.updateBlock(block.id, 'speaker', newValue);
+          if (block.speaker === updateFrom) {
+            blockManagerRef.current.updateBlock(block.id, 'speaker', updateTo);
             hasUpdates = true;
           }
-          
-          // Track this block for future updates
-          if (speakerId) {
-            const blockIds = speakerBlocksRef.current.get(speakerId)!;
-            blockIds.add(block.id);
-          }
+        });
+        
+        // Force re-render if there were updates
+        if (hasUpdates) {
+          setBlocks([...blockManagerRef.current.getBlocks()]);
         }
-      });
+      }
       
-      // Update color mapping
-      if (color) {
+      // Update color mapping if color provided
+      if (color && updateTo) {
         setSpeakerColors(prev => {
           const newMap = new Map(prev);
           
-          // Remove old color entries for all values that were updated
-          valuesToUpdate.forEach(val => {
-            if (val !== newValue) {
-              newMap.delete(val);
-            }
-          });
+          // Remove old color entry if name changed
+          if (updateFrom && updateFrom !== updateTo) {
+            newMap.delete(updateFrom);
+          }
           
           // Set new color
-          newMap.set(newValue, color);
+          newMap.set(updateTo, color);
           return newMap;
         });
       }
       
-      // Force re-render if there were updates
-      if (hasUpdates || valuesToUpdate.size > 0) {
-        setBlocks([...blockManagerRef.current.getBlocks()]);
+      // Track speaker name to code mapping for autocomplete
+      if (code && name && name.trim()) {
+        speakerNamesRef.current.set(code, name);
+      } else if (code && !name) {
+        speakerNamesRef.current.delete(code);
       }
     };
     
@@ -563,6 +1197,27 @@ export default function TextEditor({
       document.removeEventListener('speakerCreated', handleSpeakerUpdated as EventListener);
     };
   }, [speakerColors]);
+  
+  // Click outside handler for transcription switcher
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside the dropdown and not on the trigger button
+      if (showTranscriptionSwitcher && 
+          !target.closest('.toolbar-dropdown') && 
+          !target.closest('.toolbar-btn[title="בחר תמלול"]')) {
+        setShowTranscriptionSwitcher(false);
+      }
+    };
+
+    if (showTranscriptionSwitcher) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTranscriptionSwitcher]);
   
   // Listen for speaker selection changes and tooltip toggle
   useEffect(() => {
@@ -613,12 +1268,18 @@ export default function TextEditor({
       }
     };
     
+    // Handle open new transcription modal from transcription switcher
+    const handleOpenNewTranscriptionModal = () => {
+      setShowNewTranscriptionModal(true);
+    };
+    
     
     document.addEventListener('speakersSelected', handleSpeakersSelected as EventListener);
     document.addEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
     document.addEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
     document.addEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
     document.addEventListener('checkSpeakerInUse', handleCheckSpeakerInUse as EventListener);
+    document.addEventListener('openNewTranscriptionModal', handleOpenNewTranscriptionModal as EventListener);
     
     return () => {
       document.removeEventListener('speakersSelected', handleSpeakersSelected as EventListener);
@@ -626,6 +1287,7 @@ export default function TextEditor({
       document.removeEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
       document.removeEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
       document.removeEventListener('checkSpeakerInUse', handleCheckSpeakerInUse as EventListener);
+      document.removeEventListener('openNewTranscriptionModal', handleOpenNewTranscriptionModal as EventListener);
     };
   }, [navigationMode]);
 
@@ -676,116 +1338,43 @@ export default function TextEditor({
       <div className="text-editor-inner">
         {/* Toolbar Section */}
         <div className="text-editor-toolbar">
-          <div className="toolbar-section">
-            <button 
-              className="toolbar-btn" 
-              title="תמלול חדש"
-              onClick={() => setShowNewTranscriptionModal(true)}
-            >
-              <span className="toolbar-icon">📄</span>
-            </button>
-            <button className="toolbar-btn" title="שמור">
-              <span className="toolbar-icon">💾</span>
-            </button>
-            <button className="toolbar-btn" title="הדפס">
-              <span className="toolbar-icon">🖨️</span>
-            </button>
-          </div>
-          
-          <div className="toolbar-divider" />
-          
-          <div className="toolbar-section">
-            <button className="toolbar-btn" title="בטל">
-              <span className="toolbar-icon">↶</span>
-            </button>
-            <button className="toolbar-btn" title="בצע שוב">
-              <span className="toolbar-icon">↷</span>
-            </button>
-          </div>
-          
-          <div className="toolbar-divider" />
-          
-          <div className="toolbar-section">
-            <button className="toolbar-btn" title="חפש">
-              <span className="toolbar-icon">🔍</span>
-            </button>
-            <button className="toolbar-btn" title="החלף">
-              <span className="toolbar-icon">🔄</span>
-            </button>
-          </div>
-          
-          <div className="toolbar-divider" />
-          
-          <div className="toolbar-section">
-            <button 
-              className={`toolbar-btn ${shortcutsEnabled ? 'active' : ''}`} 
-              title="ניהול קיצורים"
-              onClick={() => setShowShortcutsModal(true)}
-            >
-              <span className="toolbar-icon">⌨️</span>
-            </button>
-          </div>
-          
-          <div className="toolbar-divider" />
-          
-          <div className="toolbar-section">
-            <button 
-              className={`toolbar-btn ${navigationMode ? 'active' : ''}`} 
-              title={navigationMode ? "כבה מצב ניווט" : "הפעל מצב ניווט"}
-              onClick={() => {
-                if (navigationMode) {
-                  // Turning OFF navigation mode - restore saved time if exists
-                  setNavigationMode(false);
-                  if (savedMediaTime !== null) {
-                    seekToTime(savedMediaTime);
-                    setSavedMediaTime(null);
-                  }
-                } else {
-                  // Turning ON navigation mode - save current time
-                  setNavigationMode(true);
-                  setSavedMediaTime(currentMediaTime);
-                }
-              }}
-            >
-              <span className="toolbar-icon">🧭</span>
-            </button>
-            <button className="toolbar-btn" title="הגדרות">
-              <span className="toolbar-icon">⚙️</span>
-            </button>
-          </div>
-          
-          <div className="toolbar-divider" />
-          
-          <div className="toolbar-section">
-            <button 
-              className="toolbar-btn" 
-              title="הקטן גופן"
-              onClick={() => setFontSize(prev => Math.max(12, prev - 1))}
-            >
-              <span className="toolbar-icon">A-</span>
-            </button>
-            <span className="font-size-display">{fontSize}</span>
-            <button 
-              className="toolbar-btn" 
-              title="הגדל גופן"
-              onClick={() => setFontSize(prev => Math.min(24, prev + 1))}
-            >
-              <span className="toolbar-icon">A+</span>
-            </button>
-          </div>
-          
-          <div className="toolbar-spacer" />
-          
-          <div className="toolbar-section">
-            <button 
-              className={`sync-button ${syncEnabled ? 'active' : ''}`}
-              onClick={() => setSyncEnabled(!syncEnabled)}
-              title="סנכרון עם נגן"
-            >
-              <span className="sync-icon">🔗</span>
-              <span className="sync-text">סנכרון</span>
-            </button>
-          </div>
+          <ToolbarContent
+            showTranscriptionSwitcher={showTranscriptionSwitcher}
+            setShowTranscriptionSwitcher={setShowTranscriptionSwitcher}
+            setShowNewTranscriptionModal={setShowNewTranscriptionModal}
+            setShowVersionHistoryModal={setShowVersionHistoryModal}
+            setShowMediaLinkModal={setShowMediaLinkModal}
+            setShowSearchReplaceModal={setShowSearchReplaceModal}
+            currentTranscriptionId={currentTranscriptionId}
+            handleTranscriptionChange={handleTranscriptionChange}
+            fontSize={fontSize}
+            setFontSize={setFontSize}
+            fontFamily={fontFamily}
+            setFontFamily={setFontFamily}
+            blockViewEnabled={blockViewEnabled}
+            setBlockViewEnabled={setBlockViewEnabled}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onSelectAllBlocks={handleSelectAllBlocks}
+            multiSelectMode={multiSelectMode}
+            setMultiSelectMode={setMultiSelectMode}
+            setShowSpeakerSwapModal={setShowSpeakerSwapModal}
+            navigationMode={navigationMode}
+            setNavigationMode={setNavigationMode}
+            savedMediaTime={savedMediaTime}
+            setSavedMediaTime={setSavedMediaTime}
+            currentMediaTime={currentMediaTime}
+            seekToTime={seekToTime}
+            syncEnabled={syncEnabled}
+            setSyncEnabled={setSyncEnabled}
+            shortcutsEnabled={shortcutsEnabled}
+            setShowShortcutsModal={setShowShortcutsModal}
+            blocks={blocks}
+            speakerColors={speakerColors}
+            speakerNamesRef={speakerNamesRef}
+            currentMediaFileName={currentMediaFileName}
+            setShortcutsFeedback={showFeedback}
+          />
         </div>
         
         <div className="text-editor-body">
@@ -808,30 +1397,99 @@ export default function TextEditor({
         
         <div 
           ref={editorRef}
-          className="text-editor-content blocks-container"
+          className="text-editor-content"
+          onClick={(e) => {
+            // Only clear selection if clicked on the container itself, not on blocks
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('text-editor-content') || 
+                target.classList.contains('blocks-container') ||
+                target.classList.contains('media-name-header')) {
+              if (selectedBlockRange || selectedBlocks.size > 0) {
+                setSelectedBlockRange(null);
+                setSelectedBlocks(new Set());
+                showFeedback('בחירת הבלוקים בוטלה');
+              }
+            }
+          }}
         >
-          {blocks.map((block, index) => (
-            <TextBlock
-              key={block.id}
-              block={block}
-              isActive={block.id === activeBlockId}
-              isFirstBlock={index === 0}
-              activeArea={block.id === activeBlockId ? activeArea : 'speaker'}
-              cursorAtStart={block.id === activeBlockId && cursorAtStart}
-              onNavigate={(direction, fromField) => handleNavigate(block.id, direction, fromField)}
-              onUpdate={handleBlockUpdate}
-              onNewBlock={handleNewBlock}
-              onRemoveBlock={handleRemoveBlock}
-              onSpeakerTransform={handleSpeakerTransform}
-              onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
-              onProcessShortcuts={processShortcuts}
-              speakerColor={speakerColors.get(block.speaker)}
-              currentTime={currentMediaTime}
-              fontSize={fontSize}
-              isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
-              showDescriptionTooltips={showDescriptionTooltips}
-            />
-          ))}
+          {/* Media Name Header */}
+          {currentMediaFileName && (
+            <div className="media-name-header">
+              <span className="media-name-label">מדיה:</span>
+              <span className="media-name-text">{currentMediaFileName}</span>
+            </div>
+          )}
+          
+          {/* Blocks Container */}
+          <div className="blocks-container">
+            {blocks.map((block, index) => {
+              // Get highlights for this block
+              const blockHighlights = searchHighlights.filter(h => h.blockId === block.id);
+              const speakerHighlights = blockHighlights
+                .filter(h => h.field === 'speaker')
+                .map(h => ({
+                  startIndex: h.startIndex,
+                  endIndex: h.endIndex,
+                  isCurrent: searchHighlights[currentSearchIndex]?.blockId === block.id &&
+                           searchHighlights[currentSearchIndex]?.field === 'speaker' &&
+                           searchHighlights[currentSearchIndex]?.startIndex === h.startIndex
+                }));
+              const textHighlights = blockHighlights
+                .filter(h => h.field === 'text')
+                .map(h => ({
+                  startIndex: h.startIndex,
+                  endIndex: h.endIndex,
+                  isCurrent: searchHighlights[currentSearchIndex]?.blockId === block.id &&
+                           searchHighlights[currentSearchIndex]?.field === 'text' &&
+                           searchHighlights[currentSearchIndex]?.startIndex === h.startIndex
+                }));
+              
+              // Check if this block is selected (range or multi-select)
+              const isRangeSelected = selectedBlockRange && (
+                (index >= Math.min(selectedBlockRange.start, selectedBlockRange.end) &&
+                 index <= Math.max(selectedBlockRange.start, selectedBlockRange.end)) ||
+                (block.id === activeBlockId && selectedBlockRange.start !== selectedBlockRange.end)
+              );
+              const isMultiSelected = selectedBlocks.has(index);
+              const isSelected = isRangeSelected || isMultiSelected;
+              
+              return (
+                <div key={block.id} id={`block-${block.id}`} 
+                     className={isSelected ? 'block-selected' : ''}
+                     onClick={(e) => {
+                       // Only handle if clicking on the wrapper div, not the TextBlock itself
+                       if (e.target === e.currentTarget) {
+                         handleBlockClick(index, e.ctrlKey, e.shiftKey);
+                       }
+                     }}>
+                  <TextBlock
+                    block={block}
+                    isActive={block.id === activeBlockId}
+                    isFirstBlock={index === 0}
+                    activeArea={block.id === activeBlockId ? activeArea : 'speaker'}
+                    cursorAtStart={block.id === activeBlockId && cursorAtStart}
+                    onNavigate={(direction, fromField) => handleNavigate(block.id, direction, fromField)}
+                    onUpdate={handleBlockUpdate}
+                    onNewBlock={handleNewBlock}
+                    onRemoveBlock={handleRemoveBlock}
+                    onSpeakerTransform={handleSpeakerTransform}
+                    onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
+                    onProcessShortcuts={processShortcuts}
+                    speakerColor={speakerColors.get(block.speaker)}
+                    currentTime={currentMediaTime}
+                    fontSize={fontSize}
+                    fontFamily={fontFamily}
+                    isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
+                    showDescriptionTooltips={showDescriptionTooltips}
+                    blockViewEnabled={blockViewEnabled}
+                    speakerHighlights={speakerHighlights}
+                    textHighlights={textHighlights}
+                    onClick={(ctrlKey, shiftKey) => handleBlockClick(index, ctrlKey, shiftKey)}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
       
@@ -874,7 +1532,73 @@ export default function TextEditor({
         isOpen={showNewTranscriptionModal}
         onClose={() => setShowNewTranscriptionModal(false)}
         onTranscriptionCreated={handleTranscriptionCreated}
+        currentMediaName={currentMediaFileName}
+        currentProjectId={currentProjectId}
       />
+      
+      {/* Version History Modal */}
+      <VersionHistoryModal
+        isOpen={showVersionHistoryModal}
+        onClose={() => setShowVersionHistoryModal(false)}
+        onRestore={(version) => {
+          console.log('Restoring version:', version);
+          showFeedback(`שוחזר לגרסה ${version.version}`);
+        }}
+        transcriptionId={currentTranscriptionId}
+      />
+      
+      {/* Media Link Modal */}
+      <MediaLinkModal
+        isOpen={showMediaLinkModal}
+        onClose={() => setShowMediaLinkModal(false)}
+        currentMediaId={linkedMediaId}
+        transcriptionId={currentTranscriptionId}
+        onMediaLinked={(mediaId) => {
+          setLinkedMediaId(mediaId);
+          showFeedback(mediaId ? 'המדיה קושרה בהצלחה' : 'קישור המדיה בוטל');
+        }}
+      />
+      
+      {/* Search and Replace Modal */}
+      <SearchReplaceModal
+        isOpen={showSearchReplaceModal}
+        onClose={() => {
+          setShowSearchReplaceModal(false);
+          setSearchHighlights([]);
+          setCurrentSearchIndex(0);
+        }}
+        onSearch={handleSearch}
+        onReplace={handleReplace}
+        onReplaceAll={handleReplaceAll}
+        onNavigateResult={(index) => {
+          setCurrentSearchIndex(index);
+          // Scroll to the result without focusing
+          if (searchHighlights[index]) {
+            const result = searchHighlights[index];
+            const blockElement = document.getElementById(`block-${result.blockId}`);
+            if (blockElement) {
+              blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }}
+      />
+      
+      {/* Speaker Swap Modal */}
+      <SpeakerSwapModal
+        isOpen={showSpeakerSwapModal}
+        onClose={() => setShowSpeakerSwapModal(false)}
+        blocks={blocks}
+        selectedBlocks={selectedBlocks}
+        selectedBlockRange={selectedBlockRange}
+        onSwap={handleSpeakerSwap}
+      />
+      
+      {/* Feedback Message Display */}
+      {feedbackMessage && (
+        <div className="feedback-message">
+          {feedbackMessage}
+        </div>
+      )}
     </div>
   );
 }

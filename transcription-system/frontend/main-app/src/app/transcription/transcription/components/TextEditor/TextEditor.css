@@ -44,12 +44,29 @@
   border-bottom: 1px solid #d0f2ed;
   gap: 8px;
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  scroll-behavior: smooth;
 }
 
 .toolbar-section {
   display: flex;
   gap: 4px;
   align-items: center;
+  position: relative;
+}
+
+.toolbar-section-with-dropdown {
+  position: relative;
+}
+
+.toolbar-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1000;
+  min-width: 320px;
 }
 
 .toolbar-btn {
@@ -143,6 +160,23 @@
 
 .sync-text {
   font-weight: 500;
+}
+
+.test-backup-btn {
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  color: white;
+  border: 1px solid #45a049;
+}
+
+.test-backup-btn:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  border-color: #3d8b40;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(76, 175, 80, 0.3);
+}
+
+.test-backup-btn .toolbar-icon {
+  color: white;
 }
 
 /* Header Section (deprecated - kept for legacy) */
@@ -291,18 +325,49 @@
 /* Editor Content - Blocks Container */
 .text-editor-content {
   flex: 1;
-  padding: 8px 12px;
+  padding: 0;
   background: white;
   overflow-y: auto;
   overflow-x: hidden;
   direction: rtl !important;
   unicode-bidi: embed !important;
   margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.text-editor-content.blocks-container {
-  padding: 8px 12px;
+/* Media Name Header */
+.media-name-header {
+  padding: 10px 20px;
+  background: linear-gradient(to bottom, #f5fffe, #f0fdfa);
+  border-bottom: 1px solid #e0f2f1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-height: 38px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.media-name-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f766e;
+  letter-spacing: 0.5px;
+}
+
+.media-name-text {
+  font-size: 13px;
+  color: #1a5d5d;
+  font-weight: 500;
+}
+
+.blocks-container {
+  padding: 20px 12px 12px 12px;
   background: linear-gradient(to bottom, #ffffff, #fafafa);
+  flex: 1;
 }
 
 .text-editor-content:focus {
@@ -335,6 +400,27 @@
 .footer-right {
   display: flex;
   align-items: center;
+  position: relative;
+  padding-left: 16px;
+}
+
+.footer-right::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: #d0f2ed;
+}
+
+.media-file-name {
+  font-weight: 600;
+  color: #0f766e;
+  padding-right: 16px;
+  border-right: 1px solid #d0f2ed;
+  margin-right: 0;
 }
 
 .word-count,
@@ -385,6 +471,23 @@
 }
 
 /* Scrollbar styling */
+.text-editor-toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.text-editor-toolbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.text-editor-toolbar::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.3);
+  border-radius: 2px;
+}
+
+.text-editor-toolbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 184, 166, 0.5);
+}
+
 .text-editor-content::-webkit-scrollbar,
 .marks-sidebar::-webkit-scrollbar {
   width: 6px;
@@ -442,4 +545,53 @@
   20% { opacity: 1; transform: translateX(-50%) translateY(0); }
   80% { opacity: 1; transform: translateX(-50%) translateY(0); }
   100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+}
+
+/* Feedback Message */
+.feedback-message {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #14b8a6, #0d9488);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+  z-index: 1000;
+  animation: slideUpFade 0.3s ease;
+  direction: rtl;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Block selection styling */
+.block-selected {
+  background: rgba(59, 130, 246, 0.1);
+  position: relative;
+}
+
+.block-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #3b82f6;
+}
+
+.block-selected .text-block {
+  background: rgba(59, 130, 246, 0.05);
 }

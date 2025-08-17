@@ -28,9 +28,10 @@ interface MediaPlayerProps {
   initialMedia?: MediaFile;
   onTimeUpdate?: (time: number) => void;
   onTimestampCopy?: (timestamp: string) => void;
+  onDurationChange?: (duration: number) => void;
 }
 
-export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCopy }: MediaPlayerProps) {
+export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCopy, onDurationChange }: MediaPlayerProps) {
   // Refs
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -829,6 +830,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
+      if (onDurationChange) {
+        onDurationChange(audio.duration);
+      }
       setIsReady(true);
     };
 
@@ -879,6 +883,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
+      if (onDurationChange) {
+        onDurationChange(video.duration);
+      }
       setIsReady(true);
     };
 

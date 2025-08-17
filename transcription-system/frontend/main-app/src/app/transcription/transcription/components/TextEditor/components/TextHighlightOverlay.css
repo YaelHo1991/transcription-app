@@ -1,0 +1,51 @@
+/* Text Highlight Overlay Styles */
+
+.text-highlight-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  z-index: 1;
+  color: transparent;
+  user-select: none;
+}
+
+.text-highlight-overlay.textarea {
+  white-space: pre-wrap;
+}
+
+.text-highlight-overlay.input {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-text {
+  color: transparent;
+  background: transparent;
+}
+
+.overlay-highlight {
+  background: rgba(187, 247, 208, 0.5);
+  color: transparent;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.3);
+}
+
+.overlay-highlight.current {
+  background: rgba(254, 240, 138, 0.6);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.4);
+  animation: highlightGlow 1s ease infinite;
+}
+
+@keyframes highlightGlow {
+  0%, 100% {
+    background: rgba(254, 240, 138, 0.6);
+  }
+  50% {
+    background: rgba(254, 240, 138, 0.8);
+  }
+}

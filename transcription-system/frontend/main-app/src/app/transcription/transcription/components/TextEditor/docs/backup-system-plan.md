@@ -279,11 +279,11 @@ Modal:
 **Goal**: Implement navigation between multiple transcriptions
 
 ### Tasks:
-- [ ] Create transcription switcher component
-- [ ] Add dropdown near media player
-- [ ] Implement keyboard shortcuts (Ctrl+Alt+←/→)
-- [ ] Add transcription info display
-- [ ] Create quick switch menu
+- [x] Create transcription switcher component
+- [x] Add dropdown near media player
+- [x] Implement keyboard shortcuts (Ctrl+Alt+←/→)
+- [x] Add transcription info display
+- [x] Create quick switch menu
 - [ ] Sync with media player
 - [ ] Test navigation flow
 
@@ -305,13 +305,13 @@ Media Player Area:
 **Goal**: Add subtle backup status to UI
 
 ### Tasks:
-- [ ] Design status indicator component
-- [ ] Add to bottom status bar
-- [ ] Implement status updates
-- [ ] Add click for details
-- [ ] Create error indicators
-- [ ] Add retry button for failures
-- [ ] Test status updates
+- [x] Design status indicator component
+- [x] Add to bottom status bar
+- [x] Implement status updates
+- [x] Add click for details
+- [x] Create error indicators
+- [x] Add retry button for failures
+- [x] Test status updates
 
 ### UI Component:
 ```
@@ -409,15 +409,15 @@ Words: 1,234 | Speakers: 3 | 💾 Auto-save on | Last: 2 min ago
 
 ## Progress Tracking
 
-### Overall Progress: 5/11 Stages Complete
+### Overall Progress: 7/11 Stages Complete
 
 - [x] Stage 1: Database Infrastructure ✅
 - [x] Stage 2: File System Structure ✅
 - [x] Stage 3: Backend API ✅
 - [x] Stage 4: Auto-Save Mechanism ✅
 - [x] Stage 5: UI - New Transcription ✅
-- [ ] Stage 6: Transcription Navigation
-- [ ] Stage 7: Backup Status Indicator
+- [x] Stage 6: Transcription Navigation ✅
+- [x] Stage 7: Backup Status Indicator ✅
 - [ ] Stage 8: Version History & Restore
 - [ ] Stage 9: Media Management
 - [ ] Stage 10: Testing & Optimization

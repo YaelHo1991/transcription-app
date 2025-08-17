@@ -1,0 +1,21 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: ������ �����
+Transcription: ����� ����
+Date: 2025-08-17T07:59:15.194Z
+Version: AUTO
+Media Files:
+  - hebrew_test.mp3 (current)
+
+=== SPEAKERS ===
+�: ��� (Color: #ff0000)
+�: ��� (Color: #00ff00)
+
+=== TRANSCRIPT ===
+00:00 [�]: ���� ������ �� �����
+00:30 [�]: ����� ����� �� �����
+
+=== METADATA ===
+Total Words: 8
+Total Blocks: 2
+Total Speakers: 1
+Created From: Live Editor Session

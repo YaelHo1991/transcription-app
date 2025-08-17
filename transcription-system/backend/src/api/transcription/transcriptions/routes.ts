@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { TranscriptionModel } from '../../../models/transcription.model';
 import { BackupModel } from '../../../models/backup.model';
-import { authMiddleware } from '../../../middleware/auth.middleware';
+import { authenticateToken } from '../../../middleware/auth.middleware';
 
 const router = Router();
 
 // Create a new transcription
-router.post('/create', authMiddleware, async (req: Request, res: Response) => {
+router.post('/create', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { title, projectId, mediaIds } = req.body;
     const userId = (req as any).user.id;
@@ -37,7 +37,7 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Get all transcriptions for a user
-router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/user/:userId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const requestingUserId = (req as any).user.id;
@@ -56,7 +56,7 @@ router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) 
 });
 
 // Get transcriptions for a project
-router.get('/project/:projectId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/project/:projectId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     const userId = (req as any).user.id;
@@ -74,7 +74,7 @@ router.get('/project/:projectId', authMiddleware, async (req: Request, res: Resp
 });
 
 // Get a specific transcription with media
-router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -105,7 +105,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Update a transcription
-router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -129,7 +129,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Link media to transcription
-router.post('/:id/link-media', authMiddleware, async (req: Request, res: Response) => {
+router.post('/:id/link-media', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { mediaId, isPrimary } = req.body;
@@ -153,7 +153,7 @@ router.post('/:id/link-media', authMiddleware, async (req: Request, res: Respons
 });
 
 // Unlink media from transcription
-router.delete('/:id/unlink-media/:mediaId', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/:id/unlink-media/:mediaId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id, mediaId } = req.params;
     const userId = (req as any).user.id;
@@ -176,7 +176,7 @@ router.delete('/:id/unlink-media/:mediaId', authMiddleware, async (req: Request,
 });
 
 // Delete a transcription (soft delete)
-router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;

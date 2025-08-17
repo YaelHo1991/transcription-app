@@ -12,6 +12,60 @@
   border: none;
 }
 
+/* Custom cursor styles for different languages */
+.text-block textarea[dir="rtl"],
+.text-block input[dir="rtl"] {
+  cursor: text;
+  caret-color: #e91e63; /* Pink cursor for Hebrew */
+  caret-shape: block; /* Block cursor for Hebrew */
+  /* Keep RTL direction for the whole field */
+  direction: rtl;
+  text-align: right;
+}
+
+.text-block textarea[dir="ltr"],
+.text-block input[dir="ltr"] {
+  cursor: text;
+  caret-color: #2196f3; /* Blue cursor for English */
+  caret-shape: bar; /* Line cursor for English */
+  direction: ltr;
+  text-align: left;
+}
+
+/* Enhanced cursor styling with animation */
+.text-block textarea[dir="rtl"]:focus,
+.text-block input[dir="rtl"]:focus {
+  caret-color: #e91e63;
+  animation: hebrew-cursor-blink 1s infinite;
+}
+
+.text-block textarea[dir="ltr"]:focus,
+.text-block input[dir="ltr"]:focus {
+  caret-color: #2196f3;
+  animation: english-cursor-blink 1s infinite;
+}
+
+@keyframes hebrew-cursor-blink {
+  0%, 100% { caret-color: #e91e63; }
+  50% { caret-color: #f06292; }
+}
+
+@keyframes english-cursor-blink {
+  0%, 100% { caret-color: #2196f3; }
+  50% { caret-color: #64b5f6; }
+}
+
+/* Visual indicator for text direction */
+.text-block textarea[dir="rtl"]::selection,
+.text-block input[dir="rtl"]::selection {
+  background-color: rgba(233, 30, 99, 0.2); /* Pink selection for Hebrew */
+}
+
+.text-block textarea[dir="ltr"]::selection,
+.text-block input[dir="ltr"]::selection {
+  background-color: rgba(33, 150, 243, 0.2); /* Blue selection for English */
+}
+
 .text-block {
   position: relative;
   display: flex;
@@ -129,13 +183,23 @@
   transition: all 0.2s ease;
   word-wrap: break-word;
   white-space: pre-wrap;
-  direction: rtl !important;
-  text-align: right !important;
-  unicode-bidi: plaintext !important;
   overflow-y: hidden;
   resize: none;
   background: transparent;
+  /* ABSOLUTELY FORCE RTL - no exceptions */
+  direction: rtl !important;
+  text-align: right !important;
+  /* Don't use plaintext - it detects first character */
+  /* Use normal to keep RTL but allow English to display correctly */
+  unicode-bidi: normal !important;
+  /* Full text justification like Word */
+  text-justify: inter-word !important;
+  word-spacing: normal;
+  letter-spacing: normal;
 }
+
+/* Dynamic cursor colors set via inline styles */
+
 
 .block-text:focus {
   outline: none;
@@ -303,6 +367,73 @@
     opacity: 0;
     transform: translateY(-5px);
   }
+}
+
+/* Search highlight styling - subtle indicator */
+.text-block.has-highlight {
+  border-left: 4px solid #4ade80;
+  position: relative;
+}
+
+.text-block.has-current-highlight {
+  border-left: 4px solid #fbbf24;
+  animation: highlightPulse 2s ease infinite;
+  background: linear-gradient(to right, rgba(254, 243, 199, 0.15) 0%, transparent 30%);
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    border-left-color: #fbbf24;
+  }
+  50% {
+    border-left-color: #f59e0b;
+  }
+}
+
+/* Highlight marker */
+.search-highlight-marker {
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background: #fbbf24;
+  border-radius: 50%;
+  animation: markerPulse 1.5s ease infinite;
+  z-index: 10;
+}
+
+@keyframes markerPulse {
+  0%, 100% {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-50%) scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+/* Regular view styling */
+.text-block.regular-view {
+  border-left: none !important;
+  border-right: none !important;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.text-block.regular-view .speaker-input-wrapper {
+  width: auto;
+  min-width: auto;
+  max-width: 150px;
+  flex-shrink: 1;
+}
+
+.text-block.regular-view .block-speaker {
+  width: auto;
+  min-width: 50px;
+  max-width: 150px;
 }
 
 /* Responsive adjustments */

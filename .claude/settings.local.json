@@ -59,6 +59,9 @@
       "Bash(npx next lint:*)",
       "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f migrations/008_create_backup_system_tables.sql)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "C:\\mnt\\c\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend"
+    ]
   }
 }

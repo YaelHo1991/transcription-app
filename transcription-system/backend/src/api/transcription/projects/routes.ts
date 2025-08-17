@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { ProjectModel } from '../../../models/project.model';
-import { authMiddleware } from '../../../middleware/auth.middleware';
+import { authenticateToken } from '../../../middleware/auth.middleware';
 
 const router = Router();
 
 // Create a new project
-router.post('/create', authMiddleware, async (req: Request, res: Response) => {
+router.post('/create', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
     const userId = (req as any).user.id;
@@ -23,7 +23,7 @@ router.post('/create', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Get all projects for a user
-router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/user/:userId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const requestingUserId = (req as any).user.id;
@@ -42,7 +42,7 @@ router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) 
 });
 
 // Get a specific project
-router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -66,7 +66,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Update a project
-router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -90,7 +90,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Delete a project (soft delete)
-router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;

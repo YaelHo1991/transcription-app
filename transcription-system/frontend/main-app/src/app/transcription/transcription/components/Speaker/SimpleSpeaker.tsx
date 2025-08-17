@@ -29,6 +29,43 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     // Don't set any block as active by default - wait for user interaction
   }, []);
 
+  // Listen for speaker name checking requests from TextEditor
+  useEffect(() => {
+    const handleCheckSpeakerNames = (event: CustomEvent) => {
+      const { inputText, callback } = event.detail;
+      
+      // Get all speaker names
+      const speakerNames = blockManagerRef.current.getBlocks()
+        .filter(b => b.name && b.name.trim())
+        .map(b => b.name);
+      
+      // Call back with the list of names
+      if (callback) {
+        callback(speakerNames);
+      }
+    };
+
+    const handleGetSpeakerNameForCode = (event: CustomEvent) => {
+      const { code, callback } = event.detail;
+      
+      // Find speaker by code
+      const speaker = blockManagerRef.current.findByCode(code);
+      
+      // Call back with the name if found
+      if (callback) {
+        callback(speaker ? speaker.name : null);
+      }
+    };
+
+    document.addEventListener('checkSpeakerNames', handleCheckSpeakerNames as EventListener);
+    document.addEventListener('getSpeakerNameForCode', handleGetSpeakerNameForCode as EventListener);
+    
+    return () => {
+      document.removeEventListener('checkSpeakerNames', handleCheckSpeakerNames as EventListener);
+      document.removeEventListener('getSpeakerNameForCode', handleGetSpeakerNameForCode as EventListener);
+    };
+  }, []);
+
   // Handle block navigation
   const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'code' | 'name' | 'description', cursorStart = false) => {
     blockManagerRef.current.setActiveBlock(blockId, activeField);
@@ -53,15 +90,26 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
   
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'code' | 'name' | 'description', value: string) => {
-    // Get the old value before updating
+    // Get the old values before updating
     const oldBlock = blockManagerRef.current.getBlocks().find(b => b.id === id);
     const oldCode = oldBlock?.code;
+    const oldName = oldBlock?.name;
     
     // Validate unique code if updating code field
     if (field === 'code' && value) {
       if (!blockManagerRef.current.validateUniqueCode(value, id)) {
         // Code already exists - don't update
         return false;
+      }
+    }
+    
+    // Handle duplicate name prevention
+    if (field === 'name' && value) {
+      // Generate unique name if needed
+      const uniqueName = blockManagerRef.current.generateUniqueName(value, id);
+      if (uniqueName !== value) {
+        // Name was modified to be unique
+        value = uniqueName;
       }
     }
     
@@ -72,14 +120,15 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     if (field === 'name' || field === 'code') {
       const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
       if (block) {
-        // Always send speaker update with ID for tracking
+        // Always send speaker update with ID for tracking, including old values
         document.dispatchEvent(new CustomEvent('speakerUpdated', {
           detail: {
             speakerId: block.id,  // Send the unique speaker ID
             code: block.code,
             name: block.name,
             color: block.color,
-            oldCode: field === 'code' ? oldCode : undefined
+            oldCode: field === 'code' ? oldCode : undefined,
+            oldName: field === 'name' ? oldName : undefined
           }
         }));
       }

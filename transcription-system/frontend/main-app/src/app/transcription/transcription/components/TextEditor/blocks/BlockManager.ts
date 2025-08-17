@@ -195,6 +195,10 @@ export class BlockManager {
     return this.blocks;
   }
 
+  setBlocks(blocks: TextBlockData[]): void {
+    this.blocks = [...blocks];
+  }
+
   // Get active block
   getActiveBlock(): TextBlockData | null {
     return this.blocks.find(b => b.id === this.activeBlockId) || null;

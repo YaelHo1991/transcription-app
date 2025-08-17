@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import { db } from '../../db/connection';
 import { developmentHTML } from '../../dev-tools/development-html';
 import shortcutsAdminRoutes from './shortcuts-admin-routes';
+import { testCreateBackup, testReadBackup } from './test-backup';
+import { testCreateBackupSimple, testReadBackupSimple } from './test-backup-simple';
+import { testCreateBackupLive, listLiveBackups } from './test-backup-live';
 
 const router = Router();
 
@@ -13,6 +16,18 @@ router.get('/', (req, res) => {
 
 // Mount shortcuts admin routes
 router.use('/admin', shortcutsAdminRoutes);
+
+// Test backup routes
+router.post('/test-backup', testCreateBackup);
+router.get('/test-backup', testReadBackup);
+
+// Simple test backup routes (no database)
+router.post('/test-backup-simple', testCreateBackupSimple);
+router.get('/test-backup-simple', testReadBackupSimple);
+
+// Live backup routes (from editor)
+router.post('/test-backup-live', testCreateBackupLive);
+router.get('/test-backup-live', listLiveBackups);
 
 // Debug endpoint to check environment
 router.get('/check-env', (req: Request, res: Response) => {

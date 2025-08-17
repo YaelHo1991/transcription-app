@@ -31,16 +31,16 @@
 }
 
 .backup-status-indicator.saving {
-  color: #0891b2;
+  color: #1a5d5d;
   animation: pulse 1.5s infinite;
 }
 
 .backup-status-indicator.unsaved {
-  color: #f59e0b;
+  color: #e91e63;
 }
 
 .backup-status-indicator.error {
-  color: #ef4444;
+  color: #e91e63;
 }
 
 @keyframes pulse {
@@ -70,7 +70,7 @@
 /* Details Popup */
 .backup-details-popup {
   position: absolute;
-  top: calc(100% + 8px);
+  bottom: calc(100% + 8px);
   right: 0;
   width: 320px;
   background: white;
@@ -78,14 +78,14 @@
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   z-index: 1000;
-  animation: slideDown 0.3s ease;
+  animation: slideUp 0.3s ease;
   overflow: hidden;
 }
 
-@keyframes slideDown {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -215,6 +215,16 @@
 .backup-action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.backup-action-btn.retry-btn {
+  background: #f44336;
+  color: white;
+}
+
+.backup-action-btn.retry-btn:hover:not(:disabled) {
+  background: #d32f2f;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
 }
 
 .auto-save-info {

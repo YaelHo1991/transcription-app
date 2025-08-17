@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { MediaModel } from '../../../models/media.model';
-import { authMiddleware } from '../../../middleware/auth.middleware';
+import { authenticateToken } from '../../../middleware/auth.middleware';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
@@ -46,7 +46,7 @@ const upload = multer({
 });
 
 // Upload a media file
-router.post('/upload', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+router.post('/upload', authenticateToken, upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -78,7 +78,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: Reques
 });
 
 // Link external media URL
-router.post('/link-external', authMiddleware, async (req: Request, res: Response) => {
+router.post('/link-external', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { url, fileName, projectId, durationSeconds } = req.body;
     const userId = (req as any).user.id;
@@ -109,7 +109,7 @@ router.post('/link-external', authMiddleware, async (req: Request, res: Response
 });
 
 // Get all media for a user
-router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/user/:userId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const requestingUserId = (req as any).user.id;
@@ -128,7 +128,7 @@ router.get('/user/:userId', authMiddleware, async (req: Request, res: Response) 
 });
 
 // Get media for a project
-router.get('/project/:projectId', authMiddleware, async (req: Request, res: Response) => {
+router.get('/project/:projectId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     const userId = (req as any).user.id;
@@ -146,7 +146,7 @@ router.get('/project/:projectId', authMiddleware, async (req: Request, res: Resp
 });
 
 // Get a specific media file with its transcriptions
-router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -177,7 +177,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Update media metadata
-router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
@@ -201,7 +201,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Delete a media file
-router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;

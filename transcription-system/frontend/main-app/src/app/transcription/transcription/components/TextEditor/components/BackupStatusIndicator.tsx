@@ -11,8 +11,10 @@ interface BackupStatusIndicatorProps {
 export default function BackupStatusIndicator({ onShowHistory }: BackupStatusIndicatorProps) {
   const [status, setStatus] = useState<BackupStatus>(backupService.getStatus());
   const [showDetails, setShowDetails] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // Subscribe to status changes
     const unsubscribe = backupService.onStatusChange(setStatus);
     return unsubscribe;
@@ -68,6 +70,18 @@ export default function BackupStatusIndicator({ onShowHistory }: BackupStatusInd
     return 'saved';
   };
 
+  // Don't render until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="backup-status-container">
+        <div className="backup-status-indicator">
+          <span className="status-icon">💾</span>
+          <span className="status-text">טוען...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="backup-status-container">
       <div 
@@ -122,10 +136,25 @@ export default function BackupStatusIndicator({ onShowHistory }: BackupStatusInd
             )}
             
             {status.error && (
-              <div className="detail-row error">
-                <span className="detail-label">שגיאה:</span>
-                <span className="detail-value">{status.error}</span>
-              </div>
+              <>
+                <div className="detail-row error">
+                  <span className="detail-label">שגיאה:</span>
+                  <span className="detail-value">{status.error}</span>
+                </div>
+                <button 
+                  className="backup-action-btn retry-btn"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    const data = (backupService as any).getBackupDataCallback?.();
+                    if (data) {
+                      await backupService.forceBackup(data);
+                    }
+                  }}
+                  disabled={status.isBackingUp}
+                >
+                  🔄 נסה שוב
+                </button>
+              </>
             )}
             
             <div className="detail-actions">

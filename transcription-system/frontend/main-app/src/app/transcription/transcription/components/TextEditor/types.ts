@@ -34,6 +34,12 @@ export interface TextEditorProps {
   
   /** Callback for content changes */
   onContentChange?: (content: string) => void;
+  
+  /** Current media file name */
+  mediaFileName?: string;
+  
+  /** Current project ID */
+  currentProjectId?: string;
 }
 
 /**

@@ -63,6 +63,7 @@ export default function TranscriptionWorkPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [actualMediaDuration, setActualMediaDuration] = useState<number>(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectFolderRef = useRef<HTMLInputElement>(null);
@@ -77,7 +78,17 @@ export default function TranscriptionWorkPage() {
   const projectName = currentProject?.name || 'אין פרויקט';
   const mediaName = currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת');
   const mediaSize = currentMedia?.size || (hasMedia ? '' : '0 MB');
-  const mediaDuration = '00:00'; // Will be calculated when media loads
+  
+  // Format duration as HH:MM:SS
+  const formatDuration = (seconds: number): string => {
+    if (!seconds || seconds === 0) return '00:00:00';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  const mediaDuration = formatDuration(actualMediaDuration);
   
   const handleMediaUpload = (files: FileList) => {
     // Create project if none exists
@@ -328,6 +339,11 @@ export default function TranscriptionWorkPage() {
             />
 
             {/* MediaPlayer Component */}
+            <div onClick={() => {
+              // Clear block selection when clicking on media player
+              const event = new CustomEvent('clearBlockSelection');
+              document.dispatchEvent(event);
+            }}>
             <MediaPlayer 
               key={`${currentProjectIndex}-${currentMediaIndex}`}
               initialMedia={currentMedia ? (() => {
@@ -352,7 +368,11 @@ export default function TranscriptionWorkPage() {
                 // Handle timestamp copy for text editor
                 console.log('Timestamp copied:', timestamp);
               }}
+              onDurationChange={(duration) => {
+                setActualMediaDuration(duration);
+              }}
             />
+            </div>
             
             {/* TextEditor Component */}
             <div className="text-editor-wrapper">
@@ -360,6 +380,8 @@ export default function TranscriptionWorkPage() {
                 mediaPlayerRef={mediaPlayerRef}
                 marks={[]}
                 currentTime={currentTime}
+                mediaFileName={currentMedia?.name || ''}
+                currentProjectId={currentProject ? `proj-${currentProjectIndex}` : ''}
                 onSeek={(time) => {
                   console.log('Seek to time:', time);
                 }}

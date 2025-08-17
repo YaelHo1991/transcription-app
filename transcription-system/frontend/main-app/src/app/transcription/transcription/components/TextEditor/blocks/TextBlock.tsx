@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, KeyboardEvent, FocusEvent } from 'react';
 import { ProcessTextResult } from '../types/shortcuts';
+import TextHighlightOverlay from '../components/TextHighlightOverlay';
 import './TextBlock.css';
 
 export interface TextBlockData {
@@ -27,8 +28,13 @@ interface TextBlockProps {
   speakerColor?: string;
   currentTime?: number;
   fontSize?: number;
+  fontFamily?: 'default' | 'david';
   isIsolated?: boolean;
   showDescriptionTooltips?: boolean;
+  blockViewEnabled?: boolean;
+  speakerHighlights?: Array<{ startIndex: number; endIndex: number; isCurrent?: boolean }>;
+  textHighlights?: Array<{ startIndex: number; endIndex: number; isCurrent?: boolean }>;
+  onClick?: (ctrlKey: boolean, shiftKey: boolean) => void;
 }
 
 export default function TextBlock({
@@ -47,8 +53,13 @@ export default function TextBlock({
   speakerColor = '#333',
   currentTime = 0,
   fontSize = 16,
+  fontFamily = 'default',
   isIsolated = true,
-  showDescriptionTooltips = true
+  showDescriptionTooltips = true,
+  blockViewEnabled = true,
+  speakerHighlights = [],
+  textHighlights = [],
+  onClick
 }: TextBlockProps) {
   const speakerRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -56,50 +67,137 @@ export default function TextBlock({
   const [localText, setLocalText] = useState(block.text);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipMessage, setTooltipMessage] = useState('');
+  // Always start with RTL by default
   const [textDirection, setTextDirection] = useState<'rtl' | 'ltr'>('rtl');
   const [speakerDirection, setSpeakerDirection] = useState<'rtl' | 'ltr'>('rtl');
   const [currentInputMode, setCurrentInputMode] = useState<'rtl' | 'ltr'>('rtl');
+  const [cursorColor, setCursorColor] = useState<'hebrew' | 'english'>('hebrew');
   const [speakerDescription, setSpeakerDescription] = useState<string>('');
   const [showDescriptionTooltip, setShowDescriptionTooltip] = useState(false);
   const [nameCompletion, setNameCompletion] = useState<string>('');
+  const [fullSpeakerName, setFullSpeakerName] = useState<string>('');
+  const [isFullySelected, setIsFullySelected] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUpdatingFromProps = useRef(false);
+  const wasFullySelected = useRef(false);
+  
+  // Listen for setNextBlockText event (for auto-numbering)
+  useEffect(() => {
+    const handleSetNextBlockText = (event: CustomEvent) => {
+      if (isActive && activeArea === 'text' && textRef.current) {
+        const { text, cursorPosition } = event.detail;
+        setLocalText(text);
+        onUpdate(block.id, 'text', text);
+        
+        // Set cursor position after the list number
+        setTimeout(() => {
+          if (textRef.current) {
+            const pos = cursorPosition || text.length;
+            textRef.current.setSelectionRange(pos, pos);
+            textRef.current.focus();
+          }
+        }, 10);
+      }
+    };
+    
+    document.addEventListener('setNextBlockText', handleSetNextBlockText as EventListener);
+    return () => {
+      document.removeEventListener('setNextBlockText', handleSetNextBlockText as EventListener);
+    };
+  }, [isActive, activeArea, block.id, onUpdate]);
   
   // Detect if text is primarily Hebrew/Arabic (RTL) or Latin (LTR)
   const detectTextDirection = (text: string): 'rtl' | 'ltr' => {
     if (!text || text.length === 0) return 'rtl'; // Default to RTL for Hebrew
     
-    // Get the first meaningful character to determine initial direction
-    const firstChar = text.trim()[0];
-    if (firstChar) {
-      // Check if first character is Hebrew/Arabic
-      if (/[\u0590-\u05FF\u0600-\u06FF]/.test(firstChar)) {
-        return 'rtl';
-      }
-      // Check if first character is Latin
-      if (/[A-Za-z]/.test(firstChar)) {
-        return 'ltr';
-      }
+    // Remove numbers, punctuation and spaces for detection
+    const cleanText = text.replace(/[\d\s\.,;:!?\-()[\]{}'"]/g, '');
+    if (!cleanText) return 'rtl'; // Default to RTL if only numbers/punctuation
+    
+    // Check if ANY Hebrew/Arabic characters exist
+    const hasRTL = /[\u0590-\u05FF\u0600-\u06FF]/.test(cleanText);
+    
+    // If there's ANY Hebrew/Arabic, keep it RTL (for mixed text)
+    if (hasRTL) {
+      return 'rtl';
     }
     
-    // If no clear first character, count all chars
-    const rtlChars = (text.match(/[\u0590-\u05FF\u0600-\u06FF]/g) || []).length;
-    const ltrChars = (text.match(/[A-Za-z]/g) || []).length;
+    // Only use LTR if it's purely English (no Hebrew at all)
+    const hasLTR = /[A-Za-z]/.test(cleanText);
+    if (hasLTR && !hasRTL) {
+      return 'ltr';
+    }
     
-    // If more RTL chars or equal, use RTL
-    return rtlChars >= ltrChars ? 'rtl' : 'ltr';
+    // Default to RTL
+    return 'rtl';
   };
 
-  // Initialize directions based on existing content
+  // Initialize directions - FORCE RTL always
   useEffect(() => {
-    setTextDirection(detectTextDirection(block.text));
-    setSpeakerDirection(detectTextDirection(block.speaker));
-  }, [block.text, block.speaker]);
+    // FORCE RTL for text - never change
+    setTextDirection('rtl');
+    
+    // Update speaker direction based on content (speaker can still change)
+    const speakerToCheck = localSpeaker || block.speaker;
+    const newSpeakerDir = detectTextDirection(speakerToCheck);
+    if (newSpeakerDir !== speakerDirection) {
+      setSpeakerDirection(newSpeakerDir);
+    }
+  }, [block.text, block.speaker, localText, localSpeaker]);
   
   // Sync local state with block data
   useEffect(() => {
     setLocalSpeaker(block.speaker);
     setLocalText(block.text);
   }, [block.speaker, block.text]);
+
+  // Get full speaker name for regular view
+  useEffect(() => {
+    if (!blockViewEnabled && localSpeaker) {
+      // Remove any colons from the speaker value first
+      const cleanSpeaker = localSpeaker.replace(/:/g, '');
+      
+      // Check if the speaker is a single character code
+      const isSingleCharCode = cleanSpeaker.length === 1 && 
+        (/^[א-ת]$/.test(cleanSpeaker) || /^[A-Za-z]$/.test(cleanSpeaker));
+      
+      if (isSingleCharCode) {
+        // Request the full name for this code
+        const getSpeakerNameEvent = new CustomEvent('getSpeakerNameForCode', {
+          detail: {
+            code: cleanSpeaker,
+            callback: (fullName: string | null) => {
+              // Only use full name if it's different from the code (i.e., an actual name was set)
+              if (fullName && fullName !== cleanSpeaker) {
+                setFullSpeakerName(fullName);
+              } else {
+                // No name set, just show the code without colon
+                setFullSpeakerName(cleanSpeaker);
+              }
+            }
+          }
+        });
+        document.dispatchEvent(getSpeakerNameEvent);
+      } else {
+        // Already a full name - check if it exists in speakers
+        const checkExistingEvent = new CustomEvent('checkSpeakerNames', {
+          detail: {
+            inputText: cleanSpeaker,
+            callback: (existingNames: string[]) => {
+              // Check if this name exists in speakers
+              const exists = existingNames.some(name => 
+                name.toLowerCase() === cleanSpeaker.toLowerCase()
+              );
+              setFullSpeakerName(cleanSpeaker);
+            }
+          }
+        });
+        document.dispatchEvent(checkExistingEvent);
+      }
+    } else {
+      setFullSpeakerName('');
+    }
+  }, [localSpeaker, blockViewEnabled]);
 
   // Focus management
   useEffect(() => {
@@ -115,6 +213,9 @@ export default function TextBlock({
           }
         }, 10);
       }
+    } else {
+      // Clear name completion when block loses focus
+      setNameCompletion('');
     }
   }, [isActive, activeArea, cursorAtStart]);
 
@@ -135,6 +236,98 @@ export default function TextBlock({
     return /^[A-Za-z]$/.test(char);
   };
 
+  // Detect numbered lists in text (can be multiple lines)
+  const detectListInText = (text: string): { hasLists: boolean; lastNumber: number } => {
+    const lines = text.split('\n');
+    let lastNumber = 0;
+    let hasLists = false;
+    
+    for (const line of lines) {
+      // Match patterns like "1. " or "2. " anywhere in the line
+      const match = line.match(/^(\d+)\.\s+/);
+      if (match) {
+        hasLists = true;
+        lastNumber = Math.max(lastNumber, parseInt(match[1]));
+      }
+    }
+    
+    return { hasLists, lastNumber };
+  };
+
+  // Format list item with proper RTL support
+  const formatListItem = (number: number, isRtl?: boolean): string => {
+    if (isRtl || textDirection === 'rtl') {
+      // Add RLM before number to keep cursor moving right-to-left
+      return `\u200F${number}. `;
+    }
+    return `${number}. `;
+  };
+
+  // Auto-renumber lists when text changes
+  const renumberLists = (text: string): string => {
+    const lines = text.split('\n');
+    let listNumber = 0;
+    let inList = false;
+    
+    const renumberedLines = lines.map(line => {
+      // Check if line is a list item
+      const listMatch = line.match(/^[\u200F]?(\d+)\.\s+(.*)$/);
+      
+      if (listMatch) {
+        // This is a list item
+        if (!inList) {
+          // Start of a new list
+          listNumber = 1;
+          inList = true;
+        } else {
+          // Continue list
+          listNumber++;
+        }
+        
+        // Replace the old number with the new one
+        if (textDirection === 'rtl') {
+          return `\u200F${listNumber}. ${listMatch[2]}`;
+        } else {
+          return `${listNumber}. ${listMatch[2]}`;
+        }
+      } else if (line.trim() === '') {
+        // Empty line - could be end of list or just spacing
+        // Keep list going if next line is also a list
+        return line;
+      } else {
+        // Not a list item - end the list
+        inList = false;
+        listNumber = 0;
+        return line;
+      }
+    });
+    
+    return renumberedLines.join('\n');
+  };
+
+  // Auto-format lists when space is pressed after number.
+  const handleListFormatting = (text: string, cursorPos: number): { formatted: boolean; newText: string; newCursorPos: number } => {
+    // Check if we just typed "number. " at the beginning of a line
+    const beforeCursor = text.substring(0, cursorPos);
+    const lines = beforeCursor.split('\n');
+    const currentLine = lines[lines.length - 1];
+    
+    // Check if current line starts with a number followed by dot and we just pressed space
+    const match = currentLine.match(/^(\d+)\.\s$/);
+    
+    if (match && text[cursorPos - 1] === ' ') {
+      // This is a list item - no need to reformat, just mark as formatted
+      // so we know to handle Shift+Enter properly
+      return {
+        formatted: true,
+        newText: text,
+        newCursorPos: cursorPos
+      };
+    }
+    
+    return { formatted: false, newText: text, newCursorPos: cursorPos };
+  };
+
   // Show inline tooltip
   const displayTooltip = (message: string) => {
     setTooltipMessage(message);
@@ -146,25 +339,96 @@ export default function TextBlock({
   const tryTransformSpeaker = async (text: string) => {
     if (!text) return;
     
-    // Allow letters, numbers, and punctuation as valid codes/names
-    const isValid = /^[א-תA-Za-z0-9.,/;:\-*+!?()[\]]+$/.test(text);
+    // Remove colons before processing - colon is not part of the name
+    text = text.replace(/:/g, '');
+    
+    // Allow letters, numbers, and punctuation as valid codes/names (except colon)
+    const isValid = /^[א-תA-Za-z0-9.,/;\-*+!?()[\]]+$/.test(text);
     if (!isValid) return;
     
-    // Transform based on length:
-    // 1 char = code
-    // 2+ chars = name or code (handled by SimpleSpeaker)
-    const speakerName = await onSpeakerTransform(text);
-    
-    // Only update if we got a different value
-    if (speakerName && speakerName !== text) {
-      onUpdate(block.id, 'speaker', speakerName);
-    }
+    // First check if this is an existing speaker name - request speaker list
+    return new Promise<void>((resolve) => {
+      const checkSpeakerEvent = new CustomEvent('checkSpeakerNames', {
+        detail: {
+          inputText: text,
+          callback: async (existingNames: string[]) => {
+            // Check if input matches any existing speaker name
+            const matchedName = existingNames.find(name => 
+              name.toLowerCase() === text.toLowerCase()
+            );
+            
+            if (matchedName) {
+              // Found an exact match, use it
+              onUpdate(block.id, 'speaker', matchedName);
+            } else {
+              // Not an exact match, try transformation (code -> name)
+              const speakerName = await onSpeakerTransform(text);
+              
+              // Only update if we got a different value
+              if (speakerName && speakerName !== text) {
+                onUpdate(block.id, 'speaker', speakerName);
+              }
+            }
+            resolve();
+          }
+        }
+      });
+      document.dispatchEvent(checkSpeakerEvent);
+    });
   };
 
   // Handle speaker keydown
   const handleSpeakerKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
     const text = input.value;
+    
+    // Handle Ctrl+Shift+A for select all blocks (works with any case/language)
+    // Also check for Hebrew 'א' key
+    if (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA' || e.key === 'א')) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Check if blocks are already selected and toggle
+      const selectedBlocks = document.querySelectorAll('.block-selected');
+      if (selectedBlocks.length > 0) {
+        // Blocks are selected - unselect them
+        const event = new CustomEvent('clearBlockSelection');
+        document.dispatchEvent(event);
+      } else {
+        // No blocks selected - select all
+        const selectAllButton = document.querySelector('[title="בחר את כל הבלוקים"]') as HTMLButtonElement;
+        if (selectAllButton) {
+          selectAllButton.click();
+        }
+      }
+      return;
+    }
+    
+    // Handle Ctrl+A for select all blocks
+    if (e.ctrlKey && e.key === 'a') {
+      // Check if text was already fully selected BEFORE this Ctrl+A
+      if (wasFullySelected.current && input.value.length > 0) {
+        // Text was already selected - trigger select all blocks
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Try to click the select all button directly
+        const selectAllButton = document.querySelector('[title="בחר את כל הבלוקים"]') as HTMLButtonElement;
+        if (selectAllButton) {
+          selectAllButton.click();
+        }
+        
+        wasFullySelected.current = false; // Reset
+        return;
+      } else {
+        // First Ctrl+A - let browser select all, then mark as selected
+        setTimeout(() => {
+          wasFullySelected.current = input.selectionStart === 0 && 
+                                    input.selectionEnd === input.value.length && 
+                                    input.value.length > 0;
+        }, 10);
+      }
+    }
 
     // SPACE - Transform speaker code or navigate to text area
     if (e.key === ' ' && !e.shiftKey) {
@@ -177,6 +441,9 @@ export default function TextBlock({
         speakerRef.current.setAttribute('data-timestamp', currentTime.toString());
       }
       
+      // Clear name completion when moving to text
+      setNameCompletion('');
+      
       // Move to text area
       onNavigate('text', 'speaker');
       return;
@@ -186,6 +453,7 @@ export default function TextBlock({
     if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       await tryTransformSpeaker(text);
+      setNameCompletion(''); // Clear completion when navigating
       onNavigate('next', 'speaker');
     }
 
@@ -265,11 +533,12 @@ export default function TextBlock({
     }
 
     // Arrow navigation - UP/DOWN for blocks, LEFT/RIGHT for fields (RTL aware)
-    if (e.key === 'ArrowUp') {
+    // Allow Shift+Ctrl+Arrow for text selection
+    if (e.key === 'ArrowUp' && !e.shiftKey) {
       e.preventDefault();
       await tryTransformSpeaker(text);
       onNavigate('up', 'speaker');  // Go to previous block, same field (speaker)
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' && !e.shiftKey) {
       e.preventDefault();
       await tryTransformSpeaker(text);
       onNavigate('down', 'speaker');  // Go to next block, same field (speaker)
@@ -296,6 +565,79 @@ export default function TextBlock({
   const handleTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = e.currentTarget;
     const text = textarea.value;
+    
+    // Update cursor color when moving with arrow keys
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+      setTimeout(() => {
+        const pos = textarea.selectionStart;
+        if (pos >= 0 && text) {
+          const charBeforeCursor = text[pos - 1] || '';
+          const charAtCursor = text[pos] || '';
+          
+          const hebrewPattern = /[\u0590-\u05FF]/;
+          const englishPattern = /[A-Za-z]/;
+          
+          if (hebrewPattern.test(charBeforeCursor) || hebrewPattern.test(charAtCursor)) {
+            setCursorColor('hebrew');
+          } else if (englishPattern.test(charBeforeCursor) || englishPattern.test(charAtCursor)) {
+            setCursorColor('english');
+          }
+        }
+      }, 0);
+    }
+    
+    // Handle Ctrl+Shift+A for select all blocks (works with any case/language)
+    // Also check for Hebrew 'א' key
+    if (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA' || e.key === 'א')) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Check if blocks are already selected and toggle
+      const selectedBlocks = document.querySelectorAll('.block-selected');
+      if (selectedBlocks.length > 0) {
+        // Blocks are selected - unselect them
+        const event = new CustomEvent('clearBlockSelection');
+        document.dispatchEvent(event);
+      } else {
+        // No blocks selected - select all
+        const selectAllButton = document.querySelector('[title="בחר את כל הבלוקים"]') as HTMLButtonElement;
+        if (selectAllButton) {
+          selectAllButton.click();
+        }
+      }
+      return;
+    }
+    
+    // Handle Ctrl+A for select all blocks
+    if (e.ctrlKey && e.key === 'a') {
+      // Check if text was already fully selected BEFORE this Ctrl+A
+      if (wasFullySelected.current && textarea.value.length > 0) {
+        // Text was already selected - trigger select all blocks
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Dispatch event to select all blocks or trigger directly
+        const event = new CustomEvent('requestSelectAllBlocks');
+        document.dispatchEvent(event);
+        
+        // Also try to call the function directly via the onSelectAllBlocks prop if available
+        const selectAllButton = document.querySelector('[title="בחר את כל הבלוקים"]') as HTMLButtonElement;
+        if (selectAllButton) {
+          selectAllButton.click();
+        }
+        
+        wasFullySelected.current = false; // Reset
+        return;
+      } else {
+        // First Ctrl+A - let browser select all, then mark as selected
+        setTimeout(() => {
+          wasFullySelected.current = textarea.selectionStart === 0 && 
+                                    textarea.selectionEnd === textarea.value.length && 
+                                    textarea.value.length > 0;
+        }, 10);
+      }
+    }
+
 
     // HOME key - Move to beginning of current line or navigate
     if (e.key === 'Home') {
@@ -381,28 +723,122 @@ export default function TextBlock({
       onNavigate('speaker', 'text');
     }
 
-    // ENTER - Create new block (no validation)
+    // ENTER - Create new block
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onNewBlock();
     }
 
-    // SHIFT+ENTER - Insert line break in same block
+    // SHIFT+ENTER - Insert line break and continue list if applicable
     if (e.key === 'Enter' && e.shiftKey) {
-      // Allow default behavior - contentEditable will handle the line break
-      // Don't prevent default, let it insert a newline
+      e.preventDefault();
+      
+      const cursorPos = textarea.selectionStart;
+      const beforeCursor = text.substring(0, cursorPos);
+      const afterCursor = text.substring(cursorPos);
+      
+      // Split into lines to check current line
+      const lines = beforeCursor.split('\n');
+      const currentLine = lines[lines.length - 1];
+      
+      // Check if current line is a list item (has content after the number)
+      // Match both with and without RLM mark, and handle both single and multiple spaces
+      const listMatch = currentLine.match(/^[\u200F]?(\d+)\.\s*(.*)$/) || currentLine.match(/^(\d+)\.\s*(.*)$/);
+      
+      if (listMatch && listMatch[2] && listMatch[2].trim().length > 0) {
+        // We're in a list item with content, insert a new list item
+        // Just insert a placeholder number, then renumber the whole text
+        const nextListItem = formatListItem(999, textDirection === 'rtl'); // Placeholder
+        let newText = beforeCursor + '\n' + nextListItem + afterCursor;
+        
+        // Renumber all lists in the text
+        newText = renumberLists(newText);
+        
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+        
+        // Position cursor after the new list number
+        setTimeout(() => {
+          if (textRef.current) {
+            // Find the actual new list item position after renumbering
+            const lines = newText.substring(0, beforeCursor.length + 10).split('\n');
+            const newLineIndex = lines.length - 1;
+            const newLine = lines[newLineIndex];
+            const listItemMatch = newLine.match(/^[\u200F]?(\d+)\.\s*/);
+            const newPos = beforeCursor.length + 1 + (listItemMatch ? listItemMatch[0].length : 0);
+            
+            textRef.current.setSelectionRange(newPos, newPos);
+            // Auto-resize
+            textRef.current.style.height = 'auto';
+            textRef.current.style.height = textRef.current.scrollHeight + 'px';
+          }
+        }, 0);
+      } else if (listMatch && (!listMatch[2] || !listMatch[2].trim())) {
+        // Empty list item - remove the number and end the list (Word-like behavior)
+        // Remove the list number and RLM if present
+        const newText = beforeCursor.replace(/[\u200F]?\d+\.\s*$/, '') + afterCursor;
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+        
+        setTimeout(() => {
+          if (textRef.current) {
+            // Position cursor at the end of the line where the number was removed
+            const newPos = newText.length - afterCursor.length;
+            textRef.current.setSelectionRange(newPos, newPos);
+            textRef.current.style.height = 'auto';
+            textRef.current.style.height = textRef.current.scrollHeight + 'px';
+          }
+        }, 0);
+      } else {
+        // Not in a list, just add a line break
+        const newText = beforeCursor + '\n' + afterCursor;
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+        
+        setTimeout(() => {
+          if (textRef.current) {
+            const newPos = beforeCursor.length + 1;
+            textRef.current.setSelectionRange(newPos, newPos);
+            textRef.current.style.height = 'auto';
+            textRef.current.style.height = textRef.current.scrollHeight + 'px';
+          }
+        }, 0);
+      }
+      
       return;
     }
 
-    // BACKSPACE - Navigate when at beginning (like in SpeakerBlock)
+    // BACKSPACE - Navigate when at beginning or renumber lists
     if (e.key === 'Backspace') {
       // Check if cursor is at the beginning
       if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
         e.preventDefault();
         // Navigate to speaker field
         onNavigate('speaker', 'text');
+      } else {
+        // Check if we're about to delete something that might affect list numbering
+        const cursorPos = textarea.selectionStart;
+        const selectionEnd = textarea.selectionEnd;
+        
+        // If we're deleting a selection or at the start of a list number
+        if (cursorPos !== selectionEnd || text[cursorPos - 1] === '\n') {
+          // Let the deletion happen, then renumber
+          setTimeout(() => {
+            const updatedText = textRef.current?.value;
+            if (updatedText && updatedText !== text) {
+              const renumbered = renumberLists(updatedText);
+              if (renumbered !== updatedText) {
+                setLocalText(renumbered);
+                onUpdate(block.id, 'text', renumbered);
+                // Maintain cursor position
+                if (textRef.current) {
+                  textRef.current.setSelectionRange(cursorPos - 1, cursorPos - 1);
+                }
+              }
+            }
+          }, 0);
+        }
       }
-      // Otherwise let normal backspace work
     }
 
     // DELETE - Delete forward or merge with next block
@@ -420,27 +856,52 @@ export default function TextBlock({
 
     // Arrow navigation - UP/DOWN for blocks (only at edges), LEFT/RIGHT for fields (RTL aware)
     if (e.key === 'ArrowUp') {
-      // Check if we're at the first line of the textarea
+      // Only navigate between blocks if we're truly at the first line
       const cursorPos = textarea.selectionStart;
       const textBeforeCursor = textarea.value.substring(0, cursorPos);
-      const linesBeforeCursor = textBeforeCursor.split('\n');
       
-      if (linesBeforeCursor.length === 1) {
-        // We're on the first line, navigate to previous block
-        e.preventDefault();
-        onNavigate('up', 'text');
+      // Check if there are no newlines before cursor (meaning we're on first line)
+      if (!textBeforeCursor.includes('\n')) {
+        // Now check if cursor can actually move up within the current line
+        const { selectionStart } = textarea;
+        textarea.selectionStart = 0; // Try to move to start
+        textarea.selectionEnd = 0;
+        
+        // Check if cursor actually moved
+        const couldMoveUp = textarea.selectionStart !== selectionStart;
+        textarea.selectionStart = selectionStart; // Restore position
+        textarea.selectionEnd = selectionStart;
+        
+        if (!couldMoveUp) {
+          // Can't move up within text, navigate to previous block
+          e.preventDefault();
+          onNavigate('up', 'text');
+        }
       }
       // Otherwise let the cursor move naturally within the text
     } else if (e.key === 'ArrowDown') {
-      // Check if we're at the last line of the textarea
+      // Only navigate between blocks if we're truly at the last line
       const cursorPos = textarea.selectionStart;
       const textAfterCursor = textarea.value.substring(cursorPos);
-      const linesAfterCursor = textAfterCursor.split('\n');
       
-      if (linesAfterCursor.length === 1 || (linesAfterCursor.length === 2 && linesAfterCursor[1] === '')) {
-        // We're on the last line, navigate to next block
-        e.preventDefault();
-        onNavigate('down', 'text');
+      // Check if there are no newlines after cursor (meaning we're on last line)
+      if (!textAfterCursor.includes('\n')) {
+        // Now check if cursor can actually move down within the current line
+        const { selectionStart } = textarea;
+        const endPos = textarea.value.length;
+        textarea.selectionStart = endPos; // Try to move to end
+        textarea.selectionEnd = endPos;
+        
+        // Check if cursor actually moved
+        const couldMoveDown = textarea.selectionStart !== selectionStart;
+        textarea.selectionStart = selectionStart; // Restore position
+        textarea.selectionEnd = selectionStart;
+        
+        if (!couldMoveDown || cursorPos === textarea.value.length) {
+          // Can't move down within text or at end, navigate to next block
+          e.preventDefault();
+          onNavigate('down', 'text');
+        }
       }
       // Otherwise let the cursor move naturally within the text
     } else if (e.key === 'ArrowLeft') {
@@ -474,7 +935,11 @@ export default function TextBlock({
 
   // Handle speaker input change
   const handleSpeakerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    let value = e.target.value;
+    
+    // Always remove colons from the value - colon is only visual
+    value = value.replace(/:/g, '');
+    
     setLocalSpeaker(value);
     onUpdate(block.id, 'speaker', value);
     
@@ -532,6 +997,33 @@ export default function TextBlock({
     let value = e.target.value;
     const cursorPos = e.target.selectionStart;
     
+    // Remove the RLM handling for now - it might be causing the jumping
+    // Just let the browser handle mixed text naturally
+    
+    // Check for list formatting when space is pressed
+    if (value.length > localText.length && value[cursorPos - 1] === ' ') {
+      const listResult = handleListFormatting(value, cursorPos);
+      if (listResult.formatted) {
+        value = listResult.newText;
+        setLocalText(value);
+        onUpdate(block.id, 'text', value);
+        
+        // Set cursor position
+        setTimeout(() => {
+          if (textRef.current) {
+            textRef.current.setSelectionRange(listResult.newCursorPos, listResult.newCursorPos);
+          }
+        }, 0);
+        
+        // Auto-resize
+        if (textRef.current) {
+          textRef.current.style.height = 'auto';
+          textRef.current.style.height = textRef.current.scrollHeight + 'px';
+        }
+        return;
+      }
+    }
+    
     // Check for shortcuts processing (on space)
     if (onProcessShortcuts && localText.length < value.length && cursorPos > 0 && value[cursorPos - 1] === ' ') {
       // Process the text BEFORE the space
@@ -561,8 +1053,52 @@ export default function TextBlock({
       value = value.replace('...', timestamp);
     }
     
+    // Check if lists need renumbering (but avoid doing it while typing in the middle of text)
+    const needsRenumber = value.includes('\n') && (
+      value.match(/^[\u200F]?\d+\.\s+/m) || // Has list items
+      localText.match(/^[\u200F]?\d+\.\s+/m) // Had list items
+    );
+    
+    if (needsRenumber && Math.abs(value.length - localText.length) > 1) {
+      // Significant change (not just typing a character) - renumber lists
+      const renumbered = renumberLists(value);
+      if (renumbered !== value) {
+        value = renumbered;
+        // Adjust cursor position if needed
+        setTimeout(() => {
+          if (textRef.current && cursorPos) {
+            textRef.current.setSelectionRange(cursorPos, cursorPos);
+          }
+        }, 0);
+      }
+    }
+    
     setLocalText(value);
     onUpdate(block.id, 'text', value);
+    
+    // ALWAYS keep RTL - never change direction to prevent jumping
+    // The text will stay on the right and not jump around
+    if (textDirection !== 'rtl') {
+      setTextDirection('rtl');
+    }
+    
+    // Detect cursor language based on what's around the cursor
+    if (cursorPos > 0) {
+      // Check the character before cursor
+      const charBeforeCursor = value[cursorPos - 1];
+      const charAtCursor = value[cursorPos] || '';
+      
+      // Check if we're in Hebrew or English context
+      const hebrewPattern = /[\u0590-\u05FF]/;
+      const englishPattern = /[A-Za-z]/;
+      
+      if (hebrewPattern.test(charBeforeCursor) || hebrewPattern.test(charAtCursor)) {
+        setCursorColor('hebrew');
+      } else if (englishPattern.test(charBeforeCursor) || englishPattern.test(charAtCursor)) {
+        setCursorColor('english');
+      }
+      // Otherwise keep current color
+    }
     
     // Auto-resize textarea
     const textarea = e.target;
@@ -611,18 +1147,36 @@ export default function TextBlock({
     const direction = detectTextDirection(input.value);
     setSpeakerDirection(direction);
     setCurrentInputMode(direction);
+    // Reset selection tracking
+    wasFullySelected.current = false;
+  };
+  
+  const handleSpeakerBlur = (e: FocusEvent<HTMLInputElement>) => {
+    // Reset selection tracking when losing focus
+    wasFullySelected.current = false;
   };
 
   const handleTextFocus = (e: FocusEvent<HTMLTextAreaElement>) => {
-    const textarea = e.currentTarget;
-    // Detect text direction based on existing content
-    const direction = detectTextDirection(textarea.value);
-    setTextDirection(direction);
-    setCurrentInputMode(direction);
+    // ALWAYS keep RTL - never change direction
+    if (textDirection !== 'rtl') {
+      setTextDirection('rtl');
+    }
+    setCurrentInputMode('rtl');
+    // Reset selection tracking
+    wasFullySelected.current = false;
+  };
+  
+  const handleTextBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+    // Reset selection tracking when losing focus
+    wasFullySelected.current = false;
   };
 
-  // Handle click on block for navigation mode
+  // Handle click on block for navigation mode and multi-select
   const handleBlockClick = (e: React.MouseEvent) => {
+    // Handle multi-select if onClick prop is provided
+    if (onClick) {
+      onClick(e.ctrlKey, e.shiftKey);
+    }
     // Check if click was on a timestamp in the text
     const target = e.target as HTMLElement;
     if (target.tagName === 'TEXTAREA') {
@@ -677,25 +1231,49 @@ export default function TextBlock({
     document.dispatchEvent(navModeEvent);
   };
 
+  // Check if block has highlights
+  const hasHighlight = speakerHighlights.length > 0 || textHighlights.length > 0;
+  const hasCurrentHighlight = speakerHighlights.some(h => h.isCurrent) || textHighlights.some(h => h.isCurrent);
+
   return (
     <div 
-      className={`text-block ${isActive ? 'active' : ''} ${!isIsolated ? 'non-isolated' : ''}`} 
+      className={`text-block ${isActive ? 'active' : ''} ${!isIsolated ? 'non-isolated' : ''} ${hasCurrentHighlight ? 'has-current-highlight' : hasHighlight ? 'has-highlight' : ''} ${!blockViewEnabled ? 'regular-view' : ''}`} 
       style={{ 
         fontSize: `${fontSize}px`,
-        borderLeftColor: isIsolated ? speakerColor : '#cbd5e1',
-        borderRightColor: isIsolated ? speakerColor : '#cbd5e1'
+        borderLeftColor: blockViewEnabled ? (isIsolated ? speakerColor : '#cbd5e1') : 'transparent',
+        borderRightColor: blockViewEnabled ? (isIsolated ? speakerColor : '#cbd5e1') : 'transparent',
+        borderLeftWidth: blockViewEnabled ? '4px' : '0',
+        borderRightWidth: blockViewEnabled ? '4px' : '0'
       }}
       onClick={handleBlockClick}
     >
-      <div className="speaker-input-wrapper">
+      {hasCurrentHighlight && (
+        <div className="search-highlight-marker" />
+      )}
+      <div className="speaker-input-wrapper" style={{ position: 'relative' }}>
+        {speakerHighlights.length > 0 && (
+          <TextHighlightOverlay
+            text={localSpeaker}
+            highlights={speakerHighlights}
+            targetRef={speakerRef}
+            isTextArea={false}
+          />
+        )}
         <input
         ref={speakerRef}
         className="block-speaker"
         type="text"
-        value={localSpeaker}
+        value={blockViewEnabled ? localSpeaker : (() => {
+          if (!fullSpeakerName) return '';
+          // Only add colon for multi-character names (not single codes)
+          const isSingleCode = fullSpeakerName.length === 1 && 
+            (/^[א-ת]$/.test(fullSpeakerName) || /^[A-Za-z]$/.test(fullSpeakerName));
+          return isSingleCode ? fullSpeakerName : `${fullSpeakerName}:`;
+        })()}
         onChange={handleSpeakerChange}
         onKeyDown={handleSpeakerKeyDown}
         onFocus={handleSpeakerFocus}
+        onBlur={handleSpeakerBlur}
         placeholder="דובר"
         dir={speakerDirection}
         style={{ 
@@ -703,39 +1281,61 @@ export default function TextBlock({
           direction: speakerDirection,
           textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
           fontSize: `${fontSize}px`,
-          fontWeight: isIsolated ? 600 : 400
+          fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
+          fontWeight: isIsolated ? 600 : 400,
+          position: 'relative',
+          zIndex: 2,
+          background: 'transparent'
         }}
         data-timestamp={block.speakerTime}
         />
-        {nameCompletion && (
+        {blockViewEnabled && nameCompletion && (
           <span className="name-completion" style={{ fontSize: `${fontSize}px` }}>
             {nameCompletion}
           </span>
         )}
       </div>
       
-      <span className="block-separator" style={{ fontSize: `${fontSize}px` }}>:</span>
+      {blockViewEnabled && (
+        <span className="block-separator" style={{ fontSize: `${fontSize}px` }}>:</span>
+      )}
       
-      <textarea
-        ref={textRef}
-        className="block-text"
-        value={localText}
-        onChange={handleTextChange}
-        onKeyDown={handleTextKeyDown}
-        onFocus={handleTextFocus}
-        placeholder={isFirstBlock ? "הקלד טקסט כאן..." : ""}
-        dir={textDirection}
-        style={{ 
-          direction: textDirection,
-          textAlign: textDirection === 'rtl' ? 'right' : 'left',
-          resize: 'none',
-          overflow: 'hidden',
-          fontSize: `${fontSize}px`,
-          color: isIsolated ? 'inherit' : '#94a3b8',
-          fontWeight: isIsolated ? 'normal' : 300
-        }}
-        rows={1}
-      />
+      <div style={{ position: 'relative', flex: 1 }}>
+        {textHighlights.length > 0 && (
+          <TextHighlightOverlay
+            text={localText}
+            highlights={textHighlights}
+            targetRef={textRef}
+            isTextArea={true}
+          />
+        )}
+        <textarea
+          ref={textRef}
+          className="block-text"
+          value={localText}
+          onChange={handleTextChange}
+          onKeyDown={handleTextKeyDown}
+          onFocus={handleTextFocus}
+          onBlur={handleTextBlur}
+          placeholder={isFirstBlock ? "הקלד טקסט כאן..." : ""}
+          dir="rtl"
+          style={{ 
+            direction: 'rtl',
+            textAlign: 'right',
+            resize: 'none',
+            overflow: 'hidden',
+            fontSize: `${fontSize}px`,
+            fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
+            color: isIsolated ? 'inherit' : '#94a3b8',
+            caretColor: cursorColor === 'english' ? '#2196f3' : '#e91e63',
+            fontWeight: isIsolated ? 'normal' : 300,
+            position: 'relative',
+            zIndex: 2,
+            background: 'transparent'
+          }}
+          rows={1}
+        />
+      </div>
       
       {showTooltip && (
         <div className="text-block-tooltip">
