@@ -1,0 +1,54 @@
+Template Instructions for Word Document with Formatted Content
+=============================================================
+
+Create a new Word document with these settings:
+1. Set language to Hebrew (Review → Language → Hebrew)
+2. Set text direction to RTL (Layout → Text Direction → Right-to-Left)
+3. Set font to David or Arial Hebrew
+
+Then add this content to your template:
+
+---
+
+שם הקובץ: {fileName}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+דוברים: {speakers}
+זמן הקלטה: {duration} דקות
+תאריך: {date}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION 1 - Use structured blocks loop (RECOMMENDED):
+-----------------------------------------------------
+{#formattedBlocks}
+{lineNumber}		{speaker}:		{text}
+{/formattedBlocks}
+
+Notes for Option 1:
+- The template will receive an array of blocks
+- Each block has: lineNumber, speaker, text, hasSpeaker
+- You can apply bold formatting to {speaker}: in Word
+- Use TAB characters between elements for proper spacing
+- Set tab stops at appropriate positions (e.g., 1cm, 3cm)
+
+OPTION 2 - Use single formatted content block:
+-----------------------------------------------
+{formattedContent}
+
+Notes for Option 2:
+- This receives pre-formatted text as a single block
+- Formatting is included but may not be preserved
+- Less control over individual elements
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Important:
+1. Save the document as .docx format
+2. Upload it in the export modal
+3. Click "Test Pre-formatted" button to test
+
+For best results with Option 1:
+- Select the {speaker}: text and make it bold
+- Set paragraph formatting to justified
+- Add tab stops at 1cm and 3cm positions
+- Ensure RTL paragraph direction is set

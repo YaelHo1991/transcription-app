@@ -888,10 +888,16 @@ export default function TextBlock({
         
         setTimeout(() => {
           if (textRef.current) {
+            // Position cursor after the new line
             const newPos = beforeCursor.length + 1;
             textRef.current.setSelectionRange(newPos, newPos);
+            
+            // Then resize the textarea to fit content
             textRef.current.style.height = 'auto';
             textRef.current.style.height = textRef.current.scrollHeight + 'px';
+            
+            // Ensure the textarea stays focused without jumping
+            // No need to call focus() as the textarea is already focused
           }
         }, 0);
       }

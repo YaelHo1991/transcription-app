@@ -15,6 +15,8 @@ import MediaLinkModal from './components/MediaLinkModal';
 import SearchReplaceModal, { SearchOptions, SearchResult } from './components/SearchReplaceModal';
 import SpeakerSwapModal from './components/SpeakerSwapModal';
 import AutoCorrectModal, { AutoCorrectSettings } from './components/AutoCorrectModal';
+import DocumentExportModal from './components/DocumentExportModal';
+import HTMLPreviewModal from './components/HTMLPreviewModal';
 import { AutoCorrectEngine } from './utils/AutoCorrectEngine';
 import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
@@ -34,6 +36,7 @@ export default function TextEditor({
   onMarkClick,
   enabled = true,
   mediaFileName = '',
+  mediaDuration = '',
   currentProjectId = ''
 }: TextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -71,6 +74,8 @@ export default function TextEditor({
   const [showSpeakerSwapModal, setShowSpeakerSwapModal] = useState(false);
   const [inputLanguage, setInputLanguage] = useState<'hebrew' | 'english'>('hebrew');
   const [showAutoCorrectModal, setShowAutoCorrectModal] = useState(false);
+  const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
+  const [showHTMLPreviewModal, setShowHTMLPreviewModal] = useState(false);
   const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>({
     blockDuplicateSpeakers: true,
     requirePunctuation: true,
@@ -439,8 +444,12 @@ export default function TextEditor({
     const initShortcuts = async () => {
       try {
         // Load shortcuts from public endpoint (no auth required for now)
-        const response = await fetch('http://localhost:5000/api/transcription/shortcuts/public');
-        if (response.ok) {
+        const response = await fetch('http://localhost:5000/api/transcription/shortcuts/public').catch((err) => {
+          console.warn('TextEditor: Shortcuts endpoint not available, using defaults');
+          return null;
+        });
+        
+        if (response && response.ok) {
           const data = await response.json();
           const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
           shortcutsMap.clear();
@@ -449,9 +458,17 @@ export default function TextEditor({
           });
           console.log('TextEditor: Loaded', shortcutsMap.size, 'shortcuts');
           setLoadedShortcuts(new Map(shortcutsMap));
+        } else {
+          // Use default shortcuts if endpoint fails
+          console.log('TextEditor: Using default shortcuts');
+          const defaultShortcuts = shortcutManagerRef.current.getAllShortcuts();
+          setLoadedShortcuts(new Map(defaultShortcuts));
         }
       } catch (error) {
-        console.error('TextEditor: Failed to load shortcuts:', error);
+        console.warn('TextEditor: Failed to load shortcuts, using defaults');
+        // Use default shortcuts on error
+        const defaultShortcuts = shortcutManagerRef.current.getAllShortcuts();
+        setLoadedShortcuts(new Map(defaultShortcuts));
       }
     };
     
@@ -1434,6 +1451,8 @@ export default function TextEditor({
             setShowVersionHistoryModal={setShowVersionHistoryModal}
             setShowMediaLinkModal={setShowMediaLinkModal}
             setShowSearchReplaceModal={setShowSearchReplaceModal}
+            setShowDocumentExportModal={setShowDocumentExportModal}
+            setShowHTMLPreviewModal={setShowHTMLPreviewModal}
             currentTranscriptionId={currentTranscriptionId}
             handleTranscriptionChange={handleTranscriptionChange}
             fontSize={fontSize}
@@ -1693,6 +1712,28 @@ export default function TextEditor({
         onClose={() => setShowAutoCorrectModal(false)}
         settings={autoCorrectSettings}
         onSettingsChange={setAutoCorrectSettings}
+      />
+      
+      {/* Document Export Modal */}
+      <DocumentExportModal
+        isOpen={showDocumentExportModal}
+        onClose={() => setShowDocumentExportModal(false)}
+        blocks={blocks}
+        speakers={speakerNamesRef.current}
+        mediaFileName={currentMediaFileName}
+        mediaDuration={mediaDuration}
+        onExportComplete={(format) => {
+          showFeedback(`המסמך יוצא בהצלחה בפורמט ${format}`);
+        }}
+      />
+
+      <HTMLPreviewModal
+        isOpen={showHTMLPreviewModal}
+        onClose={() => setShowHTMLPreviewModal(false)}
+        blocks={blocks}
+        speakers={speakerNamesRef.current}
+        mediaFileName={currentMediaFileName}
+        mediaDuration={mediaDuration}
       />
       
       {/* Feedback Message Display */}

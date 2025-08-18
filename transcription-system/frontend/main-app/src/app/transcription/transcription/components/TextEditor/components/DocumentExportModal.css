@@ -1,0 +1,438 @@
+/* Document Export Modal Styles */
+.doc-export-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  max-width: 90vw;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 10001;
+  color: #333;
+  overflow: hidden;
+}
+
+
+.doc-export-header {
+  padding: 20px;
+  background: #26a69a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.doc-export-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.doc-export-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.doc-export-close:hover {
+  opacity: 0.8;
+}
+
+.doc-export-body {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #f8f9fa;
+}
+
+/* Modal Overlay */
+.doc-export-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+}
+
+/* Export Sections */
+.doc-export-section {
+  margin-bottom: 24px;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+
+.doc-export-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #00897b;
+  text-align: right;
+  direction: rtl;
+}
+
+/* Format Options */
+.doc-format-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.doc-format-option {
+  flex: 1;
+  min-width: 140px;
+  padding: 20px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  background: white !important;
+  background-color: white !important;
+  background-image: none !important;
+}
+
+.doc-format-option:hover:not(.disabled) {
+  border-color: #26a69a;
+  background: #e8f5f3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(38, 166, 154, 0.15);
+}
+
+.doc-format-option.selected {
+  border-color: #26a69a;
+  background: #e8f5f3;
+  box-shadow: 0 2px 8px rgba(38, 166, 154, 0.2);
+}
+
+.doc-format-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.doc-format-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+}
+
+.format-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.format-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #00695c;
+}
+
+.format-desc {
+  font-size: 12px;
+  color: #00897b;
+  line-height: 1.3;
+}
+
+/* Export Options */
+.doc-export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+
+.option-checkbox:hover {
+  background: #e8f5f3;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 0 -10px;
+}
+
+.option-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #26a69a;
+}
+
+.option-checkbox span {
+  font-size: 14px;
+  color: #333;
+}
+
+/* Filename Section */
+.doc-export-section:has(.filename-input) {
+  direction: rtl;
+}
+
+/* Filename Input */
+.filename-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  direction: ltr;
+  text-align: right;
+  background: white;
+  color: #333;
+  transition: border-color 0.2s;
+}
+
+.filename-input:focus {
+  outline: none;
+  border-color: #26a69a;
+  box-shadow: 0 0 0 2px rgba(38, 166, 154, 0.1);
+}
+
+.filename-input::placeholder {
+  color: #999;
+}
+
+/* Preview Section */
+.preview-section {
+  background: #f0faf8 !important;
+  background-color: #f0faf8 !important;
+  background-image: none !important;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #b2dfdb;
+}
+
+.preview-box {
+  background: white !important;
+  background-color: white !important;
+  background-image: none !important;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.preview-line {
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.preview-line:last-child {
+  margin-bottom: 0;
+}
+
+.preview-line strong {
+  color: #00897b;
+  font-weight: 600;
+}
+
+/* Modal Footer */
+.doc-export-footer {
+  padding: 16px 20px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.doc-export-footer .btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doc-export-footer .btn-primary {
+  background: #26a69a;
+  color: white;
+}
+
+.doc-export-footer .btn-primary:hover:not(:disabled) {
+  background: #00897b;
+}
+
+.doc-export-footer .btn-body-only {
+  background: #5c6bc0;
+  color: white;
+  border: none;
+}
+
+.doc-export-footer .btn-body-only:hover:not(:disabled) {
+  background: #3f51b5;
+}
+
+.doc-export-footer .btn-combine {
+  background: #ff6f00;
+  color: white;
+  border: none;
+}
+
+.doc-export-footer .btn-combine:hover:not(:disabled) {
+  background: #e65100;
+}
+
+.doc-export-footer .btn-test {
+  background: #ff9800;
+  color: white;
+  border: none;
+  font-weight: 600;
+}
+
+.doc-export-footer .btn-test:hover:not(:disabled) {
+  background: #f57c00;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
+.doc-export-footer .btn-secondary {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.doc-export-footer .btn-secondary:hover:not(:disabled) {
+  background: #e8f5f3;
+  color: #26a69a;
+  border-color: #26a69a;
+}
+
+.doc-export-footer .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Scrollbar Styling */
+.doc-export-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.doc-export-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.doc-export-body::-webkit-scrollbar-thumb {
+  background: #26a69a;
+  border-radius: 4px;
+}
+
+.doc-export-body::-webkit-scrollbar-thumb:hover {
+  background: #00897b;
+}
+
+/* Template Upload Section */
+.template-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.template-upload-btn {
+  padding: 12px 20px;
+  background: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.template-upload-btn:hover {
+  background: #357abd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.template-loaded {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #e8f4fd;
+  border: 1px solid #4a90e2;
+  border-radius: 8px;
+}
+
+.template-name {
+  color: #2e5a8e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.template-clear-btn {
+  padding: 6px 12px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.template-clear-btn:hover {
+  background: #d32f2f;
+}
+
+.template-info {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  direction: ltr;
+}
+
+.template-info small {
+  color: #666;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .doc-export-container {
+    width: 95vw;
+  }
+  
+  .doc-format-options {
+    flex-direction: column;
+  }
+  
+  .doc-format-option {
+    min-width: 100%;
+  }
+}
