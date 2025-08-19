@@ -91,6 +91,7 @@ git commit -m "feat: Implement Type 4 pinned reference items in Remarks"
 ## 🎯 Stage 3: In-Text Tags System
 **Timeline**: 2-3 days  
 **Goal**: Implement `[` triggered tags in TextEditor
+**Status**: NOT STARTED
 
 ### Development Tasks
 - [ ] Add `[` key detection in TextBlock
@@ -129,9 +130,10 @@ git commit -m "feat: Add in-text tags system with dropdown menu"
 
 ---
 
-## 🎯 Stage 4: Type 1 - Uncertainty Remarks
+## 🎯 Stage 4: Type 1 - Uncertainty Remarks ✅ (Partial)
 **Timeline**: 3-4 days  
 **Goal**: Implement `...` transformation to timestamps
+**Status**: PARTIALLY COMPLETED - 2025-08-19
 
 ### Development Tasks
 - [ ] Detect `...` input in TextBlock
@@ -139,10 +141,10 @@ git commit -m "feat: Add in-text tags system with dropdown menu"
 - [ ] Capture content inside brackets
 - [ ] Move to Remarks when cursor leaves
 - [ ] Add timestamp from MediaPlayer
-- [ ] Implement click-to-navigate
+- [x] Implement click-to-navigate
 - [ ] Add hover preview (context ±5 seconds)
-- [ ] Add confidence levels (?/??)
-- [ ] Style with light teal color
+- [x] Add confidence levels (?/??)
+- [x] Style with light teal color
 
 ### Testing Checklist
 - [ ] `...` transforms correctly
@@ -296,18 +298,19 @@ git commit -m "feat: Add navigation and media synchronization for remarks"
 
 ---
 
-## 🎯 Stage 8: Filtering & Sorting
+## 🎯 Stage 8: Filtering & Sorting ✅ (Partial)
 **Timeline**: 1-2 days  
 **Goal**: Add organization features
+**Status**: PARTIALLY COMPLETED - 2025-08-19
 
 ### Development Tasks
-- [ ] Create filter buttons for types
-- [ ] Implement sort options (time/type/status)
+- [x] Create filter buttons for types
+- [x] Implement sort options (time/type/status)
 - [ ] Add search functionality
 - [ ] Create bulk selection
 - [ ] Add show/hide resolved
 - [ ] Implement isolation mode
-- [ ] Add statistics counter
+- [x] Add statistics counter
 
 ### Testing Checklist
 - [ ] Filters work correctly
@@ -534,5 +537,5 @@ git commit -m "feat: Polish and optimize remarks system"
 
 ---
 
-*Last Updated: [Current Date]*  
-*Status: Ready to Begin Stage 1*
+*Last Updated: 2025-08-19*  
+*Status: Stages 1-2 Complete, Stage 4 & 8 Partial, Stage 3 Not Started*
