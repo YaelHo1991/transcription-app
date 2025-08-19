@@ -461,9 +461,14 @@ export class TemplateProcessor {
    */
   private processTimestamp(text: string, includeTimestamps: boolean): string {
     if (includeTimestamps) {
-      return text;
+      // Remove brackets around timestamps, keep just the time
+      // Pattern: [ before timestamp and ] after, with optional space and text
+      return text.replace(/\s*\[(\d{1,2}:\d{2}(:\d{2})?)[^\]]*\]/g, ' $1');
     }
-    // Replace timestamps (format: MM:SS or HH:MM:SS) with ...
+    // Replace timestamps with ... (remove brackets too)
+    // First remove bracketed timestamps
+    text = text.replace(/\s*\[(\d{1,2}:\d{2}(:\d{2})?)[^\]]*\]/g, ' ...');
+    // Then replace any remaining bare timestamps
     return text.replace(/\d{1,2}:\d{2}(:\d{2})?/g, '...');
   }
 
@@ -675,18 +680,6 @@ export class TemplateProcessor {
       saveAs(blob, fileName);
       
       console.log('Pre-formatted template document generated successfully');
-      alert(`
-נוצר המסמך בהצלחה!
-
-השתמש בתבנית שנוצרה: hebrew-template-formatted.docx
-או צור תבנית עם המבנה:
-
-{#formattedBlocks}
-{lineNumber}    {speaker}    {text}
-{/formattedBlocks}
-
-הערה: {speaker} כבר כולל את הנקודתיים
-      `);
       return true;
     } catch (error: any) {
       console.error('Error processing template with formatted content:', error);

@@ -1,0 +1,511 @@
+/* ====================================
+   Modal Template CSS
+   Reusable styles for all modals and dropdowns
+   ==================================== */
+
+/* Base Modal Container */
+.modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  max-width: 90vw;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 10001;
+  color: #333;
+  overflow: hidden;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+}
+
+/* Modal Header - Green Theme */
+.modal-header {
+  padding: 20px;
+  background: #26a69a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* Close Button */
+.modal-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  opacity: 0.8;
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #f8f9fa;
+}
+
+/* Modal Footer */
+.modal-footer {
+  padding: 16px 20px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Section Styles */
+.modal-section {
+  margin-bottom: 24px;
+  background: transparent !important;
+}
+
+.modal-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #00897b;
+  text-align: right;
+  direction: rtl;
+}
+
+/* Input Fields */
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: white;
+  color: #333;
+  transition: border-color 0.2s;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #26a69a;
+  box-shadow: 0 0 0 2px rgba(38, 166, 154, 0.1);
+}
+
+.modal-input::placeholder {
+  color: #999;
+}
+
+/* Checkbox Styles */
+.modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+
+.modal-checkbox:hover {
+  background: #e8f5f3;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 0 -10px;
+}
+
+.modal-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #26a69a;
+}
+
+.modal-checkbox span {
+  font-size: 14px;
+  color: #333;
+}
+
+/* Button Styles */
+.modal-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Primary Button - Green */
+.modal-btn-primary {
+  background: #26a69a;
+  color: white;
+}
+
+.modal-btn-primary:hover:not(:disabled) {
+  background: #00897b;
+}
+
+/* Secondary Button - Transparent */
+.modal-btn-secondary {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.modal-btn-secondary:hover:not(:disabled) {
+  background: #e8f5f3;
+  color: #26a69a;
+  border-color: #26a69a;
+}
+
+/* Danger Button - Red */
+.modal-btn-danger {
+  background: #f44336;
+  color: white;
+}
+
+.modal-btn-danger:hover:not(:disabled) {
+  background: #d32f2f;
+}
+
+/* Info Button - Blue */
+.modal-btn-info {
+  background: #4a90e2;
+  color: white;
+}
+
+.modal-btn-info:hover:not(:disabled) {
+  background: #357abd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+/* Warning Button - Orange */
+.modal-btn-warning {
+  background: #ff9800;
+  color: white;
+}
+
+.modal-btn-warning:hover:not(:disabled) {
+  background: #f57c00;
+}
+
+/* Disabled State */
+.modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Preview/Info Box */
+.modal-preview-box {
+  background: #f0faf8 !important;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #b2dfdb;
+}
+
+.modal-preview-content {
+  background: white !important;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.modal-preview-line {
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.modal-preview-line:last-child {
+  margin-bottom: 0;
+}
+
+.modal-preview-line strong {
+  color: #00897b;
+  font-weight: 600;
+}
+
+/* Option Cards */
+.modal-option-card {
+  flex: 1;
+  min-width: 140px;
+  padding: 20px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  background: white !important;
+}
+
+.modal-option-card:hover:not(.disabled) {
+  border-color: #26a69a;
+  background: #e8f5f3 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(38, 166, 154, 0.15);
+}
+
+.modal-option-card.selected {
+  border-color: #26a69a;
+  background: #e8f5f3 !important;
+  box-shadow: 0 2px 8px rgba(38, 166, 154, 0.2);
+}
+
+.modal-option-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-option-card input {
+  position: absolute;
+  opacity: 0;
+}
+
+/* Scrollbar Styling */
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #26a69a;
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #00897b;
+}
+
+/* Dropdown Styles */
+.dropdown-container {
+  position: absolute;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+  min-width: 200px;
+  max-width: 300px;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 12px 16px;
+  background: #26a69a;
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.dropdown-body {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background: #e8f5f3;
+}
+
+.dropdown-item.active {
+  background: #26a69a;
+  color: white;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 8px 0;
+}
+
+/* Loading State */
+.modal-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  color: #26a69a;
+}
+
+.modal-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e0e0e0;
+  border-top-color: #26a69a;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.modal-error {
+  padding: 16px;
+  background: #ffebee;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  color: #c62828;
+  margin-bottom: 16px;
+}
+
+/* Success State */
+.modal-success {
+  padding: 16px;
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 8px;
+  color: #2e7d32;
+  margin-bottom: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-container {
+    width: 95vw;
+    max-height: 90vh;
+  }
+  
+  .modal-body {
+    max-height: 50vh;
+  }
+  
+  .modal-option-card {
+    min-width: 100%;
+  }
+  
+  .dropdown-container {
+    max-width: 90vw;
+  }
+}
+
+/* RTL Support */
+.modal-rtl {
+  direction: rtl;
+}
+
+.modal-rtl .modal-header {
+  flex-direction: row-reverse;
+}
+
+.modal-rtl .modal-footer {
+  flex-direction: row-reverse;
+}
+
+.modal-rtl .modal-section h3 {
+  text-align: right;
+}
+
+/* Dark Mode Support (Optional) */
+@media (prefers-color-scheme: dark) {
+  .modal-dark {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+  
+  .modal-dark .modal-body {
+    background: #2a2a2a;
+  }
+  
+  .modal-dark .modal-input {
+    background: #333;
+    color: #e0e0e0;
+    border-color: #555;
+  }
+  
+  .modal-dark .modal-btn-secondary {
+    color: #e0e0e0;
+    border-color: #555;
+  }
+  
+  .modal-dark .modal-btn-secondary:hover:not(:disabled) {
+    background: #333;
+  }
+}
+
+/* Utility Classes */
+.modal-flex {
+  display: flex;
+  gap: 12px;
+}
+
+.modal-flex-wrap {
+  flex-wrap: wrap;
+}
+
+.modal-flex-center {
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-flex-between {
+  justify-content: space-between;
+}
+
+.modal-flex-end {
+  justify-content: flex-end;
+}
+
+.modal-mt-1 { margin-top: 8px; }
+.modal-mt-2 { margin-top: 16px; }
+.modal-mt-3 { margin-top: 24px; }
+
+.modal-mb-1 { margin-bottom: 8px; }
+.modal-mb-2 { margin-bottom: 16px; }
+.modal-mb-3 { margin-bottom: 24px; }
+
+.modal-text-center { text-align: center; }
+.modal-text-right { text-align: right; }
+.modal-text-left { text-align: left; }
+
+.modal-hidden { display: none; }
+.modal-visible { display: block; }

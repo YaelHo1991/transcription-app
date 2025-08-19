@@ -81,6 +81,7 @@ export default function TextBlock({
   const [speakerDescription, setSpeakerDescription] = useState<string>('');
   const [showDescriptionTooltip, setShowDescriptionTooltip] = useState(false);
   const [nameCompletion, setNameCompletion] = useState<string>('');
+  const [processedRemarks, setProcessedRemarks] = useState<Set<string>>(new Set());
   const [fullSpeakerName, setFullSpeakerName] = useState<string>('');
   const [isFullySelected, setIsFullySelected] = useState(false);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -112,9 +113,14 @@ export default function TextBlock({
     };
   }, [isActive, activeArea, block.id, onUpdate]);
   
+  // Helper function to add debug log
+  const addDebugLog = (message: string) => {
+    // Debug logging disabled
+  };
+
   // Helper function to switch input language
   const switchLanguage = (lang: 'hebrew' | 'english') => {
-    console.log('Switching language to:', lang);
+    addDebugLog(`Switching language to: ${lang}`);
     setCursorColor(lang);
     setInputLanguage(lang);
     
@@ -597,6 +603,51 @@ export default function TextBlock({
     console.log('Key pressed in text area:', e.key);
     const textarea = e.currentTarget;
     const text = textarea.value;
+    
+    // Handle arrow key navigation to skip timestamps
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const cursorPos = textarea.selectionStart;
+      
+      // Check if we're near a timestamp bracket pattern
+      const timestampPattern = /\[(\d{2}:\d{2}:\d{2})[^\]]*\]/g;
+      let match;
+      
+      while ((match = timestampPattern.exec(text)) !== null) {
+        const bracketStart = match.index;
+        const timestampStart = match.index + 1; // After [
+        const timestampEnd = match.index + 1 + 8; // After HH:MM:SS (8 chars)
+        const bracketEnd = match.index + match[0].length - 1; // Before ]
+        
+        // If moving right (backwards in RTL) and cursor is anywhere in the timestamp
+        if (e.key === 'ArrowRight' && cursorPos > timestampStart && cursorPos <= timestampEnd) {
+          // Jump to BEFORE the opening bracket (outside)
+          e.preventDefault();
+          textarea.setSelectionRange(bracketStart, bracketStart);
+          addDebugLog(`Skipped timestamp right: moved to position ${bracketStart} (before [)`);
+          // Check for highlight after move
+          setTimeout(() => checkTimestampHover(bracketStart, text), 10);
+          return;
+        }
+        
+        // If moving left (forward in RTL) and cursor is just before the timestamp
+        if (e.key === 'ArrowLeft' && cursorPos >= timestampStart && cursorPos < timestampEnd) {
+          // Jump to just before the closing bracket
+          e.preventDefault();
+          textarea.setSelectionRange(bracketEnd, bracketEnd);
+          addDebugLog(`Skipped timestamp left: moved to position ${bracketEnd} (before ])`);
+          return;
+        }
+        
+        // If moving left (forward in RTL) and cursor is at the closing bracket, let it move past
+        if (e.key === 'ArrowLeft' && cursorPos === bracketEnd) {
+          // Jump to after the closing bracket (outside)
+          e.preventDefault();
+          textarea.setSelectionRange(bracketEnd + 1, bracketEnd + 1);
+          addDebugLog(`Exited bracket left: moved to position ${bracketEnd + 1} (after ])`);
+          return;
+        }
+      }
+    }
     
     // Handle END key first - highest priority
     if (e.key === 'End') {
@@ -1092,7 +1143,7 @@ export default function TextBlock({
   // Handle text input change and auto-resize
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     let value = e.target.value;
-    const cursorPos = e.target.selectionStart;
+    let cursorPos = e.target.selectionStart;
     
     // Apply auto-corrections if enabled
     if (autoCorrectEngine) {
@@ -1199,10 +1250,93 @@ export default function TextBlock({
       }
     }
     
-    // Check for "..." transformation to timestamp
+    // Check for "..." transformation to timestamp with brackets
     if (value.includes('...')) {
       const timestamp = formatTimestamp(currentTime || 0);
-      value = value.replace('...', timestamp);
+      const timestampWithBrackets = ` [${timestamp}] `;
+      value = value.replace('...', timestampWithBrackets);
+      addDebugLog(`Transformed ... to: ${timestampWithBrackets}`);
+      // Don't move cursor - let it stay naturally after the timestamp
+      // User can manually go back if they want to add uncertainty remark
+    }
+    
+    // Check for uncertainty remarks pattern
+    // Debug: Log the current value to see what we're working with
+    if (value.includes('[') && value.includes(']')) {
+      addDebugLog(`Text contains brackets. Value: "${value}"`);
+      addDebugLog(`Cursor position: ${cursorPos}`);
+    }
+    
+    // The text comes AFTER the timestamp in the string: [HH:MM:SS text]
+    // Pattern to match: [timestamp text] with optional space and confidence markers
+    const uncertaintyPattern = /\[(\d{2}:\d{2}:\d{2})\s*([^\[\]]+?)\](\?{0,2})/g;
+    
+    let match;
+    while ((match = uncertaintyPattern.exec(value)) !== null) {
+      const fullMatch = match[0];
+      const timestamp = match[1];
+      const textAfterTimestamp = match[2];
+      const confidence = match[3]; // '', '?', or '??'
+      
+      addDebugLog(`Pattern matched: "${fullMatch}" at index ${match.index}`);
+      addDebugLog(`Timestamp: "${timestamp}", Text: "${textAfterTimestamp}"`);
+      
+      // Only process if there's text after the timestamp
+      const uncertainText = textAfterTimestamp.trim();
+      if (!uncertainText) {
+        addDebugLog('No uncertain text found, skipping');
+        continue;
+      }
+      
+      addDebugLog(`Found uncertainty: text="${uncertainText}", timestamp="${timestamp}", confidence="${confidence}"`);
+      
+      // Check if cursor has left the brackets completely
+      const bracketStart = match.index;
+      const bracketEnd = match.index + fullMatch.length;
+      // Only consider cursor "outside" if it's completely outside the brackets
+      const cursorOutside = cursorPos === null || cursorPos <= bracketStart || cursorPos >= bracketEnd;
+      
+      addDebugLog(`Cursor check: pos=${cursorPos}, start=${bracketStart}, end=${bracketEnd}, outside=${cursorOutside}`);
+      
+      // Store this remark in a data attribute to avoid re-processing
+      const remarkKey = `${timestamp}-${uncertainText}`;
+      
+      addDebugLog(`Processing check: key="${remarkKey}", already processed=${processedRemarks.has(remarkKey)}`);
+      
+      if (cursorOutside && !processedRemarks.has(remarkKey)) {
+        // Parse timestamp to get time in seconds
+        const [hours, minutes, seconds] = timestamp.split(':').map(Number);
+        const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+        
+        addDebugLog(`DISPATCHING EVENT: text="${uncertainText}", time=${timeInSeconds}`);
+        
+        // Trigger uncertainty remark event
+        const event = new CustomEvent('createUncertaintyRemark', {
+          detail: {
+            timestamp,
+            time: timeInSeconds,
+            text: uncertainText,
+            confidence,
+            blockId: block.id,
+            context: value.substring(Math.max(0, bracketStart - 50), Math.min(value.length, bracketEnd + 50))
+          }
+        });
+        document.dispatchEvent(event);
+        
+        // Mark as processed
+        setProcessedRemarks(prev => new Set(prev).add(remarkKey));
+        
+        // Remove the uncertain text from brackets, keeping just the timestamp
+        const cleanedBrackets = ` [${timestamp}]${confidence} `;
+        value = value.substring(0, bracketStart) + cleanedBrackets + value.substring(bracketEnd);
+        
+        // Adjust cursor position if it was after the brackets
+        if (cursorPos && cursorPos > bracketEnd) {
+          const diff = fullMatch.length - cleanedBrackets.length;
+          cursorPos = cursorPos - diff;
+        }
+        
+      }
     }
     
     // Check if lists need renumbering (but avoid doing it while typing in the middle of text)
@@ -1227,6 +1361,11 @@ export default function TextBlock({
     
     setLocalText(value);
     onUpdate(block.id, 'text', value);
+    
+    // Check if cursor is in a timestamp for highlighting
+    if (cursorPos !== null) {
+      checkTimestampHover(cursorPos, value);
+    }
     
     // ALWAYS keep RTL - never change direction to prevent jumping
     // The text will stay on the right and not jump around
@@ -1376,6 +1515,43 @@ export default function TextBlock({
   const handleSpeakerBlur = (e: FocusEvent<HTMLInputElement>) => {
     // Reset selection tracking when losing focus
     wasFullySelected.current = false;
+  };
+
+  // Check if cursor is in a timestamp and highlight corresponding remark
+  const checkTimestampHover = (cursorPos: number, text: string) => {
+    // Pattern to match ANY timestamp bracket, with or without text
+    const timestampPattern = /\[(\d{2}:\d{2}:\d{2})[^\]]*\]/g;
+    let match;
+    let foundTimestamp = false;
+    
+    while ((match = timestampPattern.exec(text)) !== null) {
+      const bracketStart = match.index;
+      const bracketEnd = match.index + match[0].length;
+      
+      // If cursor is inside these brackets (or right at the edges)
+      if (cursorPos >= bracketStart && cursorPos <= bracketEnd) {
+        const timestamp = match[1];
+        foundTimestamp = true;
+        addDebugLog(`Cursor in timestamp bracket: ${timestamp} at pos ${cursorPos}`);
+        
+        // Dispatch event to highlight this timestamp's remark
+        // This will highlight ANY remark with this timestamp, whether it has text or not
+        const event = new CustomEvent('highlightRemarkByTimestamp', {
+          detail: { timestamp }
+        });
+        document.dispatchEvent(event);
+        return;
+      }
+    }
+    
+    // If cursor is not in any timestamp, clear highlight
+    if (!foundTimestamp) {
+      addDebugLog(`Cursor not in any timestamp at pos ${cursorPos}`);
+      const event = new CustomEvent('highlightRemarkByTimestamp', {
+        detail: { timestamp: null }
+      });
+      document.dispatchEvent(event);
+    }
   };
 
   const handleTextFocus = (e: FocusEvent<HTMLTextAreaElement>) => {
@@ -1563,6 +1739,13 @@ export default function TextBlock({
           onKeyDown={handleTextKeyDown}
           onFocus={handleTextFocus}
           onBlur={handleTextBlur}
+          onMouseUp={(e) => {
+            // Check for timestamp highlight when clicking
+            const textarea = e.currentTarget;
+            setTimeout(() => {
+              checkTimestampHover(textarea.selectionStart, textarea.value);
+            }, 10);
+          }}
           placeholder={isFirstBlock ? "הקלד טקסט כאן..." : ""}
           dir="rtl"
           style={{ 

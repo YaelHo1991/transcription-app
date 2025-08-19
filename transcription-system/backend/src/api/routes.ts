@@ -4,6 +4,7 @@ import devRoutes from './dev/routes';
 import licensesRoutes from './licenses/routes';
 import transcriptionRoutes from './transcription/routes';
 import adminShortcutsRoutes from './admin/shortcuts/routes';
+import templateRoutes from '../routes/templateRoutes';
 import { initWaveformRoutes } from '../routes/waveformRoutes';
 import { db } from '../db/connection';
 
@@ -16,6 +17,9 @@ router.use('/auth', authRoutes);
 
 // License management endpoints
 router.use('/licenses', licensesRoutes);
+
+// Template endpoints
+router.use('/template', templateRoutes);
 
 // Public shortcuts endpoint (for testing without auth)
 router.get('/transcription/shortcuts/public', async (req, res) => {

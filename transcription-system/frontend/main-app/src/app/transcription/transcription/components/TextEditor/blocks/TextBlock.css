@@ -1,5 +1,20 @@
 /* TextBlock Component Styles */
 
+/* Uncertainty bracket styles */
+.uncertainty-bracket {
+  background-color: rgba(20, 184, 166, 0.1); /* Light teal background */
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.uncertainty-bracket.low-confidence {
+  background-color: rgba(255, 193, 7, 0.15); /* Yellow tint for ? */
+}
+
+.uncertainty-bracket.very-low-confidence {
+  background-color: rgba(255, 67, 54, 0.15); /* Light red tint for ?? */
+}
+
 /* Input and textarea base styles */
 .text-block input,
 .text-block textarea {
