@@ -13,6 +13,9 @@ import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayer from './components/MediaPlayer';
 import TextEditor from './components/TextEditor';
 import SimpleSpeaker from './components/Speaker/SimpleSpeaker';
+import Remarks from './components/Remarks/Remarks';
+import { RemarksProvider } from './components/Remarks/RemarksContext';
+import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -45,6 +48,17 @@ declare module 'react' {
 }
 
 export default function TranscriptionWorkPage() {
+  // Create a unique session ID for this transcription session
+  const [sessionId, setSessionId] = useState(() => {
+    // Try to get from URL params first (for saved sessions)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlSessionId = params.get('session');
+      return urlSessionId || `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    return `session-${Date.now()}`;
+  });
+  
   const [helperFilesExpanded, setHelperFilesExpanded] = useState(false);
   const [headerLocked, setHeaderLocked] = useState(false);
   const [sidebarLocked, setSidebarLocked] = useState(false);
@@ -296,6 +310,8 @@ export default function TranscriptionWorkPage() {
         sidebarLocked ? 'sidebar-locked' : ''
       }`}>
         <div className="content-container">
+          <RemarksProvider transcriptionId={sessionId || `temp-${Date.now()}`}>
+          <RemarksEventListener />
           <div className="workspace-grid">
           {/* Main Workspace */}
           <div className="main-workspace">
@@ -381,6 +397,7 @@ export default function TranscriptionWorkPage() {
                 marks={[]}
                 currentTime={currentTime}
                 mediaFileName={currentMedia?.name || ''}
+                mediaDuration={mediaDuration}
                 currentProjectId={currentProject ? `proj-${currentProjectIndex}` : ''}
                 onSeek={(time) => {
                   console.log('Seek to time:', time);
@@ -400,17 +417,11 @@ export default function TranscriptionWorkPage() {
               <SimpleSpeaker theme="transcription" />
             </div>
 
-            {/* Remarks Placeholder */}
-            <div className={`placeholder-container remarks ${
+            {/* Remarks Component */}
+            <div className={`remarks-container ${
               helperFilesExpanded ? 'compressed' : 'normal'
             }`}>
-              <div className="placeholder-header">
-                <span className="placeholder-icon">💬</span>
-                <h3>Remarks</h3>
-              </div>
-              <div className="placeholder-content">
-                Comments, notes, timestamps, collaborative editing
-              </div>
+              <Remarks theme="transcription" />
             </div>
 
             {/* HelperFiles Component */}
@@ -432,6 +443,7 @@ export default function TranscriptionWorkPage() {
             </div>
           </div>
         </div>
+        </RemarksProvider>
         </div>
       </div>
       
