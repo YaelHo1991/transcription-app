@@ -1,0 +1,95 @@
+.existing-work-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.existing-work-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  direction: rtl;
+}
+
+.existing-work-modal-header {
+  background: linear-gradient(135deg, #e91e63, #ad1457);
+  color: white;
+  padding: 20px;
+  border-radius: 12px 12px 0 0;
+  text-align: center;
+}
+
+.existing-work-modal-header h3 {
+  margin: 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+
+.existing-work-modal-content {
+  padding: 25px;
+  line-height: 1.6;
+}
+
+.media-info {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 0.95em;
+  border-right: 4px solid #e91e63;
+}
+
+.existing-info {
+  font-size: 1.05em;
+  margin-bottom: 16px;
+  color: #444;
+}
+
+.action-info {
+  background: #e8f5e8;
+  padding: 12px;
+  border-radius: 6px;
+  color: #2e7d32;
+  font-weight: 500;
+  border-right: 4px solid #4caf50;
+}
+
+.existing-work-modal-footer {
+  padding: 0 25px 25px 25px;
+  text-align: center;
+}
+
+.continue-btn {
+  background: linear-gradient(135deg, #4caf50, #388e3c);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 160px;
+}
+
+.continue-btn:hover {
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.continue-btn:active {
+  transform: translateY(0);
+}

@@ -1,0 +1,17 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: Current Transcription
+Date: 2025-08-18T18:10:53.860Z
+Version: AUTO
+Media Files:
+  - בוררות עופר מגזניק 050825.mp3 (current)
+
+=== TRANSCRIPT ===
+ [א]: אוקי, בוא נבדוק
+שוב. 
+
+=== METADATA ===
+Total Words: 4
+Total Blocks: 1
+Total Speakers: 1
+Created From: Live Editor Session

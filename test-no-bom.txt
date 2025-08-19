@@ -1,0 +1,19 @@
+=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: תמלול ראשי
+Date: 2025-08-19T14:37:02.605Z
+Version: CURRENT
+Media Files:
+  - Test file (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+[א]: א
+
+=== METADATA ===
+Total Words: 1
+Total Blocks: 1
+Total Speakers: 1
+Created From: Live Editor Session

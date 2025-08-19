@@ -1,0 +1,341 @@
+/* Structured Template Designer Styles */
+.template-designer-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header Bar */
+.designer-header {
+  background: #2c3e50;
+  color: white;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.designer-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.template-name-input {
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 4px;
+  width: 200px;
+}
+
+.template-name-input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.header-actions button {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s;
+  color: white;
+}
+
+.btn-load {
+  background: #3498db;
+}
+
+.btn-save {
+  background: #27ae60;
+}
+
+.btn-export {
+  background: #e74c3c;
+}
+
+.header-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Main Content Area */
+.designer-content {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Settings Panel */
+.settings-panel {
+  flex: 1;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  padding-left: 10px;
+}
+
+/* Section Cards */
+.section-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #2c3e50;
+}
+
+.section-header h4 {
+  margin: 15px 0 10px 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.section-badge {
+  background: #3498db;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Header Section Specific */
+.header-section {
+  border-right: 3px solid #3498db;
+}
+
+/* Body Section Specific */
+.body-section {
+  border-right: 3px solid #27ae60;
+}
+
+/* Content Section Specific */
+.content-section {
+  border-right: 3px solid #9b59b6;
+}
+
+/* Footer Section Specific */
+.footer-section {
+  border-right: 3px solid #e74c3c;
+}
+
+/* Control Groups */
+.control-group {
+  margin-bottom: 15px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  color: #555;
+  font-weight: 500;
+}
+
+.control-group input[type="checkbox"] {
+  margin-left: 5px;
+}
+
+.control-row {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.control-row .control-group {
+  flex: 1;
+}
+
+/* Template Input Groups */
+.template-input-group {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.template-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: border-color 0.3s;
+}
+
+.template-input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.insert-btn {
+  padding: 6px 10px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.insert-btn:hover {
+  background: #2980b9;
+}
+
+/* Tab Ruler */
+.tab-ruler {
+  margin: 15px 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.ruler-bar {
+  position: relative;
+  height: 40px;
+  background: linear-gradient(to right, #f8f8f8 0%, #f8f8f8 49%, #ddd 50%, #f8f8f8 51%);
+  background-size: 20px 100%;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+}
+
+.ruler-marks {
+  position: relative;
+  height: 100%;
+}
+
+.ruler-mark {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-right: 1px solid #999;
+  font-size: 10px;
+  padding-top: 25px;
+  text-align: center;
+  width: 30px;
+  margin-right: -15px;
+}
+
+.tab-marker {
+  position: absolute;
+  top: -5px;
+  font-size: 20px;
+  color: #e74c3c;
+  cursor: move;
+  user-select: none;
+  margin-right: -10px;
+}
+
+/* Preview Panel */
+.preview-panel {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.preview-panel h3 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  color: #2c3e50;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.page-preview {
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  padding: 40px;
+  min-height: 600px;
+  position: relative;
+  font-family: 'David', 'Times New Roman', serif;
+  direction: rtl;
+}
+
+.preview-header {
+  margin-bottom: 20px;
+}
+
+.preview-body {
+  min-height: 400px;
+}
+
+.preview-footer {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  left: 40px;
+}
+
+.preview-content {
+  margin-top: 20px;
+}
+
+/* Select and Input Styles */
+select, input[type="number"], input[type="text"] {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: border-color 0.3s;
+}
+
+select:focus, input[type="number"]:focus, input[type="text"]:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+input[type="color"] {
+  width: 40px;
+  height: 30px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .designer-content {
+    flex-direction: column;
+  }
+  
+  .settings-panel {
+    max-width: 100%;
+  }
+}

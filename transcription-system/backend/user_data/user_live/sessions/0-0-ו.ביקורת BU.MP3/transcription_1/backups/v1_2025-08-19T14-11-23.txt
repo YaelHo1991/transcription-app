@@ -1,0 +1,19 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: Current Transcription
+Date: 2025-08-19T14:11:23.040Z
+Version: 1
+Media Files:
+  - No Media (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+
+
+=== METADATA ===
+Total Words: 0
+Total Blocks: 1
+Total Speakers: 0
+Created From: Live Editor Session

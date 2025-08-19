@@ -1,0 +1,19 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: תמלול ראשי
+Date: 2025-08-19T15:02:14.303Z
+Version: CURRENT
+Media Files:
+  - ו.ביקורת.MP3 (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+[T]: ‏AD‏
+
+=== METADATA ===
+Total Words: 1
+Total Blocks: 1
+Total Speakers: 1
+Created From: Live Editor Session

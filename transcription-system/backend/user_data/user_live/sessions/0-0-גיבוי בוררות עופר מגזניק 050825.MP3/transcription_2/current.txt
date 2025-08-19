@@ -1,0 +1,20 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: תמלול 2
+Date: 2025-08-19T13:06:32.850Z
+Version: CURRENT
+Media Files:
+  - גיבוי בוררות עופר מגזניק 050825.MP3 (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+[א]: בוא נראה.
+[ג]: אין לי מושג.
+
+=== METADATA ===
+Total Words: 5
+Total Blocks: 2
+Total Speakers: 2
+Created From: Live Editor Session

@@ -1,0 +1,235 @@
+/* Word Processing Group Styles */
+
+.word-processing-group {
+  --primary-green: #0f766e;
+  --dark-green: #064e3b;
+  --light-green: #f0fdf4;
+  --border-green: #d1fae5;
+  --hover-green: #047857;
+}
+
+/* Group Container */
+.word-processing-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.05), rgba(6, 78, 59, 0.05));
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.word-processing-container:hover {
+  border-color: var(--border-green);
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(6, 78, 59, 0.08));
+}
+
+/* Undo/Redo Buttons */
+.undo-redo-btn {
+  padding: 6px 10px;
+  background: white;
+  border: 1px solid var(--border-green);
+  border-radius: 5px;
+  color: var(--primary-green);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.undo-redo-btn:hover {
+  background: var(--light-green);
+  border-color: var(--primary-green);
+  transform: scale(1.05);
+}
+
+.undo-redo-btn:active {
+  transform: scale(0.98);
+}
+
+.undo-redo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Font Controls */
+.font-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--light-green);
+  border-radius: 6px;
+  border: 1px solid var(--border-green);
+}
+
+.font-size-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 1px solid var(--border-green);
+  border-radius: 4px;
+  color: var(--primary-green);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.font-size-btn:hover {
+  background: var(--primary-green);
+  color: white;
+  border-color: var(--primary-green);
+}
+
+.font-size-value {
+  min-width: 32px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid var(--primary-green);
+  border-radius: 4px;
+  color: var(--dark-green);
+  font-weight: 600;
+  text-align: center;
+  user-select: none;
+}
+
+.font-type-btn {
+  padding: 6px 10px;
+  background: white;
+  border: 1px solid var(--border-green);
+  border-radius: 5px;
+  color: var(--primary-green);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.font-type-btn.active {
+  background: var(--primary-green);
+  color: white;
+  border-color: var(--dark-green);
+}
+
+/* Search & Replace Modal */
+.search-replace-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(15, 118, 110, 0.15);
+  border: 2px solid var(--primary-green);
+  max-width: 500px;
+  width: 100%;
+}
+
+.search-replace-header {
+  background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+  color: white;
+  padding: 16px 20px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 10px 10px 0 0;
+}
+
+.search-replace-body {
+  padding: 20px;
+}
+
+.search-input-group {
+  margin-bottom: 16px;
+}
+
+.search-label {
+  display: block;
+  color: var(--dark-green);
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid var(--border-green);
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  direction: rtl;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.search-options {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.search-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dark-green);
+  font-size: 14px;
+}
+
+.search-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-green);
+}
+
+.search-stats {
+  padding: 8px 12px;
+  background: var(--light-green);
+  border: 1px solid var(--border-green);
+  border-radius: 6px;
+  color: var(--dark-green);
+  font-size: 13px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.search-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.search-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.search-btn.primary {
+  background: var(--primary-green);
+  color: white;
+}
+
+.search-btn.primary:hover {
+  background: var(--hover-green);
+}
+
+.search-btn.secondary {
+  background: white;
+  color: var(--primary-green);
+  border-color: var(--border-green);
+}
+
+.search-btn.secondary:hover {
+  background: var(--light-green);
+  border-color: var(--primary-green);
+}

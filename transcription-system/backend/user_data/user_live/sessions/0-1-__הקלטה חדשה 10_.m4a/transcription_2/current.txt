@@ -1,0 +1,20 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: תמלול 2
+Date: 2025-08-19T13:11:42.806Z
+Version: CURRENT
+Media Files:
+  - __הקלטה חדשה 10_.m4a (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+[א]: אוקי, נראה שזה עובד.
+[ב]: עכשיו, בוא נמשיך לבדוק.
+
+=== METADATA ===
+Total Words: 8
+Total Blocks: 2
+Total Speakers: 2
+Created From: Live Editor Session

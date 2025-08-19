@@ -1,0 +1,19 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: תמלול ראשי
+Date: 2025-08-19T13:07:24.806Z
+Version: CURRENT
+Media Files:
+  - בוררות עופר מגזניק 050825.mp3 (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+[א]: א
+
+=== METADATA ===
+Total Words: 1
+Total Blocks: 1
+Total Speakers: 1
+Created From: Live Editor Session

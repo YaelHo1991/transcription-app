@@ -20,12 +20,13 @@
 /* Toggle Button - Match header/nav styling */
 .helper-files-toggle-btn {
   background: linear-gradient(135deg, 
-    rgba(23, 140, 150, 0.6) 0%, 
-    rgba(32, 180, 170, 0.55) 35%, 
-    rgba(23, 162, 184, 0.6) 70%,
-    rgba(35, 55, 65, 0.65) 100%);
+    #0f4c4c 0%, 
+    #1a5d5d 30%, 
+    #14b8a6 50%, 
+    #0f766e 70%, 
+    #1a5d5d 100%) !important;
   color: white;
-  border: 1px solid rgba(32, 201, 151, 0.25);
+  border: none !important;
   border-radius: 15px;
   padding: 12px 20px;
   font-size: 14px;
@@ -47,8 +48,7 @@
 
 .helper-files-toggle-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
-  border-color: #17a2b8;
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
 }
 
 .helper-files-toggle-btn svg {
@@ -59,58 +59,22 @@
 /* Container - Open State */
 .helper-files-container {
   background: linear-gradient(135deg, 
-    rgba(20, 130, 110, 0.08) 0%, 
-    rgba(32, 180, 151, 0.06) 35%, 
-    rgba(23, 162, 184, 0.08) 70%,
-    rgba(30, 50, 60, 0.1) 100%);
-  border: 2px solid rgba(32, 201, 151, 0.5);
-  border-radius: 15px;
+    rgba(15, 76, 76, 0.05) 0%, 
+    rgba(15, 118, 110, 0.08) 35%, 
+    rgba(20, 184, 166, 0.06) 70%,
+    rgba(26, 93, 93, 0.1) 100%);
+  border: 1px solid #0d5a5a;
+  border-radius: 8px;
   height: 100%;
   max-height: 100%;
   display: flex;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 
-    0 0 30px rgba(32, 201, 151, 0.3),
-    0 0 50px rgba(23, 162, 184, 0.2),
-    inset 0 0 80px rgba(23, 162, 184, 0.3),
-    inset 0 0 40px rgba(32, 201, 151, 0.2),
-    inset 0 2px 15px rgba(23, 162, 184, 0.4),
-    inset 0 -2px 15px rgba(23, 162, 184, 0.4);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Inner fading gradient frame with teal edges */
-.helper-files-container::before {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  right: 3px;
-  bottom: 3px;
-  background: 
-    radial-gradient(ellipse at center, 
-      transparent 30%,
-      rgba(23, 162, 184, 0.1) 50%,
-      rgba(23, 162, 184, 0.25) 70%,
-      rgba(32, 201, 151, 0.4) 85%,
-      rgba(20, 130, 110, 0.6) 95%,
-      rgba(23, 162, 184, 0.7) 100%
-    );
-  border-radius: 12px;
-  pointer-events: none;
-  z-index: 0;
-  animation: pulse-fade 4s ease-in-out infinite;
-}
-
-@keyframes pulse-fade {
-  0%, 100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
+/* Removed the teal gradient frame - keeping container clean with green theme */
 
 
 

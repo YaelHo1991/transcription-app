@@ -1,0 +1,19 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: Current Project
+Transcription: תמלול ראשי
+Date: 2025-08-19T13:24:21.272Z
+Version: CURRENT
+Media Files:
+  - אסיפה כללית.MP3 (current)
+
+=== SPEAKERS ===
+א: דובר 1
+
+=== TRANSCRIPT ===
+[א]: ג
+
+=== METADATA ===
+Total Words: 1
+Total Blocks: 1
+Total Speakers: 1
+Created From: Live Editor Session
