@@ -2,6 +2,41 @@
 
 ## Recent Commits
 
+### Feature: Complete Remarks System with Pinned Remarks
+**Commit Hash**: `bbc4dab`
+**Date**: 2025-08-19
+**Description**: Implemented full Remarks panel with all 4 types and inline editing
+**Changes**:
+- Implemented complete Remarks system with Context provider
+- Added 4 remark types: Uncertainty, Spelling, Media Notes, and Pinned
+- Inline editing for pinned remarks with auto-focus
+- Newest pinned remarks appear at top
+- Enter key adds new field, removes on empty blur
+- Fixed all TypeScript errors
+- Removed debug console
+- Fixed double confirmation dialogs
+**Files**:
+- `components/Remarks/Remarks.tsx` - Main panel component
+- `components/Remarks/RemarksContext.tsx` - State management
+- `components/Remarks/RemarkItem.tsx` - Individual remark display
+- `components/Remarks/types.ts` - TypeScript definitions
+- `components/Remarks/UncertaintyRemarkContent.tsx` - Uncertainty type component
+**Technical**: React Context, Event-driven architecture, LocalStorage persistence
+
+### Documentation: Remarks System Vision and Implementation Plan
+**Commit Hash**: `[completed in bbc4dab]`
+**Date**: 2025-01-18
+**Description**: Created comprehensive documentation for Remarks system
+**Changes**:
+- Created remarks-vision.md with complete feature specifications
+- Created remarks-implementation-plan.md with 12-stage development plan
+- Defined 4 remark types with color-coded visual system
+- Added in-text tags system documentation
+**Files**:
+- `components/Remarks/docs/remarks-vision.md`
+- `components/Remarks/docs/remarks-implementation-plan.md`
+**Note**: Foundation documentation for upcoming Remarks system implementation
+
 ### Fix: Add duplicate validation to all navigation keys in Speaker code field
 **Commit Hash**: `56c8720`
 **Date**: 2025-08-14
@@ -126,6 +161,36 @@
 **Commit Hash**: `97038f5`
 **Description**: UI improvement for shortcut key capture functionality
 
+## Remarks System Implementation Stages (Upcoming)
+
+### Stage 1: Foundation & Infrastructure
+**Status**: Ready to begin
+**Description**: Core data structures and basic UI
+
+### Stage 2: Type 4 - Pinned References
+**Status**: Pending
+**Description**: Manual pinned reference items
+
+### Stage 3: In-Text Tags System
+**Status**: Pending
+**Description**: `[` triggered tags in TextEditor
+
+### Stage 4: Type 1 - Uncertainty Remarks
+**Status**: Pending
+**Description**: `...` transformation to timestamps
+
+### Stage 5: Type 2 - Spelling/Names System
+**Status**: Pending
+**Description**: `//` name tracking with autocomplete
+
+### Stage 6: Type 3 - Media Notes
+**Status**: Pending
+**Description**: Long-press triggered media notes
+
+### Stage 7-12: Advanced Features
+**Status**: Pending
+**Description**: Navigation, filtering, templates, export, statistics, polish
+
 ## Important Reference Points
 
 ### Stage 3 - MediaPlayer Organization Baseline
@@ -168,4 +233,26 @@ git checkout 8156e04 -- transcription-system/frontend/main-app/src/app/transcrip
 ## Notes
 - Always check TypeScript compilation after restoration: `npm run typecheck`
 - If VSCode shows cached errors, restart TypeScript server: Ctrl+Shift+P → "TypeScript: Restart TS Server"
+
+---
+
+## Remarks System Implementation (2025-01-18)
+
+### Stage 1: Foundation & Infrastructure ✅
+- Created types.ts with all remark interfaces and enums
+- Implemented RemarksContext for state management
+- Added localStorage persistence
+- Built RemarkItem component with type-specific rendering
+- Styled with dark green gradient matching design
+- Added event system foundation for cross-component communication
+
+### Stage 2: Type 4 - Pinned References ✅
+- Added input field in header with + button toggle
+- Implemented categories: People, Companies, Terms, Other
+- Created add/edit/delete functionality for pinned items
+- Styled with gradient background for pinned items
+- Implemented always-on-top positioning
+- Added quick copy to clipboard functionality
+- Created category filters for pinned items
+- Pinned items remain at top of remarks list
 - The Stage 3 commit (931c1ea) is a known good state for the MediaPlayer component
