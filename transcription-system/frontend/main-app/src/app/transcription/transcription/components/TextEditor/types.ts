@@ -38,8 +38,14 @@ export interface TextEditorProps {
   /** Current media file name */
   mediaFileName?: string;
   
+  /** Media duration in format HH:MM:SS */
+  mediaDuration?: string;
+  
   /** Current project ID */
   currentProjectId?: string;
+  
+  /** Name of the current project */
+  projectName?: string;
 }
 
 /**

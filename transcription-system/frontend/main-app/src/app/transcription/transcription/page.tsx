@@ -399,6 +399,7 @@ export default function TranscriptionWorkPage() {
                 mediaFileName={currentMedia?.name || ''}
                 mediaDuration={mediaDuration}
                 currentProjectId={currentProject ? `proj-${currentProjectIndex}` : ''}
+                projectName={projectName}
                 onSeek={(time) => {
                   console.log('Seek to time:', time);
                 }}

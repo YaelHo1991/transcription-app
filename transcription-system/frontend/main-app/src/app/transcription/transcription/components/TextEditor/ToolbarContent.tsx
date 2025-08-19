@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import ToolbarGroup from './components/ToolbarGroup';
-import TranscriptionSwitcher from './components/TranscriptionSwitcher';
+import TranscriptionManagementDropdown from './components/TranscriptionManagementDropdown';
 
 interface ToolbarContentProps {
   // File management
@@ -12,8 +12,12 @@ interface ToolbarContentProps {
   setShowVersionHistoryModal: (show: boolean) => void;
   setShowMediaLinkModal: (show: boolean) => void;
   setShowSearchReplaceModal: (show: boolean) => void;
+  setShowDocumentExportModal?: (show: boolean) => void;
+  setShowHTMLPreviewModal?: (show: boolean) => void;
   currentTranscriptionId: string;
   handleTranscriptionChange: (id: string) => void;
+  currentMediaId?: string;
+  projectName?: string;
   
   // Text editing
   fontSize: number;
@@ -128,14 +132,40 @@ export default function ToolbarContent(props: ToolbarContentProps) {
         }}
         buttons={[
           {
-            icon: '📑',
-            title: 'בחר תמלול',
-            onClick: () => setShowTranscriptionSwitcher(!showTranscriptionSwitcher)
-          },
-          {
-            icon: '➕',
-            title: 'תמלול חדש',
-            onClick: () => setShowNewTranscriptionModal(true)
+            customElement: (
+              <TranscriptionManagementDropdown
+                currentTranscriptionId={currentTranscriptionId}
+                currentMediaId={props.currentMediaId || ''}
+                currentMediaName={currentMediaFileName || ''}
+                transcriptions={currentMediaFileName ? [
+                  {
+                    id: currentTranscriptionId,
+                    name: currentMediaFileName || 'תמלול ללא שם',
+                    mediaId: props.currentMediaId || '',
+                    mediaName: currentMediaFileName || '',
+                    number: 1,
+                    createdAt: new Date(),
+                    wordCount: blocks && blocks.length > 0 ? blocks.reduce((total, block) => {
+                      // Count actual words in each block's text
+                      const words = block.text ? block.text.trim().split(/\s+/).filter(word => word.length > 0) : [];
+                      return total + words.length;
+                    }, 0) : 0,
+                    isActive: true
+                  }
+                ] : []}
+                onNewTranscription={() => setShowNewTranscriptionModal(true)}
+                onClearTranscription={(id) => {
+                  if (confirm('האם אתה בטוח שברצונך לנקות את התמלול?')) {
+                    // TODO: Implement clear transcription
+                    console.log('Clearing transcription:', id);
+                  }
+                }}
+                onLoadFromOtherMedia={() => setShowMediaLinkModal(true)}
+                onSplitTranscription={() => console.log('Split transcription')}
+                onReorderSegments={() => console.log('Reorder segments')}
+                onTranscriptionSwitch={(id) => handleTranscriptionChange(id)}
+              />
+            )
           },
           {
             icon: '💾',
@@ -182,14 +212,18 @@ export default function ToolbarContent(props: ToolbarContentProps) {
             className: 'test-backup-btn'
           },
           {
+            icon: '📄',
+            title: 'ייצוא למסמך Word',
+            onClick: () => {
+              if (props.setShowDocumentExportModal) {
+                props.setShowDocumentExportModal(true);
+              }
+            }
+          },
+          {
             icon: '📜',
             title: 'היסטוריית גרסאות',
             onClick: () => setShowVersionHistoryModal(true)
-          },
-          {
-            icon: '🔗',
-            title: 'קישור מדיה',
-            onClick: () => setShowMediaLinkModal(true)
           }
         ]}
       />
@@ -360,23 +394,6 @@ export default function ToolbarContent(props: ToolbarContentProps) {
       />
       
       <div className="toolbar-spacer" />
-      
-      {/* Transcription switcher dropdown (positioned absolutely) */}
-      {showTranscriptionSwitcher && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: '10px',
-          zIndex: 1000,
-          marginTop: '4px'
-        }}>
-          <TranscriptionSwitcher
-            currentTranscriptionId={currentTranscriptionId}
-            onTranscriptionChange={handleTranscriptionChange}
-            disabled={false}
-          />
-        </div>
-      )}
     </>
   );
 }

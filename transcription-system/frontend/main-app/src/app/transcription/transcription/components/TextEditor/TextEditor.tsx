@@ -37,7 +37,8 @@ export default function TextEditor({
   enabled = true,
   mediaFileName = '',
   mediaDuration = '',
-  currentProjectId = ''
+  currentProjectId = '',
+  projectName = 'אין פרויקט'
 }: TextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
@@ -76,6 +77,8 @@ export default function TextEditor({
   const [showAutoCorrectModal, setShowAutoCorrectModal] = useState(false);
   const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
   const [showHTMLPreviewModal, setShowHTMLPreviewModal] = useState(false);
+  const [isMediaNameOverflowing, setIsMediaNameOverflowing] = useState(false);
+  const mediaNameRef = useRef<HTMLDivElement>(null);
   const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>({
     blockDuplicateSpeakers: true,
     requirePunctuation: true,
@@ -232,6 +235,26 @@ export default function TextEditor({
       setCurrentMediaFileName(mediaFileName);
     }
   }, [mediaFileName]);
+  
+  // Check if media name is overflowing
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (mediaNameRef.current) {
+        const wrapper = mediaNameRef.current.parentElement;
+        if (wrapper) {
+          const isOverflowing = mediaNameRef.current.scrollWidth > wrapper.clientWidth;
+          setIsMediaNameOverflowing(isOverflowing);
+        }
+      }
+    };
+    
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    
+    return () => {
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [currentMediaFileName]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -1455,6 +1478,8 @@ export default function TextEditor({
             setShowHTMLPreviewModal={setShowHTMLPreviewModal}
             currentTranscriptionId={currentTranscriptionId}
             handleTranscriptionChange={handleTranscriptionChange}
+            currentMediaId={currentProjectId}
+            projectName={projectName}
             fontSize={fontSize}
             setFontSize={setFontSize}
             fontFamily={fontFamily}
@@ -1524,13 +1549,38 @@ export default function TextEditor({
             }
           }}
         >
-          {/* Media Name Header */}
-          {currentMediaFileName && (
-            <div className="media-name-header">
-              <span className="media-name-label">מדיה:</span>
-              <span className="media-name-text">{currentMediaFileName}</span>
+          {/* Media Name Header - Always Display */}
+          <div className="media-name-header">
+            {/* Project Name Zone */}
+            <div className="header-zone project-zone">
+              <span className="header-text">{projectName}</span>
             </div>
-          )}
+            
+            <div className="header-divider"></div>
+            
+            {/* Media Name Zone - Scrollable */}
+            <div className="header-zone media-zone">
+              <div className="media-name-wrapper">
+                <div 
+                  ref={mediaNameRef}
+                  className={`media-name-scrollable ${
+                    isMediaNameOverflowing && currentMediaFileName 
+                      ? (/[\u0590-\u05FF]/.test(currentMediaFileName) ? 'scroll-rtl' : 'scroll-ltr')
+                      : ''
+                  }`}
+                >
+                  {currentMediaFileName || 'אין מדיה נטענת'}
+                </div>
+              </div>
+            </div>
+            
+            <div className="header-divider"></div>
+            
+            {/* Duration Zone */}
+            <div className="header-zone duration-zone">
+              <span className="header-text">{mediaDuration || '00:00:00'}</span>
+            </div>
+          </div>
           
           {/* Blocks Container */}
           <div className="blocks-container">

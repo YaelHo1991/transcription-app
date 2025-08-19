@@ -336,32 +336,109 @@
   flex-direction: column;
 }
 
-/* Media Name Header */
+/* Media Name Header - Three Zone Layout */
 .media-name-header {
-  padding: 10px 20px;
+  padding: 8px 20px;
   background: linear-gradient(to bottom, #f5fffe, #f0fdfa);
   border-bottom: 1px solid #e0f2f1;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   flex-shrink: 0;
-  min-height: 38px;
+  min-height: 42px;
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-.media-name-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f766e;
-  letter-spacing: 0.5px;
+/* Header Zones */
+.header-zone {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 15px;
 }
 
-.media-name-text {
+.project-zone {
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
+.media-zone {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.duration-zone {
+  flex: 0 0 auto;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Header Divider */
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(20, 184, 166, 0.3);
+  flex-shrink: 0;
+}
+
+/* Header Text */
+.header-text {
   font-size: 13px;
   color: #1a5d5d;
   font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Media Name Scrollable Wrapper */
+.media-name-wrapper {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.media-name-scrollable {
+  font-size: 13px;
+  color: #1a5d5d;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-block;
+  padding-right: 30px;
+}
+
+/* Scrolling animation for long text */
+.media-name-scrollable.scroll-ltr {
+  animation: scroll-text-ltr 15s linear infinite;
+}
+
+.media-name-scrollable.scroll-rtl {
+  animation: scroll-text-rtl 15s linear infinite;
+  direction: rtl;
+}
+
+/* Only animate if text overflows */
+.media-name-wrapper:hover .media-name-scrollable {
+  animation-play-state: paused;
+}
+
+@keyframes scroll-text-ltr {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes scroll-text-rtl {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .blocks-container {
