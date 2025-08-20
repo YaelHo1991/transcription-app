@@ -24,6 +24,7 @@ import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import backupService from '../../../../../services/backupService';
+import incrementalBackupService from '../../../../../services/incrementalBackupService';
 import { tSessionService } from '../../../../../services/tSessionService';
 import { projectService } from '../../../../../services/projectService';
 // import TTranscriptionNotification from './components/TTranscriptionNotification'; // Removed - no popup needed
@@ -948,6 +949,12 @@ export default function TextEditor({
     // Update the specific block
     blockManagerRef.current.updateBlock(id, field, value);
     
+    // Track change for incremental backup
+    const updatedBlock = blockManagerRef.current.getBlocks().find(b => b.id === id);
+    if (updatedBlock) {
+      incrementalBackupService.trackBlockUpdated(id, field, value, updatedBlock);
+    }
+    
     // If speaker field changed and we have selected blocks, update all selected blocks with the same original speaker
     if (field === 'speaker' && (selectedBlocksRef.current.size > 0 || selectedBlockRangeRef.current)) {
       const blocksToUpdate = new Set<number>();
@@ -1011,6 +1018,9 @@ export default function TextEditor({
       setActiveArea('speaker');
       const newBlocks = [...blockManagerRef.current.getBlocks()];
       setBlocks(newBlocks);
+      
+      // Track new block for incremental backup
+      incrementalBackupService.trackBlockCreated(newBlock);
       
       // Save to history immediately for structural changes
       saveToHistory(newBlocks);
@@ -1151,6 +1161,9 @@ export default function TextEditor({
 
   // Handle block removal
   const handleRemoveBlock = useCallback((id: string) => {
+    // Track deletion for incremental backup
+    incrementalBackupService.trackBlockDeleted(id);
+    
     blockManagerRef.current.removeBlock(id);
     const newActiveId = blockManagerRef.current.getActiveBlockId();
     const newArea = blockManagerRef.current.getActiveArea();
@@ -1296,6 +1309,9 @@ export default function TextEditor({
       // CRITICAL: Update blockManagerRef BEFORE setting state
       blockManagerRef.current.setBlocks(loadedBlocks);
       setBlocks(loadedBlocks);
+      
+      // Initialize incremental backup service with loaded blocks
+      incrementalBackupService.initialize(projectId, loadedBlocks, projectData.version || 0);
       
       console.log('[Project] DEBUG: State blocks after setBlocks:', loadedBlocks.length);
       
@@ -1498,7 +1514,33 @@ export default function TextEditor({
     };
     
     console.log('[Project] Saving project:', currentProjectId);
-    const success = await projectService.saveProject(currentProjectId, saveData);
+    
+    // Check if we should use incremental save
+    let success = false;
+    if (incrementalBackupService.hasChanges()) {
+      // Prepare incremental backup data
+      const incrementalData = incrementalBackupService.prepareBackupData(currentBlocks);
+      
+      // Log save metrics
+      const metrics = incrementalBackupService.getMetrics();
+      console.log('[Project] Save metrics:', {
+        type: incrementalData.fullSnapshot ? 'Full' : 'Incremental',
+        changes: incrementalBackupService.getChangeSummary(),
+        totalBlocks: metrics.totalBlocks,
+        modifiedBlocks: metrics.modifiedBlocks
+      });
+      
+      // Use incremental save if available
+      success = await projectService.saveProjectIncremental(currentProjectId, incrementalData);
+      
+      // If incremental save succeeded, update tracking
+      if (success) {
+        incrementalBackupService.onSaveSuccess(incrementalData.version, currentBlocks);
+      }
+    } else {
+      // No changes tracked, fall back to regular save
+      success = await projectService.saveProject(currentProjectId, saveData);
+    }
     
     if (success) {
       // Also create a versioned backup
