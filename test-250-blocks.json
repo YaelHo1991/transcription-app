@@ -1,0 +1,1264 @@
+{
+  "blocks": [
+    {
+      "speaker": "א",
+      "text": "טקסט 0",
+      "timestamp": 0
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 1",
+      "timestamp": 2
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 2",
+      "timestamp": 4
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 3",
+      "timestamp": 6
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 4",
+      "timestamp": 8
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 5",
+      "timestamp": 10
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 6",
+      "timestamp": 12
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 7",
+      "timestamp": 14
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 8",
+      "timestamp": 16
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 9",
+      "timestamp": 18
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 10",
+      "timestamp": 20
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 11",
+      "timestamp": 22
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 12",
+      "timestamp": 24
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 13",
+      "timestamp": 26
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 14",
+      "timestamp": 28
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 15",
+      "timestamp": 30
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 16",
+      "timestamp": 32
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 17",
+      "timestamp": 34
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 18",
+      "timestamp": 36
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 19",
+      "timestamp": 38
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 20",
+      "timestamp": 40
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 21",
+      "timestamp": 42
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 22",
+      "timestamp": 44
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 23",
+      "timestamp": 46
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 24",
+      "timestamp": 48
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 25",
+      "timestamp": 50
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 26",
+      "timestamp": 52
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 27",
+      "timestamp": 54
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 28",
+      "timestamp": 56
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 29",
+      "timestamp": 58
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 30",
+      "timestamp": 60
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 31",
+      "timestamp": 62
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 32",
+      "timestamp": 64
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 33",
+      "timestamp": 66
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 34",
+      "timestamp": 68
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 35",
+      "timestamp": 70
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 36",
+      "timestamp": 72
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 37",
+      "timestamp": 74
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 38",
+      "timestamp": 76
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 39",
+      "timestamp": 78
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 40",
+      "timestamp": 80
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 41",
+      "timestamp": 82
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 42",
+      "timestamp": 84
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 43",
+      "timestamp": 86
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 44",
+      "timestamp": 88
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 45",
+      "timestamp": 90
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 46",
+      "timestamp": 92
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 47",
+      "timestamp": 94
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 48",
+      "timestamp": 96
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 49",
+      "timestamp": 98
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 50",
+      "timestamp": 100
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 51",
+      "timestamp": 102
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 52",
+      "timestamp": 104
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 53",
+      "timestamp": 106
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 54",
+      "timestamp": 108
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 55",
+      "timestamp": 110
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 56",
+      "timestamp": 112
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 57",
+      "timestamp": 114
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 58",
+      "timestamp": 116
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 59",
+      "timestamp": 118
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 60",
+      "timestamp": 120
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 61",
+      "timestamp": 122
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 62",
+      "timestamp": 124
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 63",
+      "timestamp": 126
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 64",
+      "timestamp": 128
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 65",
+      "timestamp": 130
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 66",
+      "timestamp": 132
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 67",
+      "timestamp": 134
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 68",
+      "timestamp": 136
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 69",
+      "timestamp": 138
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 70",
+      "timestamp": 140
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 71",
+      "timestamp": 142
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 72",
+      "timestamp": 144
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 73",
+      "timestamp": 146
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 74",
+      "timestamp": 148
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 75",
+      "timestamp": 150
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 76",
+      "timestamp": 152
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 77",
+      "timestamp": 154
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 78",
+      "timestamp": 156
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 79",
+      "timestamp": 158
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 80",
+      "timestamp": 160
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 81",
+      "timestamp": 162
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 82",
+      "timestamp": 164
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 83",
+      "timestamp": 166
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 84",
+      "timestamp": 168
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 85",
+      "timestamp": 170
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 86",
+      "timestamp": 172
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 87",
+      "timestamp": 174
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 88",
+      "timestamp": 176
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 89",
+      "timestamp": 178
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 90",
+      "timestamp": 180
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 91",
+      "timestamp": 182
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 92",
+      "timestamp": 184
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 93",
+      "timestamp": 186
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 94",
+      "timestamp": 188
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 95",
+      "timestamp": 190
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 96",
+      "timestamp": 192
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 97",
+      "timestamp": 194
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 98",
+      "timestamp": 196
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 99",
+      "timestamp": 198
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 100",
+      "timestamp": 200
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 101",
+      "timestamp": 202
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 102",
+      "timestamp": 204
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 103",
+      "timestamp": 206
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 104",
+      "timestamp": 208
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 105",
+      "timestamp": 210
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 106",
+      "timestamp": 212
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 107",
+      "timestamp": 214
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 108",
+      "timestamp": 216
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 109",
+      "timestamp": 218
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 110",
+      "timestamp": 220
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 111",
+      "timestamp": 222
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 112",
+      "timestamp": 224
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 113",
+      "timestamp": 226
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 114",
+      "timestamp": 228
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 115",
+      "timestamp": 230
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 116",
+      "timestamp": 232
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 117",
+      "timestamp": 234
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 118",
+      "timestamp": 236
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 119",
+      "timestamp": 238
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 120",
+      "timestamp": 240
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 121",
+      "timestamp": 242
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 122",
+      "timestamp": 244
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 123",
+      "timestamp": 246
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 124",
+      "timestamp": 248
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 125",
+      "timestamp": 250
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 126",
+      "timestamp": 252
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 127",
+      "timestamp": 254
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 128",
+      "timestamp": 256
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 129",
+      "timestamp": 258
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 130",
+      "timestamp": 260
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 131",
+      "timestamp": 262
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 132",
+      "timestamp": 264
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 133",
+      "timestamp": 266
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 134",
+      "timestamp": 268
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 135",
+      "timestamp": 270
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 136",
+      "timestamp": 272
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 137",
+      "timestamp": 274
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 138",
+      "timestamp": 276
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 139",
+      "timestamp": 278
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 140",
+      "timestamp": 280
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 141",
+      "timestamp": 282
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 142",
+      "timestamp": 284
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 143",
+      "timestamp": 286
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 144",
+      "timestamp": 288
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 145",
+      "timestamp": 290
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 146",
+      "timestamp": 292
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 147",
+      "timestamp": 294
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 148",
+      "timestamp": 296
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 149",
+      "timestamp": 298
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 150",
+      "timestamp": 300
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 151",
+      "timestamp": 302
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 152",
+      "timestamp": 304
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 153",
+      "timestamp": 306
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 154",
+      "timestamp": 308
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 155",
+      "timestamp": 310
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 156",
+      "timestamp": 312
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 157",
+      "timestamp": 314
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 158",
+      "timestamp": 316
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 159",
+      "timestamp": 318
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 160",
+      "timestamp": 320
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 161",
+      "timestamp": 322
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 162",
+      "timestamp": 324
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 163",
+      "timestamp": 326
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 164",
+      "timestamp": 328
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 165",
+      "timestamp": 330
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 166",
+      "timestamp": 332
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 167",
+      "timestamp": 334
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 168",
+      "timestamp": 336
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 169",
+      "timestamp": 338
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 170",
+      "timestamp": 340
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 171",
+      "timestamp": 342
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 172",
+      "timestamp": 344
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 173",
+      "timestamp": 346
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 174",
+      "timestamp": 348
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 175",
+      "timestamp": 350
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 176",
+      "timestamp": 352
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 177",
+      "timestamp": 354
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 178",
+      "timestamp": 356
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 179",
+      "timestamp": 358
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 180",
+      "timestamp": 360
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 181",
+      "timestamp": 362
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 182",
+      "timestamp": 364
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 183",
+      "timestamp": 366
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 184",
+      "timestamp": 368
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 185",
+      "timestamp": 370
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 186",
+      "timestamp": 372
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 187",
+      "timestamp": 374
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 188",
+      "timestamp": 376
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 189",
+      "timestamp": 378
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 190",
+      "timestamp": 380
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 191",
+      "timestamp": 382
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 192",
+      "timestamp": 384
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 193",
+      "timestamp": 386
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 194",
+      "timestamp": 388
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 195",
+      "timestamp": 390
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 196",
+      "timestamp": 392
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 197",
+      "timestamp": 394
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 198",
+      "timestamp": 396
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 199",
+      "timestamp": 398
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 200",
+      "timestamp": 400
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 201",
+      "timestamp": 402
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 202",
+      "timestamp": 404
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 203",
+      "timestamp": 406
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 204",
+      "timestamp": 408
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 205",
+      "timestamp": 410
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 206",
+      "timestamp": 412
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 207",
+      "timestamp": 414
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 208",
+      "timestamp": 416
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 209",
+      "timestamp": 418
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 210",
+      "timestamp": 420
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 211",
+      "timestamp": 422
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 212",
+      "timestamp": 424
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 213",
+      "timestamp": 426
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 214",
+      "timestamp": 428
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 215",
+      "timestamp": 430
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 216",
+      "timestamp": 432
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 217",
+      "timestamp": 434
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 218",
+      "timestamp": 436
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 219",
+      "timestamp": 438
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 220",
+      "timestamp": 440
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 221",
+      "timestamp": 442
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 222",
+      "timestamp": 444
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 223",
+      "timestamp": 446
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 224",
+      "timestamp": 448
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 225",
+      "timestamp": 450
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 226",
+      "timestamp": 452
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 227",
+      "timestamp": 454
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 228",
+      "timestamp": 456
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 229",
+      "timestamp": 458
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 230",
+      "timestamp": 460
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 231",
+      "timestamp": 462
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 232",
+      "timestamp": 464
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 233",
+      "timestamp": 466
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 234",
+      "timestamp": 468
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 235",
+      "timestamp": 470
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 236",
+      "timestamp": 472
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 237",
+      "timestamp": 474
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 238",
+      "timestamp": 476
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 239",
+      "timestamp": 478
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 240",
+      "timestamp": 480
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 241",
+      "timestamp": 482
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 242",
+      "timestamp": 484
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 243",
+      "timestamp": 486
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 244",
+      "timestamp": 488
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 245",
+      "timestamp": 490
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 246",
+      "timestamp": 492
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 247",
+      "timestamp": 494
+    },
+    {
+      "speaker": "א",
+      "text": "טקסט 248",
+      "timestamp": 496
+    },
+    {
+      "speaker": "ב",
+      "text": "טקסט 249",
+      "timestamp": 498
+    }
+  ],
+  "speakers": [
+    {
+      "code": "א",
+      "name": "דובר א"
+    },
+    {
+      "code": "ב",
+      "name": "דובר ב"
+    }
+  ]
+}

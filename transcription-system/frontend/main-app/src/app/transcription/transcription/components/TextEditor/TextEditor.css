@@ -1,5 +1,15 @@
 /* TextEditor Component Styles - Word-like with Turquoise Theme */
 
+/* Hide scrollbar for sliding window editor */
+.text-editor-content.sliding-window::-webkit-scrollbar {
+  display: none;
+}
+
+.text-editor-content.sliding-window {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 /* Virtualization Notice */
 .virtualized-editor-container {
   width: 100%;
@@ -354,10 +364,18 @@
   overflow-y: auto;
   overflow-x: hidden;
   direction: rtl !important;
-  unicode-bidi: embed !important;
+  unicode-bidi: plaintext !important;
   margin: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Virtual scrolling wrapper for text blocks */
+.text-block-wrapper {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important;
+  width: 100%;
 }
 
 /* Media Name Header - Three Zone Layout */
@@ -469,6 +487,68 @@
   padding: 20px 12px 12px 12px;
   background: linear-gradient(to bottom, #ffffff, #fafafa);
   flex: 1;
+  overflow-y: auto; /* Allow scrolling */
+  overflow-x: hidden; /* No horizontal scroll */
+  min-height: 400px; /* Ensure minimum height */
+  position: relative;
+}
+
+/* When virtual scrolling is active, let react-window handle scrolling */
+.blocks-container:has(> div[style*="position: relative"][style*="height"]) {
+  overflow: hidden !important; /* Remove container scrolling when virtual mode is active */
+}
+
+/* CRITICAL: Force RTL on ALL virtual scrolling container levels */
+.blocks-container > div {
+  direction: rtl !important;
+}
+
+.blocks-container > div > div {
+  direction: rtl !important;
+}
+
+.blocks-container > div > div > div {
+  direction: rtl !important;
+}
+
+/* Virtual scrolling specific styles */
+
+/* Ensure virtual blocks have same spacing as regular blocks */
+.blocks-container div[style*="position: absolute"][style*="top"] > div {
+  /* The wrapper div for each virtual row */
+  padding-bottom: 0; /* Margin is handled by .text-block */
+  direction: rtl !important;
+}
+
+/* Ensure text-block itself is RTL in virtual mode */
+.blocks-container div[style*="position: absolute"][style*="top"] .text-block {
+  direction: rtl !important;
+}
+
+/* Virtual mode textarea styles - copy exact styles from original TextBlock.css */
+.blocks-container div[style*="position: absolute"][style*="top"] textarea.block-text,
+.blocks-container div[style*="position: absolute"][style*="top"] .text-block textarea {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important; /* Use plaintext for proper RTL handling like speaker field */
+  caret-color: #e91e63 !important; /* Pink cursor for Hebrew */
+  writing-mode: horizontal-tb !important;
+}
+
+.blocks-container div[style*="position: absolute"][style*="top"] .text-block textarea[dir="ltr"],
+.blocks-container div[style*="position: absolute"][style*="top"] .text-block input[dir="ltr"] {
+  caret-color: #2196f3 !important; /* Blue cursor for English */
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* Ensure language-specific cursor colors work in virtual mode */
+.blocks-container div[style*="position: absolute"][style*="top"] .block-text[data-language="hebrew"] {
+  caret-color: #e91e63 !important;
+}
+
+.blocks-container div[style*="position: absolute"][style*="top"] .block-text[data-language="english"] {
+  caret-color: #2196f3 !important;
 }
 
 .text-editor-content:focus {

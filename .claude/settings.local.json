@@ -64,7 +64,10 @@
       "Bash(git branch:*)",
       "Bash(touch:*)",
       "Bash(git reset:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(git restore:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(del VirtualizedTextEditor.tsx)"
     ],
     "deny": [],
     "additionalDirectories": [

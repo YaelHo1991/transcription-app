@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import TextBlock, { TextBlockData } from './blocks/TextBlock';
+import SlidingWindowTextEditor from './SlidingWindowTextEditor';
 import BlockManager from './blocks/BlockManager';
 import { SpeakerManager } from '../Speaker/utils/speakerManager';
 import { ShortcutManager } from './utils/ShortcutManager';
@@ -44,8 +45,9 @@ export default function TextEditor({
   mediaDuration = '',
   currentProjectId = '',
   projectName = 'אין פרויקט',
-  speakerComponentRef
-}: TextEditorProps) {
+  speakerComponentRef,
+  virtualizationEnabled = false
+}: TextEditorProps & { virtualizationEnabled?: boolean }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -170,6 +172,15 @@ export default function TextEditor({
   useEffect(() => { activeBlockIdRef.current = activeBlockId; }, [activeBlockId]);
   useEffect(() => { activeAreaRef.current = activeArea; }, [activeArea]);
   useEffect(() => { selectedBlockRangeRef.current = selectedBlockRange; }, [selectedBlockRange]);
+  
+  // Dispatch block count whenever blocks change (for virtual scrolling detection)
+  useEffect(() => {
+    const event = new CustomEvent('blocksLoaded', {
+      detail: { count: blocks.length }
+    });
+    document.dispatchEvent(event);
+    console.log(`[TextEditor] Dispatched blocksLoaded event with ${blocks.length} blocks`);
+  }, [blocks.length]);
   
   // Project: Save old project and load new one when project ID changes
   useEffect(() => {
@@ -1982,7 +1993,8 @@ export default function TextEditor({
         if (data.speakers && Array.isArray(data.speakers)) {
           data.speakers.forEach((speaker: any) => {
             if (speaker.code && speaker.name) {
-              speakerManagerRef.current.setSpeakerName(speaker.code, speaker.name);
+              // Use addSpeaker which will add or return existing speaker
+              speakerManagerRef.current.addSpeaker(speaker.code, speaker.name);
             }
           });
         }
@@ -2175,7 +2187,44 @@ export default function TextEditor({
           
           {/* Blocks Container */}
           <div className="blocks-container">
-            {blocks.map((block, index) => {
+            {virtualizationEnabled ? (
+              <SlidingWindowTextEditor
+                blocks={blocks}
+                activeBlockId={activeBlockId}
+                activeArea={activeArea}
+                cursorAtStart={cursorAtStart}
+                selectedBlocks={new Set(Array.from(selectedBlocks).map(i => blocks[i]?.id).filter(Boolean))}
+                searchResults={searchHighlights}
+                currentSearchIndex={currentSearchIndex}
+                speakerColors={speakerColors}
+                fontSize={fontSize}
+                fontFamily={fontFamily}
+                isolatedSpeakers={isolatedSpeakers}
+                showDescriptionTooltips={showDescriptionTooltips}
+                blockViewEnabled={blockViewEnabled}
+                autoCorrectEngine={autoCorrectEngineRef.current}
+                onNavigate={handleNavigate}
+                onUpdate={handleBlockUpdate}
+                onNewBlock={handleNewBlock}
+                onRemoveBlock={handleRemoveBlock}
+                onSpeakerTransform={handleSpeakerTransform}
+                onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
+                onProcessShortcuts={processShortcuts}
+                onBlockClick={handleBlockClick}
+                getSearchHighlights={(blockId, field) => {
+                  const blockHighlights = searchHighlights.filter(h => h.blockId === blockId && h.field === field);
+                  return blockHighlights.map(h => ({
+                    startIndex: h.startIndex,
+                    endIndex: h.endIndex,
+                    isCurrent: searchHighlights[currentSearchIndex]?.blockId === blockId &&
+                             searchHighlights[currentSearchIndex]?.field === field &&
+                             searchHighlights[currentSearchIndex]?.startIndex === h.startIndex
+                  }));
+                }}
+                containerHeight={window.innerHeight - 300}
+              />
+            ) : (
+              blocks.map((block, index) => {
               // Get highlights for this block
               const blockHighlights = searchHighlights.filter(h => h.blockId === block.id);
               const speakerHighlights = blockHighlights
@@ -2242,7 +2291,8 @@ export default function TextEditor({
                   />
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
       </div>

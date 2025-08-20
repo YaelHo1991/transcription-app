@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import TextEditor from './TextEditor';
-import VirtualizedTextEditor from './VirtualizedTextEditor';
 import { BackupService } from '../../services/backupService';
 
 // Threshold for switching to virtualized mode
-const VIRTUALIZATION_THRESHOLD = 1000; // Switch to virtual scrolling above 1000 blocks
+const VIRTUALIZATION_THRESHOLD = 30; // Set to 30 for testing (normally 200)
 
 interface TextEditorWrapperProps {
   currentProjectId: string;
@@ -52,23 +51,9 @@ const TextEditorWrapper: React.FC<TextEditorWrapperProps> = (props) => {
     }
   }, [useVirtualized, blockCount]);
 
-  // For now, use regular TextEditor until we fully integrate VirtualizedTextEditor
-  // This allows gradual testing
+  // Pass virtualization flag to TextEditor
   return (
-    <>
-      {!useVirtualized && (
-        <TextEditor {...props} />
-      )}
-      {useVirtualized && (
-        <div className="virtualized-editor-container">
-          <div className="virtualization-notice">
-            Virtual scrolling enabled for performance ({blockCount} blocks)
-          </div>
-          <TextEditor {...props} />
-          {/* VirtualizedTextEditor will be enabled after full integration */}
-        </div>
-      )}
-    </>
+    <TextEditor {...props} virtualizationEnabled={useVirtualized} />
   );
 };
 

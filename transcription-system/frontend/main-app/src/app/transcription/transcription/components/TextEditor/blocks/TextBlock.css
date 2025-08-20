@@ -34,8 +34,9 @@
   caret-color: #e91e63; /* Pink cursor for Hebrew */
   caret-shape: block; /* Block cursor for Hebrew */
   /* Keep RTL direction for the whole field */
-  direction: rtl;
-  text-align: right;
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: plaintext !important; /* CRITICAL: Makes it work like speaker field */
 }
 
 .text-block textarea[dir="ltr"],
@@ -87,7 +88,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 2px 12px;
-  margin-bottom: 0;
+  margin-bottom: 8px; /* Add spacing between blocks */
   background-color: transparent;
   border-radius: 4px;
   transition: all 0.2s ease;
@@ -204,9 +205,9 @@
   /* ABSOLUTELY FORCE RTL - no exceptions */
   direction: rtl !important;
   text-align: right !important;
-  /* Don't use plaintext - it detects first character */
-  /* Use normal to keep RTL but allow English to display correctly */
-  unicode-bidi: normal !important;
+  /* Use plaintext for proper bidirectional text handling */
+  /* This allows mixed Hebrew-English text to display correctly like in speaker field */
+  unicode-bidi: plaintext !important;
   /* Full text justification like Word */
   text-justify: inter-word !important;
   word-spacing: normal;
@@ -216,6 +217,8 @@
 /* Dynamic cursor colors set via inline styles */
 .block-text[data-language="hebrew"] {
   caret-color: #e91e63 !important;
+  direction: rtl !important;
+  text-align: right !important;
 }
 
 .block-text[data-language="english"] {
@@ -333,10 +336,6 @@
   text-align: right;
 }
 
-.block-text {
-  direction: rtl;
-  text-align: right;
-}
 
 /* Non-isolated block styling */
 .text-block.non-isolated {
