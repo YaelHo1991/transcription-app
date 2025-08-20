@@ -33,6 +33,7 @@ interface MediaItem {
 interface Project {
   name: string;
   mediaItems: MediaItem[];
+  projectId?: string; // Store the backend project ID
 }
 
 // Type for files with webkit directory support
@@ -51,15 +52,23 @@ declare module 'react' {
 export default function TranscriptionWorkPage() {
   const router = useRouter();
   
+  // Store project remarks to pass to RemarksProvider
+  const [projectRemarks, setProjectRemarks] = useState<any[]>([]);
+  
   // Create a unique session ID for this transcription session
-  const [sessionId, setSessionId] = useState(() => {
+  const [sessionId] = useState(() => {
     // Try to get from URL params first (for saved sessions)
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlSessionId = params.get('session');
-      return urlSessionId || `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      if (urlSessionId) return urlSessionId;
+      
+      // Generate a stable session ID
+      const timestamp = new Date().getTime();
+      const random = Math.random().toString(36).substring(2, 11);
+      return `session-${timestamp}-${random}`;
     }
-    return `session-${Date.now()}`;
+    return 'session-default';
   });
   
   const [helperFilesExpanded, setHelperFilesExpanded] = useState(false);
@@ -115,6 +124,90 @@ export default function TranscriptionWorkPage() {
   };
   
   const mediaDuration = formatDuration(actualMediaDuration);
+  
+  // Load existing projects on mount
+  useEffect(() => {
+    const loadExistingProjects = async () => {
+      try {
+        console.log('[Page] Loading existing projects...');
+        const projectsList = await projectService.listProjects();
+        
+        if (projectsList && projectsList.length > 0) {
+          // Transform backend projects to frontend format
+          const transformedProjects: Project[] = projectsList.map(proj => {
+            try {
+              return {
+                name: proj.projectName || 'פרויקט ללא שם',
+                mediaItems: [{
+                  type: 'file' as const,
+                  name: proj.mediaFile || 'מדיה לא ידועה',
+                  size: '0 MB' // Size not stored in backend
+                }],
+                projectId: proj.projectId
+              };
+            } catch (err) {
+              console.error('[Page] Error transforming project:', proj, err);
+              return null;
+            }
+          }).filter(Boolean) as Project[];
+          
+          console.log('[Page] Loaded projects:', transformedProjects.length);
+          setProjects(transformedProjects);
+          
+          // If we have projects, set the first one as current
+          if (transformedProjects.length > 0) {
+            setCurrentProjectIndex(0);
+            setCurrentMediaIndex(0);
+            // Load the first project's data
+            if (transformedProjects[0].projectId) {
+              await loadProjectData(transformedProjects[0].projectId);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Page] Error loading projects:', error);
+      }
+    };
+    
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      loadExistingProjects();
+    }
+  }, []); // Run once on mount
+  
+  // Function to load complete project data (blocks, speakers, remarks)
+  const loadProjectData = async (projectId: string) => {
+    try {
+      console.log('[Page] Loading project data for:', projectId);
+      const projectData = await projectService.loadProject(projectId);
+      
+      if (projectData) {
+        // Set current project ID
+        setCurrentProjectId(projectId);
+        
+        // Load blocks into TextEditor (will be handled via currentProjectId prop)
+        // The TextEditor component will load the data when currentProjectId changes
+        
+        // Load speakers into SimpleSpeaker component
+        if (projectData.speakers && speakerComponentRef.current) {
+          speakerComponentRef.current.loadSpeakers(projectData.speakers);
+        }
+        
+        // Load remarks - store them to pass to RemarksProvider
+        if (projectData.remarks) {
+          setProjectRemarks(projectData.remarks);
+        }
+        
+        console.log('[Page] Project data loaded:', {
+          blocks: projectData.blocks?.length || 0,
+          speakers: projectData.speakers?.length || 0,
+          remarks: projectData.remarks?.length || 0
+        });
+      }
+    } catch (error) {
+      console.error('[Page] Error loading project data:', error);
+    }
+  };
   
   const handleMediaUpload = (files: FileList) => {
     // Create project if none exists
@@ -374,7 +467,10 @@ export default function TranscriptionWorkPage() {
         sidebarLocked ? 'sidebar-locked' : ''
       }`}>
         <div className="content-container">
-          <RemarksProvider transcriptionId={currentProjectId || sessionId || `temp-${Date.now()}`}>
+          <RemarksProvider 
+            transcriptionId={currentProjectId || sessionId}
+            initialRemarks={projectRemarks}
+          >
           <RemarksEventListener />
           <div className="workspace-grid">
           {/* Main Workspace */}
@@ -472,9 +568,15 @@ export default function TranscriptionWorkPage() {
                 enabled={true}
                 projects={projects}
                 currentProjectIndex={currentProjectIndex}
-                onProjectChange={(index) => {
+                onProjectChange={async (index) => {
                   setCurrentProjectIndex(index);
                   setCurrentMediaIndex(0);
+                  
+                  // Load the selected project's data
+                  const selectedProject = projects[index];
+                  if (selectedProject?.projectId) {
+                    await loadProjectData(selectedProject.projectId);
+                  }
                 }}
               />
             </div>

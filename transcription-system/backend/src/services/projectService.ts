@@ -353,19 +353,28 @@ export class ProjectService {
   async listProjects(): Promise<any[]> {
     try {
       const entries = await fs.readdir(this.baseDir);
+      console.log(`Found ${entries.length} entries in projects directory`);
+      
       const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
+      console.log(`Found ${projectFolders.length} project folders`);
       
       const projects = [];
       for (const folder of projectFolders) {
         try {
+          const metadataPath = path.join(this.baseDir, folder, 'metadata.json');
           const metadata = JSON.parse(
-            await fs.readFile(path.join(this.baseDir, folder, 'metadata.json'), 'utf8')
+            await fs.readFile(metadataPath, 'utf8')
           );
           projects.push(metadata);
-        } catch (error) {
-          console.error(`Error reading metadata for ${folder}:`, error);
+        } catch (error: any) {
+          // Skip projects without metadata (probably incomplete)
+          if (error.code !== 'ENOENT') {
+            console.error(`Error reading metadata for ${folder}:`, error.message);
+          }
         }
       }
+      
+      console.log(`Successfully loaded metadata for ${projects.length} projects`);
       
       // Sort by creation date (newest first)
       projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

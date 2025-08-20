@@ -138,6 +138,7 @@ interface RemarksContextType {
   getSortedRemarks: (remarks: Remark[]) => Remark[];
   navigateToTimestamp: (time: number) => void;
   updateAllOccurrences: (remarkId: string, newValue: string) => void;
+  loadRemarks: (remarks: Remark[]) => void;
 }
 
 /**
@@ -151,19 +152,40 @@ const RemarksContext = createContext<RemarksContextType | null>(null);
 interface RemarksProviderProps {
   children: ReactNode;
   transcriptionId?: string;
+  initialRemarks?: Remark[];
 }
 
-export function RemarksProvider({ children, transcriptionId }: RemarksProviderProps) {
+export function RemarksProvider({ children, transcriptionId, initialRemarks }: RemarksProviderProps) {
   // Use transcription ID or session ID for storage key
   const storageKey = transcriptionId 
     ? `transcription-remarks-${transcriptionId}`
-    : `transcription-remarks-session-${Date.now()}`;
+    : 'transcription-remarks-session-default';
   const [state, dispatch] = useReducer(remarksReducer, initialState);
+
+  /**
+   * Load initial remarks when provided
+   */
+  useEffect(() => {
+    if (initialRemarks && initialRemarks.length > 0) {
+      console.log('[RemarksProvider] Loading initial remarks:', initialRemarks.length);
+      const formattedRemarks = initialRemarks.map(r => ({
+        ...r,
+        createdAt: r.createdAt instanceof Date ? r.createdAt : r.createdAt ? new Date(r.createdAt) : new Date(),
+        updatedAt: r.updatedAt instanceof Date ? r.updatedAt : r.updatedAt ? new Date(r.updatedAt) : new Date()
+      }));
+      dispatch({ type: RemarkAction.LOAD, payload: formattedRemarks });
+    }
+  }, [initialRemarks]);
 
   /**
    * Load remarks from localStorage on mount
    */
   useEffect(() => {
+    // Skip localStorage loading if we have initial remarks
+    if (initialRemarks && initialRemarks.length > 0) {
+      return;
+    }
+    
     const loadRemarks = () => {
       try {
         // Check for a clear flag in URL params (for development)
@@ -177,11 +199,11 @@ export function RemarksProvider({ children, transcriptionId }: RemarksProviderPr
         const stored = localStorage.getItem(storageKey);
         if (stored) {
           const parsed = JSON.parse(stored);
-          // Convert date strings back to Date objects
+          // Convert date strings back to Date objects safely
           const remarks = parsed.map((r: any) => ({
             ...r,
-            createdAt: new Date(r.createdAt),
-            updatedAt: new Date(r.updatedAt)
+            createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date()
           }));
           
           // Clear old demo remarks and duplicates
@@ -395,6 +417,20 @@ export function RemarksProvider({ children, transcriptionId }: RemarksProviderPr
     }
   };
 
+  /**
+   * Load remarks from external source (e.g., project data)
+   */
+  const loadRemarks = (remarks: Remark[]) => {
+    console.log('[RemarksContext] Loading remarks from external source:', remarks.length);
+    // Ensure date objects are properly formatted
+    const formattedRemarks = remarks.map(r => ({
+      ...r,
+      createdAt: r.createdAt instanceof Date ? r.createdAt : r.createdAt ? new Date(r.createdAt) : new Date(),
+      updatedAt: r.updatedAt instanceof Date ? r.updatedAt : r.updatedAt ? new Date(r.updatedAt) : new Date()
+    }));
+    dispatch({ type: RemarkAction.LOAD, payload: formattedRemarks });
+  };
+
   const value: RemarksContextType = {
     state,
     addRemark,
@@ -406,7 +442,8 @@ export function RemarksProvider({ children, transcriptionId }: RemarksProviderPr
     getFilteredRemarks,
     getSortedRemarks,
     navigateToTimestamp,
-    updateAllOccurrences
+    updateAllOccurrences,
+    loadRemarks
   };
 
   return (

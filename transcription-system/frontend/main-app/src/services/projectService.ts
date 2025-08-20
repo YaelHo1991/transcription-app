@@ -293,7 +293,10 @@ class ProjectService {
    */
   async listProjects(): Promise<ProjectMetadata[]> {
     try {
+      console.log('[Project] Listing all projects');
+      
       const response = await fetch(`${API_URL}/api/projects/list`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'X-Dev-Mode': 'true'
@@ -301,11 +304,14 @@ class ProjectService {
       });
       
       if (!response.ok) {
+        console.error('[Project] Failed to list projects:', response.statusText);
         return [];
       }
       
-      const data = await response.json();
-      return data.projects || [];
+      const result = await response.json();
+      console.log('[Project] List projects result:', result);
+      
+      return result.projects || [];
     } catch (error) {
       console.error('[Project] Error listing projects:', error);
       return [];
@@ -360,12 +366,14 @@ class ProjectService {
       const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Dev-Mode': 'true'
         }
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to delete project: ${response.statusText}`);
+        console.error(`Failed to delete project: ${response.statusText}`);
+        return false;
       }
       
       const result = await response.json();
@@ -375,34 +383,6 @@ class ProjectService {
     } catch (error) {
       console.error('[Project] Error deleting project:', error);
       return false;
-    }
-  }
-
-  /**
-   * List all projects
-   */
-  async listProjects(): Promise<ProjectMetadata[]> {
-    try {
-      console.log('[Project] Listing all projects');
-      
-      const response = await fetch(`${API_URL}/api/projects/list`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to list projects: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log('[Project] List projects result:', result);
-      
-      return result.projects || [];
-    } catch (error) {
-      console.error('[Project] Error listing projects:', error);
-      return [];
     }
   }
 }
