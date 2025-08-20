@@ -58,26 +58,20 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
     // Clear existing speakers when mediaId changes
     console.log('[SimpleSpeaker] Media ID changed to:', mediaId);
     
-    // Reset to empty state first, including color index
+    // Reset to empty state first
+    // The SpeakerBlockManager constructor already sets colorIndex to 0 and creates the first block
+    // so we don't need to reset it again
     blockManagerRef.current = new SpeakerBlockManager();
-    blockManagerRef.current.resetColorIndex();
     
     if (mediaId) {
       // Don't load from localStorage anymore - wait for data from project service
       // The TextEditor will call loadSpeakers with the correct data
       console.log('[SimpleSpeaker] Waiting for project data to load speakers');
       
-      // Start with one empty block
-      const emptyBlock: SpeakerBlockData = {
-        id: 'speaker-' + Date.now(),
-        code: '',
-        name: '',
-        description: '',
-        color: '#667eea',
-        count: 0
-      };
-      blockManagerRef.current.blocks = [emptyBlock];
-      setBlocks([emptyBlock]);
+      // The SpeakerBlockManager constructor already creates an initial empty block
+      // with proper color assignment, so just use that
+      const initialBlocks = blockManagerRef.current.getBlocks();
+      setBlocks([...initialBlocks]);
     } else {
       // No mediaId, initialize with default
       const initialBlocks = blockManagerRef.current.getBlocks();

@@ -1710,6 +1710,15 @@ export default function TextEditor({
     const handleSpeakerUpdated = (event: CustomEvent) => {
       const { speakerId, code, name, color, oldCode, oldName } = event.detail;
       
+      console.log('[TextEditor] speakerUpdated event received:', {
+        speakerId,
+        code,
+        name,
+        color,
+        oldCode,
+        oldName
+      });
+      
       // Get all current blocks first
       const blocks = blockManagerRef.current.getBlocks();
       
@@ -1717,30 +1726,44 @@ export default function TextEditor({
       let updateFrom: string | null = null;
       let updateTo: string | null = null;
       
-      // If this is a name change for an existing speaker
-      if (oldName && oldName !== name) {
+      // If this is a name change for an existing speaker with a name already set
+      if (oldName && name && oldName !== name) {
+        // Update all blocks that currently show the old name
         updateFrom = oldName;
-        updateTo = (name && name.trim()) ? name : code;
+        updateTo = name;
+        console.log('[TextEditor] Name change detected:', { from: updateFrom, to: updateTo });
+      }
+      // If this is setting a name for the first time (from code to name)
+      else if (!oldName && code && name) {
+        // Update all blocks that show the code to show the name instead
+        updateFrom = code;
+        updateTo = name;
+        console.log('[TextEditor] Initial name set detected:', { from: updateFrom, to: updateTo });
+      }
+      // If this is clearing a name (reverting to code)
+      else if (oldName && !name && code) {
+        // Update all blocks from name back to code
+        updateFrom = oldName;
+        updateTo = code;
+        console.log('[TextEditor] Name cleared, reverting to code:', { from: updateFrom, to: updateTo });
       }
       // If this is a code change for an existing speaker
       else if (oldCode && oldCode !== code) {
+        // Update all blocks with the old code to the new code
         updateFrom = oldCode;
-        updateTo = (name && name.trim()) ? name : code;
-      }
-      // If this is a new name being set for a code
-      else if (code && name && !oldName) {
-        // Check if blocks currently show the code and should show the name
-        updateFrom = code;
-        updateTo = name;
+        updateTo = code;
+        console.log('[TextEditor] Code change detected:', { from: updateFrom, to: updateTo });
       }
       
       // Only proceed if we have something to update
       if (updateFrom && updateTo && updateFrom !== updateTo) {
         let hasUpdates = false;
         
-        // Update ONLY blocks that EXACTLY match the updateFrom value
+        console.log('[TextEditor] Checking blocks for updates...');
+        // Update ALL blocks that EXACTLY match the updateFrom value
         blocks.forEach(block => {
           if (block.speaker === updateFrom) {
+            console.log(`[TextEditor] Updating block ${block.id} speaker from "${updateFrom}" to "${updateTo}"`);
             blockManagerRef.current.updateBlock(block.id, 'speaker', updateTo);
             hasUpdates = true;
           }
@@ -1748,8 +1771,13 @@ export default function TextEditor({
         
         // Force re-render if there were updates
         if (hasUpdates) {
+          console.log('[TextEditor] Forcing re-render after updates');
           setBlocks([...blockManagerRef.current.getBlocks()]);
+        } else {
+          console.log('[TextEditor] No blocks matched for update');
         }
+      } else {
+        console.log('[TextEditor] No update needed:', { updateFrom, updateTo });
       }
       
       // Update color mapping if color provided
@@ -1782,12 +1810,41 @@ export default function TextEditor({
       }
     };
     
+    // Handle color-only updates (when setting name for first time)
+    const handleSpeakerColorUpdate = (event: CustomEvent) => {
+      const { code, name, color } = event.detail;
+      
+      // Only update color mapping, don't change block content
+      if (color) {
+        setSpeakerColors(prev => {
+          const newMap = new Map(prev);
+          
+          // Set color for BOTH code and name
+          if (code) {
+            newMap.set(code, color);
+          }
+          if (name && name.trim()) {
+            newMap.set(name, color);
+          }
+          
+          return newMap;
+        });
+      }
+      
+      // Track speaker name to code mapping for autocomplete
+      if (code && name && name.trim()) {
+        speakerNamesRef.current.set(code, name);
+      }
+    };
+
     document.addEventListener('speakerUpdated', handleSpeakerUpdated as EventListener);
     document.addEventListener('speakerCreated', handleSpeakerUpdated as EventListener);
+    document.addEventListener('speakerColorUpdate', handleSpeakerColorUpdate as EventListener);
     
     return () => {
       document.removeEventListener('speakerUpdated', handleSpeakerUpdated as EventListener);
       document.removeEventListener('speakerCreated', handleSpeakerUpdated as EventListener);
+      document.removeEventListener('speakerColorUpdate', handleSpeakerColorUpdate as EventListener);
     };
   }, [speakerColors]);
   

@@ -13,13 +13,31 @@ export default class SpeakerBlockManager {
   ];
   private colorIndex = 0;
 
-  constructor() {
-    // Initialize with one empty block
-    this.addBlock('', '', '');
+  constructor(skipInitialBlock = false) {
+    console.log(`[SpeakerBlockManager] Constructor called, skipInitialBlock: ${skipInitialBlock}`);
+    // Only initialize with empty block if not skipped
+    if (!skipInitialBlock) {
+      // Create initial empty block with a color already assigned
+      console.log(`[SpeakerBlockManager] Creating initial block with colorIndex: ${this.colorIndex}`);
+      const initialBlock: SpeakerBlockData = {
+        id: `speaker-${this.nextId++}`,
+        code: '',
+        name: '',
+        description: '',
+        color: this.colors[this.colorIndex % this.colors.length],
+        count: 0
+      };
+      console.log(`[SpeakerBlockManager] Initial block color: ${initialBlock.color}`);
+      this.colorIndex++;
+      this.blocks.push(initialBlock);
+      this.activeBlockId = initialBlock.id;
+      this.activeField = 'code';
+    }
   }
   
   // Reset color index when loading new speakers
   resetColorIndex() {
+    console.log('[SpeakerBlockManager] Resetting colorIndex to 0');
     this.colorIndex = 0;
   }
   
@@ -29,10 +47,10 @@ export default class SpeakerBlockManager {
     this.colorIndex = 0; // Reset color index for consistent colors
     
     speakers.forEach((speaker, index) => {
-      // Assign colors in order, ensuring consistency
+      // Always assign colors in order based on index, not existing color
       this.blocks.push({
         ...speaker,
-        color: speaker.color || this.colors[index % this.colors.length]
+        color: this.colors[index % this.colors.length]
       });
     });
     
@@ -63,6 +81,7 @@ export default class SpeakerBlockManager {
   }
 
   addBlock(code = '', name = '', description = '', afterId?: string): SpeakerBlockData {
+    console.log(`[SpeakerBlockManager] addBlock called, current colorIndex: ${this.colorIndex}`);
     const newBlock: SpeakerBlockData = {
       id: `speaker-${this.nextId++}`,
       code,
@@ -72,6 +91,7 @@ export default class SpeakerBlockManager {
       count: 0
     };
     
+    console.log(`[SpeakerBlockManager] Assigned color: ${newBlock.color} at index ${this.colorIndex}`);
     this.colorIndex++;
 
     if (afterId) {
@@ -133,11 +153,21 @@ export default class SpeakerBlockManager {
   updateBlock(id: string, field: 'code' | 'name' | 'description', value: string) {
     const block = this.blocks.find(b => b.id === id);
     if (block) {
+      console.log(`[SpeakerBlockManager] updateBlock: id=${id}, field=${field}, value="${value}", current color=${block.color}`);
       block[field] = value;
+      
+      // If this is an empty block getting its first code, assign a color
+      if (field === 'code' && value && !block.color) {
+        console.log(`[SpeakerBlockManager] Block has no color, assigning color at index ${this.colorIndex}`);
+        block.color = this.colors[this.colorIndex % this.colors.length];
+        this.colorIndex++;
+        console.log(`[SpeakerBlockManager] Assigned color: ${block.color}`);
+      }
       
       // Update count based on usage (will be implemented with TextEditor integration)
       return true;
     }
+    console.log(`[SpeakerBlockManager] updateBlock: Block with id ${id} not found`);
     return false;
   }
 

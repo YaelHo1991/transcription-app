@@ -4,10 +4,11 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:500
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/dev/users/${params.id}`, {
+    const { id } = await params;
+    const response = await fetch(`${BACKEND_URL}/api/dev/users/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
