@@ -199,6 +199,21 @@ export class BlockManager {
     this.blocks = [...blocks];
   }
 
+  // Set timestamp for a specific block
+  setBlockTimestamp(id: string, timestamp: number): void {
+    const block = this.blocks.find(b => b.id === id);
+    if (block) {
+      block.speakerTime = timestamp;
+    }
+  }
+
+  // Set timestamp for current active block
+  setActiveBlockTimestamp(timestamp: number): void {
+    if (this.activeBlockId) {
+      this.setBlockTimestamp(this.activeBlockId, timestamp);
+    }
+  }
+
   // Get active block
   getActiveBlock(): TextBlockData | null {
     return this.blocks.find(b => b.id === this.activeBlockId) || null;

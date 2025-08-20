@@ -17,6 +17,28 @@ export default class SpeakerBlockManager {
     // Initialize with one empty block
     this.addBlock('', '', '');
   }
+  
+  // Reset color index when loading new speakers
+  resetColorIndex() {
+    this.colorIndex = 0;
+  }
+  
+  // Set speakers with proper color assignment
+  setSpeakers(speakers: SpeakerBlockData[]) {
+    this.blocks = [];
+    this.colorIndex = 0; // Reset color index for consistent colors
+    
+    speakers.forEach((speaker, index) => {
+      // Assign colors in order, ensuring consistency
+      this.blocks.push({
+        ...speaker,
+        color: speaker.color || this.colors[index % this.colors.length]
+      });
+    });
+    
+    // Update color index to next available
+    this.colorIndex = speakers.length;
+  }
 
   getBlocks(): SpeakerBlockData[] {
     return this.blocks;

@@ -34,35 +34,74 @@ function parseTxtToBlocks(content: string): any {
   const lines = cleanContent.split('\n');
   const blocks: any[] = [];
   const speakers: any[] = [];
+  const remarks: any[] = [];
   let inTranscript = false;
   let inSpeakers = false;
+  let inRemarks = false;
   let metadata: any = {};
 
   for (const line of lines) {
     if (line.includes('=== SPEAKERS ===')) {
       inSpeakers = true;
       inTranscript = false;
+      inRemarks = false;
+      continue;
+    }
+    if (line.includes('=== REMARKS ===')) {
+      inRemarks = true;
+      inSpeakers = false;
+      inTranscript = false;
       continue;
     }
     if (line.includes('=== TRANSCRIPT ===')) {
       inTranscript = true;
       inSpeakers = false;
+      inRemarks = false;
       continue;
     }
     if (line.includes('=== METADATA ===')) {
       inTranscript = false;
       inSpeakers = false;
+      inRemarks = false;
       continue;
     }
 
     if (inSpeakers && line.trim()) {
-      // Parse speaker line: "CODE: Name (Description)"
-      const match = line.match(/^([^:]+):\s*([^(]+)(?:\(([^)]*)\))?/);
-      if (match) {
+      // Parse speaker line: [CODE]: Name | DESC: description | COLOR: color
+      // Try new format first (with brackets)
+      const newFormat = line.match(/^\[(.+?)\]:\s*([^|]+)(?:\s*\|\s*DESC:\s*([^|]+))?(?:\s*\|\s*COLOR:\s*(.+))?$/);
+      
+      if (newFormat) {
         speakers.push({
-          code: match[1].trim(),
-          name: match[2].trim(),
-          description: match[3]?.trim() || ''
+          code: newFormat[1].trim(),
+          name: newFormat[2].trim(),
+          description: newFormat[3]?.trim() || '',
+          color: newFormat[4]?.trim() || ''
+        });
+      } else {
+        // Try old format for backward compatibility (no brackets)
+        const oldFormat = line.match(/^([^:\[]+):\s*([^(|]+)(?:\(([^)]*)\))?/);
+        if (oldFormat) {
+          speakers.push({
+            code: oldFormat[1].trim(),
+            name: oldFormat[2].trim(),
+            description: oldFormat[3]?.trim() || '',
+            color: ''
+          });
+        }
+      }
+    }
+    
+    if (inRemarks && line.trim()) {
+      // Parse remarks: [TYPE]blockId@start-end [timestamp]: text
+      const match = line.match(/^\[(.+?)\]([^@\[]*)(?:@(\d+)-(\d+))?(?:\s*\[(.+?)\])?\s*:\s*(.+)$/);
+      if (match) {
+        remarks.push({
+          type: match[1],
+          blockId: match[2].trim() || undefined,
+          position: match[3] && match[4] ? { start: parseInt(match[3]), end: parseInt(match[4]) } : undefined,
+          timestamp: match[5] || undefined,
+          text: match[6]
         });
       }
     }
@@ -125,7 +164,7 @@ function parseTxtToBlocks(content: string): any {
     }
   }
 
-  return { blocks, speakers, metadata };
+  return { blocks, speakers, remarks, metadata };
 }
 
 // Helper function to format blocks to TXT
@@ -134,7 +173,8 @@ function formatBlocksToTxt(
   speakers: any[],
   projectName?: string,
   transcriptionTitle?: string,
-  mediaFile?: string
+  mediaFile?: string,
+  remarks?: any[]
 ): string {
   const lines: string[] = [];
   
@@ -148,12 +188,26 @@ function formatBlocksToTxt(
   lines.push(`  - ${mediaFile || 'No Media'} (current)`);
   lines.push('');
   
-  // Speakers
+  // Speakers (with all fields)
   if (speakers && speakers.length > 0) {
     lines.push('=== SPEAKERS ===');
     speakers.forEach((speaker: any) => {
-      const desc = speaker.description ? ` (${speaker.description})` : '';
-      lines.push(`${speaker.code}: ${speaker.name || speaker.code}${desc}`);
+      const desc = speaker.description ? ` | DESC: ${speaker.description}` : '';
+      const color = speaker.color ? ` | COLOR: ${speaker.color}` : '';
+      lines.push(`[${speaker.code}]: ${speaker.name || speaker.code}${desc}${color}`);
+    });
+    lines.push('');
+  }
+  
+  // Remarks
+  if (remarks && remarks.length > 0) {
+    lines.push('=== REMARKS ===');
+    remarks.forEach((remark: any) => {
+      const type = remark.type || 'NOTE';
+      const blockId = remark.blockId || '';
+      const position = remark.position ? `@${remark.position.start}-${remark.position.end}` : '';
+      const timestamp = remark.timestamp ? ` [${remark.timestamp}]` : '';
+      lines.push(`[${type}]${blockId}${position}${timestamp}: ${remark.text || ''}`);
     });
     lines.push('');
   }
@@ -181,6 +235,7 @@ function formatBlocksToTxt(
   lines.push(`Total Words: ${totalWords}`);
   lines.push(`Total Blocks: ${blocks?.length || 0}`);
   lines.push(`Total Speakers: ${speakerCount}`);
+  lines.push(`Total Remarks: ${remarks?.length || 0}`);
   lines.push(`Created From: Live Editor Session`);
   
   return lines.join('\n');
@@ -191,18 +246,33 @@ function formatBlocksToTxt(
 // Save transcription to session
 router.post('/save', devAuth, async (req: Request, res: Response) => {
   try {
+    console.log('📥 [SAVE] Received request body:', {
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : [],
+      mediaId: req.body?.mediaId,
+      transcriptionNumber: req.body?.transcriptionNumber,
+      transcriptionNumberType: typeof req.body?.transcriptionNumber
+    });
+    
     const { 
       mediaId, 
       transcriptionNumber, 
       blocks, 
       speakers,
+      remarks,
       projectName,
       transcriptionTitle,
       mediaFile 
     } = req.body;
 
-    if (!mediaId || transcriptionNumber === undefined) {
-      return res.status(400).json({ error: 'Missing mediaId or transcriptionNumber' });
+    if (!mediaId) {
+      console.error('❌ [SAVE] Missing mediaId');
+      return res.status(400).json({ error: 'Missing mediaId' });
+    }
+    
+    if (transcriptionNumber === undefined || transcriptionNumber === null) {
+      console.error('❌ [SAVE] Missing transcriptionNumber:', { transcriptionNumber, type: typeof transcriptionNumber });
+      return res.status(400).json({ error: 'Missing transcriptionNumber' });
     }
     
     console.log('💾 [SAVE] Saving session:', {
@@ -221,7 +291,7 @@ router.post('/save', devAuth, async (req: Request, res: Response) => {
     await ensureDir(backupsDir);
 
     // Format content
-    const content = formatBlocksToTxt(blocks, speakers, projectName, transcriptionTitle, mediaFile);
+    const content = formatBlocksToTxt(blocks, speakers, projectName, transcriptionTitle, mediaFile, remarks);
     
     // Write current.txt with UTF-8 BOM for Hebrew support
     const BOM = '\uFEFF';
@@ -253,8 +323,72 @@ router.post('/save', devAuth, async (req: Request, res: Response) => {
       metadata 
     });
   } catch (error: any) {
-    console.error('Error saving session:', error);
+    console.error('❌ Error saving session:', error);
     res.status(500).json({ error: error.message || 'Failed to save session' });
+  }
+});
+
+// T-List: Get list of all transcriptions for a media
+router.get('/t-list/:mediaId', devAuth, async (req: Request, res: Response) => {
+  try {
+    const { mediaId } = req.params;
+    
+    console.log('📋 [T-LIST] Listing transcriptions for media:', mediaId);
+    
+    const baseDir = path.join(__dirname, '..', '..', '..', '..', 'user_data', 'user_live', 'sessions');
+    const mediaDir = path.join(baseDir, mediaId);
+    
+    // Check if media directory exists
+    try {
+      await fs.access(mediaDir);
+    } catch {
+      // Directory doesn't exist - no transcriptions
+      return res.json({
+        success: true,
+        transcriptions: [],
+        count: 0
+      });
+    }
+    
+    // List all transcription directories
+    const entries = await fs.readdir(mediaDir, { withFileTypes: true });
+    const transcriptions: any[] = [];
+    
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name.startsWith('transcription_')) {
+        const transcriptionNumber = parseInt(entry.name.replace('transcription_', ''));
+        
+        // Try to read metadata
+        let metadata = null;
+        try {
+          const metadataPath = path.join(mediaDir, entry.name, 'metadata.json');
+          const metadataContent = await fs.readFile(metadataPath, 'utf8');
+          metadata = JSON.parse(metadataContent);
+        } catch {
+          // No metadata file or parse error
+        }
+        
+        transcriptions.push({
+          transcriptionNumber,
+          metadata,
+          exists: true
+        });
+      }
+    }
+    
+    // Sort by transcription number
+    transcriptions.sort((a, b) => a.transcriptionNumber - b.transcriptionNumber);
+    
+    console.log('✅ [T-LIST] Found transcriptions:', transcriptions.length);
+    
+    res.json({
+      success: true,
+      transcriptions,
+      count: transcriptions.length
+    });
+  } catch (error: any) {
+    console.error('[T-LIST] Error listing transcriptions:', error);
+    res.status(500).json({ error: error.message || 'Failed to list transcriptions' });
   }
 });
 
@@ -367,7 +501,7 @@ router.get('/list/:mediaId', devAuth, async (req: Request, res: Response) => {
 router.post('/backup/:mediaId/:transcriptionNumber', devAuth, async (req: Request, res: Response) => {
   try {
     const { mediaId, transcriptionNumber } = req.params;
-    const { blocks, speakers, projectName, transcriptionTitle, mediaFile } = req.body;
+    const { blocks, speakers, remarks, projectName, transcriptionTitle, mediaFile } = req.body;
     
     const baseDir = path.join(__dirname, '..', '..', '..', '..', 'user_data', 'user_live', 'sessions');
     const sessionDir = path.join(baseDir, mediaId, `transcription_${transcriptionNumber}`);
@@ -390,7 +524,7 @@ router.post('/backup/:mediaId/:transcriptionNumber', devAuth, async (req: Reques
     const backupFile = path.join(backupsDir, `v${nextVersion}_${timestamp}.txt`);
     
     // Format content with version number
-    const content = formatBlocksToTxt(blocks, speakers, projectName, transcriptionTitle, mediaFile)
+    const content = formatBlocksToTxt(blocks, speakers, projectName, transcriptionTitle, mediaFile, remarks)
       .replace('Version: CURRENT', `Version: ${nextVersion}`);
     
     // Write backup with BOM

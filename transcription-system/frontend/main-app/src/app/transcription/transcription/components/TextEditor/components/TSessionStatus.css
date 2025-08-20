@@ -1,0 +1,30 @@
+/* T-Session Status Styles */
+.t-session-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(38, 166, 154, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #00695c;
+  direction: rtl;
+}
+
+.t-status-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.t-status-text {
+  font-weight: 500;
+}
+
+.t-status-number {
+  margin-right: 8px;
+  padding-right: 8px;
+  color: #00897b;
+  font-weight: 400;
+}
+
+/* Remove divider - no border after status text */

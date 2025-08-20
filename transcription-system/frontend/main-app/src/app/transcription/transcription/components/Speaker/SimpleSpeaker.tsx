@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { SpeakerManager } from './utils/speakerManager';
 import SpeakerBlock, { SpeakerBlockData } from './blocks/SpeakerBlock';
 import SpeakerBlockManager from './blocks/SpeakerBlockManager';
@@ -8,9 +8,22 @@ import './SimpleSpeaker.css';
 
 interface SimpleSpeakerProps {
   theme?: 'transcription' | 'proofreading';
+  mediaId?: string;
+  transcriptionNumber?: number;
+  onSpeakersChange?: (speakers: SpeakerBlockData[]) => void;
 }
 
-export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeakerProps) {
+export interface SimpleSpeakerHandle {
+  getAllSpeakers: () => SpeakerBlockData[];
+  loadSpeakers: (speakers: SpeakerBlockData[]) => void;
+}
+
+const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({ 
+  theme = 'transcription',
+  mediaId,
+  transcriptionNumber,
+  onSpeakersChange
+}, ref) => {
   const [blocks, setBlocks] = useState<SpeakerBlockData[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [activeField, setActiveField] = useState<'code' | 'name' | 'description'>('code');
@@ -22,12 +35,55 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
   const blockManagerRef = useRef<SpeakerBlockManager>(new SpeakerBlockManager());
   const [speakerManager] = useState(() => new SpeakerManager());
   
-  // Initialize blocks
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    getAllSpeakers: () => {
+      return blockManagerRef.current.getBlocks();
+    },
+    loadSpeakers: (speakers: SpeakerBlockData[]) => {
+      // Use the new setSpeakers method for proper color assignment
+      blockManagerRef.current.setSpeakers(speakers);
+      setBlocks([...blockManagerRef.current.getBlocks()]);
+      
+      // Save to localStorage if mediaId is available
+      if (mediaId && transcriptionNumber) {
+        const storageKey = `speakers-${mediaId}-${transcriptionNumber}`;
+        localStorage.setItem(storageKey, JSON.stringify(speakers));
+      }
+    }
+  }), [mediaId]);
+  
+  // Initialize blocks and handle media changes
   useEffect(() => {
-    const initialBlocks = blockManagerRef.current.getBlocks();
-    setBlocks([...initialBlocks]);
-    // Don't set any block as active by default - wait for user interaction
-  }, []);
+    // Clear existing speakers when mediaId changes
+    console.log('[SimpleSpeaker] Media ID changed to:', mediaId);
+    
+    // Reset to empty state first, including color index
+    blockManagerRef.current = new SpeakerBlockManager();
+    blockManagerRef.current.resetColorIndex();
+    
+    if (mediaId) {
+      // Don't load from localStorage anymore - wait for data from project service
+      // The TextEditor will call loadSpeakers with the correct data
+      console.log('[SimpleSpeaker] Waiting for project data to load speakers');
+      
+      // Start with one empty block
+      const emptyBlock: SpeakerBlockData = {
+        id: 'speaker-' + Date.now(),
+        code: '',
+        name: '',
+        description: '',
+        color: '#667eea',
+        count: 0
+      };
+      blockManagerRef.current.blocks = [emptyBlock];
+      setBlocks([emptyBlock]);
+    } else {
+      // No mediaId, initialize with default
+      const initialBlocks = blockManagerRef.current.getBlocks();
+      setBlocks([...initialBlocks]);
+    }
+  }, [mediaId]);
 
   // Listen for speaker name checking requests from TextEditor
   useEffect(() => {
@@ -114,7 +170,19 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
     }
     
     blockManagerRef.current.updateBlock(id, field, value);
-    setBlocks([...blockManagerRef.current.getBlocks()]);
+    const updatedBlocks = [...blockManagerRef.current.getBlocks()];
+    setBlocks(updatedBlocks);
+    
+    // Save to localStorage if mediaId is available
+    if (mediaId && transcriptionNumber) {
+      const storageKey = `speakers-${mediaId}-${transcriptionNumber}`;
+      localStorage.setItem(storageKey, JSON.stringify(updatedBlocks));
+    }
+    
+    // Notify parent component if callback provided
+    if (onSpeakersChange) {
+      onSpeakersChange(updatedBlocks);
+    }
     
     // Notify TextEditor of speaker update
     if (field === 'name' || field === 'code') {
@@ -593,4 +661,8 @@ export default function SimpleSpeaker({ theme = 'transcription' }: SimpleSpeaker
       
     </div>
   );
-}
+});
+
+SimpleSpeaker.displayName = 'SimpleSpeaker';
+
+export default SimpleSpeaker;

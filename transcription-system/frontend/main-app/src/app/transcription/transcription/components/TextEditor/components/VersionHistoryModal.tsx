@@ -20,13 +20,17 @@ interface VersionHistoryModalProps {
   onClose: () => void;
   onRestore?: (version: BackupVersion) => void;
   transcriptionId?: string;
+  mediaId?: string;
+  transcriptionNumber?: number;
 }
 
 export default function VersionHistoryModal({
   isOpen,
   onClose,
   onRestore,
-  transcriptionId
+  transcriptionId,
+  mediaId,
+  transcriptionNumber
 }: VersionHistoryModalProps) {
   const [versions, setVersions] = useState<BackupVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<BackupVersion | null>(null);
@@ -35,39 +39,56 @@ export default function VersionHistoryModal({
   const [searchTerm, setSearchTerm] = useState('');
   const [comparing, setComparing] = useState(false);
   const [compareVersion, setCompareVersion] = useState<BackupVersion | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingVersion, setPendingVersion] = useState<BackupVersion | null>(null);
+  
+  // Extract media name from mediaId (format: 0-0-filename.mp3)
+  const mediaName = mediaId ? mediaId.replace(/^0-0-/, '') : '';
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && mediaId && transcriptionNumber) {
       loadVersions();
     }
-  }, [isOpen]);
+  }, [isOpen, mediaId, transcriptionNumber]);
 
   const loadVersions = async () => {
+    if (!mediaId) {
+      console.log('[VersionHistory] No mediaId/projectId provided');
+      return;
+    }
+    
+    console.log('[VersionHistory] Loading versions for project:', mediaId);
     setLoading(true);
     try {
-      // For demo, load test backups
-      const response = await fetch('http://localhost:5000/dev/test-backup-live');
-      const data = await response.json();
+      // Load backups from project service
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/projects/${mediaId}/backups`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Dev-Mode': 'true'
+          }
+        }
+      );
       
-      if (data.success && data.sessions) {
-        // Convert sessions to versions format
-        const allVersions: BackupVersion[] = [];
-        data.sessions.forEach((session: any, index: number) => {
-          session.files.forEach((file: string, fileIndex: number) => {
-            allVersions.push({
-              id: `${session.sessionId}-${file}`,
-              filename: file,
-              version: index * 10 + fileIndex + 1,
-              created: session.created,
-              size: 0,
-              blocks_count: 10,
-              speakers_count: 3,
-              words_count: 150
-            });
-          });
-        });
-        setVersions(allVersions);
-      } else {
+      console.log('[VersionHistory] Response status:', response.status);
+      const data = await response.json();
+      console.log('[VersionHistory] Response data:', data);
+      
+      if (data.success && data.backups) {
+        // Convert backup format to version format
+        const versions = data.backups.map((backup: any, index: number) => ({
+          id: backup.file,
+          filename: backup.file,
+          version: data.backups.length - index,
+          created: backup.timestamp,
+          size: backup.size || 2000,
+          blocks_count: backup.blocks?.length || 0,
+          speakers_count: backup.speakers?.length || 0,
+          words_count: 0
+        }));
+        setVersions(versions);
+      } else if (!data.success || data.backups?.length === 0) {
         // Create mock versions for demo
         setVersions([
           {
@@ -123,31 +144,55 @@ export default function VersionHistoryModal({
   };
 
   const loadVersionContent = async (version: BackupVersion) => {
+    if (!mediaId) return; // mediaId is now projectId
+    
     setLoading(true);
     try {
-      // For demo, return sample content
-      const mockContent = `=== TRANSCRIPTION BACKUP ===
-Project: ${version.filename.includes('live') ? 'Live Session' : 'Test Project'}
-Transcription: Version ${version.version}
-Date: ${version.created}
-Version: ${version.version}
-
-=== SPEAKERS ===
-J: John (Interviewer)
-M: Mary (Interviewee)
-${version.speakers_count === 3 ? 'S: Sarah (Guest)' : ''}
-
-=== TRANSCRIPT ===
-00:00:00 [J]: זו גרסה ${version.version} של התמלול.
-00:00:15 [M]: נכון, זו גרסה ישנה יותר.
-${version.blocks_count > 10 ? '00:00:30 [J]: יש כאן יותר תוכן מהגרסה הקודמת.' : ''}
-
-=== METADATA ===
-Total Words: ${version.words_count}
-Total Blocks: ${version.blocks_count}
-Total Speakers: ${version.speakers_count}`;
-
-      setVersionContent(mockContent);
+      // Load backup content from project service
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/projects/${mediaId}/backups/${version.filename}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Dev-Mode': 'true'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Format content for preview
+        let content = '=== תצוגה מקדימה ===\n\n';
+        
+        if (data.speakers && data.speakers.length > 0) {
+          content += '=== דוברים ===\n';
+          data.speakers.forEach((s: any) => {
+            content += `${s.code}: ${s.name}\n`;
+          });
+          content += '\n';
+        }
+        
+        if (data.blocks && data.blocks.length > 0) {
+          content += '=== תמלול ===\n';
+          data.blocks.forEach((block: any) => {
+            const timestamp = block.timestamp || '';
+            const speaker = block.speaker ? `[${block.speaker}]` : '';
+            const prefix = timestamp || speaker ? `${timestamp} ${speaker}: ` : '';
+            content += `${prefix}${block.text || ''}\n`;
+          });
+          content += '\n';
+        }
+        
+        content += `=== מידע ===\n`;
+        content += `בלוקים: ${data.blocks?.length || 0}\n`;
+        content += `דוברים: ${data.speakers?.length || 0}\n`;
+        content += `מילים: ${data.metadata?.totalWords || 0}`;
+        
+        setVersionContent(content);
+      } else {
+        setVersionContent('שגיאה בטעינת התוכן');
+      }
     } catch (error) {
       console.error('Failed to load version content:', error);
       setVersionContent('Failed to load content');
@@ -162,12 +207,24 @@ Total Speakers: ${version.speakers_count}`;
   };
 
   const handleRestore = () => {
-    if (selectedVersion && onRestore) {
-      if (confirm(`האם אתה בטוח שברצונך לשחזר לגרסה ${selectedVersion.version}?`)) {
-        onRestore(selectedVersion);
-        onClose();
-      }
+    if (selectedVersion) {
+      setPendingVersion(selectedVersion);
+      setShowConfirmModal(true);
     }
+  };
+  
+  const confirmRestore = () => {
+    if (pendingVersion && onRestore) {
+      onRestore(pendingVersion);
+      setShowConfirmModal(false);
+      setPendingVersion(null);
+      onClose();
+    }
+  };
+  
+  const cancelRestore = () => {
+    setShowConfirmModal(false);
+    setPendingVersion(null);
   };
 
   const handleCompare = () => {
@@ -286,14 +343,20 @@ Total Speakers: ${version.speakers_count}`;
 
           <div className="version-preview">
             <div className="preview-header">
-              <h3>תצוגה מקדימה</h3>
+              <h3>
+                תצוגה מקדימה
+                {mediaName && (
+                  <span className="preview-title-media"> - {mediaName}</span>
+                )}
+              </h3>
               {selectedVersion && (
                 <div className="preview-actions">
                   <button className="action-btn compare-btn" onClick={handleCompare}>
                     🔍 השווה
                   </button>
-                  <button className="action-btn restore-btn" onClick={handleRestore}>
-                    ♻️ שחזר
+                  <button className="load-version-btn-header" onClick={handleRestore}>
+                    <span className="btn-icon">📥</span>
+                    <span className="btn-text">טען גרסה זו</span>
                   </button>
                 </div>
               )}
@@ -301,20 +364,99 @@ Total Speakers: ${version.speakers_count}`;
             
             <div className="preview-content">
               {selectedVersion ? (
-                <pre className="version-text">{versionContent}</pre>
+                <div className="preview-layout">
+                  <div className="preview-sidebar">
+                    <div className="sidebar-section">
+                      <h4>📊 פרטי גרסה</h4>
+                      <div className="info-item">
+                        <span className="info-label">גרסה:</span>
+                        <span className="info-value">{selectedVersion.version}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">תאריך:</span>
+                        <span className="info-value">{formatDate(selectedVersion.timestamp)}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">גודל:</span>
+                        <span className="info-value">{formatSize(selectedVersion.size)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="sidebar-section">
+                      <h4>👥 דוברים</h4>
+                      <div className="speakers-list">
+                        {versionContent && versionContent.includes('דוברים:') ? 
+                          <div className="info-item">
+                            <span className="info-value">
+                              {versionContent.match(/דוברים: (\d+)/)?.[1] || '0'} דוברים
+                            </span>
+                          </div>
+                        : <span className="info-value">אין מידע</span>}
+                      </div>
+                    </div>
+                    
+                    <div className="sidebar-section">
+                      <h4>📝 סטטיסטיקה</h4>
+                      <div className="info-item">
+                        <span className="info-label">בלוקים:</span>
+                        <span className="info-value">{selectedVersion.blocks_count || 0}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">מילים:</span>
+                        <span className="info-value">{selectedVersion.words_count || 0}</span>
+                      </div>
+                    </div>
+                    
+                    {versionContent && versionContent.includes('הערות:') && (
+                      <div className="sidebar-section">
+                        <h4>💬 הערות</h4>
+                        <div className="remarks-preview">
+                          {versionContent.match(/הערות: (\d+)/)?.[1] || '0'} הערות
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="preview-main">
+                    <div className="preview-document">
+                      {versionContent ? (
+                        versionContent.split('\n').map((line, index) => {
+                          // Skip metadata lines for main view
+                          if (line.startsWith('===') || line.includes('דוברים:') || line.includes('בלוקים:') || line.includes('הערות:')) {
+                            return null;
+                          }
+                          
+                          // Parse speaker and text
+                          const speakerMatch = line.match(/^(\[.*?\]):\s*(.*)/);
+                          if (speakerMatch) {
+                            return (
+                              <div key={index} className="preview-block">
+                                <span className="preview-speaker">{speakerMatch[1]}</span>
+                                <span className="preview-text">{speakerMatch[2]}</span>
+                              </div>
+                            );
+                          }
+                          
+                          // Regular text
+                          return line.trim() ? (
+                            <div key={index} className="preview-line">
+                              {line}
+                            </div>
+                          ) : null;
+                        })
+                      ) : (
+                        <div className="preview-empty">אין תוכן להצגה</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="preview-placeholder">
-                  בחר גרסה לתצוגה מקדימה
+                  <div className="placeholder-icon">📄</div>
+                  <div className="placeholder-text">בחר גרסה לתצוגה מקדימה</div>
                 </div>
               )}
             </div>
-            
-            {selectedVersion && (
-              <div className="preview-footer">
-                <span>גודל: {formatSize(selectedVersion.size)}</span>
-                <span>קובץ: {selectedVersion.filename}</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -344,6 +486,29 @@ Total Speakers: ${version.speakers_count}`;
             <div className="compare-diff">
               <div className="diff-added">+ {(selectedVersion.blocks_count || 0) - (compareVersion.blocks_count || 0)} בלוקים נוספו</div>
               <div className="diff-changed">~ {(selectedVersion.words_count || 0) - (compareVersion.words_count || 0)} מילים השתנו</div>
+            </div>
+          </div>
+        )}
+        
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div className="confirm-modal-overlay" onClick={cancelRestore}>
+            <div className="confirm-modal" onClick={e => e.stopPropagation()}>
+              <div className="confirm-header">
+                <h3>אישור טעינת גרסה</h3>
+              </div>
+              <div className="confirm-content">
+                <p>האם אתה בטוח שברצונך לטעון גרסה {pendingVersion?.version}?</p>
+                <p className="confirm-warning">פעולה זו תחליף את התמלול הנוכחי.</p>
+              </div>
+              <div className="confirm-actions">
+                <button className="confirm-btn cancel-btn" onClick={cancelRestore}>
+                  ביטול
+                </button>
+                <button className="confirm-btn confirm-btn-primary" onClick={confirmRestore}>
+                  טען גרסה
+                </button>
+              </div>
             </div>
           </div>
         )}

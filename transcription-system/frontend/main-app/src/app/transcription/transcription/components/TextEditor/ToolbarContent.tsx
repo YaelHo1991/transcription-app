@@ -18,6 +18,7 @@ interface ToolbarContentProps {
   handleTranscriptionChange: (id: string) => void;
   currentMediaId?: string;
   projectName?: string;
+  tHandleSave?: () => void; // T-Session save handler
   
   // Text editing
   fontSize: number;
@@ -170,7 +171,7 @@ export default function ToolbarContent(props: ToolbarContentProps) {
           {
             icon: '💾',
             title: 'שמור',
-            onClick: () => console.log('Save')
+            onClick: () => props.tHandleSave && props.tHandleSave()
           },
           {
             icon: '📥',

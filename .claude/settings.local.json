@@ -61,11 +61,13 @@
       "Bash(git stash show:*)",
       "Bash(git fsck:*)",
       "Bash(wmic:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(touch:*)"
     ],
     "deny": [],
     "additionalDirectories": [
-      "C:\\mnt\\c\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend"
+      "C:\\mnt\\c\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend",
+      "C:\\c\\Users\\ayelh\\Documents\\Projects"
     ]
   }
 }

@@ -3,6 +3,8 @@
  */
 
 import { Mark } from '../MediaPlayer/types/marks';
+import { RefObject } from 'react';
+import { SimpleSpeakerHandle } from '../Speaker/SimpleSpeaker';
 
 /**
  * Main props for TextEditor component
@@ -46,6 +48,9 @@ export interface TextEditorProps {
   
   /** Name of the current project */
   projectName?: string;
+  
+  /** Reference to SimpleSpeaker component for speaker synchronization */
+  speakerComponentRef?: RefObject<SimpleSpeakerHandle | null>;
 }
 
 /**

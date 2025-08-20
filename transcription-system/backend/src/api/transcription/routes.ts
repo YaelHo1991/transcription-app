@@ -6,10 +6,14 @@ import projectsRouter from './projects/routes';
 import transcriptionsRouter from './transcriptions/routes';
 import backupsRouter from './backups/routes';
 import mediaRouter from './media/routes';
+import sessionsRouter from './sessions/routes';
 
 const router = Router();
 
-// All transcription routes require authentication
+// Mount sessions routes WITHOUT authentication (they handle their own auth)
+router.use('/sessions', sessionsRouter);
+
+// All other transcription routes require authentication
 router.use(authenticateToken);
 
 // Mount sub-routes

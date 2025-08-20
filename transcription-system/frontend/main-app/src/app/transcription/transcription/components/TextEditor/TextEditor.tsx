@@ -180,21 +180,28 @@ export default function TextEditor({
     
     // Save previous project when switching (only if we had a previous valid project)
     if (previousProjectIdRef.current && previousProjectIdRef.current !== currentProjectId && previousProjectIdRef.current !== '') {
-      console.log('[Project] Saving previous project before switch:', previousProjectIdRef.current);
+      console.log('[Project] Auto-saving previous project before switch:', previousProjectIdRef.current);
       // Create a closure to save with the old project ID
       const oldProjectId = previousProjectIdRef.current;
       const saveOldProject = async () => {
         try {
           const currentBlocks = blockManagerRef.current.getBlocks();
-          const speakers = speakerComponentRef?.current ? 
-            speakerComponentRef.current.getAllSpeakers() : [];
-          const remarks = remarksContext?.state.remarks || [];
+          // Check if there's actual content to save
+          const hasContent = currentBlocks.length > 1 || 
+            (currentBlocks.length === 1 && (currentBlocks[0].speaker || currentBlocks[0].text));
           
-          await projectService.saveProject(oldProjectId, {
-            blocks: currentBlocks,
-            speakers,
-            remarks
-          });
+          if (hasContent) {
+            const speakers = speakerComponentRef?.current ? 
+              speakerComponentRef.current.getAllSpeakers() : [];
+            const remarks = remarksContext?.state.remarks || [];
+            
+            await projectService.saveProject(oldProjectId, {
+              blocks: currentBlocks,
+              speakers,
+              remarks
+            });
+            console.log('[Project] Successfully auto-saved previous project');
+          }
         } catch (error) {
           console.error('[Project] Error saving previous project:', error);
         }
@@ -212,12 +219,21 @@ export default function TextEditor({
   useEffect(() => {
     // Save current data before switching media
     const saveBeforeSwitch = async () => {
-      if (currentProjectId && currentProjectId !== '' && tHasChanges) {
-        console.log('[Project] Saving before media switch');
-        try {
-          await saveProjectData();
-        } catch (error) {
-          console.error('[Project] Error saving before media switch:', error);
+      // Always save if we have a project ID and blocks (regardless of tHasChanges flag)
+      // But don't save if already saving
+      if (currentProjectId && currentProjectId !== '' && !tIsSaving) {
+        const currentBlocks = blockManagerRef.current.getBlocks();
+        // Only save if we have actual content (more than just the initial empty block)
+        const hasContent = currentBlocks.length > 1 || 
+          (currentBlocks.length === 1 && (currentBlocks[0].speaker || currentBlocks[0].text));
+        
+        if (hasContent) {
+          console.log('[Project] Auto-saving before media switch');
+          try {
+            await saveProjectData();
+          } catch (error) {
+            console.error('[Project] Error saving before media switch:', error);
+          }
         }
       }
     };
@@ -281,6 +297,8 @@ export default function TextEditor({
   }, [currentProjectId]);
   
   useEffect(() => { selectedBlocksRef.current = selectedBlocks; }, [selectedBlocks]);
+  
+  // Auto-save when blocks change (debounced)
   useEffect(() => { 
     blocksRef.current = blocks;
     
@@ -292,6 +310,22 @@ export default function TextEditor({
       }
     }
   }, [blocks, tCurrentMediaId, tCurrentTranscriptionNumber]);
+  
+  // Separate effect for auto-saving on changes
+  useEffect(() => {
+    if (tHasChanges && currentProjectId) {
+      // Auto-save after 5 seconds of no changes
+      const saveTimer = setTimeout(() => {
+        // Check if not already saving
+        if (!tIsSaving) {
+          console.log('[Project] Auto-saving after content changes');
+          saveProjectData();
+        }
+      }, 5000);
+      
+      return () => clearTimeout(saveTimer);
+    }
+  }, [tHasChanges, currentProjectId]);
   
   
   // Function to show feedback message with auto-dismiss
@@ -1385,6 +1419,12 @@ export default function TextEditor({
       return;
     }
     
+    // Prevent concurrent saves
+    if (tIsSaving) {
+      console.log('[Project] Already saving, skipping duplicate save');
+      return;
+    }
+    
     setTIsSaving(true);
     
     try {
@@ -2168,7 +2208,7 @@ export default function TextEditor({
                   id: block.id,
                   speaker: block.speaker || '',
                   text: block.text || '',
-                  speakerTime: block.speakerTime || block.timestamp ? parseFloat(block.timestamp) : undefined
+                  speakerTime: block.speakerTime !== undefined ? block.speakerTime : (block.timestamp ? parseFloat(block.timestamp) : undefined)
                 }));
                 
                 // Update blockManagerRef AND state like in loadProjectData
