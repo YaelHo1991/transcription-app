@@ -49,7 +49,7 @@ export class SpeakerManager {
 
   // Generate unique ID
   private generateId(): string {
-    return `speaker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `speaker-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
   // Check if character is Hebrew

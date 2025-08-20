@@ -17,6 +17,7 @@ import SimpleSpeaker, { SimpleSpeakerHandle } from './components/Speaker/SimpleS
 import Remarks from './components/Remarks/Remarks';
 import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
+import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
 import { projectService } from '../../../services/projectService';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -49,6 +50,14 @@ declare module 'react' {
   }
 }
 
+// Helper function to create default transcription
+const createDefaultTranscription = () => ({
+  name: 'אין תמלול',
+  mediaItems: [], // Always empty - no media
+  projectId: null, // Always null - not a real project
+  isDefault: true // Always true - marks it as undeletable
+});
+
 export default function TranscriptionWorkPage() {
   const router = useRouter();
   
@@ -72,11 +81,21 @@ export default function TranscriptionWorkPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const mediaPlayerRef = useRef<any>(null);
   
-  // Project and media management
+  // Project and media management (for media files)
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [actualMediaDuration, setActualMediaDuration] = useState<number>(0);
+  
+  // Transcription management (saved transcriptions from backend)
+  const [transcriptions, setTranscriptions] = useState<any[]>(() => [createDefaultTranscription()]);
+  const [currentTranscriptionIndex, setCurrentTranscriptionIndex] = useState(0);
+  
+  // Modal states for styled alerts
+  const [showAuthErrorModal, setShowAuthErrorModal] = useState(false);
+  const [showDeleteErrorModal, setShowDeleteErrorModal] = useState(false);
+  const [authErrorMessage, setAuthErrorMessage] = useState('');
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectFolderRef = useRef<HTMLInputElement>(null);
@@ -97,22 +116,90 @@ export default function TranscriptionWorkPage() {
   const transcriptionNumber = 2; // Using transcription 2 as default
   
   // Use real data if available, otherwise show empty state
-  const projectName = currentProject?.name || 'אין פרויקט';
+  const projectName = currentProject?.name || '';
   const mediaName = currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת');
   const mediaSize = currentMedia?.size || (hasMedia ? '' : '0 MB');
   
-  // Format duration as HH:MM:SS
+  // Format duration as HH:MM:SS - with safe handling
   const formatDuration = (seconds: number): string => {
-    if (!seconds || seconds === 0 || isNaN(seconds)) return '00:00:00';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    try {
+      if (!seconds || seconds === 0 || isNaN(seconds) || !isFinite(seconds)) {
+        return '00:00:00';
+      }
+      const hours = Math.floor(seconds / 3600) || 0;
+      const minutes = Math.floor((seconds % 3600) / 60) || 0;
+      const secs = Math.floor(seconds % 60) || 0;
+      
+      // Ensure values are valid numbers before converting to string
+      const h = isNaN(hours) ? 0 : hours;
+      const m = isNaN(minutes) ? 0 : minutes;
+      const s = isNaN(secs) ? 0 : secs;
+      
+      // Use template literals without padStart to avoid potential issues
+      const hStr = h < 10 ? '0' + h : '' + h;
+      const mStr = m < 10 ? '0' + m : '' + m;
+      const sStr = s < 10 ? '0' + s : '' + s;
+      
+      return `${hStr}:${mStr}:${sStr}`;
+    } catch (error) {
+      console.error('[formatDuration] Error:', error);
+      return '00:00:00';
+    }
   };
   
   const mediaDuration = formatDuration(actualMediaDuration);
-  
+
+  // Load saved transcriptions from backend
+  useEffect(() => {
+    // Only run on client side after a delay
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(async () => {
+        try {
+          console.log('[Page] Loading saved transcriptions from backend...');
+          const transcriptionsList = await projectService.listProjects();
+          
+          const transformedTranscriptions = transcriptionsList && transcriptionsList.length > 0
+            ? transcriptionsList.map(proj => ({
+                name: proj.projectName || 'תמלול ללא שם',
+                mediaItems: [{
+                  type: 'file' as const,
+                  name: proj.mediaFile || 'מדיה לא ידועה',
+                  size: '0 MB'
+                }],
+                projectId: proj.projectId,
+                isDefault: false
+              }))
+            : [];
+          
+          // Remove any existing corrupted default transcriptions and add a fresh one
+          const cleanTranscriptions = transformedTranscriptions.filter(t => !t.isDefault);
+          const freshDefault = createDefaultTranscription();
+          const allTranscriptions = [...cleanTranscriptions, freshDefault];
+          
+          console.log(`[Page] Successfully loaded ${transformedTranscriptions.length} transcriptions + 1 default`);
+          console.log('[Page] All transcriptions:', allTranscriptions.map(t => ({ name: t.name, isDefault: t.isDefault, projectId: t.projectId })));
+          setTranscriptions(allTranscriptions);
+          
+          if (allTranscriptions.length > 0) {
+            // Find the first non-default transcription, or fall back to 0
+            const firstNonDefaultIndex = allTranscriptions.findIndex(t => !t.isDefault);
+            const targetIndex = firstNonDefaultIndex >= 0 ? firstNonDefaultIndex : 0;
+            
+            console.log('[Page] Setting current transcription index to:', targetIndex, 'for transcription:', allTranscriptions[targetIndex]?.name);
+            setCurrentTranscriptionIndex(targetIndex);
+          }
+        } catch (error) {
+          console.error('[Page] Error loading transcriptions:', error);
+        }
+      }, 3000); // 3 second delay to ensure page is fully loaded
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Load existing projects on mount
+  // TEMPORARILY DISABLED TO DEBUG ERROR
+  /*
   useEffect(() => {
     const loadExistingProjects = async () => {
       try {
@@ -161,6 +248,7 @@ export default function TranscriptionWorkPage() {
       loadExistingProjects();
     }
   }, []); // Run once on mount
+  */
   
   // Function to load complete project data (blocks, speakers, remarks)
   const loadProjectData = async (projectId: string) => {
@@ -185,10 +273,29 @@ export default function TranscriptionWorkPage() {
           setProjectRemarks(projectData.remarks);
         }
         
+        // Update the media information from metadata
+        if (projectData.metadata && projectData.metadata.mediaFile) {
+          // Find the transcription and update its media info
+          const transcriptionIndex = transcriptions.findIndex(t => t.projectId === projectId);
+          if (transcriptionIndex !== -1) {
+            const updatedTranscriptions = [...transcriptions];
+            updatedTranscriptions[transcriptionIndex] = {
+              ...updatedTranscriptions[transcriptionIndex],
+              mediaItems: [{
+                type: 'file' as const,
+                name: projectData.metadata.mediaFile,
+                size: '0 MB'
+              }]
+            };
+            setTranscriptions(updatedTranscriptions);
+          }
+        }
+        
         console.log('[Page] Project data loaded:', {
           blocks: projectData.blocks?.length || 0,
           speakers: projectData.speakers?.length || 0,
-          remarks: projectData.remarks?.length || 0
+          remarks: projectData.remarks?.length || 0,
+          mediaFile: projectData.metadata?.mediaFile || 'none'
         });
       }
     } catch (error) {
@@ -200,7 +307,7 @@ export default function TranscriptionWorkPage() {
     // Create project if none exists
     if (projects.length === 0) {
       const newProject: Project = {
-        name: 'פרויקט חדש',
+        name: '',
         mediaItems: []
       };
       setProjects([newProject]);
@@ -313,7 +420,7 @@ export default function TranscriptionWorkPage() {
       // Add media to current project
       if (projects.length === 0) {
         const newProject: Project = {
-          name: 'פרויקט חדש',
+          name: '',
           mediaItems: []
         };
         setProjects([newProject]);
@@ -446,6 +553,7 @@ export default function TranscriptionWorkPage() {
         projectTitle={projectName}
         progress={45}
       />
+      
 
       {/* Main Content with max-width container */}
       <div className={`main-content ${
@@ -495,10 +603,10 @@ export default function TranscriptionWorkPage() {
               onNextProject={handleNextProject}
               onPreviousMedia={handlePreviousMedia}
               onNextMedia={handleNextMedia}
-              onAddMedia={handleAddMedia}
               onAddProject={handleAddProject}
-              onMediaDrop={handleMediaUpload}
+              onAddMedia={handleAddMedia}
               onProjectDrop={handleProjectUpload}
+              onMediaDrop={handleMediaUpload}
             />
 
             {/* MediaPlayer Component */}
@@ -510,18 +618,39 @@ export default function TranscriptionWorkPage() {
             <MediaPlayer 
               key={`${currentProjectIndex}-${currentMediaIndex}`}
               initialMedia={currentMedia ? (() => {
-                const mediaUrl = currentMedia.type === 'url' ? currentMedia.url! : URL.createObjectURL(currentMedia.file!);
-                console.log('Page: Creating media object', {
-                  url: mediaUrl,
-                  name: currentMedia.name,
-                  type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio',
-                  file: currentMedia.file
-                });
-                return {
-                  url: mediaUrl,
-                  name: currentMedia.name,
-                  type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
-                };
+                // Check if we have a file or URL
+                let mediaUrl = '';
+                if (currentMedia.type === 'url' && currentMedia.url) {
+                  mediaUrl = currentMedia.url;
+                } else if (currentMedia.file) {
+                  mediaUrl = URL.createObjectURL(currentMedia.file);
+                } else if (currentMedia.name && currentProject?.projectId) {
+                  // For backend-loaded projects, construct the media URL
+                  // The media file is stored in the project folder on the server
+                  const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+                    ? 'http://localhost:5000' 
+                    : '';
+                  mediaUrl = `${apiUrl}/api/projects/${currentProject.projectId}/media/${encodeURIComponent(currentMedia.name)}`;
+                  console.log('Page: Constructed media URL for backend project:', mediaUrl);
+                }
+                
+                // Only return media if we have a valid URL
+                if (mediaUrl) {
+                  console.log('Page: Creating media object', {
+                    url: mediaUrl,
+                    name: currentMedia.name,
+                    type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
+                  });
+                  return {
+                    url: mediaUrl,
+                    name: currentMedia.name,
+                    type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
+                  };
+                }
+                
+                // No valid media source, return undefined
+                console.log('Page: No media file or URL available for:', currentMedia.name);
+                return undefined;
               })() : undefined}
               onTimeUpdate={(time) => {
                 // TEMPORARILY DISABLED - this causes playback issues
@@ -545,7 +674,24 @@ export default function TranscriptionWorkPage() {
                 mediaPlayerRef={mediaPlayerRef}
                 marks={[]}
                 currentTime={currentTime}
-                mediaFileName={currentMedia?.name || ''}
+                mediaFileName={(() => {
+                  // If there are transcriptions loaded, use the transcription's media name
+                  if (transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
+                    const currentTranscription = transcriptions[currentTranscriptionIndex];
+                    if (currentTranscription.mediaItems && currentTranscription.mediaItems[0]) {
+                      return currentTranscription.mediaItems[0].name || '';
+                    }
+                  }
+                  
+                  // If we have a current media file loaded (new media, not from transcription)
+                  // Only show if there are actual projects with media
+                  if (hasProjects && currentMedia?.name) {
+                    return currentMedia.name;
+                  }
+                  
+                  // No media or transcription
+                  return '';
+                })()}
                 mediaDuration={mediaDuration}
                 projectName={projectName}
                 speakerComponentRef={speakerComponentRef}
@@ -553,16 +699,190 @@ export default function TranscriptionWorkPage() {
                   console.log('Seek to time:', time);
                 }}
                 enabled={true}
-                projects={projects}
-                currentProjectIndex={currentProjectIndex}
-                onProjectChange={async (index) => {
-                  setCurrentProjectIndex(index);
-                  setCurrentMediaIndex(0);
+                transcriptions={transcriptions}
+                currentTranscriptionIndex={currentTranscriptionIndex}
+                onTranscriptionChange={async (index) => {
+                  console.log('[Page] Transcription changed to index:', index);
+                  setCurrentTranscriptionIndex(index);
                   
-                  // Load the selected project's data
-                  const selectedProject = projects[index];
-                  if (selectedProject?.projectId) {
-                    await loadProjectData(selectedProject.projectId);
+                  // Load the selected transcription's data
+                  const selectedTranscription = transcriptions[index];
+                  if (selectedTranscription?.projectId) {
+                    console.log('[Page] Loading transcription:', selectedTranscription.name, selectedTranscription.projectId);
+                    await loadProjectData(selectedTranscription.projectId);
+                  }
+                }}
+                onTranscriptionDelete={async (index) => {
+                  console.log('[Page] Deleting transcription at index:', index);
+                  const transcriptionToDelete = transcriptions[index];
+                  console.log('[Page] Transcription to delete:', { name: transcriptionToDelete?.name, isDefault: transcriptionToDelete?.isDefault, projectId: transcriptionToDelete?.projectId });
+                  console.log('[Page] All transcriptions before delete:', transcriptions.map(t => ({ name: t.name, isDefault: t.isDefault })));
+                  
+                  // Prevent deletion of default transcription
+                  if (transcriptionToDelete?.isDefault || transcriptionToDelete?.name === 'אין תמלול') {
+                    console.log('[Page] Cannot delete default transcription - blocking deletion');
+                    return;
+                  }
+                  
+                  // Call backend to delete the project folder
+                  if (transcriptionToDelete?.projectId) {
+                    try {
+                      const token = localStorage.getItem('token');
+                      console.log('[Page] Delete - Token found:', token ? 'Yes' : 'No', token ? token.substring(0, 20) + '...' : 'null');
+                      
+                      if (!token) {
+                        console.error('No authentication token found in localStorage');
+                        setAuthErrorMessage('אין אסימון הזדהות. אנא התחבר מחדש.');
+                        setShowAuthErrorModal(true);
+                        return;
+                      }
+                      
+                      const response = await fetch(`http://localhost:5000/api/transcription/projects/${transcriptionToDelete.projectId}`, {
+                        method: 'DELETE',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        credentials: 'include'
+                      });
+                      
+                      if (!response.ok) {
+                        const errorData = await response.text();
+                        
+                        // Only log as error if it's not a 404 (which is expected for already deleted projects)
+                        if (response.status !== 404) {
+                          console.error('Failed to delete project from backend:', response.status, errorData);
+                        } else {
+                          console.log('Project not found on backend (404), will remove from list');
+                        }
+                        
+                        // If token is invalid, prompt user to log in again
+                        if (response.status === 401) {
+                          setAuthErrorMessage('פג תוקף ההתחברות. אנא התחבר מחדש.');
+                          setShowAuthErrorModal(true);
+                          return;
+                        }
+                        
+                        // If project not found, it might already be deleted, so remove from list anyway
+                        if (response.status === 404) {
+                          console.log('Project already deleted, removing from list');
+                        } else {
+                          // For other errors, don't remove from list
+                          setDeleteErrorMessage('שגיאה במחיקת הפרויקט. אנא נסה שוב.');
+                          setShowDeleteErrorModal(true);
+                          return;
+                        }
+                      } else {
+                        console.log('Project folder deleted successfully');
+                      }
+                    } catch (error) {
+                      console.error('Error deleting project:', error);
+                      setDeleteErrorMessage('שגיאה במחיקת הפרויקט. אנא נסה שוב.');
+                      setShowDeleteErrorModal(true);
+                      return;
+                    }
+                  }
+                  
+                  // Only remove from list if deletion succeeded or project was already deleted (404)
+                  const updatedTranscriptions = transcriptions.filter((_, i) => i !== index);
+                  
+                  // Ensure there's always at least one default transcription
+                  const finalTranscriptions = updatedTranscriptions.length === 0 
+                    ? [createDefaultTranscription()] 
+                    : updatedTranscriptions;
+                  
+                  setTranscriptions(finalTranscriptions);
+                  
+                  // Handle navigation after deletion
+                  if (finalTranscriptions.length > 0) {
+                    // Calculate new index after deletion
+                    let newIndex;
+                    if (currentTranscriptionIndex >= finalTranscriptions.length) {
+                      // If current index is now out of bounds, go to the last item
+                      newIndex = finalTranscriptions.length - 1;
+                    } else if (currentTranscriptionIndex > index) {
+                      // If we deleted an item before the current index, adjust index down
+                      newIndex = currentTranscriptionIndex - 1;
+                    } else {
+                      // Keep the same index (or go to 0 if we deleted the first item)
+                      newIndex = Math.min(currentTranscriptionIndex, finalTranscriptions.length - 1);
+                    }
+                    
+                    setCurrentTranscriptionIndex(newIndex);
+                    const selectedTranscription = finalTranscriptions[newIndex];
+                    if (selectedTranscription?.projectId) {
+                      await loadProjectData(selectedTranscription.projectId);
+                    } else {
+                      // Clear if no project ID
+                      setCurrentProjectId('');
+                    }
+                  } else {
+                    // No more transcriptions, clear everything
+                    setCurrentTranscriptionIndex(0);
+                    setCurrentProjectId('');
+                    // Clear the media projects too
+                    setProjects([]);
+                    setCurrentProjectIndex(0);
+                    setCurrentMediaIndex(0);
+                  }
+                }}
+                onBulkTranscriptionDelete={async (indices) => {
+                  console.log('[Page] Bulk deleting transcriptions:', indices);
+                  
+                  // Delete each project from backend
+                  const token = localStorage.getItem('token');
+                  console.log('[Page] Bulk Delete - Token found:', token ? 'Yes' : 'No');
+                  
+                  if (!token) {
+                    console.error('No authentication token found in localStorage');
+                    setAuthErrorMessage('אין אסימון הזדהות. אנא התחבר מחדש.');
+                    setShowAuthErrorModal(true);
+                    return;
+                  }
+                  
+                  for (const index of indices) {
+                    const transcriptionToDelete = transcriptions[index];
+                    if (transcriptionToDelete?.projectId) {
+                      try {
+                        const response = await fetch(`http://localhost:5000/api/transcription/projects/${transcriptionToDelete.projectId}`, {
+                          method: 'DELETE',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          credentials: 'include'
+                        });
+                        
+                        if (!response.ok) {
+                          console.error(`Failed to delete project ${transcriptionToDelete.projectId}`);
+                        }
+                      } catch (error) {
+                        console.error('Error deleting project:', error);
+                      }
+                    }
+                  }
+                  
+                  const updatedTranscriptions = transcriptions.filter((_, i) => !indices.includes(i));
+                  setTranscriptions(updatedTranscriptions);
+                  
+                  // Reset to first transcription if any remain
+                  if (updatedTranscriptions.length > 0) {
+                    setCurrentTranscriptionIndex(0);
+                    const selectedTranscription = updatedTranscriptions[0];
+                    if (selectedTranscription?.projectId) {
+                      await loadProjectData(selectedTranscription.projectId);
+                    } else {
+                      // Clear if no project ID
+                      setCurrentProjectId('');
+                    }
+                  } else {
+                    // No more transcriptions, clear everything
+                    setCurrentTranscriptionIndex(0);
+                    setCurrentProjectId('');
+                    // Clear the media projects too
+                    setProjects([]);
+                    setCurrentProjectIndex(0);
+                    setCurrentMediaIndex(0);
                   }
                 }}
               />
@@ -655,6 +975,37 @@ export default function TranscriptionWorkPage() {
         onSubmit={handleProjectNameSubmit}
         defaultName={(pendingProjectFiles?.[0] as FileWithPath)?.webkitRelativePath?.split('/')[0] || ''}
         showWarning={!!pendingProjectFiles}
+      />
+      
+      {/* Authentication Error Modal */}
+      <ConfirmationModal
+        isOpen={showAuthErrorModal}
+        onClose={() => setShowAuthErrorModal(false)}
+        onConfirm={() => {
+          // Clear invalid tokens and redirect to login
+          localStorage.removeItem('token');
+          localStorage.removeItem('auth_token');
+          window.location.href = '/login';
+        }}
+        title="נדרשת התחברות מחדש"
+        message={authErrorMessage}
+        confirmText="התחבר מחדש"
+        cancelText="ביטול"
+        type="success"
+        showIcon={false}
+      />
+      
+      {/* Delete Error Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteErrorModal}
+        onClose={() => setShowDeleteErrorModal(false)}
+        onConfirm={() => setShowDeleteErrorModal(false)}
+        title="שגיאה במחיקה"
+        message={deleteErrorMessage}
+        confirmText="אישור"
+        cancelText=""
+        type="success"
+        showIcon={false}
       />
     </HoveringBarsLayout>
   );

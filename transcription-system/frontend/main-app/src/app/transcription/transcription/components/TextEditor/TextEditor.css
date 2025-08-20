@@ -390,6 +390,7 @@
   min-height: 42px;
   position: sticky;
   top: 0;
+  justify-content: space-between;
   z-index: 10;
 }
 
@@ -450,24 +451,63 @@
   color: #6f42c1;
 }
 
+.te-delete-btn:hover {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.te-delete-btn.te-disabled {
+  color: #999999 !important;
+  border-color: #cccccc !important;
+  background: rgba(245, 245, 245, 0.8) !important;
+  cursor: not-allowed !important;
+  opacity: 0.5;
+}
+
+.te-delete-btn.te-disabled:hover {
+  color: #999999 !important;
+  border-color: #cccccc !important;
+  background: rgba(245, 245, 245, 0.8) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* Project Dropdown */
 .te-project-dropdown {
   position: absolute;
-  top: 100%;
-  left: 0;
+  top: 30px;
+  right: -80px;
   background: white;
   border: 1px solid rgba(23, 162, 184, 0.3);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-width: 200px;
-  max-width: 300px;
+  min-width: 320px;
+  max-width: 350px;
+  max-height: 450px;
   z-index: 1000;
-  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
 }
 
 .te-dropdown-header {
   padding: 8px;
   border-bottom: 1px solid #e0f2f1;
+}
+
+.te-dropdown-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a5d5d;
+}
+
+.te-projects-count {
+  font-size: 12px;
+  color: #178c96;
+  font-weight: normal;
 }
 
 .te-dropdown-search {
@@ -484,8 +524,9 @@
 }
 
 .te-dropdown-list {
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
+  flex: 1;
 }
 
 .te-dropdown-item {
@@ -1048,3 +1089,65 @@
     gap: 3px;
   }
 }
+
+
+/* Checkbox controls in dropdown */
+.te-dropdown-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid #e0f2f1;
+  background: #f8fffe;
+}
+
+.te-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #1a5d5d;
+}
+
+.te-select-all input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #20c997;
+}
+
+.te-bulk-delete-btn {
+  padding: 4px 8px;
+  background: #20c997;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.te-bulk-delete-btn:hover {
+  background: #17a578;
+  transform: translateY(-1px);
+}
+
+/* Checkbox in each item */
+.te-item-checkbox {
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.te-item-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: #20c997;
+}
+
+.te-item-content {
+  flex: 1;
+  cursor: pointer;
+}
+

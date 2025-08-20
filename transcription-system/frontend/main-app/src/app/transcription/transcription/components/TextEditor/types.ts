@@ -52,14 +52,14 @@ export interface TextEditorProps {
   /** Reference to SimpleSpeaker component for speaker synchronization */
   speakerComponentRef?: RefObject<SimpleSpeakerHandle | null>;
   
-  /** List of all projects */
-  projects?: any[];
+  /** List of all saved transcriptions from backend */
+  transcriptions?: any[];
   
-  /** Current project index */
-  currentProjectIndex?: number;
+  /** Current transcription index */
+  currentTranscriptionIndex?: number;
   
-  /** Callback when project changes */
-  onProjectChange?: (index: number) => void;
+  /** Callback when transcription selection changes */
+  onTranscriptionChange?: (index: number) => void;
 }
 
 /**

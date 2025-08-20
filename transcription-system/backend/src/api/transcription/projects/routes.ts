@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { ProjectModel } from '../../../models/project.model';
 import { authenticateToken } from '../../../middleware/auth.middleware';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 const router = Router();
 
@@ -89,23 +91,59 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-// Delete a project (soft delete)
+// Delete a project (soft delete + remove files)
 router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = (req as any).user.id;
 
+    // For filesystem-based projects (timestamp format like 2025-08-20_21-13-34_087)
+    if (id.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/)) {
+      // Delete project folder from filesystem directly
+      const userDataPath = path.join(__dirname, '../../../../user_data');
+      const projectPath = path.join(userDataPath, 'user_live', 'projects', id);
+      
+      try {
+        // Check if folder exists before trying to delete
+        await fs.access(projectPath);
+        // Delete the project folder and all its contents
+        await fs.rm(projectPath, { recursive: true, force: true });
+        console.log(`✅ Deleted project folder: ${projectPath}`);
+        return res.json({ success: true, message: 'Project folder deleted successfully' });
+      } catch (fsError) {
+        console.log(`⚠️ Project folder not found: ${projectPath}`);
+        return res.status(404).json({ error: 'Project folder not found' });
+      }
+    }
+    
+    // For database-based projects (numeric IDs)
     // Verify ownership
     const existing = await ProjectModel.findById(id);
     if (!existing) {
-      return res.status(404).json({ error: 'Project not found' });
+      return res.status(404).json({ error: 'Project not found in database' });
     }
     if (existing.user_id !== userId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Delete project folder from filesystem
+    const userDataPath = path.join(__dirname, '../../../../user_data');
+    const projectPath = path.join(userDataPath, `user_${userId}`, 'projects', id);
+    
+    try {
+      // Check if folder exists before trying to delete
+      await fs.access(projectPath);
+      // Delete the project folder and all its contents
+      await fs.rm(projectPath, { recursive: true, force: true });
+      console.log(`Deleted project folder: ${projectPath}`);
+    } catch (fsError) {
+      // Folder might not exist, log but don't fail the request
+      console.log(`Project folder not found or already deleted: ${projectPath}`);
+    }
+
+    // Delete from database
     const success = await ProjectModel.delete(id);
-    res.json({ success });
+    res.json({ success, message: 'Project and files deleted successfully' });
   } catch (error) {
     console.error('Error deleting project:', error);
     res.status(500).json({ error: 'Failed to delete project' });

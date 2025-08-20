@@ -80,7 +80,7 @@ export interface MarksState {
  * Generate a unique ID for a mark
  */
 export const generateMarkId = (): string => {
-  return `mark_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `mark_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 };
 
 /**

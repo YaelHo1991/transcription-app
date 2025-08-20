@@ -186,12 +186,66 @@ const TextBlock = React.memo(function TextBlock({
     }
   }, [block.text, block.speaker, localText, localSpeaker]);
   
-  // Sync local state with block data only when block ID changes or on mount
-  // This prevents overwriting local state during typing
+  // Sync local state with block data when block changes or on mount
+  // This ensures speaker name updates from the speaker panel are reflected
   useEffect(() => {
-    setLocalSpeaker(block.speaker);
-    setLocalText(block.text);
-  }, [block.id]); // Only sync when we switch to a different block
+    // Only sync if this block is not currently active (being edited)
+    // This prevents overwriting user input while they're typing
+    if (!isActive) {
+      setLocalSpeaker(block.speaker);
+      setLocalText(block.text);
+    } else {
+      // If this is the active block, only sync the speaker field if it's not the active area
+      // This allows speaker panel updates to show even in the active block
+      if (activeArea !== 'speaker') {
+        setLocalSpeaker(block.speaker);
+      }
+      if (activeArea !== 'text') {
+        setLocalText(block.text);
+      }
+    }
+  }, [block.id, block.speaker, block.text, isActive, activeArea]); // Sync when block data changes
+
+  // Additional listener for speaker updates to ensure immediate response
+  useEffect(() => {
+    const handleSpeakerUpdated = (event: CustomEvent) => {
+      const { code, name, oldCode, oldName } = event.detail;
+      
+      // Check if this update affects our current speaker value
+      let shouldUpdate = false;
+      let newSpeakerValue = '';
+      
+      // Case 1: Setting name for the first time (code → name)
+      if (!oldName && code && name && localSpeaker === code) {
+        shouldUpdate = true;
+        newSpeakerValue = name;
+      }
+      // Case 2: Changing existing name (oldName → name)  
+      else if (oldName && name && localSpeaker === oldName) {
+        shouldUpdate = true;
+        newSpeakerValue = name;
+      }
+      // Case 3: Clearing name (name → code)
+      else if (oldName && !name && code && localSpeaker === oldName) {
+        shouldUpdate = true;
+        newSpeakerValue = code;
+      }
+      // Case 4: Code change
+      else if (oldCode && code && localSpeaker === oldCode) {
+        shouldUpdate = true;
+        newSpeakerValue = code;
+      }
+      
+      if (shouldUpdate && (!isActive || activeArea !== 'speaker')) {
+        setLocalSpeaker(newSpeakerValue);
+      }
+    };
+
+    document.addEventListener('speakerUpdated', handleSpeakerUpdated as EventListener);
+    return () => {
+      document.removeEventListener('speakerUpdated', handleSpeakerUpdated as EventListener);
+    };
+  }, [localSpeaker, isActive, activeArea]);
 
   // Get full speaker name for regular view
   useEffect(() => {

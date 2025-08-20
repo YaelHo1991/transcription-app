@@ -67,7 +67,8 @@
       "Bash(npx next:*)",
       "Bash(git restore:*)",
       "WebFetch(domain:github.com)",
-      "Bash(del VirtualizedTextEditor.tsx)"
+      "Bash(del VirtualizedTextEditor.tsx)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "additionalDirectories": [

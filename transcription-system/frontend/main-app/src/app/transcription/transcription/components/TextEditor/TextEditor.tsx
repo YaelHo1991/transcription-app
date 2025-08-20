@@ -20,6 +20,7 @@ import AutoCorrectModal, { AutoCorrectSettings } from './components/AutoCorrectM
 import DocumentExportModal from './components/DocumentExportModal';
 import HTMLPreviewModal from './components/HTMLPreviewModal';
 import { AutoCorrectEngine } from './utils/AutoCorrectEngine';
+import { ConfirmationModal } from './components/ConfirmationModal';
 import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
@@ -47,13 +48,19 @@ export default function TextEditor({
   mediaFileName = '',
   mediaDuration = '',
   currentProjectId = '',
-  projectName = 'אין פרויקט',
+  projectName = '',
   speakerComponentRef,
   virtualizationEnabled = false,
-  projects = [],
-  currentProjectIndex = 0,
-  onProjectChange
-}: TextEditorProps & { virtualizationEnabled?: boolean }) {
+  transcriptions = [],
+  currentTranscriptionIndex = 0,
+  onTranscriptionChange,
+  onTranscriptionDelete,
+  onBulkTranscriptionDelete
+}: TextEditorProps & { 
+  virtualizationEnabled?: boolean;
+  onTranscriptionDelete?: (index: number) => void;
+  onBulkTranscriptionDelete?: (indices: number[]) => void;
+}) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -133,6 +140,10 @@ export default function TextEditor({
   const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
   const [showHTMLPreviewModal, setShowHTMLPreviewModal] = useState(false);
   const [isMediaNameOverflowing, setIsMediaNameOverflowing] = useState(false);
+  const [selectedTranscriptions, setSelectedTranscriptions] = useState<Set<number>>(new Set());
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [transcriptionToDelete, setTranscriptionToDelete] = useState<number | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   
   // T-Session states
   const [tCurrentMediaId, setTCurrentMediaId] = useState<string>('');
@@ -384,6 +395,79 @@ export default function TextEditor({
       setFeedbackMessage('');
     }, duration);
   }, []);
+  
+  // Handle delete current transcription
+  const handleDeleteTranscription = useCallback(() => {
+    console.log('[TextEditor] Delete button clicked');
+    console.log('[TextEditor] Current transcription index:', currentTranscriptionIndex);
+    console.log('[TextEditor] Transcriptions:', transcriptions.map(t => ({ name: t.name, isDefault: t.isDefault })));
+    
+    if (currentTranscriptionIndex !== undefined && transcriptions.length > 0) {
+      const currentTranscription = transcriptions[currentTranscriptionIndex];
+      console.log('[TextEditor] Current transcription:', { name: currentTranscription?.name, isDefault: currentTranscription?.isDefault });
+      
+      // Prevent deletion of default transcription
+      if (currentTranscription?.isDefault || currentTranscription?.name === 'אין תמלול') {
+        console.log('[TextEditor] Blocking deletion of default transcription');
+        return;
+      }
+      
+      console.log('[TextEditor] Proceeding with deletion');
+      setTranscriptionToDelete(currentTranscriptionIndex);
+      setShowDeleteConfirmModal(true);
+    }
+  }, [currentTranscriptionIndex, transcriptions]);
+  
+  // Confirm delete single transcription
+  const confirmDeleteTranscription = useCallback(async () => {
+    if (transcriptionToDelete !== null) {
+      try {
+        // Call parent's delete handler
+        if (onTranscriptionDelete) {
+          onTranscriptionDelete(transcriptionToDelete);
+          showFeedback('התמלול נמחק בהצלחה');
+        } else {
+          console.warn('No delete handler provided');
+          showFeedback('לא ניתן למחוק - חסר handler');
+        }
+        
+        setShowDeleteConfirmModal(false);
+        setTranscriptionToDelete(null);
+      } catch (error) {
+        console.error('Error deleting transcription:', error);
+        showFeedback('שגיאה במחיקת התמלול');
+      }
+    }
+  }, [transcriptionToDelete, onTranscriptionDelete, showFeedback]);
+  
+  // Handle bulk delete
+  const handleBulkDelete = useCallback(() => {
+    if (selectedTranscriptions.size > 0) {
+      setShowBulkDeleteConfirm(true);
+    }
+  }, [selectedTranscriptions]);
+  
+  // Confirm bulk delete
+  const confirmBulkDelete = useCallback(async () => {
+    if (selectedTranscriptions.size > 0) {
+      try {
+        // Call parent's bulk delete handler
+        if (onBulkTranscriptionDelete) {
+          onBulkTranscriptionDelete(Array.from(selectedTranscriptions));
+          showFeedback(`${selectedTranscriptions.size} תמלולים נמחקו בהצלחה`);
+        } else {
+          console.warn('No bulk delete handler provided');
+          showFeedback('לא ניתן למחוק - חסר handler');
+        }
+        
+        setSelectedTranscriptions(new Set());
+        setShowBulkDeleteConfirm(false);
+      } catch (error) {
+        console.error('Error bulk deleting transcriptions:', error);
+        showFeedback('שגיאה במחיקת התמלולים');
+      }
+    }
+  }, [selectedTranscriptions, onBulkTranscriptionDelete, showFeedback]);
   
   // Function to seek media to a specific time
   const seekToTime = useCallback((time: number) => {
@@ -2000,8 +2084,8 @@ export default function TextEditor({
       const target = event.target as HTMLElement;
       // Check if click is outside the dropdown and not on the trigger button
       if (showTranscriptionSwitcher && 
-          !target.closest('.toolbar-dropdown') && 
-          !target.closest('.toolbar-btn[title="בחר תמלול"]')) {
+          !target.closest('.te-project-dropdown') && 
+          !target.closest('.te-transcription-btn')) {
         setShowTranscriptionSwitcher(false);
       }
     };
@@ -2270,7 +2354,176 @@ export default function TextEditor({
         >
           {/* Media Name Header - Always Display */}
           <div className="media-name-header">
-            {/* File Management Actions */}
+            {/* Project Navigation - LEFT */}
+            <div className="te-project-nav">
+              <button 
+                className="te-nav-btn" 
+                onClick={() => {
+                  if (onTranscriptionChange && currentTranscriptionIndex > 0) {
+                    onTranscriptionChange(currentTranscriptionIndex - 1);
+                  }
+                }}
+                disabled={currentTranscriptionIndex === 0}
+                title="פרויקט קודם"
+              >
+                ▶
+              </button>
+              
+              <span className="te-project-counter">
+                {transcriptions.length > 0 && currentTranscriptionIndex < transcriptions.length 
+                  ? `${currentTranscriptionIndex + 1} / ${transcriptions.length}` 
+                  : transcriptions.length > 0 
+                    ? `1 / ${transcriptions.length}` 
+                    : '0 / 0'}
+              </span>
+              
+              <button 
+                className="te-nav-btn" 
+                onClick={() => {
+                  if (onTranscriptionChange && currentTranscriptionIndex < transcriptions.length - 1) {
+                    onTranscriptionChange(currentTranscriptionIndex + 1);
+                  }
+                }}
+                disabled={currentTranscriptionIndex >= transcriptions.length - 1}
+                title="פרויקט הבא"
+              >
+                ◀
+              </button>
+            </div>
+            
+            <div className="header-divider"></div>
+            
+            {/* Media Name Zone with Duration - CENTER */}
+            <div className="header-zone media-zone">
+              <div className="media-name-wrapper">
+                <div 
+                  ref={mediaNameRef}
+                  className={`media-name-scrollable ${
+                    isMediaNameOverflowing && currentMediaFileName 
+                      ? (/[\u0590-\u05FF]/.test(currentMediaFileName) ? 'scroll-rtl' : 'scroll-ltr')
+                      : ''
+                  }`}
+                >
+                  {currentMediaFileName || 'אין תמלול'}
+                  {mediaDuration && mediaDuration !== '00:00:00' && (
+                    <span className="te-duration-inline"> ({mediaDuration})</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Project Name Zone with Dropdown */}
+            <div className="header-zone project-zone">
+              {projectName && <span className="header-text">{projectName}</span>}
+              {showTranscriptionSwitcher && (
+                <div className="te-project-dropdown">
+                  <div className="te-dropdown-header">
+                    <div className="te-dropdown-title">
+                      <span>רשימת תמלולים</span>
+                      <span className="te-projects-count">({transcriptions.length} פרויקטים)</span>
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="חפש פרויקט..." 
+                      className="te-dropdown-search"
+                      onChange={(e) => {
+                        // Filter projects based on search
+                        const searchTerm = e.target.value.toLowerCase();
+                        const filtered = transcriptions.filter(p => 
+                          p.name?.toLowerCase().includes(searchTerm) ||
+                          p.mediaItems?.[0]?.name?.toLowerCase().includes(searchTerm)
+                        );
+                        // Update dropdown display (would need state for this)
+                      }}
+                    />
+                    {transcriptions.length > 0 && (
+                      <div className="te-dropdown-controls">
+                        <label className="te-select-all" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox"
+                            checked={selectedTranscriptions.size === transcriptions.length}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              if (e.target.checked) {
+                                setSelectedTranscriptions(new Set(transcriptions.map((_, i) => i)));
+                              } else {
+                                setSelectedTranscriptions(new Set());
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span>בחר הכל</span>
+                        </label>
+                        {selectedTranscriptions.size > 0 && (
+                          <button 
+                            className="te-bulk-delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBulkDelete();
+                            }}
+                            title={`מחק ${selectedTranscriptions.size} תמלולים`}
+                          >
+                            🗑️ מחק ({selectedTranscriptions.size})
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="te-dropdown-list">
+                    {transcriptions.length === 0 ? (
+                      <div className="te-dropdown-item te-no-projects">
+                        אין פרויקטים
+                      </div>
+                    ) : (
+                      transcriptions.map((transcription, index) => (
+                        <div 
+                          key={transcription.projectId || `default-${index}`}
+                          className={`te-dropdown-item ${index === currentTranscriptionIndex ? 'te-active' : ''}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <label className="te-item-checkbox" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox"
+                              checked={selectedTranscriptions.has(index)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                const newSelected = new Set(selectedTranscriptions);
+                                if (e.target.checked) {
+                                  newSelected.add(index);
+                                } else {
+                                  newSelected.delete(index);
+                                }
+                                setSelectedTranscriptions(newSelected);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </label>
+                          <div 
+                            className="te-item-content"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onTranscriptionChange) {
+                                onTranscriptionChange(index);
+                              }
+                              setShowTranscriptionSwitcher(false);
+                            }}
+                          >
+                            <div className="te-project-name">{transcription.name}</div>
+                            {transcription.mediaItems?.[0] && (
+                              <div className="te-project-media">{transcription.mediaItems[0].name}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="header-divider"></div>
+            
+            {/* File Management Actions - RIGHT */}
             <div className="te-header-actions">
               <button 
                 className="te-header-btn te-save-btn" 
@@ -2293,6 +2546,22 @@ export default function TextEditor({
               </button>
               
               <button 
+                className={`te-header-btn te-delete-btn ${
+                  (transcriptions[currentTranscriptionIndex]?.isDefault || transcriptions[currentTranscriptionIndex]?.name === 'אין תמלול') ? 'te-disabled' : ''
+                }`}
+                onClick={() => {
+                  console.log('[TextEditor] Delete button onClick - isDefault:', transcriptions[currentTranscriptionIndex]?.isDefault);
+                  handleDeleteTranscription();
+                }}
+                disabled={transcriptions[currentTranscriptionIndex]?.isDefault || transcriptions[currentTranscriptionIndex]?.name === 'אין תמלול'}
+                title={(transcriptions[currentTranscriptionIndex]?.isDefault || transcriptions[currentTranscriptionIndex]?.name === 'אין תמלול') ? 'לא ניתן למחוק תמלול ברירת מחדל' : 'מחק תמלול'}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+              
+              <button 
                 className="te-header-btn te-history-btn" 
                 onClick={() => setShowVersionHistoryModal(true)} 
                 title="היסטוריית גרסאות"
@@ -2311,114 +2580,6 @@ export default function TextEditor({
                   <path fill="currentColor" d="M7 10l5 5 5-5z"/>
                 </svg>
               </button>
-            </div>
-            
-            <div className="header-divider"></div>
-            
-            {/* Project Navigation */}
-            <div className="te-project-nav">
-              <button 
-                className="te-nav-btn" 
-                onClick={() => {
-                  if (onProjectChange && currentProjectIndex > 0) {
-                    onProjectChange(currentProjectIndex - 1);
-                  }
-                }}
-                disabled={currentProjectIndex === 0}
-                title="פרויקט קודם"
-              >
-                ◀
-              </button>
-              
-              <span className="te-project-counter">
-                {currentProjectIndex + 1} / {projects.length || 0}
-              </span>
-              
-              <button 
-                className="te-nav-btn" 
-                onClick={() => {
-                  if (onProjectChange && currentProjectIndex < projects.length - 1) {
-                    onProjectChange(currentProjectIndex + 1);
-                  }
-                }}
-                disabled={currentProjectIndex >= projects.length - 1}
-                title="פרויקט הבא"
-              >
-                ▶
-              </button>
-            </div>
-            
-            <div className="header-divider"></div>
-            
-            {/* Project Name Zone with Dropdown */}
-            <div className="header-zone project-zone">
-              <span className="header-text">{projectName}</span>
-              {showTranscriptionSwitcher && (
-                <div className="te-project-dropdown">
-                  <div className="te-dropdown-header">
-                    <input 
-                      type="text" 
-                      placeholder="חפש פרויקט..." 
-                      className="te-dropdown-search"
-                      onChange={(e) => {
-                        // Filter projects based on search
-                        const searchTerm = e.target.value.toLowerCase();
-                        const filtered = projects.filter(p => 
-                          p.name?.toLowerCase().includes(searchTerm) ||
-                          p.mediaItems?.[0]?.name?.toLowerCase().includes(searchTerm)
-                        );
-                        // Update dropdown display (would need state for this)
-                      }}
-                    />
-                  </div>
-                  <div className="te-dropdown-list">
-                    {projects.length === 0 ? (
-                      <div className="te-dropdown-item te-no-projects">
-                        אין פרויקטים
-                      </div>
-                    ) : (
-                      projects.map((project, index) => (
-                        <div 
-                          key={index}
-                          className={`te-dropdown-item ${index === currentProjectIndex ? 'te-active' : ''}`}
-                          onClick={() => {
-                            if (onProjectChange) {
-                              onProjectChange(index);
-                            }
-                            setShowTranscriptionSwitcher(false);
-                          }}
-                        >
-                          <div className="te-project-name">{project.name}</div>
-                          {project.mediaItems?.[0] && (
-                            <div className="te-project-media">{project.mediaItems[0].name}</div>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="header-divider"></div>
-            
-            {/* Media Name Zone with Duration - Scrollable */}
-            <div className="header-zone media-zone">
-              <div className="media-name-wrapper">
-                <div 
-                  ref={mediaNameRef}
-                  className={`media-name-scrollable ${
-                    isMediaNameOverflowing && currentMediaFileName 
-                      ? (/[\u0590-\u05FF]/.test(currentMediaFileName) ? 'scroll-rtl' : 'scroll-ltr')
-                      : ''
-                  }`}
-                >
-                  {currentMediaFileName || 'אין מדיה נטענת'}
-                  {mediaDuration && mediaDuration !== '00:00:00' && (
-                    <span className="te-duration-inline"> ({mediaDuration})</span>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
           
@@ -2757,6 +2918,37 @@ export default function TextEditor({
         speakers={speakerNamesRef.current}
         mediaFileName={currentMediaFileName}
         mediaDuration={mediaDuration}
+      />
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmModal}
+        onClose={() => {
+          setShowDeleteConfirmModal(false);
+          setTranscriptionToDelete(null);
+        }}
+        onConfirm={confirmDeleteTranscription}
+        title="מחיקת תמלול"
+        message={`האם אתה בטוח שברצונך למחוק את התמלול?`}
+        subMessage="פעולה זו אינה ניתנת לביטול"
+        confirmText="מחק"
+        cancelText="ביטול"
+        type="danger"
+      />
+      
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => {
+          setShowBulkDeleteConfirm(false);
+        }}
+        onConfirm={confirmBulkDelete}
+        title="מחיקת תמלולים"
+        message={`האם אתה בטוח שברצונך למחוק ${selectedTranscriptions.size} תמלולים?`}
+        subMessage="פעולה זו אינה ניתנת לביטול"
+        confirmText={`מחק ${selectedTranscriptions.size} תמלולים`}
+        cancelText="ביטול"
+        type="danger"
       />
       
       {/* Feedback Message Display */}

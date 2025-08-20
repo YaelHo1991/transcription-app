@@ -91,7 +91,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
 
   const generateTranscriptionId = () => {
     // Add a small delay and more randomness to ensure uniqueness
-    return `transcription-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${Math.random().toString(36).substr(2, 5)}`;
+    return `transcription-${Date.now()}-${Math.random().toString(36).substring(2, 11)}-${Math.random().toString(36).substring(2, 7)}`;
   };
 
   const createTranscription = useCallback((options: CreateTranscriptionOptions): TranscriptionOperationResult => {

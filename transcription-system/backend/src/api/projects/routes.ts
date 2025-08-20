@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { projectService } from '../../services/projectService';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 
@@ -279,6 +281,70 @@ router.delete('/:projectId', devAuth, async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error deleting project:', error);
     res.status(500).json({ error: error.message || 'Failed to delete project' });
+  }
+});
+
+/**
+ * Serve media file from project folder
+ */
+router.get('/:projectId/media/:filename', devAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId, filename } = req.params;
+    
+    console.log(`🎵 Serving media file: ${filename} from project: ${projectId}`);
+    
+    // Get the project folder path
+    const userDataPath = path.join(process.cwd(), 'user_data', 'user_live', 'projects', projectId);
+    const mediaPath = path.join(userDataPath, filename);
+    
+    // Check if file exists
+    if (!fs.existsSync(mediaPath)) {
+      console.error(`Media file not found: ${mediaPath}`);
+      return res.status(404).json({ error: 'Media file not found' });
+    }
+    
+    // Get file stats for content-length
+    const stat = fs.statSync(mediaPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    
+    // Determine content type based on file extension
+    const ext = path.extname(filename).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (['.mp3', '.m4a', '.wav', '.ogg', '.aac'].includes(ext)) {
+      contentType = `audio/${ext.substring(1)}`;
+    } else if (['.mp4', '.webm', '.ogv'].includes(ext)) {
+      contentType = `video/${ext.substring(1)}`;
+    }
+    
+    // Support range requests for media streaming
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(mediaPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*'
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*'
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(mediaPath).pipe(res);
+    }
+  } catch (error: any) {
+    console.error('Error serving media file:', error);
+    res.status(500).json({ error: error.message || 'Failed to serve media file' });
   }
 });
 

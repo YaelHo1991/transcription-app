@@ -1,0 +1,60 @@
+{
+  "timestamp": "2025-08-20T20:10:42.754Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755720571245",
+        "speaker": "א",
+        "text": "",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755720578066-6lz5rto6m",
+        "speaker": "ברכה",
+        "text": "",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755720578199-yqdz2rcs4",
+        "speaker": "בגכ",
+        "text": "",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755720594820-9lbxsdxwo",
+        "speaker": "ברכה",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T20:10:42.735Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "ברכה",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ג",
+        "name": "בגכ",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}
