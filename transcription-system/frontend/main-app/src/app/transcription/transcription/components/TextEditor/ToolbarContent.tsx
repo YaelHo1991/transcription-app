@@ -174,6 +174,71 @@ export default function ToolbarContent(props: ToolbarContentProps) {
             onClick: () => props.tHandleSave && props.tHandleSave()
           },
           {
+            icon: '📤',
+            title: 'ייבוא תמלול',
+            onClick: () => {
+              // Create a file input and trigger it
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = '.json,.txt';
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) {
+                  try {
+                    const content = await file.text();
+                    const data = JSON.parse(content);
+                    
+                    // Dispatch event to load the imported data
+                    const event = new CustomEvent('importTranscription', {
+                      detail: data
+                    });
+                    document.dispatchEvent(event);
+                    
+                    setShortcutsFeedback('✅ תמלול יובא בהצלחה');
+                  } catch (error) {
+                    console.error('Import error:', error);
+                    setShortcutsFeedback('❌ שגיאה בייבוא הקובץ');
+                  }
+                }
+              };
+              input.click();
+            }
+          },
+          {
+            icon: '💾',
+            title: 'ייצוא תמלול',
+            onClick: () => {
+              // Export current transcription as JSON
+              const exportData = {
+                blocks: blocks.map(b => ({
+                  speaker: b.speaker,
+                  text: b.text,
+                  timestamp: b.speakerTime || b.timestamp
+                })),
+                speakers: Array.from(speakerColors.entries()).map(([code, color]) => ({
+                  code,
+                  name: speakerNamesRef.current.get(code) || code,
+                  color
+                })),
+                metadata: {
+                  exportDate: new Date().toISOString(),
+                  blockCount: blocks.length,
+                  mediaFile: currentMediaFileName
+                }
+              };
+              
+              const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `transcription-${Date.now()}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              
+              setShortcutsFeedback('✅ תמלול יוצא בהצלחה');
+            }
+          },
+          {
             icon: '📥',
             title: 'גיבוי TXT',
             onClick: async () => {

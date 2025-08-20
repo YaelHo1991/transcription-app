@@ -1952,6 +1952,44 @@ export default function TextEditor({
     };
     
     
+    // Import transcription handler
+    const handleImportTranscription = (event: CustomEvent) => {
+      console.log('[Import] Received import data:', event.detail);
+      const data = event.detail;
+      
+      if (data.blocks && Array.isArray(data.blocks)) {
+        // Load the blocks
+        const importedBlocks = data.blocks.map((block: any, index: number) => ({
+          id: `block-${Date.now()}-${index}`,
+          speaker: block.speaker || '',
+          text: block.text || '',
+          speakerTime: block.timestamp || block.speakerTime || 0
+        }));
+        
+        blockManagerRef.current.setBlocks(importedBlocks);
+        setBlocks(importedBlocks);
+        
+        // Dispatch block count for virtualization detection
+        const event = new CustomEvent('blocksLoaded', {
+          detail: { count: importedBlocks.length }
+        });
+        document.dispatchEvent(event);
+        
+        console.log(`[Import] Loaded ${importedBlocks.length} blocks`);
+        showFeedback(`יובאו ${importedBlocks.length} בלוקים`);
+        
+        // Load speakers if available
+        if (data.speakers && Array.isArray(data.speakers)) {
+          data.speakers.forEach((speaker: any) => {
+            if (speaker.code && speaker.name) {
+              speakerManagerRef.current.setSpeakerName(speaker.code, speaker.name);
+            }
+          });
+        }
+      }
+    };
+    
+    document.addEventListener('importTranscription', handleImportTranscription as EventListener);
     document.addEventListener('speakersSelected', handleSpeakersSelected as EventListener);
     document.addEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
     document.addEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
@@ -1961,6 +1999,7 @@ export default function TextEditor({
     document.addEventListener('openNewTranscriptionModal', handleOpenNewTranscriptionModal as EventListener);
     
     return () => {
+      document.removeEventListener('importTranscription', handleImportTranscription as EventListener);
       document.removeEventListener('speakersSelected', handleSpeakersSelected as EventListener);
       document.removeEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
       document.removeEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
