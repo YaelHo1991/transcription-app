@@ -4,7 +4,6 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, KeyboardEvent
 import { ProcessTextResult } from '../types/shortcuts';
 import TextHighlightOverlay from '../components/TextHighlightOverlay';
 import { AutoCorrectEngine } from '../utils/AutoCorrectEngine';
-import { debounce } from '../utils/debounce';
 import './TextBlock.css';
 
 export interface TextBlockData {
@@ -88,20 +87,8 @@ const TextBlock = React.memo(function TextBlock({
   const wasFullySelected = useRef(false);
   const lastNavigatedTimestamp = useRef<string | null>(null);
   
-  // Create debounced update functions for text changes
-  const debouncedTextUpdate = useMemo(
-    () => debounce((id: string, value: string) => {
-      onUpdate(id, 'text', value);
-    }, 300), // 300ms delay for typing
-    [onUpdate]
-  );
-  
-  // Cleanup debounced function on unmount
-  useEffect(() => {
-    return () => {
-      debouncedTextUpdate.cancel();
-    };
-  }, [debouncedTextUpdate]);
+  // Removed debouncing as it was causing cursor jump issues
+  // The React.memo optimization is sufficient for performance
   
   // Helper function to get current media time via event
   const getCurrentMediaTime = (): number => {
@@ -198,11 +185,12 @@ const TextBlock = React.memo(function TextBlock({
     }
   }, [block.text, block.speaker, localText, localSpeaker]);
   
-  // Sync local state with block data
+  // Sync local state with block data only when block ID changes or on mount
+  // This prevents overwriting local state during typing
   useEffect(() => {
     setLocalSpeaker(block.speaker);
     setLocalText(block.text);
-  }, [block.speaker, block.text]);
+  }, [block.id]); // Only sync when we switch to a different block
 
   // Get full speaker name for regular view
   useEffect(() => {
@@ -895,9 +883,6 @@ const TextBlock = React.memo(function TextBlock({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       
-      // Flush any pending text updates before creating new block
-      debouncedTextUpdate.flush();
-      
       // Apply AutoCorrect validations before creating new block
       if (autoCorrectEngine) {
         // Validate duplicate speaker
@@ -1409,26 +1394,8 @@ const TextBlock = React.memo(function TextBlock({
     
     setLocalText(value);
     
-    // Determine if we should use immediate or debounced update
-    const shouldUpdateImmediately = 
-      // Timestamp insertions
-      value.includes('[') && value.includes(']') ||
-      // List operations
-      value.includes('\n') && value.match(/^[\u200F]?\d+\.\s+/m) ||
-      // Large pastes or deletions
-      Math.abs(value.length - localText.length) > 10 ||
-      // When text is cleared
-      value === '';
-    
-    if (shouldUpdateImmediately) {
-      // Cancel any pending debounced update
-      debouncedTextUpdate.cancel();
-      // Update immediately for critical changes
-      onUpdate(block.id, 'text', value);
-    } else {
-      // Use debounced update for normal typing
-      debouncedTextUpdate(block.id, value);
-    }
+    // Update immediately - debouncing was causing cursor issues
+    onUpdate(block.id, 'text', value);
     
     // Check if cursor is in a timestamp for highlighting
     if (cursorPos !== null) {
@@ -1736,8 +1703,6 @@ const TextBlock = React.memo(function TextBlock({
   const handleTextBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
     // Reset selection tracking when losing focus
     wasFullySelected.current = false;
-    // Flush any pending text updates when losing focus
-    debouncedTextUpdate.flush();
   };
 
   // Handle click on block for navigation mode and multi-select
