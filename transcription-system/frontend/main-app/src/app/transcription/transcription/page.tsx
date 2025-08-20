@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
-import TranscriptionHeader from './components/TranscriptionHeader/TranscriptionHeader';
+import HoveringHeader from '../components/HoveringHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
 import WorkspaceHeader from './components/WorkspaceHeader/WorkspaceHeader';
 import ProjectNavigator from './components/ProjectNavigator/ProjectNavigator';
@@ -17,7 +18,6 @@ import Remarks from './components/Remarks/Remarks';
 import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { projectService } from '../../../services/projectService';
-import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
 import './transcription-page.css';
@@ -49,6 +49,8 @@ declare module 'react' {
 }
 
 export default function TranscriptionWorkPage() {
+  const router = useRouter();
+  
   // Create a unique session ID for this transcription session
   const [sessionId, setSessionId] = useState(() => {
     // Try to get from URL params first (for saved sessions)
@@ -344,7 +346,14 @@ export default function TranscriptionWorkPage() {
 
   return (
     <HoveringBarsLayout
-      headerContent={<TranscriptionHeader />}
+      headerContent={
+        <HoveringHeader 
+          userFullName="משתמש"
+          permissions="DEF"
+          onLogout={() => router.push('/login')}
+          themeColor="pink"
+        />
+      }
       sidebarContent={<TranscriptionSidebar />}
       theme="transcription"
       onHeaderLockChange={handleHeaderLockChange}
@@ -461,6 +470,12 @@ export default function TranscriptionWorkPage() {
                   console.log('Seek to time:', time);
                 }}
                 enabled={true}
+                projects={projects}
+                currentProjectIndex={currentProjectIndex}
+                onProjectChange={(index) => {
+                  setCurrentProjectIndex(index);
+                  setCurrentMediaIndex(0);
+                }}
               />
             </div>
 

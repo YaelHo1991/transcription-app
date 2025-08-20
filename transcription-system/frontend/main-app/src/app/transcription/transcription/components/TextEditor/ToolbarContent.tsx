@@ -93,7 +93,6 @@ export default function ToolbarContent(props: ToolbarContentProps) {
 
   const [allExpanded, setAllExpanded] = useState(false);
   const [groupStates, setGroupStates] = useState({
-    document: false,
     word: false,
     blocks: false,
     special: false
@@ -103,7 +102,6 @@ export default function ToolbarContent(props: ToolbarContentProps) {
     const newState = !allExpanded;
     setAllExpanded(newState);
     setGroupStates({
-      document: newState,
       word: newState,
       blocks: newState,
       special: newState
@@ -122,179 +120,6 @@ export default function ToolbarContent(props: ToolbarContentProps) {
       </button>
       
       <div className="toolbar-divider" />
-      {/* File & Document Management Group */}
-      <ToolbarGroup
-        groupIcon="📄"
-        groupTitle="מסמך"
-        expanded={groupStates.document}
-        onExpandChange={(expanded) => {
-          setGroupStates(prev => ({ ...prev, document: expanded }));
-          setAllExpanded(expanded && groupStates.textEdit && groupStates.special);
-        }}
-        buttons={[
-          {
-            customElement: (
-              <TranscriptionManagementDropdown
-                currentTranscriptionId={currentTranscriptionId}
-                currentMediaId={props.currentMediaId || ''}
-                currentMediaName={currentMediaFileName || ''}
-                transcriptions={currentMediaFileName ? [
-                  {
-                    id: currentTranscriptionId,
-                    name: currentMediaFileName || 'תמלול ללא שם',
-                    mediaId: props.currentMediaId || '',
-                    mediaName: currentMediaFileName || '',
-                    number: 1,
-                    createdAt: new Date(),
-                    wordCount: blocks && blocks.length > 0 ? blocks.reduce((total, block) => {
-                      // Count actual words in each block's text
-                      const words = block.text ? block.text.trim().split(/\s+/).filter(word => word.length > 0) : [];
-                      return total + words.length;
-                    }, 0) : 0,
-                    isActive: true
-                  }
-                ] : []}
-                onNewTranscription={() => setShowNewTranscriptionModal(true)}
-                onClearTranscription={(id) => {
-                  if (confirm('האם אתה בטוח שברצונך לנקות את התמלול?')) {
-                    // TODO: Implement clear transcription
-                    console.log('Clearing transcription:', id);
-                  }
-                }}
-                onLoadFromOtherMedia={() => setShowMediaLinkModal(true)}
-                onSplitTranscription={() => console.log('Split transcription')}
-                onReorderSegments={() => console.log('Reorder segments')}
-                onTranscriptionSwitch={(id) => handleTranscriptionChange(id)}
-              />
-            )
-          },
-          {
-            icon: '💾',
-            title: 'שמור',
-            onClick: () => props.tHandleSave && props.tHandleSave()
-          },
-          {
-            icon: '📤',
-            title: 'ייבוא תמלול',
-            onClick: () => {
-              // Create a file input and trigger it
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.json,.txt';
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) {
-                  try {
-                    const content = await file.text();
-                    const data = JSON.parse(content);
-                    
-                    // Dispatch event to load the imported data
-                    const event = new CustomEvent('importTranscription', {
-                      detail: data
-                    });
-                    document.dispatchEvent(event);
-                    
-                    setShortcutsFeedback('✅ תמלול יובא בהצלחה');
-                  } catch (error) {
-                    console.error('Import error:', error);
-                    setShortcutsFeedback('❌ שגיאה בייבוא הקובץ');
-                  }
-                }
-              };
-              input.click();
-            }
-          },
-          {
-            icon: '💾',
-            title: 'ייצוא תמלול',
-            onClick: () => {
-              // Export current transcription as JSON
-              const exportData = {
-                blocks: blocks.map(b => ({
-                  speaker: b.speaker,
-                  text: b.text,
-                  timestamp: b.speakerTime || b.timestamp
-                })),
-                speakers: Array.from(speakerColors.entries()).map(([code, color]) => ({
-                  code,
-                  name: speakerNamesRef.current.get(code) || code,
-                  color
-                })),
-                metadata: {
-                  exportDate: new Date().toISOString(),
-                  blockCount: blocks.length,
-                  mediaFile: currentMediaFileName
-                }
-              };
-              
-              const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `transcription-${Date.now()}.json`;
-              a.click();
-              URL.revokeObjectURL(url);
-              
-              setShortcutsFeedback('✅ תמלול יוצא בהצלחה');
-            }
-          },
-          {
-            icon: '📥',
-            title: 'גיבוי TXT',
-            onClick: async () => {
-              try {
-                const backupData = {
-                  blocks: blocks.map(b => ({
-                    timestamp: b.timestamp,
-                    speaker: b.speaker,
-                    text: b.text
-                  })),
-                  speakers: Array.from(speakerColors.entries()).map(([code, color]) => ({
-                    code,
-                    name: speakerNamesRef.current.get(code) || code,
-                    color
-                  })),
-                  projectName: 'Current Project',
-                  transcriptionTitle: 'Current Transcription',
-                  mediaFile: currentMediaFileName || 'No Media'
-                };
-                
-                const response = await fetch('http://localhost:5000/dev/test-backup-live', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(backupData)
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                  setShortcutsFeedback('✅ גיבוי נוצר: ' + result.filename);
-                } else {
-                  setShortcutsFeedback('❌ גיבוי נכשל');
-                }
-              } catch (error) {
-                setShortcutsFeedback('❌ שגיאה בגיבוי');
-              }
-            },
-            className: 'test-backup-btn'
-          },
-          {
-            icon: '📄',
-            title: 'ייצוא למסמך Word',
-            onClick: () => {
-              if (props.setShowDocumentExportModal) {
-                props.setShowDocumentExportModal(true);
-              }
-            }
-          },
-          {
-            icon: '📜',
-            title: 'היסטוריית גרסאות',
-            onClick: () => setShowVersionHistoryModal(true)
-          }
-        ]}
-      />
-      
-      <div className="toolbar-divider" />
       
       {/* Word Processing Group - Undo/Redo, Font, Search */}
       <ToolbarGroup
@@ -303,7 +128,7 @@ export default function ToolbarContent(props: ToolbarContentProps) {
         expanded={groupStates.word}
         onExpandChange={(expanded) => {
           setGroupStates(prev => ({ ...prev, word: expanded }));
-          setAllExpanded(expanded && groupStates.document && groupStates.blocks && groupStates.special);
+          setAllExpanded(expanded && groupStates.blocks && groupStates.special);
         }}
         buttons={[
           {
@@ -360,7 +185,7 @@ export default function ToolbarContent(props: ToolbarContentProps) {
         expanded={groupStates.blocks}
         onExpandChange={(expanded) => {
           setGroupStates(prev => ({ ...prev, blocks: expanded }));
-          setAllExpanded(expanded && groupStates.document && groupStates.word && groupStates.special);
+          setAllExpanded(expanded && groupStates.word && groupStates.special);
         }}
         buttons={[
           {
@@ -419,7 +244,7 @@ export default function ToolbarContent(props: ToolbarContentProps) {
         expanded={groupStates.special}
         onExpandChange={(expanded) => {
           setGroupStates(prev => ({ ...prev, special: expanded }));
-          setAllExpanded(expanded && groupStates.document && groupStates.word && groupStates.blocks);
+          setAllExpanded(expanded && groupStates.word && groupStates.blocks);
         }}
         buttons={[
           {

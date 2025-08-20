@@ -49,7 +49,10 @@ export default function TextEditor({
   currentProjectId = '',
   projectName = 'אין פרויקט',
   speakerComponentRef,
-  virtualizationEnabled = false
+  virtualizationEnabled = false,
+  projects = [],
+  currentProjectIndex = 0,
+  onProjectChange
 }: TextEditorProps & { virtualizationEnabled?: boolean }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
@@ -2267,14 +2270,139 @@ export default function TextEditor({
         >
           {/* Media Name Header - Always Display */}
           <div className="media-name-header">
-            {/* Project Name Zone */}
-            <div className="header-zone project-zone">
-              <span className="header-text">{projectName}</span>
+            {/* File Management Actions */}
+            <div className="te-header-actions">
+              <button 
+                className="te-header-btn te-save-btn" 
+                onClick={saveProjectData} 
+                title="שמור (Ctrl+S)"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3ZM19 19H5V5H16.17L19 7.83V19ZM12 12C10.34 12 9 13.34 9 15S10.34 18 12 18 15 16.66 15 15 13.66 12 12 12ZM6 6H15V10H6V6Z"/>
+                </svg>
+              </button>
+              
+              <button 
+                className="te-header-btn te-export-btn" 
+                onClick={() => setShowDocumentExportModal(true)} 
+                title="ייצוא למסמך Word"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6ZM13 3.5L18.5 9H13V3.5ZM12 11L8 15H10.5V19H13.5V15H16L12 11Z"/>
+                </svg>
+              </button>
+              
+              <button 
+                className="te-header-btn te-history-btn" 
+                onClick={() => setShowVersionHistoryModal(true)} 
+                title="היסטוריית גרסאות"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M13 3C8.03 3 4 7.03 4 12H1L4.89 15.89L4.96 16.03L9 12H6C6 8.13 9.13 5 13 5S20 8.13 20 12 16.87 19 13 19C11.07 19 9.32 18.21 8.06 16.94L6.64 18.36C8.27 19.99 10.51 21 13 21C17.97 21 22 16.97 22 12S17.97 3 13 3ZM12 8V13L16.25 15.52L17.02 14.24L13.5 12.15V8H12Z"/>
+                </svg>
+              </button>
+              
+              <button 
+                className="te-header-btn te-transcription-btn" 
+                onClick={() => setShowTranscriptionSwitcher(!showTranscriptionSwitcher)} 
+                title="בחר תמלול"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                </svg>
+              </button>
             </div>
             
             <div className="header-divider"></div>
             
-            {/* Media Name Zone - Scrollable */}
+            {/* Project Navigation */}
+            <div className="te-project-nav">
+              <button 
+                className="te-nav-btn" 
+                onClick={() => {
+                  if (onProjectChange && currentProjectIndex > 0) {
+                    onProjectChange(currentProjectIndex - 1);
+                  }
+                }}
+                disabled={currentProjectIndex === 0}
+                title="פרויקט קודם"
+              >
+                ◀
+              </button>
+              
+              <span className="te-project-counter">
+                {currentProjectIndex + 1} / {projects.length || 0}
+              </span>
+              
+              <button 
+                className="te-nav-btn" 
+                onClick={() => {
+                  if (onProjectChange && currentProjectIndex < projects.length - 1) {
+                    onProjectChange(currentProjectIndex + 1);
+                  }
+                }}
+                disabled={currentProjectIndex >= projects.length - 1}
+                title="פרויקט הבא"
+              >
+                ▶
+              </button>
+            </div>
+            
+            <div className="header-divider"></div>
+            
+            {/* Project Name Zone with Dropdown */}
+            <div className="header-zone project-zone">
+              <span className="header-text">{projectName}</span>
+              {showTranscriptionSwitcher && (
+                <div className="te-project-dropdown">
+                  <div className="te-dropdown-header">
+                    <input 
+                      type="text" 
+                      placeholder="חפש פרויקט..." 
+                      className="te-dropdown-search"
+                      onChange={(e) => {
+                        // Filter projects based on search
+                        const searchTerm = e.target.value.toLowerCase();
+                        const filtered = projects.filter(p => 
+                          p.name?.toLowerCase().includes(searchTerm) ||
+                          p.mediaItems?.[0]?.name?.toLowerCase().includes(searchTerm)
+                        );
+                        // Update dropdown display (would need state for this)
+                      }}
+                    />
+                  </div>
+                  <div className="te-dropdown-list">
+                    {projects.length === 0 ? (
+                      <div className="te-dropdown-item te-no-projects">
+                        אין פרויקטים
+                      </div>
+                    ) : (
+                      projects.map((project, index) => (
+                        <div 
+                          key={index}
+                          className={`te-dropdown-item ${index === currentProjectIndex ? 'te-active' : ''}`}
+                          onClick={() => {
+                            if (onProjectChange) {
+                              onProjectChange(index);
+                            }
+                            setShowTranscriptionSwitcher(false);
+                          }}
+                        >
+                          <div className="te-project-name">{project.name}</div>
+                          {project.mediaItems?.[0] && (
+                            <div className="te-project-media">{project.mediaItems[0].name}</div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="header-divider"></div>
+            
+            {/* Media Name Zone with Duration - Scrollable */}
             <div className="header-zone media-zone">
               <div className="media-name-wrapper">
                 <div 
@@ -2286,15 +2414,11 @@ export default function TextEditor({
                   }`}
                 >
                   {currentMediaFileName || 'אין מדיה נטענת'}
+                  {mediaDuration && mediaDuration !== '00:00:00' && (
+                    <span className="te-duration-inline"> ({mediaDuration})</span>
+                  )}
                 </div>
               </div>
-            </div>
-            
-            <div className="header-divider"></div>
-            
-            {/* Duration Zone */}
-            <div className="header-zone duration-zone">
-              <span className="header-text">{mediaDuration || '00:00:00'}</span>
             </div>
           </div>
           

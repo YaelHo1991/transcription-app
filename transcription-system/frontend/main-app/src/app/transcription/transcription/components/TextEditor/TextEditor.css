@@ -380,7 +380,7 @@
 
 /* Media Name Header - Three Zone Layout */
 .media-name-header {
-  padding: 8px 20px;
+  padding: 8px 12px;
   background: linear-gradient(to bottom, #f5fffe, #f0fdfa);
   border-bottom: 1px solid #e0f2f1;
   display: flex;
@@ -391,6 +391,186 @@
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+/* File Management Actions - TextEditor Header */
+.te-header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-right: 8px;
+}
+
+.te-header-btn {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(23, 162, 184, 0.3);
+  color: #178c96;
+  padding: 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.te-header-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 1px 4px rgba(23, 162, 184, 0.2);
+  border-color: #20c997;
+}
+
+.te-header-btn:active {
+  transform: translateY(0);
+}
+
+.te-header-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Specific button colors */
+.te-save-btn:hover {
+  color: #20c997;
+}
+
+.te-export-btn:hover {
+  color: #17a2b8;
+}
+
+.te-history-btn:hover {
+  color: #ffc107;
+}
+
+.te-transcription-btn:hover {
+  color: #6f42c1;
+}
+
+/* Project Dropdown */
+.te-project-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid rgba(23, 162, 184, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  max-width: 300px;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.te-dropdown-header {
+  padding: 8px;
+  border-bottom: 1px solid #e0f2f1;
+}
+
+.te-dropdown-search {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #e0f2f1;
+  border-radius: 3px;
+  font-size: 12px;
+  outline: none;
+}
+
+.te-dropdown-search:focus {
+  border-color: #17a2b8;
+}
+
+.te-dropdown-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.te-dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.te-dropdown-item:hover {
+  background: #f0fdfa;
+}
+
+.te-dropdown-item.te-active {
+  background: #e6fffe;
+  border-left: 3px solid #17a2b8;
+  padding-left: 9px;
+}
+
+.te-no-projects {
+  color: #999;
+  text-align: center;
+  font-style: italic;
+}
+
+.te-project-name {
+  font-weight: 500;
+  color: #1a5d5d;
+}
+
+.te-project-media {
+  font-size: 11px;
+  color: #178c96;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Duration inline with media name */
+.te-duration-inline {
+  color: #178c96;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+/* Project Navigation */
+.te-project-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.te-nav-btn {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(23, 162, 184, 0.3);
+  color: #178c96;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  line-height: 1;
+  height: 22px;
+  min-width: 22px;
+}
+
+.te-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 1px 4px rgba(23, 162, 184, 0.2);
+  border-color: #20c997;
+}
+
+.te-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.te-project-counter {
+  font-size: 12px;
+  color: #178c96;
+  min-width: 40px;
+  text-align: center;
 }
 
 /* Header Zones */
@@ -404,6 +584,7 @@
 .project-zone {
   flex: 0 0 auto;
   min-width: 120px;
+  position: relative;
 }
 
 .media-zone {

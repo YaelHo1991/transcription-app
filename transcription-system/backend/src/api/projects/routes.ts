@@ -257,4 +257,29 @@ router.get('/:projectId/backups/:backupFile', devAuth, async (req: Request, res:
   }
 });
 
+/**
+ * Delete a project
+ */
+router.delete('/:projectId', devAuth, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    
+    console.log(`🗑️ Deleting project ${projectId}`);
+    
+    const success = await projectService.deleteProject(projectId);
+    
+    if (success) {
+      res.json({
+        success: true,
+        message: `Project ${projectId} deleted successfully`
+      });
+    } else {
+      res.status(404).json({ error: 'Project not found' });
+    }
+  } catch (error: any) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete project' });
+  }
+});
+
 export default router;

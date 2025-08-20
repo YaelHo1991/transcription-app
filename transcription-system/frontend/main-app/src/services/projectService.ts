@@ -349,6 +349,62 @@ class ProjectService {
     
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   }
+
+  /**
+   * Delete a project
+   */
+  async deleteProject(projectId: string): Promise<boolean> {
+    try {
+      console.log('[Project] Deleting project:', projectId);
+      
+      const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete project: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[Project] Delete project result:', result);
+      
+      return result.success;
+    } catch (error) {
+      console.error('[Project] Error deleting project:', error);
+      return false;
+    }
+  }
+
+  /**
+   * List all projects
+   */
+  async listProjects(): Promise<ProjectMetadata[]> {
+    try {
+      console.log('[Project] Listing all projects');
+      
+      const response = await fetch(`${API_URL}/api/projects/list`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to list projects: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[Project] List projects result:', result);
+      
+      return result.projects || [];
+    } catch (error) {
+      console.error('[Project] Error listing projects:', error);
+      return [];
+    }
+  }
 }
 
 // Export singleton instance

@@ -451,6 +451,31 @@ export class ProjectService {
       return null;
     }
   }
+
+  /**
+   * Delete a project and all its data
+   */
+  async deleteProject(projectId: string): Promise<boolean> {
+    try {
+      const projectDir = path.join(this.baseDir, projectId);
+      
+      // Check if project exists
+      await fs.access(projectDir);
+      
+      // Delete the entire project directory
+      await fs.rm(projectDir, { recursive: true, force: true });
+      
+      console.log(`✅ Deleted project ${projectId}`);
+      return true;
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        console.error(`Project ${projectId} not found`);
+        return false;
+      }
+      console.error(`Error deleting project ${projectId}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

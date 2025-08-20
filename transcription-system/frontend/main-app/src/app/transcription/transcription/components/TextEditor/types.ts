@@ -51,6 +51,15 @@ export interface TextEditorProps {
   
   /** Reference to SimpleSpeaker component for speaker synchronization */
   speakerComponentRef?: RefObject<SimpleSpeakerHandle | null>;
+  
+  /** List of all projects */
+  projects?: any[];
+  
+  /** Current project index */
+  currentProjectIndex?: number;
+  
+  /** Callback when project changes */
+  onProjectChange?: (index: number) => void;
 }
 
 /**
