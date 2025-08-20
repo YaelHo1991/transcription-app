@@ -34,6 +34,8 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
   const [showDescriptionTooltips, setShowDescriptionTooltips] = useState(true);
   const blockManagerRef = useRef<SpeakerBlockManager>(new SpeakerBlockManager());
   const [speakerManager] = useState(() => new SpeakerManager());
+  const [editingNameBlockId, setEditingNameBlockId] = useState<string | null>(null);
+  const nameBeforeEditRef = useRef<string>('');
   
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -138,6 +140,45 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
     }
   }, [activeField]);
   
+  // Handle name field focus - start editing
+  const handleNameFocus = useCallback((id: string, currentName: string) => {
+    console.log(`[SimpleSpeaker] Name field focused for block ${id}, current name: "${currentName}"`);
+    setEditingNameBlockId(id);
+    nameBeforeEditRef.current = currentName || '';
+  }, []);
+  
+  // Handle name field blur - finish editing and send update
+  const handleNameBlur = useCallback((id: string) => {
+    console.log(`[SimpleSpeaker] Name field blurred for block ${id}`);
+    
+    if (editingNameBlockId === id) {
+      const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
+      if (block) {
+        const oldName = nameBeforeEditRef.current;
+        const newName = block.name || '';
+        
+        // Only dispatch event if name actually changed
+        if (oldName !== newName) {
+          console.log(`[SimpleSpeaker] Name changed from "${oldName}" to "${newName}", dispatching update`);
+          
+          document.dispatchEvent(new CustomEvent('speakerUpdated', {
+            detail: {
+              speakerId: block.id,
+              code: block.code,
+              name: newName,
+              color: block.color,
+              oldCode: undefined,
+              oldName: oldName || undefined
+            }
+          }));
+        }
+      }
+      
+      setEditingNameBlockId(null);
+      nameBeforeEditRef.current = '';
+    }
+  }, [editingNameBlockId]);
+  
   // Handle block update
   const handleBlockUpdate = useCallback((id: string, field: 'code' | 'name' | 'description', value: string) => {
     // Get the old values before updating
@@ -179,10 +220,11 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
     }
     
     // Notify TextEditor of speaker update
-    if (field === 'name' || field === 'code') {
+    // IMPORTANT: Skip name updates if currently editing - will be sent on blur
+    if (field === 'code' || (field === 'name' && editingNameBlockId !== id)) {
       const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
       if (block) {
-        // Always send speaker update with ID for tracking, including old values
+        console.log(`[SimpleSpeaker] Dispatching speakerUpdated for ${field} change (not in edit mode)`);
         document.dispatchEvent(new CustomEvent('speakerUpdated', {
           detail: {
             speakerId: block.id,  // Send the unique speaker ID
@@ -194,8 +236,10 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
           }
         }));
       }
+    } else if (field === 'name' && editingNameBlockId === id) {
+      console.log(`[SimpleSpeaker] Skipping name update dispatch - currently editing block ${id}`);
     }
-  }, []);
+  }, [editingNameBlockId, mediaId, transcriptionNumber, onSpeakersChange]);
   
   // Handle new block creation
   const handleNewBlock = useCallback(() => {
@@ -640,6 +684,8 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
             onNewBlock={handleNewBlock}
             onRemoveBlock={handleRemoveBlock}
             onValidateCode={(code, excludeId) => blockManagerRef.current.validateUniqueCode(code, excludeId)}
+            onNameFocus={handleNameFocus}
+            onNameBlur={handleNameBlur}
             onExitToRemarks={() => {
               setActiveBlockId(null);
               setActiveField('code');

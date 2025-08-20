@@ -240,21 +240,41 @@ export default function TextBlock({
   useEffect(() => {
     if (isActive) {
       const targetRef = activeArea === 'speaker' ? speakerRef : textRef;
-      targetRef.current?.focus();
       
-      // Position cursor at start if coming from DELETE key
-      if (cursorAtStart && targetRef.current) {
-        setTimeout(() => {
-          if (targetRef.current) {
+      // Immediate focus attempt
+      if (targetRef.current) {
+        console.log(`[TextBlock] Immediate focus attempt for ${activeArea} field, block ${block.id}`);
+        targetRef.current.focus();
+      }
+      
+      // Delayed focus to ensure DOM is ready
+      const focusTimeout = setTimeout(() => {
+        if (targetRef.current) {
+          console.log(`[TextBlock] Delayed focus for ${activeArea} field, block ${block.id}`);
+          targetRef.current.focus();
+          
+          // Force focus again after a moment to ensure it takes
+          setTimeout(() => {
+            if (targetRef.current && document.activeElement !== targetRef.current) {
+              console.log(`[TextBlock] Force re-focus ${activeArea} field, block ${block.id} (not focused)`);
+              targetRef.current.focus();
+              targetRef.current.click(); // Try clicking to force focus
+            }
+          }, 200);
+          
+          // Position cursor at start if coming from DELETE key
+          if (cursorAtStart && targetRef.current) {
             (targetRef.current as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(0, 0);
           }
-        }, 10);
-      }
+        }
+      }, 50);
+      
+      return () => clearTimeout(focusTimeout);
     } else {
       // Clear name completion when block loses focus
       setNameCompletion('');
     }
-  }, [isActive, activeArea, cursorAtStart]);
+  }, [isActive, activeArea, cursorAtStart, block.id]);
 
   // Punctuation validation
   const endsWithPunctuation = (text: string): boolean => {
@@ -1576,6 +1596,7 @@ export default function TextBlock({
 
   // Handle focus events
   const handleSpeakerFocus = (e: FocusEvent<HTMLInputElement>) => {
+    console.log(`[TextBlock] Speaker focused for block ${block.id}`);
     const input = e.currentTarget;
     // Detect text direction based on existing content
     const direction = detectTextDirection(input.value);
@@ -1583,6 +1604,12 @@ export default function TextBlock({
     setCurrentInputMode(direction);
     // Reset selection tracking
     wasFullySelected.current = false;
+    
+    // Ensure navigation state is correct
+    if (!isActive || activeArea !== 'speaker') {
+      console.log(`[TextBlock] Triggering navigation to speaker for block ${block.id}`);
+      onNavigate('speaker', undefined);
+    }
   };
   
   const handleSpeakerBlur = (e: FocusEvent<HTMLInputElement>) => {
@@ -1636,6 +1663,12 @@ export default function TextBlock({
     setCurrentInputMode('rtl');
     // Reset selection tracking
     wasFullySelected.current = false;
+    
+    // Ensure navigation state is correct
+    if (!isActive || activeArea !== 'text') {
+      console.log(`[TextBlock] Triggering navigation to text for block ${block.id}`);
+      onNavigate('text', undefined);
+    }
     
     // Detect language at cursor position when focusing
     const textarea = e.currentTarget;

@@ -31,6 +31,8 @@ interface SpeakerBlockProps {
   onDragStart?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
+  onNameFocus?: (id: string, currentName: string) => void;
+  onNameBlur?: (id: string) => void;
 }
 
 export default function SpeakerBlock({
@@ -51,7 +53,9 @@ export default function SpeakerBlock({
   onToggleSelect,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
+  onNameFocus,
+  onNameBlur
 }: SpeakerBlockProps) {
   const codeRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -566,7 +570,19 @@ export default function SpeakerBlock({
           value={localName}
           onChange={(e) => handleNameChange(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, 'name')}
-          onFocus={() => onNavigate('name')}
+          onFocus={() => {
+            onNavigate('name');
+            // Notify parent that name editing has started
+            if (onNameFocus) {
+              onNameFocus(speaker.id, localName);
+            }
+          }}
+          onBlur={() => {
+            // Notify parent that name editing has finished
+            if (onNameBlur) {
+              onNameBlur(speaker.id);
+            }
+          }}
           placeholder="שם דובר"
           className="name-input"
           dir="rtl"

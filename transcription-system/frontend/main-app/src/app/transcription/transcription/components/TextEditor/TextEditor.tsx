@@ -638,8 +638,12 @@ export default function TextEditor({
     const initialBlocks = blockManagerRef.current.getBlocks();
     setBlocks([...initialBlocks]);
     if (initialBlocks.length > 0) {
-      setActiveBlockId(initialBlocks[0].id);
-      setActiveArea('speaker');
+      // Add a small delay to ensure DOM is ready before setting focus
+      setTimeout(() => {
+        setActiveBlockId(initialBlocks[0].id);
+        setActiveArea('speaker');
+      }, 100);
+      
       // Set the first block's timestamp to current media time
       if (currentMediaTimeRef.current > 0) {
         blockManagerRef.current.setFirstBlockTimestamp(currentMediaTimeRef.current);
@@ -884,8 +888,11 @@ export default function TextEditor({
     const initialBlocks = blockManagerRef.current.getBlocks();
     setBlocks([...initialBlocks]);
     if (initialBlocks.length > 0) {
-      setActiveBlockId(initialBlocks[0].id);
-      setActiveArea('speaker');
+      // Add delay for proper focus initialization
+      setTimeout(() => {
+        setActiveBlockId(initialBlocks[0].id);
+        setActiveArea('speaker');
+      }, 100);
     }
     
     // Update backup service with new transcription ID
