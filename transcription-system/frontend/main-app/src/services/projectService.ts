@@ -2,7 +2,9 @@
  * Project Service - Frontend service for managing transcription projects
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/environment';
+
+const API_URL = getApiUrl();
 
 export interface ProjectMetadata {
   projectId: string;

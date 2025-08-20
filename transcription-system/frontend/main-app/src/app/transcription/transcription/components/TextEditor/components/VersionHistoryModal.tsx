@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../../../../../../config/environment';
 import './VersionHistoryModal.css';
 
 interface BackupVersion {
@@ -62,7 +63,7 @@ export default function VersionHistoryModal({
     try {
       // Load backups from project service
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/projects/${mediaId}/backups`,
+        `${getApiUrl()}/api/projects/${mediaId}/backups`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -150,7 +151,7 @@ export default function VersionHistoryModal({
     try {
       // Load backup content from project service
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/projects/${mediaId}/backups/${version.filename}`,
+        `${getApiUrl()}/api/projects/${mediaId}/backups/${version.filename}`,
         {
           headers: {
             'Content-Type': 'application/json',

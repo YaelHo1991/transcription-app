@@ -3,7 +3,9 @@
  * All functions prefixed with 't' to avoid conflicts
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/environment';
+
+const API_URL = getApiUrl();
 
 export interface TSessionMetadata {
   mediaId: string;

@@ -25,8 +25,10 @@ import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import backupService from '../../../../../services/backupService';
 import incrementalBackupService from '../../../../../services/incrementalBackupService';
+import indexedDBService from '../../../../../services/indexedDBService';
 import { tSessionService } from '../../../../../services/tSessionService';
 import { projectService } from '../../../../../services/projectService';
+import { shouldUseIndexedDB } from '../../../../../config/environment';
 // import TTranscriptionNotification from './components/TTranscriptionNotification'; // Removed - no popup needed
 import { useRemarks } from '../Remarks/RemarksContext';
 import './TextEditor.css';
@@ -1290,6 +1292,35 @@ export default function TextEditor({
     
     console.log(`[Project] Loading project ${projectId}`);
     
+    // Try to load from IndexedDB first for instant loading
+    if (shouldUseIndexedDB()) {
+      try {
+        await indexedDBService.init();
+        const cachedData = await indexedDBService.loadTranscription(projectId);
+        if (cachedData && cachedData.blocks && cachedData.blocks.length > 0) {
+          console.log(`[IndexedDB] Loaded ${cachedData.blocks.length} blocks from cache`);
+          
+          // Load cached data immediately for instant display
+          blockManagerRef.current.setBlocks(cachedData.blocks);
+          setBlocks(cachedData.blocks);
+          
+          // Initialize services
+          incrementalBackupService.initialize(projectId, cachedData.blocks, cachedData.version || 0);
+          
+          // Fire event for virtualization
+          const event = new CustomEvent('blocksLoaded', {
+            detail: { count: cachedData.blocks.length }
+          });
+          document.dispatchEvent(event);
+          
+          // Continue to sync with server in background
+          console.log('[IndexedDB] Syncing with server in background...');
+        }
+      } catch (error) {
+        console.warn('[IndexedDB] Failed to load from cache:', error);
+      }
+    }
+    
     try {
       const projectData = await projectService.loadProject(projectId);
     
@@ -1526,7 +1557,22 @@ export default function TextEditor({
       });
     }
     
-    // Always do the actual save with all blocks and speakers
+    // Save to IndexedDB first for instant local backup
+    if (shouldUseIndexedDB()) {
+      try {
+        await indexedDBService.saveTranscription(
+          currentProjectId,
+          currentBlocks,
+          speakers,
+          remarks
+        );
+        console.log('[IndexedDB] Saved locally');
+      } catch (error) {
+        console.warn('[IndexedDB] Failed to save locally:', error);
+      }
+    }
+    
+    // Always do the actual save with all blocks and speakers to server
     // (incremental tracking is just for metrics/logging for now until backend supports deltas)
     const success = await projectService.saveProject(currentProjectId, saveData);
     
