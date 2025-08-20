@@ -5,7 +5,6 @@ import {
   AlignmentType, 
   Packer,
   TabStopType,
-  LineNumberType,
   SectionType,
   PageOrientation,
   convertMillimetersToTwip
@@ -53,7 +52,7 @@ export class DirectWordGenerator {
             lineNumbers: {
               countBy: 1,
               start: 1,
-              restart: LineNumberType.NEW_PAGE,
+              restart: 'newPage' as any, // LineNumberType enum not available in current docx version
               distance: convertMillimetersToTwip(5),
               // Note: Line numbers position is controlled by RTL document direction
             },
