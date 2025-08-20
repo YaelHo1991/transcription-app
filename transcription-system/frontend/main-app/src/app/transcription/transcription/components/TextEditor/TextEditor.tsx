@@ -1288,6 +1288,12 @@ export default function TextEditor({
       
       console.log('[Project] DEBUG: State blocks after setBlocks:', loadedBlocks.length);
       
+      // Dispatch block count for virtualization detection
+      const event = new CustomEvent('blocksLoaded', {
+        detail: { count: loadedBlocks.length }
+      });
+      document.dispatchEvent(event);
+      
       // Update speakers if available
       if (projectData.speakers) {
         // Load speakers into SimpleSpeaker component if available
@@ -1354,6 +1360,12 @@ export default function TextEditor({
       blockManagerRef.current.setBlocks([initialBlock]);
       setBlocks([initialBlock]);
       setActiveBlockId(initialBlock.id);
+      
+      // Dispatch block count for virtualization detection
+      const event = new CustomEvent('blocksLoaded', {
+        detail: { count: 1 }
+      });
+      document.dispatchEvent(event);
     }
     
     // Reset change tracking
