@@ -1515,31 +1515,27 @@ export default function TextEditor({
     
     console.log('[Project] Saving project:', currentProjectId);
     
-    // Check if we should use incremental save
-    let success = false;
+    // Log save metrics if we have changes tracked
     if (incrementalBackupService.hasChanges()) {
-      // Prepare incremental backup data
-      const incrementalData = incrementalBackupService.prepareBackupData(currentBlocks);
-      
-      // Log save metrics
       const metrics = incrementalBackupService.getMetrics();
-      console.log('[Project] Save metrics:', {
-        type: incrementalData.fullSnapshot ? 'Full' : 'Incremental',
+      console.log('[Project] Save metrics (for monitoring):', {
+        type: incrementalBackupService.shouldDoFullBackup() ? 'Full' : 'Incremental',
         changes: incrementalBackupService.getChangeSummary(),
         totalBlocks: metrics.totalBlocks,
         modifiedBlocks: metrics.modifiedBlocks
       });
-      
-      // Use incremental save if available
-      success = await projectService.saveProjectIncremental(currentProjectId, incrementalData);
-      
-      // If incremental save succeeded, update tracking
-      if (success) {
-        incrementalBackupService.onSaveSuccess(incrementalData.version, currentBlocks);
-      }
-    } else {
-      // No changes tracked, fall back to regular save
-      success = await projectService.saveProject(currentProjectId, saveData);
+    }
+    
+    // Always do the actual save with all blocks and speakers
+    // (incremental tracking is just for metrics/logging for now until backend supports deltas)
+    const success = await projectService.saveProject(currentProjectId, saveData);
+    
+    // If save succeeded, update incremental tracking
+    if (success && incrementalBackupService.hasChanges()) {
+      incrementalBackupService.onSaveSuccess(
+        Date.now(), // Use timestamp as version for now
+        currentBlocks
+      );
     }
     
     if (success) {

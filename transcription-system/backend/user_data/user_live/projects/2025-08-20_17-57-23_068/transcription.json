@@ -1,0 +1,30 @@
+{
+  "blocks": [
+    {
+      "id": "block-1755701843850",
+      "speaker": "א",
+      "text": "גכ.",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755701854360-1z5prdq8k",
+      "speaker": "ג",
+      "text": "ואתם נמצאים בפיגור כספי מאוד מאוד גדול אצלי.",
+      "speakerTime": 8327.884424
+    },
+    {
+      "id": "block-1755701865836-73pgr5l7e",
+      "speaker": "ו",
+      "text": "תגיד לי, ",
+      "speakerTime": 8339.314898
+    },
+    {
+      "id": "block-1755701867915-qr38jfg8u",
+      "speaker": "ג",
+      "text": "גם את הכסף [02:19:04 ולא] ",
+      "speakerTime": 8341.446548
+    }
+  ],
+  "version": "1.0.0",
+  "lastSaved": "2025-08-20T14:57:54.896Z"
+}

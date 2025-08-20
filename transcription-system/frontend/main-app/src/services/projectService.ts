@@ -146,9 +146,13 @@ class ProjectService {
         });
         
         // TODO: Send only changes when backend supports it
-        // For now, we need to get all blocks and apply changes
+        // For now, reconstruct full blocks array and save
         // This will be optimized when backend implements delta handling
-        return true; // Skip actual save for incremental for now
+        
+        // We need the full blocks - caller should pass them
+        // For now, just save the non-deleted changes as blocks
+        const blocks = data.changes.filter(c => c.operation !== 'delete');
+        return await this.saveProject(projectId, { blocks });
       }
     } catch (error) {
       console.warn('[Project] Error saving incremental update:', error);
