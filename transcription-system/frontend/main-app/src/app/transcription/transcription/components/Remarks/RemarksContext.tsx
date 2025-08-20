@@ -168,11 +168,39 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
   useEffect(() => {
     if (initialRemarks && initialRemarks.length > 0) {
       console.log('[RemarksProvider] Loading initial remarks:', initialRemarks.length);
-      const formattedRemarks = initialRemarks.map(r => ({
-        ...r,
-        createdAt: r.createdAt instanceof Date ? r.createdAt : r.createdAt ? new Date(r.createdAt) : new Date(),
-        updatedAt: r.updatedAt instanceof Date ? r.updatedAt : r.updatedAt ? new Date(r.updatedAt) : new Date()
-      }));
+      const formattedRemarks = initialRemarks.map(r => {
+        let createdAt, updatedAt;
+        
+        // Safely handle createdAt
+        if (r.createdAt instanceof Date) {
+          createdAt = r.createdAt;
+        } else if (r.createdAt && typeof r.createdAt === 'string') {
+          try {
+            createdAt = new Date(r.createdAt);
+            if (isNaN(createdAt.getTime())) createdAt = new Date();
+          } catch {
+            createdAt = new Date();
+          }
+        } else {
+          createdAt = new Date();
+        }
+        
+        // Safely handle updatedAt
+        if (r.updatedAt instanceof Date) {
+          updatedAt = r.updatedAt;
+        } else if (r.updatedAt && typeof r.updatedAt === 'string') {
+          try {
+            updatedAt = new Date(r.updatedAt);
+            if (isNaN(updatedAt.getTime())) updatedAt = new Date();
+          } catch {
+            updatedAt = new Date();
+          }
+        } else {
+          updatedAt = new Date();
+        }
+        
+        return { ...r, createdAt, updatedAt };
+      });
       dispatch({ type: RemarkAction.LOAD, payload: formattedRemarks });
     }
   }, [initialRemarks]);
@@ -200,11 +228,25 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
         if (stored) {
           const parsed = JSON.parse(stored);
           // Convert date strings back to Date objects safely
-          const remarks = parsed.map((r: any) => ({
-            ...r,
-            createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date()
-          }));
+          const remarks = parsed.map((r: any) => {
+            let createdAt, updatedAt;
+            
+            try {
+              createdAt = r.createdAt ? new Date(r.createdAt) : new Date();
+              if (isNaN(createdAt.getTime())) createdAt = new Date();
+            } catch {
+              createdAt = new Date();
+            }
+            
+            try {
+              updatedAt = r.updatedAt ? new Date(r.updatedAt) : new Date();
+              if (isNaN(updatedAt.getTime())) updatedAt = new Date();
+            } catch {
+              updatedAt = new Date();
+            }
+            
+            return { ...r, createdAt, updatedAt };
+          });
           
           // Clear old demo remarks and duplicates
           const seen = new Set();
@@ -253,9 +295,11 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
    * Add a new remark
    */
   const addRemark = (remark: Omit<Remark, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const timestamp = typeof window !== 'undefined' ? Date.now() : 0;
+    const randomStr = typeof window !== 'undefined' ? Math.random().toString(36).substring(2, 11) : 'default';
     const newRemark: Remark = {
       ...remark,
-      id: `remark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `remark-${timestamp}-${randomStr}`,
       createdAt: new Date(),
       updatedAt: new Date()
     } as Remark;
@@ -423,11 +467,37 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
   const loadRemarks = (remarks: Remark[]) => {
     console.log('[RemarksContext] Loading remarks from external source:', remarks.length);
     // Ensure date objects are properly formatted
-    const formattedRemarks = remarks.map(r => ({
-      ...r,
-      createdAt: r.createdAt instanceof Date ? r.createdAt : r.createdAt ? new Date(r.createdAt) : new Date(),
-      updatedAt: r.updatedAt instanceof Date ? r.updatedAt : r.updatedAt ? new Date(r.updatedAt) : new Date()
-    }));
+    const formattedRemarks = remarks.map(r => {
+      let createdAt, updatedAt;
+      
+      try {
+        if (r.createdAt instanceof Date) {
+          createdAt = r.createdAt;
+        } else if (r.createdAt) {
+          createdAt = new Date(r.createdAt);
+          if (isNaN(createdAt.getTime())) createdAt = new Date();
+        } else {
+          createdAt = new Date();
+        }
+      } catch {
+        createdAt = new Date();
+      }
+      
+      try {
+        if (r.updatedAt instanceof Date) {
+          updatedAt = r.updatedAt;
+        } else if (r.updatedAt) {
+          updatedAt = new Date(r.updatedAt);
+          if (isNaN(updatedAt.getTime())) updatedAt = new Date();
+        } else {
+          updatedAt = new Date();
+        }
+      } catch {
+        updatedAt = new Date();
+      }
+      
+      return { ...r, createdAt, updatedAt };
+    });
     dispatch({ type: RemarkAction.LOAD, payload: formattedRemarks });
   };
 

@@ -56,20 +56,7 @@ export default function TranscriptionWorkPage() {
   const [projectRemarks, setProjectRemarks] = useState<any[]>([]);
   
   // Create a unique session ID for this transcription session
-  const [sessionId] = useState(() => {
-    // Try to get from URL params first (for saved sessions)
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const urlSessionId = params.get('session');
-      if (urlSessionId) return urlSessionId;
-      
-      // Generate a stable session ID
-      const timestamp = new Date().getTime();
-      const random = Math.random().toString(36).substring(2, 11);
-      return `session-${timestamp}-${random}`;
-    }
-    return 'session-default';
-  });
+  const [sessionId] = useState<string>('session-default');
   
   const [helperFilesExpanded, setHelperFilesExpanded] = useState(false);
   const [headerLocked, setHeaderLocked] = useState(false);
@@ -116,11 +103,11 @@ export default function TranscriptionWorkPage() {
   
   // Format duration as HH:MM:SS
   const formatDuration = (seconds: number): string => {
-    if (!seconds || seconds === 0) return '00:00:00';
+    if (!seconds || seconds === 0 || isNaN(seconds)) return '00:00:00';
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
   const mediaDuration = formatDuration(actualMediaDuration);

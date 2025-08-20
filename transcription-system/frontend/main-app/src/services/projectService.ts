@@ -346,14 +346,23 @@ class ProjectService {
    * Format timestamp for display
    */
   formatTimestamp(timestamp: string): string {
-    const date = new Date(timestamp);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    try {
+      if (!timestamp) return 'תאריך לא ידוע';
+      
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'תאריך לא תקין';
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch (error) {
+      console.error('[Project] Error formatting timestamp:', timestamp, error);
+      return 'תאריך לא תקין';
+    }
   }
 
   /**
