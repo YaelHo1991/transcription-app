@@ -27,7 +27,6 @@ interface TextBlockProps {
   onDeleteAcrossBlocks?: (blockId: string, fromField: 'speaker' | 'text') => void;
   onProcessShortcuts?: (text: string, cursorPosition: number) => ProcessTextResult | null;
   speakerColor?: string;
-  currentTime?: number;
   fontSize?: number;
   fontFamily?: 'default' | 'david';
   isIsolated?: boolean;
@@ -54,7 +53,6 @@ export default function TextBlock({
   onDeleteAcrossBlocks,
   onProcessShortcuts,
   speakerColor = '#333',
-  currentTime = 0,
   fontSize = 16,
   fontFamily = 'default',
   isIsolated = true,
@@ -87,6 +85,21 @@ export default function TextBlock({
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUpdatingFromProps = useRef(false);
   const wasFullySelected = useRef(false);
+  const lastNavigatedTimestamp = useRef<string | null>(null);
+  
+  // Helper function to get current media time via event
+  const getCurrentMediaTime = (): number => {
+    let time = 0;
+    const event = new CustomEvent('getCurrentMediaTime', {
+      detail: {
+        callback: (currentTime: number) => {
+          time = currentTime;
+        }
+      }
+    });
+    document.dispatchEvent(event);
+    return time;
+  };
   
   // Listen for setNextBlockText event (for auto-numbering)
   useEffect(() => {
@@ -464,6 +477,7 @@ export default function TextBlock({
       await tryTransformSpeaker(text);
       
       // Store speaker timestamp when leaving
+      const currentTime = getCurrentMediaTime();
       if (currentTime && speakerRef.current) {
         speakerRef.current.setAttribute('data-timestamp', currentTime.toString());
       }
@@ -1054,30 +1068,24 @@ export default function TextBlock({
       // Otherwise let the cursor move naturally within the text
     } else if (e.key === 'ArrowLeft') {
       const cursorPos = textarea.selectionStart;
-      const timestampBounds = getTimestampBoundaries(textarea.value, cursorPos);
       
-      if (timestampBounds) {
-        // If inside timestamp, jump to end of timestamp
-        e.preventDefault();
-        textarea.setSelectionRange(timestampBounds.end, timestampBounds.end);
-      } else if (cursorPos === textarea.value.length) {
+      // Allow normal cursor movement inside timestamps
+      if (cursorPos === textarea.value.length) {
         // At end of text, go to next block
         e.preventDefault();
         onNavigate('next', 'text');
       }
+      // Otherwise let cursor move naturally
     } else if (e.key === 'ArrowRight') {
       const cursorPos = textarea.selectionStart;
-      const timestampBounds = getTimestampBoundaries(textarea.value, cursorPos);
       
-      if (timestampBounds) {
-        // If inside timestamp, jump to start of timestamp
-        e.preventDefault();
-        textarea.setSelectionRange(timestampBounds.start, timestampBounds.start);
-      } else if (cursorPos === 0) {
+      // Allow normal cursor movement inside timestamps
+      if (cursorPos === 0) {
         // At start of text, go to speaker field
         e.preventDefault();
         onNavigate('speaker', 'text');
       }
+      // Otherwise let cursor move naturally
     }
   };
 
@@ -1252,6 +1260,7 @@ export default function TextBlock({
     
     // Check for "..." transformation to timestamp with brackets
     if (value.includes('...')) {
+      const currentTime = getCurrentMediaTime();
       const timestamp = formatTimestamp(currentTime || 0);
       const timestampWithBrackets = ` [${timestamp}] `;
       value = value.replace('...', timestampWithBrackets);
@@ -1405,6 +1414,68 @@ export default function TextBlock({
     }
   }, [localText]);
 
+  // Track cursor position and navigate when entering timestamp in navigation mode
+  useEffect(() => {
+    if (!textRef.current || activeArea !== 'text') return;
+
+    const handleSelectionChange = () => {
+      const textarea = textRef.current;
+      if (!textarea) return;
+
+      const cursorPos = textarea.selectionStart;
+      const timestampBounds = getTimestampBoundaries(textarea.value, cursorPos);
+      
+      if (timestampBounds) {
+        // Cursor is inside a timestamp, extract and parse it
+        const timestampText = textarea.value.substring(timestampBounds.start, timestampBounds.end);
+        
+        // Only navigate if we entered a different timestamp
+        if (lastNavigatedTimestamp.current === timestampText) {
+          return; // Already navigated to this timestamp
+        }
+        
+        // Remove brackets if present
+        const cleanTimestamp = timestampText.replace(/[\[\]]/g, '');
+        const parts = cleanTimestamp.split(':').map(p => parseInt(p, 10));
+        let seconds = 0;
+        
+        if (parts.length === 3) {
+          // HH:MM:SS
+          seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+          // MM:SS
+          seconds = parts[0] * 60 + parts[1];
+        }
+        
+        // Check if navigation mode is on and seek
+        const navModeEvent = new CustomEvent('checkNavigationMode', {
+          detail: {
+            callback: (isOn: boolean) => {
+              if (isOn && seconds > 0) {
+                // Seek to the timestamp when cursor enters it in navigation mode
+                lastNavigatedTimestamp.current = timestampText;
+                document.dispatchEvent(new CustomEvent('seekMedia', {
+                  detail: { time: seconds }
+                }));
+              }
+            }
+          }
+        });
+        document.dispatchEvent(navModeEvent);
+      } else {
+        // Cursor is outside any timestamp, reset the tracking
+        lastNavigatedTimestamp.current = null;
+      }
+    };
+
+    // Listen for selection changes on the document
+    document.addEventListener('selectionchange', handleSelectionChange);
+    
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [activeArea, localText]);
+
   // Listen for toolbar language change
   useEffect(() => {
     const handleToolbarLanguageChange = (event: CustomEvent) => {
@@ -1485,14 +1556,16 @@ export default function TextBlock({
   
   // Check if cursor is at or within a timestamp
   const getTimestampBoundaries = (text: string, cursorPos: number): { start: number, end: number } | null => {
-    // Match timestamp pattern HH:MM:SS or MM:SS
-    const timestampPattern = /\d{1,2}:\d{2}(:\d{2})?/g;
+    // Match timestamp pattern [HH:MM:SS] or [MM:SS] or HH:MM:SS or MM:SS
+    // Include brackets in the pattern to handle bracketed timestamps
+    const timestampPattern = /\[?\d{1,2}:\d{2}(:\d{2})?\]?/g;
     let match;
     
     while ((match = timestampPattern.exec(text)) !== null) {
       const start = match.index;
       const end = match.index + match[0].length;
       
+      // Check if cursor is within or adjacent to the timestamp (including brackets)
       if (cursorPos >= start && cursorPos <= end) {
         return { start, end };
       }
@@ -1609,7 +1682,9 @@ export default function TextBlock({
       if (timestampBounds) {
         // Extract and parse the timestamp
         const timestampText = textarea.value.substring(timestampBounds.start, timestampBounds.end);
-        const parts = timestampText.split(':').map(p => parseInt(p, 10));
+        // Remove brackets if present
+        const cleanTimestamp = timestampText.replace(/[\[\]]/g, '');
+        const parts = cleanTimestamp.split(':').map(p => parseInt(p, 10));
         let seconds = 0;
         
         if (parts.length === 3) {
@@ -1625,6 +1700,7 @@ export default function TextBlock({
           detail: {
             callback: (isOn: boolean) => {
               if (isOn) {
+                // Seek to the timestamp when clicked in navigation mode
                 document.dispatchEvent(new CustomEvent('seekMedia', {
                   detail: { time: seconds }
                 }));
@@ -1641,8 +1717,8 @@ export default function TextBlock({
     const navModeEvent = new CustomEvent('checkNavigationMode', {
       detail: {
         callback: (isOn: boolean) => {
-          if (isOn && block.speakerTime !== undefined) {
-            // Seek to this block's timestamp
+          if (isOn && block.speakerTime !== undefined && !isNaN(block.speakerTime) && block.speakerTime > 0) {
+            // Seek to this block's timestamp in navigation mode
             document.dispatchEvent(new CustomEvent('seekMedia', {
               detail: { time: block.speakerTime }
             }));
@@ -1709,7 +1785,7 @@ export default function TextBlock({
           zIndex: 2,
           background: 'transparent'
         }}
-        data-timestamp={block.speakerTime}
+        data-timestamp={block.speakerTime || 0}
         />
         {blockViewEnabled && nameCompletion && (
           <span className="name-completion" style={{ fontSize: `${fontSize}px` }}>

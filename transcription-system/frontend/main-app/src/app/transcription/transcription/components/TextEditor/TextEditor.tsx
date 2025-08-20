@@ -8,6 +8,7 @@ import { ShortcutManager } from './utils/ShortcutManager';
 import { ProcessTextResult } from './types/shortcuts';
 import ShortcutsModal from './components/ShortcutsModal';
 import BackupStatusIndicator from './components/BackupStatusIndicator';
+import TSessionStatus from './components/TSessionStatus';
 import NewTranscriptionModal from './components/NewTranscriptionModal';
 import TranscriptionSwitcher from './components/TranscriptionSwitcher';
 import VersionHistoryModal from './components/VersionHistoryModal';
@@ -22,6 +23,10 @@ import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import backupService from '../../../../../services/backupService';
+import { tSessionService } from '../../../../../services/tSessionService';
+import { projectService } from '../../../../../services/projectService';
+// import TTranscriptionNotification from './components/TTranscriptionNotification'; // Removed - no popup needed
+import { useRemarks } from '../Remarks/RemarksContext';
 import './TextEditor.css';
 
 /**
@@ -38,11 +43,15 @@ export default function TextEditor({
   mediaFileName = '',
   mediaDuration = '',
   currentProjectId = '',
-  projectName = 'אין פרויקט'
+  projectName = 'אין פרויקט',
+  speakerComponentRef
 }: TextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  
+  // Remarks integration
+  const remarksContext = useRemarks();
   const [activeArea, setActiveArea] = useState<'speaker' | 'text'>('speaker');
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [speakerColors, setSpeakerColors] = useState<Map<string, string>>(new Map());
@@ -55,6 +64,15 @@ export default function TextEditor({
   const [navigationMode, setNavigationMode] = useState(false);
   const [savedMediaTime, setSavedMediaTime] = useState<number | null>(null);
   const [currentMediaTime, setCurrentMediaTime] = useState(0);
+  
+  // Keep a ref to currentMediaTime to avoid recreating callbacks
+  const currentMediaTimeRef = useRef(0);
+  
+  // Update internal current media time when prop changes
+  useEffect(() => {
+    setCurrentMediaTime(currentTime);
+    currentMediaTimeRef.current = currentTime;
+  }, [currentTime]);
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showNewTranscriptionModal, setShowNewTranscriptionModal] = useState(false);
@@ -78,6 +96,17 @@ export default function TextEditor({
   const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
   const [showHTMLPreviewModal, setShowHTMLPreviewModal] = useState(false);
   const [isMediaNameOverflowing, setIsMediaNameOverflowing] = useState(false);
+  
+  // T-Session states
+  const [tCurrentMediaId, setTCurrentMediaId] = useState<string>('');
+  const [tCurrentTranscriptionNumber, setTCurrentTranscriptionNumber] = useState<number>(2); // Default to 2 to match page.tsx
+  const [tShowNotification, setTShowNotification] = useState(false);
+  const [tExistingTranscriptions, setTExistingTranscriptions] = useState<any[]>([]);
+  const [tTranscriptionCount, setTTranscriptionCount] = useState(0);
+  const [tLastSaveTime, setTLastSaveTime] = useState<Date | null>(null);
+  const [tHasChanges, setTHasChanges] = useState(false);
+  const [tIsSaving, setTIsSaving] = useState(false);
+  const tLastSavedContent = useRef<string>('');
   const mediaNameRef = useRef<HTMLDivElement>(null);
   const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>({
     blockDuplicateSpeakers: true,
@@ -135,13 +164,134 @@ export default function TextEditor({
   const selectedBlockRangeRef = useRef(selectedBlockRange);
   const selectedBlocksRef = useRef(selectedBlocks);
   const blocksRef = useRef(blocks);
+  const previousProjectIdRef = useRef<string>('');
   
   // Update refs when values change
   useEffect(() => { activeBlockIdRef.current = activeBlockId; }, [activeBlockId]);
   useEffect(() => { activeAreaRef.current = activeArea; }, [activeArea]);
   useEffect(() => { selectedBlockRangeRef.current = selectedBlockRange; }, [selectedBlockRange]);
+  
+  // Project: Save old project and load new one when project ID changes
+  useEffect(() => {
+    // Don't do anything if no project ID
+    if (!currentProjectId) {
+      return;
+    }
+    
+    // Save previous project when switching (only if we had a previous valid project)
+    if (previousProjectIdRef.current && previousProjectIdRef.current !== currentProjectId && previousProjectIdRef.current !== '') {
+      console.log('[Project] Saving previous project before switch:', previousProjectIdRef.current);
+      // Create a closure to save with the old project ID
+      const oldProjectId = previousProjectIdRef.current;
+      const saveOldProject = async () => {
+        try {
+          const currentBlocks = blockManagerRef.current.getBlocks();
+          const speakers = speakerComponentRef?.current ? 
+            speakerComponentRef.current.getAllSpeakers() : [];
+          const remarks = remarksContext?.state.remarks || [];
+          
+          await projectService.saveProject(oldProjectId, {
+            blocks: currentBlocks,
+            speakers,
+            remarks
+          });
+        } catch (error) {
+          console.error('[Project] Error saving previous project:', error);
+        }
+      };
+      saveOldProject();
+    }
+    
+    // Load new project
+    console.log('[Project] Loading project:', currentProjectId);
+    loadProjectData(currentProjectId);
+    previousProjectIdRef.current = currentProjectId;
+  }, [currentProjectId]);
+  
+  // Save when media changes and clear data
+  useEffect(() => {
+    // Save current data before switching media
+    const saveBeforeSwitch = async () => {
+      if (currentProjectId && currentProjectId !== '' && tHasChanges) {
+        console.log('[Project] Saving before media switch');
+        try {
+          await saveProjectData();
+        } catch (error) {
+          console.error('[Project] Error saving before media switch:', error);
+        }
+      }
+    };
+    
+    if (!mediaFileName) return;
+    
+    // Save before clearing
+    saveBeforeSwitch();
+    
+    // Format media ID from filename (remove extension, sanitize)
+    const mediaId = `0-0-${mediaFileName}`;
+    setTCurrentMediaId(mediaId);
+    
+    // Clear remarks and speakers when switching to different media
+    if (remarksContext) {
+      const existingRemarks = remarksContext.state.remarks;
+      existingRemarks.forEach(remark => {
+        remarksContext.deleteRemark(remark.id);
+      });
+    }
+    
+    // Reset speakers
+    setSpeakerColors(new Map());
+    
+    // Close any open modals when switching media
+    setShowVersionHistoryModal(false);
+    setShowTranscriptionSwitcher(false);
+    
+    // Set default transcription number
+    setTCurrentTranscriptionNumber(2);
+    
+    console.log('[Project] Media changed to:', mediaFileName);
+  }, [mediaFileName]);
+  
+  // Project: Auto-save every minute
+  useEffect(() => {
+    if (!currentProjectId) {
+      return;
+    }
+    
+    console.log('[Project] Setting up auto-save interval');
+    
+    const autoSaveInterval = setInterval(() => {
+      console.log('[Project] Auto-saving...');
+      saveProjectData();
+    }, 60000); // Save every 60 seconds
+    
+    // Also save on page unload
+    const handleBeforeUnload = () => {
+      console.log('[Project] Saving before unload');
+      saveProjectData();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      console.log('[Project] Cleaning up auto-save interval');
+      clearInterval(autoSaveInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentProjectId]);
+  
   useEffect(() => { selectedBlocksRef.current = selectedBlocks; }, [selectedBlocks]);
-  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
+  useEffect(() => { 
+    blocksRef.current = blocks;
+    
+    // Check for changes in T-session
+    if (tCurrentMediaId && tCurrentTranscriptionNumber) {
+      const currentContent = JSON.stringify(blocks);
+      if (tLastSavedContent.current && currentContent !== tLastSavedContent.current) {
+        setTHasChanges(true);
+      }
+    }
+  }, [blocks, tCurrentMediaId, tCurrentTranscriptionNumber]);
   
   
   // Function to show feedback message with auto-dismiss
@@ -157,9 +307,14 @@ export default function TextEditor({
   
   // Function to seek media to a specific time
   const seekToTime = useCallback((time: number) => {
-    document.dispatchEvent(new CustomEvent('seekMedia', { 
-      detail: { time } 
-    }));
+    // Validate time before seeking to prevent MediaPlayer issues
+    if (typeof time === 'number' && !isNaN(time) && time >= 0 && isFinite(time)) {
+      document.dispatchEvent(new CustomEvent('seekMedia', { 
+        detail: { time } 
+      }));
+    } else {
+      console.warn('[TextEditor] Invalid seek time:', time);
+    }
   }, []);
   
   // Save to history - simple immediate save
@@ -452,8 +607,8 @@ export default function TextEditor({
       setActiveBlockId(initialBlocks[0].id);
       setActiveArea('speaker');
       // Set the first block's timestamp to current media time
-      if (currentMediaTime > 0) {
-        blockManagerRef.current.setFirstBlockTimestamp(currentMediaTime);
+      if (currentMediaTimeRef.current > 0) {
+        blockManagerRef.current.setFirstBlockTimestamp(currentMediaTimeRef.current);
       }
     }
     // Initialize history with initial state
@@ -553,6 +708,9 @@ export default function TextEditor({
 
   // Handle block navigation with isolation support
   const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'speaker' | 'text', fromField: 'speaker' | 'text' = 'speaker') => {
+    // Store the previous block ID before navigation
+    const previousBlockId = activeBlockIdRef.current;
+    
     // If isolation is active, skip non-isolated blocks
     if (isolatedSpeakers.size > 0 && (direction === 'up' || direction === 'down' || direction === 'prev' || direction === 'next')) {
       const blocks = blockManagerRef.current.getBlocks();
@@ -578,6 +736,13 @@ export default function TextEditor({
           setActiveArea(fromField);
           setCursorAtStart(false);
           setBlocks([...blocks]);
+          
+          // Check navigation mode for isolated blocks too
+          if (navigationMode && targetBlock.id !== previousBlockId) {
+            if (targetBlock.speakerTime !== undefined && targetBlock.speakerTime > 0) {
+              seekToTime(targetBlock.speakerTime);
+            }
+          }
           return;
         }
       }
@@ -596,10 +761,12 @@ export default function TextEditor({
     setBlocks([...blockManagerRef.current.getBlocks()]);
     
     // If navigation mode is ON and we moved to a new block, seek to its timestamp
-    if (navigationMode && newBlockId && newBlockId !== blockId) {
+    // Compare with the previous block ID, not the initiating block ID
+    if (navigationMode && newBlockId && newBlockId !== previousBlockId) {
       const blocks = blockManagerRef.current.getBlocks();
       const newBlock = blocks.find(b => b.id === newBlockId);
-      if (newBlock && newBlock.speakerTime !== undefined) {
+      if (newBlock && newBlock.speakerTime !== undefined && newBlock.speakerTime > 0) {
+        // Only seek in navigation mode and with valid timestamps
         seekToTime(newBlock.speakerTime);
       }
     }
@@ -749,6 +916,12 @@ export default function TextEditor({
       blocksToUpdate.forEach(idx => {
         if (idx !== blockIndex && currentBlocks[idx]?.speaker === originalSpeaker) {
           blockManagerRef.current.updateBlock(currentBlocks[idx].id, 'speaker', value);
+          
+          // Set timestamp if this block doesn't have one yet
+          const block = currentBlocks[idx];
+          if (block && (!block.speakerTime || block.speakerTime === 0)) {
+            blockManagerRef.current.setBlockTimestamp(block.id, currentMediaTimeRef.current || 0);
+          }
         }
       });
     }
@@ -765,6 +938,12 @@ export default function TextEditor({
       if (speaker) {
         setSpeakerColors(prev => new Map(prev).set(value, speaker.color));
       }
+      
+      // Set timestamp if this block doesn't have one yet (first time setting speaker)
+      const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
+      if (block && (!block.speakerTime || block.speakerTime === 0)) {
+        blockManagerRef.current.setBlockTimestamp(id, currentMediaTimeRef.current || 0);
+      }
     }
     
     // Mark changes for auto-save
@@ -775,7 +954,7 @@ export default function TextEditor({
   const handleNewBlock = useCallback(() => {
     const currentBlock = blockManagerRef.current.getActiveBlock();
     if (currentBlock) {
-      const newBlock = blockManagerRef.current.addBlock(currentBlock.id, currentMediaTime);
+      const newBlock = blockManagerRef.current.addBlock(currentBlock.id, currentMediaTimeRef.current);
       setActiveBlockId(newBlock.id);
       setActiveArea('speaker');
       const newBlocks = [...blockManagerRef.current.getBlocks()];
@@ -787,7 +966,7 @@ export default function TextEditor({
       // Mark changes for auto-save
       backupService.markChanges();
     }
-  }, [currentMediaTime, saveToHistory]);
+  }, [saveToHistory]);
 
   // Handle block click for multi-select
   const handleBlockClick = useCallback((blockIndex: number, ctrlKey: boolean, shiftKey: boolean) => {
@@ -1037,6 +1216,245 @@ export default function TextEditor({
   }, []);
 
   // Search and Replace handlers
+  // Project: Load transcription from backend
+  const loadProjectData = async (projectId: string) => {
+    if (!projectId) {
+      console.log('[Project] No project ID, starting fresh');
+      return;
+    }
+    
+    console.log(`[Project] Loading project ${projectId}`);
+    
+    try {
+      const projectData = await projectService.loadProject(projectId);
+    
+    if (projectData && projectData.blocks && projectData.blocks.length > 0) {
+      console.log(`[Project] Loaded ${projectData.blocks.length} blocks`);
+      
+      // Ensure blocks have proper structure including timestamps
+      const loadedBlocks = projectData.blocks.map((block: any) => ({
+        id: block.id,
+        speaker: block.speaker || '',
+        text: block.text || '',
+        speakerTime: block.speakerTime !== undefined ? block.speakerTime : (block.timestamp ? parseFloat(block.timestamp) : undefined)
+      }));
+      
+      console.log('[Project] DEBUG: Loaded blocks:', loadedBlocks.map(b => ({ id: b.id, speaker: b.speaker, text: b.text.substring(0, 30) })));
+      
+      // CRITICAL: Update blockManagerRef BEFORE setting state
+      blockManagerRef.current.setBlocks(loadedBlocks);
+      setBlocks(loadedBlocks);
+      
+      console.log('[Project] DEBUG: State blocks after setBlocks:', loadedBlocks.length);
+      
+      // Update speakers if available
+      if (projectData.speakers) {
+        // Load speakers into SimpleSpeaker component if available
+        if (speakerComponentRef?.current) {
+          speakerComponentRef.current.loadSpeakers(projectData.speakers.map((s: any) => ({
+            id: `speaker-${s.code}`,
+            code: s.code,
+            name: s.name || '',
+            description: s.description || '',
+            color: s.color || '',
+            count: 0
+          })));
+        }
+        
+        // Update local speaker map and colors
+        const colorMap = new Map<string, string>();
+        projectData.speakers.forEach((s: any) => {
+          // Map BOTH speaker code AND name to color for TextEditor blocks
+          if (s.color) {
+            if (s.code) {
+              colorMap.set(s.code, s.color);
+            }
+            if (s.name) {
+              colorMap.set(s.name, s.color);
+            }
+          }
+          // Note: SpeakerManager doesn't have setSpeakerDescription method
+          // The description is handled by SimpleSpeaker component
+        });
+        setSpeakerColors(colorMap); // Set the color map for TextEditor
+      }
+      
+      // Update remarks if available
+      if (projectData.remarks && remarksContext) {
+        // Clear existing remarks and load new ones
+        const existingRemarks = remarksContext.state.remarks;
+        existingRemarks.forEach(remark => {
+          remarksContext.deleteRemark(remark.id);
+        });
+        
+        // Add loaded remarks
+        projectData.remarks.forEach((remarkData: any) => {
+          remarksContext.addRemark({
+            blockId: remarkData.blockId,
+            text: remarkData.text,
+            type: remarkData.type,
+            status: remarkData.status,
+            timestamp: remarkData.timestamp,
+            position: remarkData.position
+          });
+        });
+      }
+    } else {
+      console.log('[Project] No existing content, starting fresh');
+      // Start with empty editor
+      const initialBlock: TextBlockData = {
+        id: 'block-' + Date.now(),
+        speaker: '',
+        text: '',
+        speakerTime: currentMediaTimeRef.current || 0
+      };
+      
+      // CRITICAL: Update blockManagerRef BEFORE setting state
+      blockManagerRef.current.setBlocks([initialBlock]);
+      setBlocks([initialBlock]);
+      setActiveBlockId(initialBlock.id);
+    }
+    
+    // Reset change tracking
+    tLastSavedContent.current = JSON.stringify(blockManagerRef.current.getBlocks());
+    setTHasChanges(false);
+    } catch (error) {
+      console.error('[Project] Error loading project data:', error);
+      // Start with empty editor on error
+      const initialBlock: TextBlockData = {
+        id: 'block-' + Date.now(),
+        speaker: '',
+        text: '',
+        speakerTime: currentMediaTimeRef.current || 0
+      };
+      
+      blockManagerRef.current.setBlocks([initialBlock]);
+      setBlocks([initialBlock]);
+      setActiveBlockId(initialBlock.id);
+    }
+  };
+  
+  // T-Session: Handle loading existing transcription
+  const tHandleLoadExisting = (transcriptionNumber: number) => {
+    console.log(`[T-Session] User selected to load transcription ${transcriptionNumber}`);
+    // Load will be triggered by project ID change
+    setTCurrentTranscriptionNumber(transcriptionNumber);
+  };
+  
+  // T-Session: Handle creating new transcription
+  const tHandleCreateNew = async () => {
+    const nextNumber = await tSessionService.tGetNextTranscriptionNumber(tCurrentMediaId);
+    console.log(`[T-Session] Creating new transcription ${nextNumber}`);
+    setTCurrentTranscriptionNumber(nextNumber);
+    
+    // Start with empty editor
+    const initialBlock: TextBlockData = {
+      id: 'block-' + Date.now(),
+      speaker: '',
+      text: '',
+    };
+    
+    // CRITICAL: Update blockManagerRef BEFORE setting state
+    blockManagerRef.current.setBlocks([initialBlock]);
+    setBlocks([initialBlock]);
+    setActiveBlockId(initialBlock.id);
+    
+    // Reset change tracking
+    tLastSavedContent.current = JSON.stringify([initialBlock]);
+    setTHasChanges(false);
+  };
+  
+  // Project: Save current transcription
+  const saveProjectData = async () => {
+    console.log('[Project] Save attempt with:', {
+      projectId: currentProjectId,
+      hasProjectId: !!currentProjectId
+    });
+    
+    if (!currentProjectId || currentProjectId === '') {
+      console.warn('[Project] Cannot save: missing or empty project ID');
+      return;
+    }
+    
+    // Check if there are changes to save
+    const currentBlocks = blockManagerRef.current.getBlocks();
+    const currentContent = JSON.stringify(currentBlocks);
+    
+    if (currentContent === tLastSavedContent.current) {
+      console.log('[Project] No changes to save');
+      return;
+    }
+    
+    setTIsSaving(true);
+    
+    try {
+    
+    // Get speakers from SimpleSpeaker component if available
+    const speakers = speakerComponentRef?.current ? 
+      speakerComponentRef.current.getAllSpeakers().map(speaker => ({
+        code: speaker.code,
+        name: speaker.name,
+        description: speaker.description || '',
+        color: speaker.color || ''
+      })) :
+      speakerManagerRef.current.getAllSpeakers().map(speaker => ({
+        code: speaker.code,
+        name: speaker.name,
+        description: '', // SpeakerManager doesn't track descriptions
+        color: ''
+      }));
+    
+    // Get remarks data
+    const remarks = remarksContext?.state.remarks || [];
+    
+    // Prepare save data with all three components
+    const saveData = {
+      blocks: currentBlocks.map(block => ({
+        ...block,
+        speakerTime: block.speakerTime // Preserve speakerTime for navigation
+      })),
+      speakers,
+      remarks: remarks.map(remark => ({
+        id: remark.id,
+        blockId: remark.blockId,
+        text: remark.text,
+        type: remark.type,
+        status: remark.status,
+        timestamp: remark.timestamp,
+        position: remark.position,
+        createdAt: remark.createdAt,
+        updatedAt: remark.updatedAt
+      }))
+    };
+    
+    console.log('[Project] Saving project:', currentProjectId);
+    const success = await projectService.saveProject(currentProjectId, saveData);
+    
+    if (success) {
+      // Also create a versioned backup
+      try {
+        const backupFile = await projectService.createBackup(currentProjectId);
+        if (backupFile) {
+          console.log(`[Project] Backup created: ${backupFile}`);
+        }
+      } catch (error) {
+        console.error('[Project] Failed to create backup:', error);
+      }
+      
+      // Update save tracking
+      tLastSavedContent.current = currentContent;
+      setTLastSaveTime(new Date());
+      setTHasChanges(false);
+    }
+    } catch (error) {
+      console.error('[Project] Error during save:', error);
+    } finally {
+      setTIsSaving(false);
+    }
+    
+    // Don't show popup feedback - status is in bottom bar now
+  };
+
   const handleSearch = useCallback((text: string, options: SearchOptions): SearchResult[] => {
     const results: SearchResult[] = [];
     const blocks = blockManagerRef.current.getBlocks();
@@ -1295,17 +1713,23 @@ export default function TextEditor({
       }
       
       // Update color mapping if color provided
-      if (color && updateTo) {
+      if (color) {
         setSpeakerColors(prev => {
           const newMap = new Map(prev);
           
-          // Remove old color entry if name changed
+          // Remove old color entries if name changed
           if (updateFrom && updateFrom !== updateTo) {
             newMap.delete(updateFrom);
           }
           
-          // Set new color
-          newMap.set(updateTo, color);
+          // Set color for BOTH code and name
+          if (code) {
+            newMap.set(code, color);
+          }
+          if (name && name.trim()) {
+            newMap.set(name, color);
+          }
+          
           return newMap;
         });
       }
@@ -1364,6 +1788,7 @@ export default function TextEditor({
     const handleMediaTimeUpdate = (event: CustomEvent) => {
       const { time } = event.detail;
       setCurrentMediaTime(time || 0);
+      currentMediaTimeRef.current = time || 0;
       // Set the first block's timestamp if it doesn't have one
       blockManagerRef.current.setFirstBlockTimestamp(time || 0);
     };
@@ -1373,6 +1798,14 @@ export default function TextEditor({
       const { callback } = event.detail;
       if (callback) {
         callback(navigationMode);
+      }
+    };
+    
+    // Handle request for current media time from child components
+    const handleGetCurrentMediaTime = (event: CustomEvent) => {
+      const { callback } = event.detail;
+      if (callback) {
+        callback(currentMediaTimeRef.current);
       }
     };
     
@@ -1407,6 +1840,7 @@ export default function TextEditor({
     document.addEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
     document.addEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
     document.addEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
+    document.addEventListener('getCurrentMediaTime', handleGetCurrentMediaTime as EventListener);
     document.addEventListener('checkSpeakerInUse', handleCheckSpeakerInUse as EventListener);
     document.addEventListener('openNewTranscriptionModal', handleOpenNewTranscriptionModal as EventListener);
     
@@ -1415,6 +1849,7 @@ export default function TextEditor({
       document.removeEventListener('toggleDescriptionTooltips', handleToggleTooltips as EventListener);
       document.removeEventListener('mediaTimeUpdate', handleMediaTimeUpdate as EventListener);
       document.removeEventListener('checkNavigationMode', handleCheckNavigationMode as EventListener);
+      document.removeEventListener('getCurrentMediaTime', handleGetCurrentMediaTime as EventListener);
       document.removeEventListener('checkSpeakerInUse', handleCheckSpeakerInUse as EventListener);
       document.removeEventListener('openNewTranscriptionModal', handleOpenNewTranscriptionModal as EventListener);
     };
@@ -1480,6 +1915,7 @@ export default function TextEditor({
             handleTranscriptionChange={handleTranscriptionChange}
             currentMediaId={currentProjectId}
             projectName={projectName}
+            tHandleSave={saveProjectData}
             fontSize={fontSize}
             setFontSize={setFontSize}
             fontFamily={fontFamily}
@@ -1638,7 +2074,6 @@ export default function TextEditor({
                     onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
                     onProcessShortcuts={processShortcuts}
                     speakerColor={speakerColors.get(block.speaker)}
-                    currentTime={currentMediaTime}
                     fontSize={fontSize}
                     fontFamily={fontFamily}
                     isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
@@ -1669,7 +2104,12 @@ export default function TextEditor({
           )}
         </div>
         <div className="footer-right">
-          <BackupStatusIndicator />
+          <TSessionStatus 
+            lastSaveTime={tLastSaveTime}
+            hasChanges={tHasChanges}
+            isSaving={tIsSaving}
+            transcriptionNumber={tCurrentTranscriptionNumber}
+          />
         </div>
       </div>
       </div>
@@ -1704,11 +2144,102 @@ export default function TextEditor({
       <VersionHistoryModal
         isOpen={showVersionHistoryModal}
         onClose={() => setShowVersionHistoryModal(false)}
-        onRestore={(version) => {
-          console.log('Restoring version:', version);
-          showFeedback(`שוחזר לגרסה ${version.version}`);
+        onRestore={async (version) => {
+          console.log('[Project] Restoring version:', version);
+          try {
+            // Use the project restore endpoint to load version data and make it current
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/projects/${currentProjectId}/restore/${version.filename}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Dev-Mode': 'true'
+                }
+              }
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              
+              if (data.blocks) {
+                // Ensure blocks have proper structure including timestamps
+                const restoredBlocks = data.blocks.map((block: any) => ({
+                  id: block.id,
+                  speaker: block.speaker || '',
+                  text: block.text || '',
+                  speakerTime: block.speakerTime || block.timestamp ? parseFloat(block.timestamp) : undefined
+                }));
+                
+                // Update blockManagerRef AND state like in loadProjectData
+                blockManagerRef.current.setBlocks(restoredBlocks);
+                setBlocks(restoredBlocks);
+                
+                // Update speakers if available
+                if (data.speakers) {
+                  // Load speakers into SimpleSpeaker component if available
+                  if (speakerComponentRef?.current) {
+                    speakerComponentRef.current.loadSpeakers(data.speakers.map((s: any) => ({
+                      id: `speaker-${s.code}`,
+                      code: s.code,
+                      name: s.name || '',
+                      description: s.description || '',
+                      color: s.color || '',
+                      count: 0
+                    })));
+                  }
+                  
+                  const colorMap = new Map<string, string>();
+                  data.speakers.forEach((s: any) => {
+                    // Map BOTH speaker code AND name to color
+                    if (s.color) {
+                      if (s.code) {
+                        colorMap.set(s.code, s.color);
+                      }
+                      if (s.name) {
+                        colorMap.set(s.name, s.color);
+                      }
+                    }
+                  });
+                  setSpeakerColors(colorMap);
+                }
+                
+                // Update remarks if available
+                if (data.remarks && remarksContext) {
+                  // Clear existing remarks and load new ones
+                  const existingRemarks = remarksContext.state.remarks;
+                  existingRemarks.forEach(remark => {
+                    remarksContext.deleteRemark(remark.id);
+                  });
+                  
+                  // Add restored remarks
+                  data.remarks.forEach((remarkData: any) => {
+                    remarksContext.addRemark({
+                      blockId: remarkData.blockId,
+                      text: remarkData.text,
+                      type: remarkData.type,
+                      status: remarkData.status,
+                      timestamp: remarkData.timestamp,
+                      position: remarkData.position
+                    });
+                  });
+                }
+                
+                // Reset change tracking - now this version becomes current
+                tLastSavedContent.current = JSON.stringify(data.blocks);
+                setTHasChanges(false);
+                setTLastSaveTime(new Date());
+                
+                console.log(`[T-Session] Successfully restored to version ${version.version}`);
+              }
+            }
+          } catch (error) {
+            console.error('[T-Session] Error restoring version:', error);
+          }
         }}
-        transcriptionId={currentTranscriptionId}
+        transcriptionId={currentProjectId}
+        mediaId={currentProjectId}
+        transcriptionNumber={tCurrentTranscriptionNumber}
       />
       
       {/* Media Link Modal */}

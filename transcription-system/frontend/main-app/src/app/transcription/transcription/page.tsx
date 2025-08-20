@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import TranscriptionHeader from './components/TranscriptionHeader/TranscriptionHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
@@ -12,10 +12,11 @@ import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayer from './components/MediaPlayer';
 import TextEditor from './components/TextEditor';
-import SimpleSpeaker from './components/Speaker/SimpleSpeaker';
+import SimpleSpeaker, { SimpleSpeakerHandle } from './components/Speaker/SimpleSpeaker';
 import Remarks from './components/Remarks/Remarks';
 import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
+import { projectService } from '../../../services/projectService';
 import './components/TranscriptionHeader/TranscriptionHeader.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
@@ -81,12 +82,21 @@ export default function TranscriptionWorkPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectFolderRef = useRef<HTMLInputElement>(null);
+  const speakerComponentRef = useRef<SimpleSpeakerHandle>(null);
+  
+  // Project management
+  const [currentProjectId, setCurrentProjectId] = useState<string>('');
+  const [projectsMap, setProjectsMap] = useState<Map<string, string>>(new Map()); // mediaName -> projectId
   
   // Get current project and media info
   const currentProject = projects[currentProjectIndex];
   const currentMedia = currentProject?.mediaItems[currentMediaIndex];
   const hasProjects = projects.length > 0;
   const hasMedia = currentProject?.mediaItems.length > 0;
+  
+  // Use project ID for components instead of mediaId
+  const mediaId = currentMedia ? `0-0-${currentMedia.name}` : '';
+  const transcriptionNumber = 2; // Using transcription 2 as default
   
   // Use real data if available, otherwise show empty state
   const projectName = currentProject?.name || 'אין פרויקט';
@@ -277,6 +287,51 @@ export default function TranscriptionWorkPage() {
       setCurrentMediaIndex(currentMediaIndex + 1);
     }
   };
+  
+  // Handle project creation/loading when media changes
+  useEffect(() => {
+    const handleMediaChange = async () => {
+      if (!currentMedia || !currentMedia.name) {
+        console.log('[Project] No media selected, clearing project ID');
+        setCurrentProjectId('');
+        return;
+      }
+      
+      // Check if we already have a project ID for this specific media instance in this session
+      // Use a key that's unique per media item in the current session
+      const mediaKey = `${currentMedia.name}_${currentMediaIndex}`;
+      const existingProjectId = projectsMap.get(mediaKey);
+      if (existingProjectId) {
+        console.log('[Project] Using existing project for this session:', existingProjectId);
+        setCurrentProjectId(existingProjectId);
+        return;
+      }
+      
+      // ALWAYS create a new project for each media upload
+      // This ensures each upload gets its own folder as requested
+      console.log('[Project] Creating new project for media:', currentMedia.name);
+      
+      try {
+        const projectId = await projectService.createProject(currentMedia.name, projectName);
+        
+        if (!projectId) {
+          console.error('[Project] Failed to create project - no project ID returned');
+          return;
+        }
+        
+        // Update the map and current project ID
+        setProjectsMap(prev => new Map(prev).set(mediaKey, projectId));
+        setCurrentProjectId(projectId);
+        console.log('[Project] Set current project ID:', projectId);
+      } catch (error) {
+        console.error('[Project] Error creating project:', error);
+        // Still allow the app to work without project persistence
+        console.warn('[Project] Working in temporary mode without server persistence');
+      }
+    };
+    
+    handleMediaChange();
+  }, [currentMedia, projectName]);
 
   // Memoize callbacks to prevent unnecessary re-renders
   const handleHeaderLockChange = useCallback((locked: boolean) => {
@@ -310,7 +365,7 @@ export default function TranscriptionWorkPage() {
         sidebarLocked ? 'sidebar-locked' : ''
       }`}>
         <div className="content-container">
-          <RemarksProvider transcriptionId={sessionId || `temp-${Date.now()}`}>
+          <RemarksProvider transcriptionId={currentProjectId || sessionId || `temp-${Date.now()}`}>
           <RemarksEventListener />
           <div className="workspace-grid">
           {/* Main Workspace */}
@@ -377,7 +432,8 @@ export default function TranscriptionWorkPage() {
                 };
               })() : undefined}
               onTimeUpdate={(time) => {
-                // TEMPORARILY DISABLED - checking if this causes playback issues
+                // TEMPORARILY DISABLED - this causes playback issues
+                // TextEditor gets time updates via mediaTimeUpdate events instead
                 // setCurrentTime(time);
               }}
               onTimestampCopy={(timestamp) => {
@@ -393,13 +449,14 @@ export default function TranscriptionWorkPage() {
             {/* TextEditor Component */}
             <div className="text-editor-wrapper">
               <TextEditor 
+                currentProjectId={currentProjectId}
                 mediaPlayerRef={mediaPlayerRef}
                 marks={[]}
                 currentTime={currentTime}
                 mediaFileName={currentMedia?.name || ''}
                 mediaDuration={mediaDuration}
-                currentProjectId={currentProject ? `proj-${currentProjectIndex}` : ''}
                 projectName={projectName}
+                speakerComponentRef={speakerComponentRef}
                 onSeek={(time) => {
                   console.log('Seek to time:', time);
                 }}
@@ -415,7 +472,16 @@ export default function TranscriptionWorkPage() {
             <div className={`speaker-container ${
               helperFilesExpanded ? 'compressed' : 'normal'
             }`}>
-              <SimpleSpeaker theme="transcription" />
+              <SimpleSpeaker 
+                ref={speakerComponentRef}
+                theme="transcription" 
+                mediaId={currentProjectId}
+                transcriptionNumber={1}
+                onSpeakersChange={(speakers) => {
+                  // Optional: handle speaker changes if needed
+                  console.log('Speakers changed:', speakers);
+                }}
+              />
             </div>
 
             {/* Remarks Component */}

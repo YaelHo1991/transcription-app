@@ -930,8 +930,13 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     const handleSeekRequest = (event: CustomEvent) => {
       const { time } = event.detail;
       const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
-      if (mediaElement && typeof time === 'number') {
+      
+      // Validate time more strictly to prevent MediaPlayer crashes
+      if (mediaElement && typeof time === 'number' && !isNaN(time) && isFinite(time) && time >= 0) {
+        console.log('[MediaPlayer] Seeking to valid time:', time);
         mediaElement.currentTime = time;
+      } else {
+        console.warn('[MediaPlayer] Invalid seek time rejected:', time);
       }
     };
     
