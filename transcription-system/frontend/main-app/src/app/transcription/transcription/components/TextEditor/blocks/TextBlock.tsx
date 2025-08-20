@@ -86,6 +86,7 @@ const TextBlock = React.memo(function TextBlock({
   const isUpdatingFromProps = useRef(false);
   const wasFullySelected = useRef(false);
   const lastNavigatedTimestamp = useRef<string | null>(null);
+  const isProcessingShiftEnter = useRef(false);
   
   // Removed debouncing as it was causing cursor jump issues
   // The React.memo optimization is sufficient for performance
@@ -972,23 +973,39 @@ const TextBlock = React.memo(function TextBlock({
       } else {
         // Not in a list, just add a line break
         const newText = beforeCursor + '\n' + afterCursor;
+        const desiredCursorPos = beforeCursor.length + 1; // Position after the new line
+        
+        // Set flag to prevent cursor repositioning by other handlers
+        isProcessingShiftEnter.current = true;
+        
         setLocalText(newText);
         onUpdate(block.id, 'text', newText);
         
-        setTimeout(() => {
+        // Store the desired cursor position in a ref to preserve it
+        const preservedPos = desiredCursorPos;
+        
+        // Use requestAnimationFrame for more reliable positioning
+        requestAnimationFrame(() => {
           if (textRef.current) {
-            // Position cursor after the new line
-            const newPos = beforeCursor.length + 1;
-            textRef.current.setSelectionRange(newPos, newPos);
+            // Set cursor position
+            textRef.current.setSelectionRange(preservedPos, preservedPos);
             
-            // Then resize the textarea to fit content
+            // Resize the textarea
             textRef.current.style.height = 'auto';
             textRef.current.style.height = textRef.current.scrollHeight + 'px';
             
-            // Ensure the textarea stays focused without jumping
-            // No need to call focus() as the textarea is already focused
+            // Re-set cursor position after resize to ensure it stays
+            textRef.current.setSelectionRange(preservedPos, preservedPos);
+            
+            // Focus to ensure cursor is visible
+            textRef.current.focus();
+            
+            // Clear flag after a short delay
+            setTimeout(() => {
+              isProcessingShiftEnter.current = false;
+            }, 100);
           }
-        }, 0);
+        });
       }
       
       return;
@@ -1426,10 +1443,21 @@ const TextBlock = React.memo(function TextBlock({
       // Otherwise keep current language
     }
     
-    // Auto-resize textarea
+    // Auto-resize textarea while preserving cursor position
     const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
+    const currentCursorPos = textarea.selectionStart;
+    const currentSelectionEnd = textarea.selectionEnd;
+    
+    // Don't interfere with cursor position during Shift+Enter processing
+    if (!isProcessingShiftEnter.current) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+      
+      // Restore cursor position after resize
+      if (currentCursorPos !== null) {
+        textarea.setSelectionRange(currentCursorPos, currentSelectionEnd);
+      }
+    }
   };
   
   // Auto-resize textarea on mount and when text changes

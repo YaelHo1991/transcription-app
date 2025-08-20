@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-20T15:38:34.257Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755704302436",
+        "speaker": "א",
+        "text": "אוקי, בוא ננסה. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755704307641-si32i9ywv",
+        "speaker": "ב",
+        "text": "אני רוצה לראות אם זה עובד י",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T15:38:34.246Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}
