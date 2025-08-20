@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IndexedDB Test</title>
+</head>
+<body>
+    <h1>IndexedDB Test for Transcription System</h1>
+    <button onclick="initDB()">Initialize IndexedDB</button>
+    <button onclick="saveTest()">Save Test Data</button>
+    <button onclick="loadTest()">Load Test Data</button>
+    <button onclick="checkDB()">Check Database</button>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            output.innerHTML += `<p>${message}</p>`;
+            console.log(message);
+        }
+        
+        async function initDB() {
+            log('Initializing TranscriptionDB...');
+            
+            const request = indexedDB.open('TranscriptionDB', 1);
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                log('Creating database schema...');
+                
+                if (!db.objectStoreNames.contains('transcriptions')) {
+                    const store = db.createObjectStore('transcriptions', { keyPath: 'id' });
+                    store.createIndex('projectId', 'projectId', { unique: false });
+                    log('Created transcriptions store');
+                }
+                
+                if (!db.objectStoreNames.contains('metadata')) {
+                    const store = db.createObjectStore('metadata', { keyPath: 'id' });
+                    store.createIndex('projectId', 'projectId', { unique: true });
+                    log('Created metadata store');
+                }
+                
+                if (!db.objectStoreNames.contains('backups')) {
+                    const store = db.createObjectStore('backups', { keyPath: 'id' });
+                    store.createIndex('projectId', 'projectId', { unique: false });
+                    log('Created backups store');
+                }
+            };
+            
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                log('✅ Database initialized successfully');
+                log('Stores: ' + Array.from(db.objectStoreNames).join(', '));
+                db.close();
+            };
+            
+            request.onerror = (event) => {
+                log('❌ Error: ' + event.target.error);
+            };
+        }
+        
+        async function saveTest() {
+            log('Saving test data...');
+            
+            const request = indexedDB.open('TranscriptionDB', 1);
+            
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['transcriptions'], 'readwrite');
+                const store = transaction.objectStore('transcriptions');
+                
+                const testData = {
+                    id: 'test_' + Date.now(),
+                    projectId: 'test-project',
+                    blocks: [
+                        { id: '1', speaker: 'A', text: 'שלום עולם' },
+                        { id: '2', speaker: 'B', text: 'מה נשמע?' }
+                    ],
+                    timestamp: Date.now()
+                };
+                
+                const request = store.add(testData);
+                
+                request.onsuccess = () => {
+                    log('✅ Test data saved successfully');
+                };
+                
+                request.onerror = () => {
+                    log('❌ Failed to save test data');
+                };
+                
+                transaction.oncomplete = () => {
+                    db.close();
+                };
+            };
+        }
+        
+        async function loadTest() {
+            log('Loading test data...');
+            
+            const request = indexedDB.open('TranscriptionDB', 1);
+            
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction(['transcriptions'], 'readonly');
+                const store = transaction.objectStore('transcriptions');
+                
+                const request = store.getAll();
+                
+                request.onsuccess = () => {
+                    const data = request.result;
+                    log(`Found ${data.length} items in database`);
+                    if (data.length > 0) {
+                        log('Data: ' + JSON.stringify(data[0], null, 2));
+                    }
+                };
+                
+                transaction.oncomplete = () => {
+                    db.close();
+                };
+            };
+        }
+        
+        async function checkDB() {
+            log('Checking all databases...');
+            
+            if ('databases' in indexedDB) {
+                const databases = await indexedDB.databases();
+                log('Databases found: ' + databases.map(db => `${db.name} (v${db.version})`).join(', '));
+            }
+        }
+    </script>
+</body>
+</html>

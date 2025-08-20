@@ -58,6 +58,35 @@ export default function TextEditor({
   // Remarks integration
   const remarksContext = useRemarks();
   const [activeArea, setActiveArea] = useState<'speaker' | 'text'>('speaker');
+  
+  // Initialize IndexedDB on component mount
+  useEffect(() => {
+    const initIndexedDB = async () => {
+      if (shouldUseIndexedDB()) {
+        try {
+          console.log('[TextEditor] Initializing IndexedDB...');
+          await indexedDBService.init();
+          console.log('[TextEditor] IndexedDB initialized successfully');
+          
+          // Check storage info
+          const storageInfo = await indexedDBService.getStorageInfo();
+          console.log('[TextEditor] Storage info:', storageInfo);
+          
+          // Try migration if needed
+          const migrated = await indexedDBService.migrateFromLocalStorage();
+          if (migrated) {
+            console.log('[TextEditor] Migrated data from localStorage');
+          }
+        } catch (error) {
+          console.error('[TextEditor] Failed to initialize IndexedDB:', error);
+        }
+      } else {
+        console.log('[TextEditor] IndexedDB not available or disabled');
+      }
+    };
+    
+    initIndexedDB();
+  }, []);
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [speakerColors, setSpeakerColors] = useState<Map<string, string>>(new Map());
   const [cursorAtStart, setCursorAtStart] = useState(false);

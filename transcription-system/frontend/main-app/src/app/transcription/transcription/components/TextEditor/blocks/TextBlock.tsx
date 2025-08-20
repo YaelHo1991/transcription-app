@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useRef, useEffect, useState, KeyboardEvent, FocusEvent } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo, KeyboardEvent, FocusEvent } from 'react';
 import { ProcessTextResult } from '../types/shortcuts';
 import TextHighlightOverlay from '../components/TextHighlightOverlay';
 import { AutoCorrectEngine } from '../utils/AutoCorrectEngine';
+import { debounce } from '../utils/debounce';
 import './TextBlock.css';
 
 export interface TextBlockData {
@@ -39,7 +40,7 @@ interface TextBlockProps {
   previousSpeaker?: string;
 }
 
-export default function TextBlock({
+const TextBlock = React.memo(function TextBlock({
   block,
   isActive,
   isFirstBlock = false,
@@ -86,6 +87,21 @@ export default function TextBlock({
   const isUpdatingFromProps = useRef(false);
   const wasFullySelected = useRef(false);
   const lastNavigatedTimestamp = useRef<string | null>(null);
+  
+  // Create debounced update functions for text changes
+  const debouncedTextUpdate = useMemo(
+    () => debounce((id: string, value: string) => {
+      onUpdate(id, 'text', value);
+    }, 300), // 300ms delay for typing
+    [onUpdate]
+  );
+  
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedTextUpdate.cancel();
+    };
+  }, [debouncedTextUpdate]);
   
   // Helper function to get current media time via event
   const getCurrentMediaTime = (): number => {
@@ -879,6 +895,9 @@ export default function TextBlock({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       
+      // Flush any pending text updates before creating new block
+      debouncedTextUpdate.flush();
+      
       // Apply AutoCorrect validations before creating new block
       if (autoCorrectEngine) {
         // Validate duplicate speaker
@@ -1389,7 +1408,27 @@ export default function TextBlock({
     }
     
     setLocalText(value);
-    onUpdate(block.id, 'text', value);
+    
+    // Determine if we should use immediate or debounced update
+    const shouldUpdateImmediately = 
+      // Timestamp insertions
+      value.includes('[') && value.includes(']') ||
+      // List operations
+      value.includes('\n') && value.match(/^[\u200F]?\d+\.\s+/m) ||
+      // Large pastes or deletions
+      Math.abs(value.length - localText.length) > 10 ||
+      // When text is cleared
+      value === '';
+    
+    if (shouldUpdateImmediately) {
+      // Cancel any pending debounced update
+      debouncedTextUpdate.cancel();
+      // Update immediately for critical changes
+      onUpdate(block.id, 'text', value);
+    } else {
+      // Use debounced update for normal typing
+      debouncedTextUpdate(block.id, value);
+    }
     
     // Check if cursor is in a timestamp for highlighting
     if (cursorPos !== null) {
@@ -1697,6 +1736,8 @@ export default function TextBlock({
   const handleTextBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
     // Reset selection tracking when losing focus
     wasFullySelected.current = false;
+    // Flush any pending text updates when losing focus
+    debouncedTextUpdate.flush();
   };
 
   // Handle click on block for navigation mode and multi-select
@@ -1887,4 +1928,46 @@ export default function TextBlock({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  // Return true if props are equal (skip re-render)
+  // Return false if props are different (re-render)
+  
+  // Always re-render if active state changes
+  if (prevProps.isActive !== nextProps.isActive) return false;
+  if (prevProps.activeArea !== nextProps.activeArea) return false;
+  
+  // Always re-render if block data changes
+  if (prevProps.block.id !== nextProps.block.id) return false;
+  if (prevProps.block.speaker !== nextProps.block.speaker) return false;
+  if (prevProps.block.text !== nextProps.block.text) return false;
+  if (prevProps.block.speakerTime !== nextProps.block.speakerTime) return false;
+  
+  // Re-render if highlights change
+  if (prevProps.speakerHighlights.length !== nextProps.speakerHighlights.length) return false;
+  if (prevProps.textHighlights.length !== nextProps.textHighlights.length) return false;
+  if (prevProps.speakerHighlights.some((h, i) => {
+    const next = nextProps.speakerHighlights[i];
+    return !next || h.startIndex !== next.startIndex || h.endIndex !== next.endIndex || h.isCurrent !== next.isCurrent;
+  })) return false;
+  if (prevProps.textHighlights.some((h, i) => {
+    const next = nextProps.textHighlights[i];
+    return !next || h.startIndex !== next.startIndex || h.endIndex !== next.endIndex || h.isCurrent !== next.isCurrent;
+  })) return false;
+  
+  // Re-render if visual props change
+  if (prevProps.speakerColor !== nextProps.speakerColor) return false;
+  if (prevProps.fontSize !== nextProps.fontSize) return false;
+  if (prevProps.fontFamily !== nextProps.fontFamily) return false;
+  if (prevProps.isIsolated !== nextProps.isIsolated) return false;
+  if (prevProps.blockViewEnabled !== nextProps.blockViewEnabled) return false;
+  
+  // Re-render if previousSpeaker changes (for auto-correct validation)
+  if (prevProps.previousSpeaker !== nextProps.previousSpeaker) return false;
+  
+  // Skip re-render for callback functions (they should be stable with useCallback)
+  // and other props that don't affect rendering
+  return true;
+});
+
+export default TextBlock;
