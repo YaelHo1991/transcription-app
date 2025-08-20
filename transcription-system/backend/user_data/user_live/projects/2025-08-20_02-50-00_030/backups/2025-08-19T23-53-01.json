@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-08-19T23:53:01.981Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755647400948",
+        "speaker": "א",
+        "text": "אני.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755647497142-qmuk27utm",
+        "speaker": "ב",
+        "text": " [00:35:54] ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755647510822-q7x9rr6c1",
+        "speaker": "ג",
+        "text": "צריך לבדוק את הזמן. ",
+        "speakerTime": 2154.598889
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T23:53:01.946Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

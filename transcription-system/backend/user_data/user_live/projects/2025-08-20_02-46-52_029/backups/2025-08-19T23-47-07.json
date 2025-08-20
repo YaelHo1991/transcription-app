@@ -1,0 +1,40 @@
+{
+  "timestamp": "2025-08-19T23:47:07.154Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755647212202",
+        "speaker": "בני",
+        "text": "עייפה. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T23:47:07.135Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "id": "speaker-1",
+        "code": "א",
+        "name": "אברהם",
+        "description": "",
+        "color": "#667eea",
+        "count": 0
+      },
+      {
+        "id": "speaker-2",
+        "code": "ב",
+        "name": "בני",
+        "description": "",
+        "color": "#f59e0b",
+        "count": 0
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

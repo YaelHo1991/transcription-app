@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-08-20T04:09:43.682Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755662968856",
+        "speaker": "א",
+        "text": "אתה נקראת.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755662978140-hukpfmans",
+        "speaker": "ב",
+        "text": "לתת פה איזושהי עדות.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755662982796-8actzyjdz",
+        "speaker": "ד",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T04:09:43.668Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

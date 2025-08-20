@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-08-20T03:15:36.706Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755659290684",
+        "speaker": "א",
+        "text": "אני לא יודעת. ",
+        "speakerTime": null
+      },
+      {
+        "id": "block-1755659299366-2bchp2xdj",
+        "speaker": "ב",
+        "text": "צריך לראות. "
+      },
+      {
+        "id": "block-1755659446359-h6lva5elb",
+        "speaker": "ג",
+        "text": "בדיקה שלישית [00:32:44] "
+      },
+      {
+        "id": "block-1755659459690-mx1f0370v",
+        "speaker": "ד",
+        "text": "אז למה שלא?"
+      },
+      {
+        "id": "block-1755659464786-p015mwhim",
+        "speaker": "א",
+        "text": ""
+      },
+      {
+        "id": "block-1755659468770-1z964rvt4",
+        "speaker": "ג",
+        "text": ""
+      },
+      {
+        "id": "block-1755659470614-q09tgurhj",
+        "speaker": "ב",
+        "text": ""
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T03:15:36.683Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [
+      {
+        "id": "remark-1755659731566-xz98xc9ek",
+        "type": 4,
+        "status": "open",
+        "createdAt": "2025-08-20T03:15:31.566Z",
+        "updatedAt": "2025-08-20T03:15:31.566Z"
+      },
+      {
+        "id": "remark-1755659731566-65rruslq3",
+        "type": 1,
+        "status": "open",
+        "timestamp": {
+          "time": 1964,
+          "formatted": "00:32:44",
+          "context": "בדיקה שלישית [00:32:44 מסתבר]"
+        },
+        "createdAt": "2025-08-20T03:15:31.566Z",
+        "updatedAt": "2025-08-20T03:15:31.566Z"
+      }
+    ],
+    "version": "1.0.0"
+  }
+}

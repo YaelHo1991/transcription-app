@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-08-20T04:03:05.373Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755662553724",
+        "speaker": "א",
+        "text": "אתה נקראת פה לתת איזושהי עדות, ",
+        "speakerTime": 1.279793
+      },
+      {
+        "id": "block-1755662569558-vy6stipm5",
+        "speaker": "ב",
+        "text": "אני לא יודעת. ",
+        "speakerTime": 8.708803
+      },
+      {
+        "id": "block-1755662575273-r5hfl1jg5",
+        "speaker": "ג",
+        "text": "זה לא בסדר [00:00:19 טוב, צהריים טוב].",
+        "speakerTime": 14.285827
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T04:03:05.361Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

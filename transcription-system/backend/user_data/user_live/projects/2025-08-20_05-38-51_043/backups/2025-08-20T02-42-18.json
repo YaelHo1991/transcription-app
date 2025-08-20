@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-08-20T02:42:18.287Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755657626992",
+        "speaker": "א",
+        "text": "גכ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755657631565-imv2igx20",
+        "speaker": "ה",
+        "text": "ופה הוספנו גם כן שורה אחרת. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T02:42:18.280Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "id": "speaker-א",
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea",
+        "count": 0
+      },
+      {
+        "id": "speaker-2",
+        "code": "ה",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b",
+        "count": 0
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

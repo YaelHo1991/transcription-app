@@ -1,0 +1,20 @@
+﻿=== TRANSCRIPTION BACKUP ===
+Project: פרויקט חדש
+Transcription: תמלול 2
+Date: 2025-08-19T22:12:58.036Z
+Version: 1
+Media Files:
+  - גיבוי בוררות חיים גבאי 220525.mp3 (current)
+
+=== REMARKS ===
+[4]: 
+
+=== TRANSCRIPT ===
+[1]: 
+
+=== METADATA ===
+Total Words: 0
+Total Blocks: 1
+Total Speakers: 1
+Total Remarks: 1
+Created From: Live Editor Session

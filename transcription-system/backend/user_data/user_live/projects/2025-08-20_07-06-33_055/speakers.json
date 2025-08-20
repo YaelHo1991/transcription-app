@@ -1,0 +1,21 @@
+{
+  "speakers": [
+    {
+      "id": "speaker-1755662800706",
+      "code": "ג",
+      "name": "דודי",
+      "description": "",
+      "color": "#667eea",
+      "count": 0
+    },
+    {
+      "id": "speaker-1",
+      "code": "ב",
+      "name": "בורר",
+      "description": "",
+      "color": "#f59e0b",
+      "count": 0
+    }
+  ],
+  "version": "1.0.0"
+}

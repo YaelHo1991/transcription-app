@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-08-20T02:15:07.119Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755655087031",
+        "speaker": "",
+        "text": " [00:31:02] ",
+        "speakerTime": 1862.083085
+      },
+      {
+        "id": "block-1755656057635-hrc1f9w8o",
+        "speaker": "ג",
+        "text": "אולי [00:31:04] ",
+        "speakerTime": 1862.083085
+      },
+      {
+        "id": "block-1755656063883-fbai6mdmn",
+        "speaker": "ב",
+        "text": "",
+        "speakerTime": 1865.370909
+      },
+      {
+        "id": "block-1755656065498-osvxcqb6m",
+        "speaker": "ג",
+        "text": " [00:31:09] ",
+        "speakerTime": 1866.970412
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T02:15:07.091Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

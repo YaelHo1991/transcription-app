@@ -1,0 +1,104 @@
+{
+  "timestamp": "2025-08-20T03:11:17.746Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755659290684",
+        "speaker": "א",
+        "text": "אני לא יודעת. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755659299366-2bchp2xdj",
+        "speaker": "ב",
+        "text": "צריך לראות. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755659446359-h6lva5elb",
+        "speaker": "ג",
+        "text": "בדיקה שלישית [00:32:44] ",
+        "speakerTime": 1957.791613
+      },
+      {
+        "id": "block-1755659459690-mx1f0370v",
+        "speaker": "ד",
+        "text": "אז למה שלא?",
+        "speakerTime": 1971.354641
+      },
+      {
+        "id": "block-1755659464786-p015mwhim",
+        "speaker": "א",
+        "text": "",
+        "speakerTime": 1976.400573
+      },
+      {
+        "id": "block-1755659468770-1z964rvt4",
+        "speaker": "ג",
+        "text": "",
+        "speakerTime": 1980.385639
+      },
+      {
+        "id": "block-1755659470614-q09tgurhj",
+        "speaker": "ב",
+        "text": "",
+        "speakerTime": 1982.245774
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T03:11:17.622Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [
+      {
+        "id": "remark-1755659339921-b6t7z7199",
+        "type": 4,
+        "status": "open",
+        "createdAt": "2025-08-20T03:08:59.921Z",
+        "updatedAt": "2025-08-20T03:09:02.140Z"
+      },
+      {
+        "id": "remark-1755659457139-w3aopdawm",
+        "type": 1,
+        "status": "open",
+        "timestamp": {
+          "time": 1964,
+          "formatted": "00:32:44",
+          "context": "בדיקה שלישית [00:32:44 מסתבר],"
+        },
+        "createdAt": "2025-08-20T03:10:57.139Z",
+        "updatedAt": "2025-08-20T03:10:57.139Z"
+      }
+    ],
+    "version": "1.0.0"
+  }
+}

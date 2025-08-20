@@ -1,0 +1,17 @@
+{
+  "speakers": [
+    {
+      "code": "א",
+      "name": "אפרים",
+      "description": "",
+      "color": "#667eea"
+    },
+    {
+      "code": "ב",
+      "name": "ברכה",
+      "description": "",
+      "color": "#f59e0b"
+    }
+  ],
+  "version": "1.0.0"
+}

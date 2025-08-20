@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-08-20T00:32:40.268Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755649068933",
+        "speaker": "אברהם",
+        "text": "אבא אמר לי. הצבע פה הוא סגול. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755649075459-jmug7ug0b",
+        "speaker": "דויד",
+        "text": "שצריך לבדוק. פה כתום. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755649958433-8kvcetewj",
+        "speaker": "ג",
+        "text": "",
+        "speakerTime": 1819.524929
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T00:32:40.244Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "אברהם",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ד",
+        "name": "דויד",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

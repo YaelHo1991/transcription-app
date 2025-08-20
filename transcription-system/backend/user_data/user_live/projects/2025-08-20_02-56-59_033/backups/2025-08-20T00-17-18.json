@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-20T00:17:18.779Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755647875460",
+        "speaker": "ב",
+        "text": "בגיא צלמוות. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T00:17:18.728Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ג",
+        "name": "דג",
+        "description": "גד",
+        "color": "#667eea"
+      },
+      {
+        "code": "ד",
+        "name": "דויד",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

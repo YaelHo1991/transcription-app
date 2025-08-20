@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-08-19T23:47:55.085Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755647239116",
+        "speaker": "אברהם",
+        "text": "אני",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755647267875-ejhpwcky6",
+        "speaker": "",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T23:47:55.065Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "id": "speaker-א",
+        "code": "א",
+        "name": "אברהם",
+        "description": "",
+        "color": "#667eea",
+        "count": 0
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

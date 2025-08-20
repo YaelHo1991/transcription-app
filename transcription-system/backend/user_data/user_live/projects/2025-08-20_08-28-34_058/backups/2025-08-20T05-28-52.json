@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-08-20T05:28:52.608Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755667714670",
+        "speaker": "א",
+        "text": "התכנסנו כאן היום, ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755667725668-fkxt1hjf9",
+        "speaker": "ב",
+        "text": "כדי לבדוק איך תעבוד ההמרה. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755667720898-y15d6orr8",
+        "speaker": "",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T05:28:52.597Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "timestamp": "2025-08-20T03:13:00.614Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755659290684",
+        "speaker": "א",
+        "text": "אני לא יודעת. "
+      },
+      {
+        "id": "block-1755659299366-2bchp2xdj",
+        "speaker": "ב",
+        "text": "צריך לראות. "
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T03:13:00.605Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

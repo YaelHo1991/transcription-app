@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-20T02:42:02.882Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755657607724",
+        "speaker": "ב",
+        "text": "בוא נראה. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755657720779-q3zx48tbg",
+        "speaker": "ג",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T02:42:02.866Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

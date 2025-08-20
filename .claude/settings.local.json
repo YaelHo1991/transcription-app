@@ -62,7 +62,9 @@
       "Bash(git fsck:*)",
       "Bash(wmic:*)",
       "Bash(git branch:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(git reset:*)",
+      "Bash(npx next:*)"
     ],
     "deny": [],
     "additionalDirectories": [

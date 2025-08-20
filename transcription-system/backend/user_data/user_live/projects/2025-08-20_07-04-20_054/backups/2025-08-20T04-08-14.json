@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-08-20T04:08:14.732Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755662660846",
+        "speaker": "בורר",
+        "text": "אתה נקראת פה לתת איזושהי עדות. ",
+        "speakerTime": 0.994929
+      },
+      {
+        "id": "block-1755662670133-jz9sfcvpr",
+        "speaker": "בורר",
+        "text": "בעקבות תצהיר שנתת. ",
+        "speakerTime": 7.646847
+      },
+      {
+        "id": "block-1755662673690-gkzsmgujg",
+        "speaker": "בורר",
+        "text": "אני מזהיר אותך שאתה חייב לומר את האמת, רק את האמת [00:00:18].",
+        "speakerTime": 11.106227
+      },
+      {
+        "id": "block-1755662691824-e1zhv97v4",
+        "speaker": "בורר",
+        "text": "נתת תצהיר, כמו שאמר הבורר. ",
+        "speakerTime": 29.30925
+      },
+      {
+        "id": "block-1755662697740-q30fbi401",
+        "speaker": "ד",
+        "text": "אני אחקור אותך בחקירה נגדית. ",
+        "speakerTime": 35.1591
+      },
+      {
+        "id": "block-1755662870947-fw7yuxvx3",
+        "speaker": "ב",
+        "text": " [00:00:00] ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755662890724-bayobr82p",
+        "speaker": "",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T04:08:14.722Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "בורר",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

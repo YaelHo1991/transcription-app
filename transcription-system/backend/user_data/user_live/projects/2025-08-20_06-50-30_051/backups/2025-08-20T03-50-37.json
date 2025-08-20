@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-20T03:50:37.208Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755661830604",
+        "speaker": "א",
+        "text": "ג.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755661835626-8idq24lee",
+        "speaker": "ב",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T03:50:37.187Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

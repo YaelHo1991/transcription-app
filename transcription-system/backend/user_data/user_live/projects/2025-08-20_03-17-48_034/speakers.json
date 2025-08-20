@@ -1,0 +1,23 @@
+{
+  "speakers": [
+    {
+      "code": "א",
+      "name": "אברהם",
+      "description": "",
+      "color": "#667eea"
+    },
+    {
+      "code": "ד",
+      "name": "דויד",
+      "description": "",
+      "color": "#f59e0b"
+    },
+    {
+      "code": "ג",
+      "name": "",
+      "description": "",
+      "color": "#f59e0b"
+    }
+  ],
+  "version": "1.0.0"
+}

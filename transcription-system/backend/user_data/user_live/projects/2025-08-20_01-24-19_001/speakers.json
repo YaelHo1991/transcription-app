@@ -1,0 +1,11 @@
+{
+  "speakers": [
+    {
+      "code": "A",
+      "name": "Alice",
+      "description": "Main speaker",
+      "color": "#667eea"
+    }
+  ],
+  "version": "1.0.0"
+}

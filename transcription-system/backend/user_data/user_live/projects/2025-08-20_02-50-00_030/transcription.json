@@ -1,0 +1,24 @@
+{
+  "blocks": [
+    {
+      "id": "block-1755647400948",
+      "speaker": "א",
+      "text": "אני.",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755647497142-qmuk27utm",
+      "speaker": "ב",
+      "text": " [00:35:54] ",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755647510822-q7x9rr6c1",
+      "speaker": "ג",
+      "text": "צריך לבדוק את הזמן. ",
+      "speakerTime": 2154.598889
+    }
+  ],
+  "version": "1.0.0",
+  "lastSaved": "2025-08-19T23:56:17.175Z"
+}

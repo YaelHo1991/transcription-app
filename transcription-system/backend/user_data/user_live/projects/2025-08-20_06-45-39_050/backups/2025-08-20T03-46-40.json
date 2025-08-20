@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-20T03:46:40.105Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755661539526",
+        "speaker": "א",
+        "text": "יאללה, קדימה, יעל. לא להתייאש!",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755661549968-zroatmcaw",
+        "speaker": "ב",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T03:46:40.037Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

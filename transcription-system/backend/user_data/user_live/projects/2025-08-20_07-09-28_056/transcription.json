@@ -1,0 +1,36 @@
+{
+  "blocks": [
+    {
+      "id": "block-1755662968856",
+      "speaker": "בורר",
+      "text": "אתה נקראת.",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755662978140-hukpfmans",
+      "speaker": "בורר",
+      "text": "לתת פה איזושהי עדות.",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755662982796-8actzyjdz",
+      "speaker": "דנה",
+      "text": "אני לא יודעת. ",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755663127090-fgnspfks9",
+      "speaker": "גדי",
+      "text": "צריך לראות.",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755663286345-us14eqywa",
+      "speaker": "",
+      "text": "",
+      "speakerTime": 0
+    }
+  ],
+  "version": "1.0.0",
+  "lastSaved": "2025-08-20T04:14:57.329Z"
+}

@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-08-19T22:30:53.639Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755642642731",
+        "speaker": "א",
+        "text": "אני לא יודעת. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T22:30:53.625Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ב",
+        "name": "גלא",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

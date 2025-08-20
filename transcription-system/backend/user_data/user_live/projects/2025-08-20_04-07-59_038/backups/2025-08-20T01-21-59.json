@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-08-20T01:21:59.947Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755652079853",
+        "speaker": "א",
+        "text": "אבל.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755652872290-4v3tochxb",
+        "speaker": "ב",
+        "text": "מה, [00:29:54] ",
+        "speakerTime": 1790.650809
+      },
+      {
+        "id": "block-1755652876387-imkfe7ioz",
+        "speaker": "ג",
+        "text": "אל תגיד לי שזה לא עובד!",
+        "speakerTime": 1794.681054
+      },
+      {
+        "id": "block-1755652883275-rks0oi8c5",
+        "speaker": "ד",
+        "text": "",
+        "speakerTime": 1801.600937
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T01:21:59.893Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#ef4444"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

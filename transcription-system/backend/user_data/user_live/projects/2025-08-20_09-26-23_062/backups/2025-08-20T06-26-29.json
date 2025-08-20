@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-08-20T06:26:29.067Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755671183206",
+        "speaker": "א",
+        "text": "שכ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T06:26:29.055Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

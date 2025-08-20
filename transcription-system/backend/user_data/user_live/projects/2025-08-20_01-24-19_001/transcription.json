@@ -1,0 +1,12 @@
+{
+  "blocks": [
+    {
+      "id": "block-1",
+      "speaker": "A",
+      "text": "Test text",
+      "speakerTime": 10.5
+    }
+  ],
+  "version": "1.0.0",
+  "lastSaved": "2025-08-19T22:24:28.869Z"
+}

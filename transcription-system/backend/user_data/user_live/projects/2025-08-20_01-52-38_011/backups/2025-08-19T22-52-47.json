@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-08-19T22:52:47.737Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755643958844",
+        "speaker": "",
+        "text": "לא ברור. "
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T22:52:47.726Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

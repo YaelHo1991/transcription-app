@@ -1,0 +1,21 @@
+{
+  "speakers": [
+    {
+      "id": "speaker-ה",
+      "code": "ה",
+      "name": "הודיה",
+      "description": "",
+      "color": "#667eea",
+      "count": 0
+    },
+    {
+      "id": "speaker-ו",
+      "code": "ו",
+      "name": "ויקטור",
+      "description": "",
+      "color": "#f59e0b",
+      "count": 0
+    }
+  ],
+  "version": "1.0.0"
+}

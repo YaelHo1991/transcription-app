@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-08-19T22:57:19.066Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755644205419",
+        "speaker": "א",
+        "text": "בה. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755644226027-gjsic5t11",
+        "speaker": "ב",
+        "text": "אני רוצה לבדוק את הסיפור של הגרסאות. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755644233835-sll4cl08g",
+        "speaker": "ג",
+        "text": "בוא נראה. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T22:57:19.055Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      },
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#ef4444"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

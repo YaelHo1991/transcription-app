@@ -1,0 +1,21 @@
+{
+  "speakers": [
+    {
+      "id": "speaker-1755651279724",
+      "code": "א",
+      "name": "",
+      "description": "",
+      "color": "#667eea",
+      "count": 0
+    },
+    {
+      "id": "speaker-2",
+      "code": "ב",
+      "name": "",
+      "description": "",
+      "color": "#f59e0b",
+      "count": 0
+    }
+  ],
+  "version": "1.0.0"
+}

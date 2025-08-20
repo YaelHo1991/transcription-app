@@ -1,0 +1,24 @@
+{
+  "blocks": [
+    {
+      "id": "block-1755657607724",
+      "speaker": "ב",
+      "text": "בוא נראה. ",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755657720779-q3zx48tbg",
+      "speaker": "ג",
+      "text": "ואז נוסיף עוד שורה אחת.",
+      "speakerTime": 0
+    },
+    {
+      "id": "block-1755657810576-3objtmguk",
+      "speaker": "ה",
+      "text": "",
+      "speakerTime": 0
+    }
+  ],
+  "version": "1.0.0",
+  "lastSaved": "2025-08-20T02:56:04.359Z"
+}

@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-08-20T03:10:22.704Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755658596471",
+        "speaker": "ג",
+        "text": "טקסט ראשון. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755658601523-anxx5nkl5",
+        "speaker": "ד",
+        "text": "טקסט ראשון. טקסט שני [00:00:04].",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755659373774-vywsytk7d",
+        "speaker": "ה",
+        "text": "אוקי. ",
+        "speakerTime": 18.299191
+      },
+      {
+        "id": "block-1755659380628-xxlk8n47q",
+        "speaker": "ד",
+        "text": "למה לא?",
+        "speakerTime": 25.235109
+      },
+      {
+        "id": "block-1755659386374-9ira8qfry",
+        "speaker": "ו",
+        "text": "בסדר  [00:00:41] ",
+        "speakerTime": 30.816315
+      },
+      {
+        "id": "block-1755659402972-vs5539xz3",
+        "speaker": "",
+        "text": " [00:01:00]. ",
+        "speakerTime": 47.579579
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T03:10:22.688Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ג",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ה",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "ו",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [
+      {
+        "id": "remark-1755659331628-fftu7492m",
+        "type": 4,
+        "status": "open",
+        "createdAt": "2025-08-20T03:08:51.628Z",
+        "updatedAt": "2025-08-20T03:08:54.489Z"
+      },
+      {
+        "id": "remark-1755659410992-hig2xzphj",
+        "type": 1,
+        "status": "open",
+        "timestamp": {
+          "time": 41,
+          "formatted": "00:00:41",
+          "context": "בסדר [00:00:41בדיקה ראשונה]"
+        },
+        "createdAt": "2025-08-20T03:10:10.992Z",
+        "updatedAt": "2025-08-20T03:10:10.992Z"
+      }
+    ],
+    "version": "1.0.0"
+  }
+}

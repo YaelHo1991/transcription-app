@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-08-19T22:57:48.276Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755644157311",
+        "speaker": "א",
+        "text": "בדיקה. ",
+        "speakerTime": 1881.774927
+      },
+      {
+        "id": "block-1755644258048-4te4y1hk1",
+        "speaker": "ב",
+        "text": "אולי תגיד לי למה לא. ",
+        "speakerTime": 1889.698429
+      },
+      {
+        "id": "block-1755644263915-uylbula43",
+        "speaker": "ד",
+        "text": "בסדר. ",
+        "speakerTime": 1895.557191
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T22:57:48.263Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#8b5cf6"
+      },
+      {
+        "code": "ד",
+        "name": "",
+        "description": "",
+        "color": "#ec4899"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

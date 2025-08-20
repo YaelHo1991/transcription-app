@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-08-20T00:18:59.400Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755649099899",
+        "speaker": "הודיה",
+        "text": "הודיה. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755649114497-u16tc7fli",
+        "speaker": "ויקטור",
+        "text": "ויקטור. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T00:18:59.378Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "id": "speaker-",
+        "code": "ה",
+        "name": "הודיה",
+        "description": "",
+        "color": "#667eea",
+        "count": 0
+      },
+      {
+        "id": "speaker-2",
+        "code": "ו",
+        "name": "ויקטור",
+        "description": "",
+        "color": "#f59e0b",
+        "count": 0
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

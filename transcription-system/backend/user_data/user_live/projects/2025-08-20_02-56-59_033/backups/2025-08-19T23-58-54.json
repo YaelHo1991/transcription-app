@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-08-19T23:58:54.040Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755647875460",
+        "speaker": "",
+        "text": ""
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T23:58:54.018Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ג",
+        "name": "דג",
+        "description": "גד",
+        "color": "#667eea"
+      },
+      {
+        "code": "ד",
+        "name": "דויד",
+        "description": "",
+        "color": "#f59e0b"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-08-19T22:51:05.616Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755643854129",
+        "speaker": "א",
+        "text": "ניסוי."
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T22:51:05.595Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

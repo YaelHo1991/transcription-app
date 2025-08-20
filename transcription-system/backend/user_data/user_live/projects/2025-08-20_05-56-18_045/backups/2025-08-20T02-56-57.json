@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-08-20T02:56:57.617Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755658578916",
+        "speaker": "א",
+        "text": "טקסט ראשון.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755658589510-2l3hf6y44",
+        "speaker": "ב",
+        "text": "טקסט ראשון. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T02:56:57.615Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "id": "speaker-א",
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#667eea",
+        "count": 0
+      },
+      {
+        "id": "speaker-ב",
+        "code": "ב",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b",
+        "count": 0
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

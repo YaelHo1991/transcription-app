@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-08-20T02:37:36.060Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755657341557",
+        "speaker": "י",
+        "text": "בבגשה. ",
+        "speakerTime": 3.391344
+      },
+      {
+        "id": "block-1755657413562-xjix5rckz",
+        "speaker": "בורר",
+        "text": "אתה נקראת פה לתת איזושהי עדות, ",
+        "speakerTime": 7.314813
+      },
+      {
+        "id": "block-1755657427174-hwk9d52h8",
+        "speaker": "דודי",
+        "text": "אני אחקור אותך בחקירה נגדית [00:00:46]. היא לא תהיה ארוכה, האמת. ",
+        "speakerTime": 37.07903
+      },
+      {
+        "id": "block-1755657440471-0o2bf6bp6",
+        "speaker": "ש",
+        "text": "טוב. ",
+        "speakerTime": 50.420948
+      },
+      {
+        "id": "block-1755657408994-qpyhwsgrn",
+        "speaker": "",
+        "text": "",
+        "speakerTime": 7.913774
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-20T02:37:36.043Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "id": "speaker-",
+        "code": "י",
+        "name": "",
+        "description": "",
+        "color": "#667eea",
+        "count": 0
+      },
+      {
+        "id": "speaker-2",
+        "code": "א",
+        "name": "בורר",
+        "description": "",
+        "color": "#f59e0b",
+        "count": 0
+      },
+      {
+        "id": "speaker-3",
+        "code": "ד",
+        "name": "דודי",
+        "description": "",
+        "color": "#10b981",
+        "count": 0
+      },
+      {
+        "id": "speaker-4",
+        "code": "ש",
+        "name": "",
+        "description": "",
+        "color": "#ef4444",
+        "count": 0
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

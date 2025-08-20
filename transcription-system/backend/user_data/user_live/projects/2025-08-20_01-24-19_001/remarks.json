@@ -1,0 +1,11 @@
+{
+  "remarks": [
+    {
+      "id": "remark-1",
+      "blockId": "block-1",
+      "text": "Important note",
+      "type": "note"
+    }
+  ],
+  "version": "1.0.0"
+}

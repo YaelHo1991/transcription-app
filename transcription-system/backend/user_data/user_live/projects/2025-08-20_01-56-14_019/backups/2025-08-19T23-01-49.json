@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-08-19T23:01:49.998Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755644205419",
+        "speaker": "אברהם",
+        "text": "בה. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755644226027-gjsic5t11",
+        "speaker": "בני",
+        "text": "אני רוצה לבדוק את הסיפור של הגרסאות. ",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755644233835-sll4cl08g",
+        "speaker": "גדי",
+        "text": "בוא נראה.",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755644475328-wj5sosd5n",
+        "speaker": "בני",
+        "text": "למה הוא לא חוסם אותי?",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755644498143-b2e3jtyzy",
+        "speaker": "אברהם",
+        "text": "בסדר. בוא נבדוק. ",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-19T23:01:49.987Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "א",
+        "name": "אברהם",
+        "description": "",
+        "color": "#667eea"
+      },
+      {
+        "code": "ב",
+        "name": "בני",
+        "description": "",
+        "color": "#10b981"
+      },
+      {
+        "code": "ג",
+        "name": "גדי",
+        "description": "",
+        "color": "#ef4444"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}
