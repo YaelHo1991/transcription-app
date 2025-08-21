@@ -37,6 +37,23 @@ export interface IncrementalSaveData {
 
 class ProjectService {
   /**
+   * Get auth headers with token
+   */
+  private getHeaders(): HeadersInit {
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'X-Dev-Mode': 'true'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }
+  
+  /**
    * Create a new project
    */
   async createProject(mediaFileName: string, projectName?: string): Promise<string | null> {
@@ -51,10 +68,7 @@ class ProjectService {
       
       const response = await fetch(`${API_URL}/api/projects/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           mediaFileName,
           projectName: projectName || 'פרויקט חדש'
@@ -94,10 +108,7 @@ class ProjectService {
       
       const response = await fetch(`${API_URL}/api/projects/${projectId}/save`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify(data)
       });
       
@@ -170,10 +181,7 @@ class ProjectService {
       console.log('[Project] Loading project:', projectId);
       
       const response = await fetch(`${API_URL}/api/projects/${projectId}/load`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        }
+        headers: this.getHeaders()
       });
       
       if (!response.ok) {
@@ -208,10 +216,7 @@ class ProjectService {
       const response = await fetch(
         `${API_URL}/api/projects/by-media/${encodeURIComponent(mediaFileName)}`,
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Dev-Mode': 'true'
-          }
+          headers: this.getHeaders()
         }
       );
       
@@ -236,10 +241,7 @@ class ProjectService {
       
       const response = await fetch(`${API_URL}/api/projects/${projectId}/backup`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        }
+        headers: this.getHeaders()
       });
       
       if (!response.ok) {
@@ -267,10 +269,7 @@ class ProjectService {
         `${API_URL}/api/projects/${projectId}/restore/${backupFile}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Dev-Mode': 'true'
-          }
+          headers: this.getHeaders()
         }
       );
       
@@ -297,10 +296,7 @@ class ProjectService {
       
       const response = await fetch(`${API_URL}/api/projects/list`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        }
+        headers: this.getHeaders()
       });
       
       if (!response.ok) {
@@ -324,10 +320,7 @@ class ProjectService {
   async listBackups(projectId: string): Promise<any[]> {
     try {
       const response = await fetch(`${API_URL}/api/projects/${projectId}/backups`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        }
+        headers: this.getHeaders()
       });
       
       if (!response.ok) {
@@ -374,10 +367,7 @@ class ProjectService {
       
       const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Dev-Mode': 'true'
-        }
+        headers: this.getHeaders()
       });
       
       if (!response.ok) {

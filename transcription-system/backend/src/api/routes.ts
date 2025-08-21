@@ -6,6 +6,7 @@ import transcriptionRoutes from './transcription/routes';
 import projectRoutes from './projects/routes';
 import adminShortcutsRoutes from './admin/shortcuts/routes';
 import templateRoutes from '../routes/templateRoutes';
+import uploadRoutes from '../routes/uploadRoutes';
 import { initWaveformRoutes } from '../routes/waveformRoutes';
 import { db } from '../db/connection';
 
@@ -59,6 +60,9 @@ router.use('/projects', projectRoutes);
 
 // Admin endpoints for managing system shortcuts (auth handled in the route)
 router.use('/admin/shortcuts', adminShortcutsRoutes);
+
+// Upload endpoints (smart upload with URL import and chunking)
+router.use('/', uploadRoutes);
 
 // Waveform endpoints
 router.use('/waveform', initWaveformRoutes(db));

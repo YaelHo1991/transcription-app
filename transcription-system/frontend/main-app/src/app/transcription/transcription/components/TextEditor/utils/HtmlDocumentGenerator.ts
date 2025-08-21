@@ -2,6 +2,21 @@ import { BlockData, SpeakerData } from './WordDocumentGenerator';
 
 export class HtmlDocumentGenerator {
   /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  private joinWithRTLCommas(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  }
+
+  /**
    * Generate HTML document with proper Hebrew RTL support
    */
   public generateHtml(
@@ -148,7 +163,7 @@ export class HtmlDocumentGenerator {
     if (template?.body?.speakers?.enabled) {
       const speakersTemplate = template.body.speakers.template || 'דוברים: {{speakers}}, משך ההקלטה: {{duration}}';
       const speakersText = speakersTemplate
-        .replace('{{speakers}}', speakerNames.join(', ') || 'לא צוינו')
+        .replace('{{speakers}}', this.joinWithRTLCommas(speakerNames) || 'לא צוינו')
         .replace('{{duration}}', duration);
       
       html += `
@@ -256,7 +271,7 @@ export class HtmlDocumentGenerator {
         value = `קובץ: ${mediaFileName}`;
         break;
       case 'speakers':
-        value = `דוברים: ${speakerNames.join(', ')}`;
+        value = `דוברים: ${this.joinWithRTLCommas(speakerNames)}`;
         break;
       case 'duration':
         value = `משך: ${duration}`;

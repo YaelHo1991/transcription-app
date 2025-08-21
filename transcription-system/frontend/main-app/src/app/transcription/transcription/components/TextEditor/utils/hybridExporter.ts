@@ -8,6 +8,21 @@ export class HybridExporter {
   private templateBuffer: ArrayBuffer | null = null;
 
   /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  private joinWithRTLCommas(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  }
+
+  /**
    * Load a Word template file
    */
   public async loadTemplate(file: File): Promise<boolean> {
@@ -193,7 +208,7 @@ export class HybridExporter {
 
       const templateData = {
         fileName: mediaFileName || 'ללא שם',
-        speakers: speakerNames.join(', ') || 'לא צוינו',
+        speakers: this.joinWithRTLCommas(speakerNames) || 'לא צוינו',
         duration: duration,
         date: new Date().toLocaleDateString('he-IL'),
         transcriptionContent: formattedText

@@ -19,10 +19,10 @@ export default function LoginPage() {
   // Determine system-specific styling
   const isCRM = system === 'crm';
   const systemName = isCRM ? 'מערכת CRM' : 'מערכת תמלול';
-  const themeColor = isCRM ? '#b85042' : '#e91e63';
+  const themeColor = isCRM ? '#b85042' : '#e0a96d';
   const bgGradient = isCRM 
     ? 'linear-gradient(135deg, #f5f6f0 0%, #ede8d3 100%)'
-    : 'linear-gradient(135deg, #f5ebf8 0%, #fce4ec 100%)';
+    : 'linear-gradient(135deg, #faf8f5 0%, #f5e6d3 100%)';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +89,7 @@ export default function LoginPage() {
         <div className="login-box">
           <div 
             className="login-header" 
-            style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}dd)` }}
+            style={{ background: isCRM ? `linear-gradient(135deg, ${themeColor}, ${themeColor}dd)` : 'linear-gradient(135deg, #4a3428, #6b4423)' }}
           >
             <h1>{systemName}</h1>
             <p>התחברות למערכת</p>
@@ -131,7 +131,7 @@ export default function LoginPage() {
             <button 
               type="submit" 
               className="login-button"
-              style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}dd)` }}
+              style={{ background: isCRM ? `linear-gradient(135deg, ${themeColor}, ${themeColor}dd)` : 'linear-gradient(135deg, #4a3428, #6b4423)' }}
               disabled={loading}
             >
               {loading ? 'מתחבר...' : 'התחבר'}

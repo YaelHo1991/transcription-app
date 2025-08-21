@@ -24,6 +24,21 @@ export default function DocumentExportModal({
   mediaDuration,
   onExportComplete
 }: DocumentExportModalProps) {
+  /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  const joinWithRTLCommas = (items: string[]): string => {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  };
+
   const [includeTimestamps, setIncludeTimestamps] = useState(false);
   const [customFileName, setCustomFileName] = useState(mediaFileName.replace(/\.[^/.]+$/, ''));
   const [isExporting, setIsExporting] = useState(false);
@@ -34,7 +49,11 @@ export default function DocumentExportModal({
   // Auto-load template when modal opens
   React.useEffect(() => {
     if (isOpen && !hasTemplate) {
-      loadDefaultTemplate();
+      // Try to load template, but don't block if it fails
+      loadDefaultTemplate().catch(err => {
+        console.warn('Could not auto-load template:', err);
+        // Continue without template - user can upload manually
+      });
     }
   }, [isOpen]);
   
@@ -65,8 +84,8 @@ export default function DocumentExportModal({
     
     try {
       if (hasTemplate) {
-        // Use template processor with formatted content (properly fills {#formattedBlocks} placeholders with RTL wrapping)
-        const success = await templateProcessor.processTemplateWithFormattedContent(
+        // Use template processor with Hebrew conversion
+        const success = await templateProcessor.processTemplateWithConversion(
           blocks,
           speakers,
           mediaFileName,
@@ -159,7 +178,7 @@ export default function DocumentExportModal({
     })();
     
     return {
-      speakers: speakerNames.join(', ') || 'לא צוינו',
+      speakers: joinWithRTLCommas(speakerNames) || 'לא צוינו',
       duration,
       blockCount: blocks.filter(b => b.text || b.speaker).length
     };

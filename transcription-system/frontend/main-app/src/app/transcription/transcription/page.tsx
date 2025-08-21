@@ -19,9 +19,10 @@ import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
 import { projectService } from '../../../services/projectService';
-import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import './transcription-theme.css';
 import './transcription-page.css';
+import './components/TranscriptionSidebar/TranscriptionSidebar.css';
+import '../shared/components/HoveringBarsLayout/HoveringBarsLayout.css';
 
 interface MediaItem {
   type: 'file' | 'url';
@@ -31,10 +32,12 @@ interface MediaItem {
   size?: string;
 }
 
-interface Project {
+// MediaCollection represents a collection of media files (audio/video)
+// This is different from a transcription project which is stored in the backend
+interface MediaCollection {
   name: string;
   mediaItems: MediaItem[];
-  projectId?: string; // Store the backend project ID
+  transcriptionProjectId?: string; // Reference to the backend transcription project ID
 }
 
 // Type for files with webkit directory support
@@ -58,8 +61,52 @@ const createDefaultTranscription = () => ({
   isDefault: true // Always true - marks it as undeletable
 });
 
+// Helper function to get current user ID from token or localStorage
+const getCurrentUserId = (): string | null => {
+  try {
+    // Try to get from localStorage
+    const userId = localStorage.getItem('userId');
+    if (userId) return userId;
+    
+    // Try to decode from token
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+    if (token) {
+      // Basic JWT decode (without verification)
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        return payload.userId || payload.id || null;
+      }
+    }
+  } catch (error) {
+    console.error('[Auth] Error getting user ID:', error);
+  }
+  return null;
+};
+
 export default function TranscriptionWorkPage() {
+  // Phase 2 completed - Fixed projectName references
   const router = useRouter();
+  
+  // User information
+  const [userFullName, setUserFullName] = useState('משתמש');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // Get user's full name and ID from localStorage
+  useEffect(() => {
+    const fullName = localStorage.getItem('userFullName') || '';
+    if (fullName && fullName !== 'null' && fullName !== 'undefined') {
+      setUserFullName(fullName);
+    } else {
+      const email = localStorage.getItem('userEmail') || '';
+      setUserFullName(email.split('@')[0] || 'משתמש');
+    }
+    
+    // Get and set current user ID
+    const userId = getCurrentUserId();
+    setCurrentUserId(userId);
+    console.log('[Auth] Current user ID:', userId);
+  }, []);
   
   // Store project remarks to pass to RemarksProvider
   const [projectRemarks, setProjectRemarks] = useState<any[]>([]);
@@ -81,11 +128,12 @@ export default function TranscriptionWorkPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const mediaPlayerRef = useRef<any>(null);
   
-  // Project and media management (for media files)
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
+  // Media collection management (for media files) - NOT transcription projects
+  const [mediaCollections, setMediaCollections] = useState<MediaCollection[]>([]);
+  const [currentCollectionIndex, setCurrentCollectionIndex] = useState(0);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [actualMediaDuration, setActualMediaDuration] = useState<number>(0);
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
   
   // Transcription management (saved transcriptions from backend)
   const [transcriptions, setTranscriptions] = useState<any[]>(() => [createDefaultTranscription()]);
@@ -101,22 +149,26 @@ export default function TranscriptionWorkPage() {
   const projectFolderRef = useRef<HTMLInputElement>(null);
   const speakerComponentRef = useRef<SimpleSpeakerHandle>(null);
   
-  // Project management
+  // Transcription Project management (backend projects with transcription data)
+  // currentProjectId refers to the backend transcription project ID (timestamp folder)
   const [currentProjectId, setCurrentProjectId] = useState<string>('');
-  const [projectsMap, setProjectsMap] = useState<Map<string, string>>(new Map()); // mediaName -> projectId
+  const [projectsMap, setProjectsMap] = useState<Map<string, string>>(new Map()); // DEPRECATED - will be removed
+  const [mediaProjectsMap, setMediaProjectsMap] = useState<Map<string, string>>(new Map()); // Maps media filename -> transcription projectId
   
-  // Get current project and media info
-  const currentProject = projects[currentProjectIndex];
-  const currentMedia = currentProject?.mediaItems[currentMediaIndex];
-  const hasProjects = projects.length > 0;
-  const hasMedia = currentProject?.mediaItems.length > 0;
+  // Get current media collection and media info
+  const currentCollection = mediaCollections[currentCollectionIndex];
+  const currentMedia = currentCollection?.mediaItems[currentMediaIndex];
+  const hasCollections = mediaCollections.length > 0;
+  const hasMedia = currentCollection?.mediaItems.length > 0;
+  
+  // Debug logging (removed to prevent render loops)
   
   // Use project ID for components instead of mediaId
   const mediaId = currentMedia ? `0-0-${currentMedia.name}` : '';
   const transcriptionNumber = 2; // Using transcription 2 as default
   
   // Use real data if available, otherwise show empty state
-  const projectName = currentProject?.name || '';
+  const collectionName = currentCollection?.name || '';
   const mediaName = currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת');
   const mediaSize = currentMedia?.size || (hasMedia ? '' : '0 MB');
   
@@ -149,10 +201,215 @@ export default function TranscriptionWorkPage() {
   
   const mediaDuration = formatDuration(actualMediaDuration);
 
+  // Function to load complete project data (blocks, speakers, remarks)
+  // Function to load complete transcription project data from backend
+  // This loads the actual transcription content (blocks, speakers, remarks)
+  const loadProjectData = useCallback(async (projectId: string) => {
+    try {
+      console.log('[Page] Loading project data for:', projectId);
+      const projectData = await projectService.loadProject(projectId);
+      
+      if (projectData) {
+        // Set current project ID
+        setCurrentProjectId(projectId);
+        
+        // Load blocks into TextEditor (will be handled via currentProjectId prop)
+        // The TextEditor component will load the data when currentProjectId changes
+        
+        // Load speakers into SimpleSpeaker component
+        if (projectData.speakers && speakerComponentRef.current) {
+          speakerComponentRef.current.loadSpeakers(projectData.speakers);
+        }
+        
+        // Load remarks - store them to pass to RemarksProvider
+        if (projectData.remarks) {
+          setProjectRemarks(projectData.remarks);
+        }
+        
+        // Update the media information from metadata
+        if (projectData.metadata && projectData.metadata.mediaFile) {
+          // Find the transcription and update its media info
+          console.log('[Page] Project has media file:', projectData.metadata.mediaFile);
+        }
+        
+        // Log successful load
+        console.log('[Page] Successfully loaded project:', {
+          projectId,
+          blocks: projectData.blocks?.length || 0,
+          speakers: projectData.speakers?.length || 0,
+          remarks: projectData.remarks?.length || 0,
+          mediaFile: projectData.metadata?.mediaFile || 'none'
+        });
+      }
+    } catch (error) {
+      console.error('[Page] Error loading project data:', error);
+    }
+  }, [setCurrentProjectId, setProjectRemarks]);
+
+  // Save session state to localStorage with user-specific key
+  const saveSessionState = useCallback(() => {
+    // Save even if we have media collections without backend IDs (local files)
+    if (mediaCollections.length === 0 && mediaProjectsMap.size === 0) return;
+    if (!currentUserId) {
+      console.warn('[Session] Cannot save session without user ID');
+      return;
+    }
+    
+    try {
+      const sessionData = {
+        userId: currentUserId, // Add user ID to session data
+        mediaCollections: mediaCollections.map(c => ({
+          name: c.name,
+          transcriptionProjectId: c.transcriptionProjectId,
+          mediaItems: c.mediaItems.map(m => ({
+            type: m.type,
+            name: m.name,
+            size: m.size,
+            url: m.url, // Save URL for URL-based media
+            // Note: We can't save File objects directly, will need to re-select files
+          }))
+        })),
+        mediaProjectsMap: Object.fromEntries(mediaProjectsMap), // Convert Map to object for JSON
+        currentCollectionIndex,
+        currentMediaIndex,
+        currentTranscriptionIndex,  // Save current transcription index
+        currentProjectId: currentCollection?.transcriptionProjectId || currentProjectId,  // Save current transcription project ID
+        timestamp: Date.now()
+      };
+      
+      // Use user-specific session key
+      const sessionKey = `transcriptionSessionState_${currentUserId}`;
+      localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+      console.log('[Session] Saved session state for user', currentUserId, 'with', mediaCollections.length, 'media collections');
+    } catch (error) {
+      console.error('[Session] Failed to save session state:', error);
+    }
+  }, [mediaCollections, currentCollectionIndex, currentMediaIndex, currentTranscriptionIndex, currentCollection, currentProjectId, mediaProjectsMap, currentUserId]);
+
+  // Save session whenever media collections or indices change
+  useEffect(() => {
+    // Don't save while actively restoring to avoid overwriting
+    if (!isRestoringSession && (mediaCollections.length > 0 || mediaProjectsMap.size > 0)) {
+      saveSessionState();
+    }
+  }, [mediaCollections, currentCollectionIndex, currentMediaIndex, currentTranscriptionIndex, mediaProjectsMap, saveSessionState, isRestoringSession]);
+
+  // Restore session state on mount
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) {
+          console.log('[Session] No user ID available, skipping session restore');
+          return;
+        }
+        
+        // Use user-specific session key
+        const sessionKey = `transcriptionSessionState_${userId}`;
+        const savedSession = localStorage.getItem(sessionKey);
+        
+        // Also clean up any old non-user-specific session
+        const oldSession = localStorage.getItem('transcriptionSessionState');
+        if (oldSession) {
+          console.log('[Session] Removing old non-user-specific session');
+          localStorage.removeItem('transcriptionSessionState');
+        }
+        
+        if (!savedSession) return;
+        
+        const sessionData = JSON.parse(savedSession);
+        
+        // Validate session belongs to current user
+        if (sessionData.userId && sessionData.userId !== userId) {
+          console.warn('[Session] Session user ID mismatch, ignoring saved state');
+          localStorage.removeItem(sessionKey);
+          return;
+        }
+        
+        // Check if session is not too old (24 hours)
+        if (Date.now() - sessionData.timestamp > 24 * 60 * 60 * 1000) {
+          localStorage.removeItem(sessionKey);
+          return;
+        }
+        
+        setIsRestoringSession(true);
+        
+        // Restore media-project mappings if available
+        if (sessionData.mediaProjectsMap) {
+          const restoredMap = new Map(Object.entries(sessionData.mediaProjectsMap));
+          setMediaProjectsMap(restoredMap);
+          console.log('[Session] Restored media-project mappings:', restoredMap.size, 'entries');
+        }
+        
+        // Only restore backend-linked media collections (with transcriptionProjectId)
+        // File-based media cannot be restored due to browser security restrictions
+        const restoredCollections: MediaCollection[] = [];
+        
+        // Handle both old format (projects) and new format (mediaCollections)
+        const savedCollections = sessionData.mediaCollections || sessionData.projects || [];
+        
+        for (const savedCollection of savedCollections) {
+          const projectId = savedCollection.transcriptionProjectId || savedCollection.projectId;
+          if (projectId) {
+            // This is a backend-linked collection, we can fully restore it
+            restoredCollections.push({
+              name: savedCollection.name,
+              transcriptionProjectId: projectId,
+              mediaItems: savedCollection.mediaItems
+            });
+          }
+          // Skip file-based media as they can't be properly restored
+        }
+        
+        if (restoredCollections.length > 0) {
+          console.log('[Session] Restored', restoredCollections.length, 'media collections from saved session');
+          setMediaCollections(restoredCollections);
+          const collectionIndex = sessionData.currentCollectionIndex ?? sessionData.currentProjectIndex ?? 0;
+          setCurrentCollectionIndex(Math.min(collectionIndex, restoredCollections.length - 1));
+          setCurrentMediaIndex(sessionData.currentMediaIndex || 0);
+          
+          // Restore transcription index
+          if (sessionData.currentTranscriptionIndex !== undefined) {
+            setCurrentTranscriptionIndex(sessionData.currentTranscriptionIndex);
+            console.log('[Session] Restored transcription index:', sessionData.currentTranscriptionIndex);
+          }
+          
+          // Load project data if we have a saved project ID
+          // This will load transcription blocks, speakers, and remarks from the server
+          if (sessionData.currentProjectId) {
+            console.log('[Session] Loading project data for:', sessionData.currentProjectId);
+            await loadProjectData(sessionData.currentProjectId);
+          } else {
+            // Fallback: Load transcription project data if it's a backend-linked collection
+            const collectionIndex = sessionData.currentCollectionIndex ?? sessionData.currentProjectIndex ?? 0;
+            const currentColl = restoredCollections[Math.min(collectionIndex, restoredCollections.length - 1)];
+            if (currentColl?.transcriptionProjectId) {
+              console.log('[Session] Loading transcription project data for current collection:', currentColl.transcriptionProjectId);
+              await loadProjectData(currentColl.transcriptionProjectId);
+            }
+          }
+        } else {
+          // Show a message that files need to be re-loaded
+          console.log('[Session] No restorable projects found (file-based projects need to be re-loaded)');
+        }
+        
+        setIsRestoringSession(false);
+      } catch (error) {
+        console.error('[Session] Failed to restore session:', error);
+        setIsRestoringSession(false);
+      }
+    };
+    
+    // Restore session on mount
+    if (typeof window !== 'undefined') {
+      restoreSession();
+    }
+  }, []); // Run only once on mount
+
   // Load saved transcriptions from backend
   useEffect(() => {
     // Only run on client side after a delay
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !isRestoringSession) {
       const timer = setTimeout(async () => {
         try {
           console.log('[Page] Loading saved transcriptions from backend...');
@@ -181,12 +438,20 @@ export default function TranscriptionWorkPage() {
           setTranscriptions(allTranscriptions);
           
           if (allTranscriptions.length > 0) {
-            // Find the first non-default transcription, or fall back to 0
-            const firstNonDefaultIndex = allTranscriptions.findIndex(t => !t.isDefault);
-            const targetIndex = firstNonDefaultIndex >= 0 ? firstNonDefaultIndex : 0;
+            // Only set default index if we don't already have a restored index from session
+            const savedSession = localStorage.getItem('transcriptionSessionState');
+            const hasRestoredIndex = savedSession && JSON.parse(savedSession).currentTranscriptionIndex !== undefined;
             
-            console.log('[Page] Setting current transcription index to:', targetIndex, 'for transcription:', allTranscriptions[targetIndex]?.name);
-            setCurrentTranscriptionIndex(targetIndex);
+            if (!hasRestoredIndex) {
+              // Find the first non-default transcription, or fall back to 0
+              const firstNonDefaultIndex = allTranscriptions.findIndex(t => !t.isDefault);
+              const targetIndex = firstNonDefaultIndex >= 0 ? firstNonDefaultIndex : 0;
+              
+              console.log('[Page] Setting current transcription index to:', targetIndex, 'for transcription:', allTranscriptions[targetIndex]?.name);
+              setCurrentTranscriptionIndex(targetIndex);
+            } else {
+              console.log('[Page] Keeping restored transcription index:', currentTranscriptionIndex);
+            }
           }
         } catch (error) {
           console.error('[Page] Error loading transcriptions:', error);
@@ -195,20 +460,35 @@ export default function TranscriptionWorkPage() {
       
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isRestoringSession]);
 
-  // Load existing projects on mount
-  // TEMPORARILY DISABLED TO DEBUG ERROR
-  /*
+  // Load existing projects on mount (if no session was restored)
   useEffect(() => {
     const loadExistingProjects = async () => {
       try {
-        console.log('[Page] Loading existing projects...');
+        // If we already have collections, don't load from backend
+        if (mediaCollections.length > 0) {
+          console.log('[Page] Already have', mediaCollections.length, 'collections, skipping backend load');
+          return;
+        }
+        
+        // Double-check session wasn't just restored
+        const savedSession = localStorage.getItem('transcriptionSessionState');
+        if (savedSession) {
+          const sessionData = JSON.parse(savedSession);
+          const collections = sessionData.mediaCollections || sessionData.projects;
+          if (collections && collections.length > 0) {
+            console.log('[Page] Session has collections, skipping backend load to avoid duplicates');
+            return;
+          }
+        }
+        
+        console.log('[Page] No existing collections found, loading from backend...');
         const projectsList = await projectService.listProjects();
         
         if (projectsList && projectsList.length > 0) {
-          // Transform backend projects to frontend format
-          const transformedProjects: Project[] = projectsList.map(proj => {
+          // Transform backend transcription projects to media collections
+          const transformedCollections: MediaCollection[] = projectsList.map(proj => {
             try {
               return {
                 name: proj.projectName || 'פרויקט ללא שם',
@@ -217,24 +497,24 @@ export default function TranscriptionWorkPage() {
                   name: proj.mediaFile || 'מדיה לא ידועה',
                   size: '0 MB' // Size not stored in backend
                 }],
-                projectId: proj.projectId
+                transcriptionProjectId: proj.projectId
               };
             } catch (err) {
-              console.error('[Page] Error transforming project:', proj, err);
+              console.error('[Page] Error transforming transcription project:', proj, err);
               return null;
             }
-          }).filter(Boolean) as Project[];
+          }).filter(Boolean) as MediaCollection[];
           
-          console.log('[Page] Loaded projects:', transformedProjects.length);
-          setProjects(transformedProjects);
+          console.log('[Page] Loaded', transformedCollections.length, 'transcription projects as media collections');
+          setMediaCollections(transformedCollections);
           
-          // If we have projects, set the first one as current
-          if (transformedProjects.length > 0) {
-            setCurrentProjectIndex(0);
+          // If we have collections, set the first one as current
+          if (transformedCollections.length > 0) {
+            setCurrentCollectionIndex(0);
             setCurrentMediaIndex(0);
-            // Load the first project's data
-            if (transformedProjects[0].projectId) {
-              await loadProjectData(transformedProjects[0].projectId);
+            // Load the first transcription project's data
+            if (transformedCollections[0].transcriptionProjectId) {
+              await loadProjectData(transformedCollections[0].transcriptionProjectId);
             }
           }
         }
@@ -243,75 +523,27 @@ export default function TranscriptionWorkPage() {
       }
     };
     
-    // Only run on client side
-    if (typeof window !== 'undefined') {
-      loadExistingProjects();
-    }
-  }, []); // Run once on mount
-  */
-  
-  // Function to load complete project data (blocks, speakers, remarks)
-  const loadProjectData = async (projectId: string) => {
-    try {
-      console.log('[Page] Loading project data for:', projectId);
-      const projectData = await projectService.loadProject(projectId);
+    // Only run on client side after session restoration completes
+    if (typeof window !== 'undefined' && !isRestoringSession) {
+      // Longer delay to ensure session is fully restored
+      const timer = setTimeout(() => {
+        loadExistingProjects();
+      }, 1000); // Increased delay to avoid race conditions
       
-      if (projectData) {
-        // Set current project ID
-        setCurrentProjectId(projectId);
-        
-        // Load blocks into TextEditor (will be handled via currentProjectId prop)
-        // The TextEditor component will load the data when currentProjectId changes
-        
-        // Load speakers into SimpleSpeaker component
-        if (projectData.speakers && speakerComponentRef.current) {
-          speakerComponentRef.current.loadSpeakers(projectData.speakers);
-        }
-        
-        // Load remarks - store them to pass to RemarksProvider
-        if (projectData.remarks) {
-          setProjectRemarks(projectData.remarks);
-        }
-        
-        // Update the media information from metadata
-        if (projectData.metadata && projectData.metadata.mediaFile) {
-          // Find the transcription and update its media info
-          const transcriptionIndex = transcriptions.findIndex(t => t.projectId === projectId);
-          if (transcriptionIndex !== -1) {
-            const updatedTranscriptions = [...transcriptions];
-            updatedTranscriptions[transcriptionIndex] = {
-              ...updatedTranscriptions[transcriptionIndex],
-              mediaItems: [{
-                type: 'file' as const,
-                name: projectData.metadata.mediaFile,
-                size: '0 MB'
-              }]
-            };
-            setTranscriptions(updatedTranscriptions);
-          }
-        }
-        
-        console.log('[Page] Project data loaded:', {
-          blocks: projectData.blocks?.length || 0,
-          speakers: projectData.speakers?.length || 0,
-          remarks: projectData.remarks?.length || 0,
-          mediaFile: projectData.metadata?.mediaFile || 'none'
-        });
-      }
-    } catch (error) {
-      console.error('[Page] Error loading project data:', error);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [isRestoringSession, mediaCollections.length, loadProjectData]); // Also depend on collections length
   
   const handleMediaUpload = (files: FileList) => {
-    // Create project if none exists
-    if (projects.length === 0) {
-      const newProject: Project = {
+    // Create media collection if none exists (frontend container for media files)
+    // Note: This will trigger transcription project creation in the backend later
+    if (mediaCollections.length === 0) {
+      const newCollection: MediaCollection = {
         name: '',
         mediaItems: []
       };
-      setProjects([newProject]);
-      setCurrentProjectIndex(0);
+      setMediaCollections([newCollection]);
+      setCurrentCollectionIndex(0);
     }
     
     const newItems: MediaItem[] = Array.from(files)
@@ -324,25 +556,26 @@ export default function TranscriptionWorkPage() {
       }));
     
     if (newItems.length > 0) {
-      setProjects(prev => {
+      setMediaCollections(prev => {
         const updated = [...prev];
-        if (updated[currentProjectIndex]) {
-          updated[currentProjectIndex] = {
-            ...updated[currentProjectIndex],
-            mediaItems: [...updated[currentProjectIndex].mediaItems, ...newItems]
+        if (updated[currentCollectionIndex]) {
+          updated[currentCollectionIndex] = {
+            ...updated[currentCollectionIndex],
+            mediaItems: [...updated[currentCollectionIndex].mediaItems, ...newItems]
           };
         }
         return updated;
       });
       
-      // If this is the first media in project, set index to 0
-      if (!currentProject?.mediaItems.length) {
+      // If this is the first media in collection, set index to 0
+      if (!currentCollection?.mediaItems.length) {
         setCurrentMediaIndex(0);
       }
     }
   };
   
   const handleProjectUpload = (files: FileList) => {
+    // Handle folder upload - creates a new media collection
     // Store files and show name modal
     setPendingProjectFiles(files);
     setShowProjectNameModal(true);
@@ -353,13 +586,13 @@ export default function TranscriptionWorkPage() {
       // Get folder name from file path if no name provided
       const firstFile = pendingProjectFiles[0] as FileWithPath;
       const pathParts = firstFile.webkitRelativePath?.split('/') || [];
-      const folderName = name || pathParts[0] || `פרויקט ${projects.length + 1}`;
+      const folderName = name || pathParts[0] || `פרויקט ${mediaCollections.length + 1}`;
       
       const mediaFiles = Array.from(pendingProjectFiles).filter(file => 
         file.type.startsWith('audio/') || file.type.startsWith('video/')
       );
       
-      const newProject: Project = {
+      const newCollection: MediaCollection = {
         name: folderName,
         mediaItems: mediaFiles.map(file => ({
           type: 'file' as const,
@@ -369,18 +602,18 @@ export default function TranscriptionWorkPage() {
         }))
       };
       
-      setProjects(prev => [...prev, newProject]);
-      setCurrentProjectIndex(projects.length);
+      setMediaCollections(prev => [...prev, newCollection]);
+      setCurrentCollectionIndex(mediaCollections.length);
       setCurrentMediaIndex(0);
       setPendingProjectFiles(null);
     } else if (pendingProjectUrl) {
       // Handle URL project
-      const projectName = name || `פרויקט ${projects.length + 1}`;
+      const collectionName = name || `פרויקט ${mediaCollections.length + 1}`;
       const urlParts = pendingProjectUrl.split('/');
       const fileName = urlParts[urlParts.length - 1] || pendingProjectUrl.substring(0, 50);
       
-      const newProject: Project = {
-        name: projectName,
+      const newCollection: MediaCollection = {
+        name: collectionName,
         mediaItems: [{
           type: 'url',
           url: pendingProjectUrl,
@@ -389,8 +622,8 @@ export default function TranscriptionWorkPage() {
         }]
       };
       
-      setProjects(prev => [...prev, newProject]);
-      setCurrentProjectIndex(projects.length);
+      setMediaCollections(prev => [...prev, newCollection]);
+      setCurrentCollectionIndex(mediaCollections.length);
       setCurrentMediaIndex(0);
       setPendingProjectUrl(null);
     }
@@ -407,6 +640,54 @@ export default function TranscriptionWorkPage() {
     // Show options modal for project
     setShowUploadOptions('project');
   };
+
+  const handleRemoveMedia = () => {
+    if (!currentCollection || !currentMedia) return;
+    
+    console.log('[Media] Removing media:', currentMedia.name);
+    
+    // Remove the media from the current collection
+    setMediaCollections(prev => {
+      const updated = [...prev];
+      const collection = updated[currentCollectionIndex];
+      if (collection) {
+        // Remove the current media item
+        collection.mediaItems = collection.mediaItems.filter((_, index) => index !== currentMediaIndex);
+        
+        // If this was the last media, remove the collection too
+        if (collection.mediaItems.length === 0) {
+          updated.splice(currentCollectionIndex, 1);
+        }
+      }
+      return updated;
+    });
+    
+    // Remove the media-project mapping
+    const mediaName = currentMedia.name;
+    setMediaProjectsMap(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(mediaName);
+      console.log('[Media] Removed mapping for:', mediaName);
+      return newMap;
+    });
+    
+    // Clear current transcription project ID if no media left
+    if (currentCollection.mediaItems.length <= 1) {
+      setCurrentProjectId('');
+      // Navigate to previous collection or media if available
+      if (currentCollectionIndex > 0) {
+        setCurrentCollectionIndex(currentCollectionIndex - 1);
+      }
+      setCurrentMediaIndex(0);
+    } else {
+      // Navigate to previous media if we removed the last one
+      if (currentMediaIndex >= currentCollection.mediaItems.length - 1) {
+        setCurrentMediaIndex(Math.max(0, currentMediaIndex - 1));
+      }
+    }
+    
+    console.log('[Media] Media removed successfully');
+  };
   
   const handleUrlSubmit = (url: string) => {
     const urlParts = url.split('/');
@@ -418,13 +699,13 @@ export default function TranscriptionWorkPage() {
       setShowProjectNameModal(true);
     } else {
       // Add media to current project
-      if (projects.length === 0) {
-        const newProject: Project = {
+      if (mediaCollections.length === 0) {
+        const newCollection: MediaCollection = {
           name: '',
           mediaItems: []
         };
-        setProjects([newProject]);
-        setCurrentProjectIndex(0);
+        setMediaCollections([newCollection]);
+        setCurrentCollectionIndex(0);
       }
       
       const newItem: MediaItem = {
@@ -434,12 +715,12 @@ export default function TranscriptionWorkPage() {
         size: 'קישור חיצוני'
       };
       
-      setProjects(prev => {
+      setMediaCollections(prev => {
         const updated = [...prev];
-        if (updated[currentProjectIndex]) {
-          updated[currentProjectIndex] = {
-            ...updated[currentProjectIndex],
-            mediaItems: [...updated[currentProjectIndex].mediaItems, newItem]
+        if (updated[currentCollectionIndex]) {
+          updated[currentCollectionIndex] = {
+            ...updated[currentCollectionIndex],
+            mediaItems: [...updated[currentCollectionIndex].mediaItems, newItem]
           };
         }
         return updated;
@@ -472,10 +753,87 @@ export default function TranscriptionWorkPage() {
   };
   
   const handleNextMedia = () => {
-    if (currentProject && currentMediaIndex < currentProject.mediaItems.length - 1) {
+    if (currentCollection && currentMediaIndex < currentCollection.mediaItems.length - 1) {
       setCurrentMediaIndex(currentMediaIndex + 1);
     }
   };
+  
+  // Track if we're currently creating a project to prevent duplicates
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const creatingProjectsRef = useRef<Set<string>>(new Set()); // Track which media files are being processed
+  
+  // Function to get or create a transcription project for a media file
+  const getOrCreateProject = useCallback(async (mediaName: string, collectionName: string = '') => {
+    // Check if already processing this media
+    if (creatingProjectsRef.current.has(mediaName)) {
+      console.log('[Project] Already processing project for:', mediaName);
+      return null;
+    }
+    
+    // Check if this media already has an associated project
+    const existingProjectId = mediaProjectsMap.get(mediaName);
+    if (existingProjectId) {
+      console.log('[Project] Found existing project for media:', mediaName, 'Project:', existingProjectId);
+      return existingProjectId;
+    }
+    
+    // Check backend for existing project with this media
+    try {
+      const existingProject = await projectService.getProjectByMedia(mediaName);
+      if (existingProject) {
+        console.log('[Project] Found existing project in backend for media:', mediaName);
+        // Update the map
+        setMediaProjectsMap(prev => {
+          const newMap = new Map(prev);
+          newMap.set(mediaName, existingProject);
+          return newMap;
+        });
+        return existingProject;
+      }
+    } catch (error) {
+      console.log('[Project] No existing project found in backend for media:', mediaName);
+    }
+    
+    // Mark as processing
+    creatingProjectsRef.current.add(mediaName);
+    
+    try {
+      // Create new project
+      console.log('[Project] Creating new project for media:', mediaName);
+      const projectId = await projectService.createProject(mediaName, collectionName || 'פרויקט חדש');
+      
+      if (!projectId) {
+        console.error('[Project] Failed to create project - no project ID returned');
+        return null;
+      }
+      
+      // Save the media-project mapping
+      setMediaProjectsMap(prev => {
+        const newMap = new Map(prev);
+        newMap.set(mediaName, projectId);
+        console.log('[Project] Created project and updated map:', mediaName, '->', projectId);
+        return newMap;
+      });
+      
+      // Update the collection with the project ID
+      setMediaCollections(prev => {
+        const updated = [...prev];
+        const currentColl = updated[currentCollectionIndex];
+        if (currentColl) {
+          currentColl.transcriptionProjectId = projectId;
+        }
+        return updated;
+      });
+      
+      return projectId;
+    } catch (error) {
+      console.error('[Project] Error creating project:', error);
+      return null;
+    } finally {
+      // Remove from processing set
+      creatingProjectsRef.current.delete(mediaName);
+    }
+  }, [mediaProjectsMap, currentCollectionIndex]);
   
   // Handle project creation/loading when media changes
   useEffect(() => {
@@ -486,41 +844,20 @@ export default function TranscriptionWorkPage() {
         return;
       }
       
-      // Check if we already have a project ID for this specific media instance in this session
-      // Use a key that's unique per media item in the current session
-      const mediaKey = `${currentMedia.name}_${currentMediaIndex}`;
-      const existingProjectId = projectsMap.get(mediaKey);
-      if (existingProjectId) {
-        console.log('[Project] Using existing project for this session:', existingProjectId);
-        setCurrentProjectId(existingProjectId);
-        return;
-      }
+      // Get or create project for any media type
+      const projectId = await getOrCreateProject(currentMedia.name, collectionName);
       
-      // ALWAYS create a new project for each media upload
-      // This ensures each upload gets its own folder as requested
-      console.log('[Project] Creating new project for media:', currentMedia.name);
-      
-      try {
-        const projectId = await projectService.createProject(currentMedia.name, projectName);
-        
-        if (!projectId) {
-          console.error('[Project] Failed to create project - no project ID returned');
-          return;
-        }
-        
-        // Update the map and current project ID
-        setProjectsMap(prev => new Map(prev).set(mediaKey, projectId));
+      if (projectId) {
         setCurrentProjectId(projectId);
-        console.log('[Project] Set current project ID:', projectId);
-      } catch (error) {
-        console.error('[Project] Error creating project:', error);
-        // Still allow the app to work without project persistence
-        console.warn('[Project] Working in temporary mode without server persistence');
+        // Load the project data
+        await loadProjectData(projectId);
+      } else {
+        console.warn('[Project] Working without server persistence for:', currentMedia.name);
       }
     };
     
     handleMediaChange();
-  }, [currentMedia, projectName]);
+  }, [currentMedia, collectionName, getOrCreateProject, loadProjectData]); // Dependencies updated
 
   // Memoize callbacks to prevent unnecessary re-renders
   const handleHeaderLockChange = useCallback((locked: boolean) => {
@@ -535,7 +872,7 @@ export default function TranscriptionWorkPage() {
     <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
-          userFullName="משתמש"
+          userFullName={userFullName}
           permissions="DEF"
           onLogout={() => router.push('/login')}
           themeColor="pink"
@@ -550,7 +887,7 @@ export default function TranscriptionWorkPage() {
       <WorkspaceHeader 
         headerLocked={headerLocked}
         sidebarLocked={sidebarLocked}
-        projectTitle={projectName}
+        projectTitle={collectionName}
         progress={45}
       />
       
@@ -592,10 +929,10 @@ export default function TranscriptionWorkPage() {
             
             {/* Project Navigator */}
             <ProjectNavigator 
-              currentProject={hasProjects ? currentProjectIndex + 1 : 0}
-              totalProjects={projects.length}
+              currentProject={hasCollections ? currentCollectionIndex + 1 : 0}
+              totalProjects={mediaCollections.length}
               currentMedia={hasMedia ? currentMediaIndex + 1 : 0}
-              totalMedia={currentProject?.mediaItems.length || 0}
+              totalMedia={currentCollection?.mediaItems.length || 0}
               mediaName={mediaName}
               mediaDuration={mediaDuration}
               mediaSize={mediaSize}
@@ -605,6 +942,7 @@ export default function TranscriptionWorkPage() {
               onNextMedia={handleNextMedia}
               onAddProject={handleAddProject}
               onAddMedia={handleAddMedia}
+              onRemoveMedia={handleRemoveMedia}
               onProjectDrop={handleProjectUpload}
               onMediaDrop={handleMediaUpload}
             />
@@ -616,7 +954,6 @@ export default function TranscriptionWorkPage() {
               document.dispatchEvent(event);
             }}>
             <MediaPlayer 
-              key={`${currentProjectIndex}-${currentMediaIndex}`}
               initialMedia={currentMedia ? (() => {
                 // Check if we have a file or URL
                 let mediaUrl = '';
@@ -624,13 +961,13 @@ export default function TranscriptionWorkPage() {
                   mediaUrl = currentMedia.url;
                 } else if (currentMedia.file) {
                   mediaUrl = URL.createObjectURL(currentMedia.file);
-                } else if (currentMedia.name && currentProject?.projectId) {
-                  // For backend-loaded projects, construct the media URL
-                  // The media file is stored in the project folder on the server
+                } else if (currentMedia.name && currentCollection?.transcriptionProjectId) {
+                  // For backend-loaded transcription projects, construct the media URL
+                  // The media file is stored in the transcription project folder on the server
                   const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
                     ? 'http://localhost:5000' 
                     : '';
-                  mediaUrl = `${apiUrl}/api/projects/${currentProject.projectId}/media/${encodeURIComponent(currentMedia.name)}`;
+                  mediaUrl = `${apiUrl}/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}`;
                   console.log('Page: Constructed media URL for backend project:', mediaUrl);
                 }
                 
@@ -685,7 +1022,7 @@ export default function TranscriptionWorkPage() {
                   
                   // If we have a current media file loaded (new media, not from transcription)
                   // Only show if there are actual projects with media
-                  if (hasProjects && currentMedia?.name) {
+                  if (hasCollections && currentMedia?.name) {
                     return currentMedia.name;
                   }
                   
@@ -693,7 +1030,7 @@ export default function TranscriptionWorkPage() {
                   return '';
                 })()}
                 mediaDuration={mediaDuration}
-                projectName={projectName}
+                projectName={collectionName}
                 speakerComponentRef={speakerComponentRef}
                 onSeek={(time) => {
                   console.log('Seek to time:', time);
@@ -709,8 +1046,14 @@ export default function TranscriptionWorkPage() {
                   const selectedTranscription = transcriptions[index];
                   if (selectedTranscription?.projectId) {
                     console.log('[Page] Loading transcription:', selectedTranscription.name, selectedTranscription.projectId);
+                    setCurrentProjectId(selectedTranscription.projectId);  // Ensure project ID is set
                     await loadProjectData(selectedTranscription.projectId);
+                  } else {
+                    // Clear project ID if no valid transcription
+                    setCurrentProjectId('');
                   }
+                  
+                  // Session will be auto-saved by the useEffect
                 }}
                 onTranscriptionDelete={async (index) => {
                   console.log('[Page] Deleting transcription at index:', index);
@@ -820,10 +1163,13 @@ export default function TranscriptionWorkPage() {
                     // No more transcriptions, clear everything
                     setCurrentTranscriptionIndex(0);
                     setCurrentProjectId('');
-                    // Clear the media projects too
-                    setProjects([]);
-                    setCurrentProjectIndex(0);
+                    // Clear the media collections too
+                    setMediaCollections([]);
+                    setCurrentCollectionIndex(0);
                     setCurrentMediaIndex(0);
+                    // Clear saved session and mappings
+                    localStorage.removeItem('transcriptionSessionState');
+                    setMediaProjectsMap(new Map());
                   }
                 }}
                 onBulkTranscriptionDelete={async (indices) => {
@@ -879,10 +1225,13 @@ export default function TranscriptionWorkPage() {
                     // No more transcriptions, clear everything
                     setCurrentTranscriptionIndex(0);
                     setCurrentProjectId('');
-                    // Clear the media projects too
-                    setProjects([]);
-                    setCurrentProjectIndex(0);
+                    // Clear the media collections too
+                    setMediaCollections([]);
+                    setCurrentCollectionIndex(0);
                     setCurrentMediaIndex(0);
+                    // Clear saved session and mappings
+                    localStorage.removeItem('transcriptionSessionState');
+                    setMediaProjectsMap(new Map());
                   }
                 }}
               />
@@ -922,10 +1271,10 @@ export default function TranscriptionWorkPage() {
               <HelperFiles 
                 isExpanded={helperFilesExpanded}
                 onToggle={() => setHelperFilesExpanded(!helperFilesExpanded)}
-                projects={projects.map((proj, idx) => ({
+                projects={mediaCollections.map((coll, idx) => ({
                   id: `proj-${idx}`,
-                  name: proj.name,
-                  mediaItems: proj.mediaItems.map((media, mIdx) => ({
+                  name: coll.name,
+                  mediaItems: coll.mediaItems.map((media, mIdx) => ({
                     id: `media-${idx}-${mIdx}`,
                     name: media.name
                   }))

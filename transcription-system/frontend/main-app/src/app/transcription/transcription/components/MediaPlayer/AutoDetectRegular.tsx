@@ -27,24 +27,33 @@ export default function AutoDetectRegular({
   const isTextEditorElement = (element: EventTarget | null): boolean => {
     if (!element || !(element instanceof HTMLElement)) return false;
     
-    // Check if it's a text input area
-    if (element instanceof HTMLInputElement || 
-        element instanceof HTMLTextAreaElement ||
-        element.contentEditable === 'true') {
-      
-      // Also check for specific classes
-      if (element.closest('.transcription-textarea') ||
-          element.closest('.text-editor-container') ||
-          element.closest('.transcription-text')) {
-        return true;
-      }
-      
-      // Skip if it's a settings input
-      if (element.closest('.settings-modal') ||
-          element.closest('.media-modal-overlay')) {
-        return false;
-      }
-      
+    // Skip if it's a settings input
+    if (element.closest('.settings-modal') ||
+        element.closest('.media-modal-overlay')) {
+      return false;
+    }
+    
+    // Skip if it's a speaker panel or remarks panel
+    if (element.closest('.speaker-panel') ||
+        element.closest('.simple-speaker-panel') ||
+        element.closest('.speaker-input-wrapper') ||
+        element.closest('.speaker-name-input') ||
+        element.closest('.remarks-panel') ||
+        element.closest('.remark-input') ||
+        element.closest('.remark-text')) {
+      return false;
+    }
+    
+    // Check if it's specifically a text editor block
+    if (element.classList.contains('block-text') ||
+        element.closest('.block-text') ||
+        element.closest('.text-editor-container')) {
+      return true;
+    }
+    
+    // Also check for transcription-specific text areas
+    if (element.closest('.transcription-textarea') ||
+        element.closest('.transcription-text')) {
       return true;
     }
     

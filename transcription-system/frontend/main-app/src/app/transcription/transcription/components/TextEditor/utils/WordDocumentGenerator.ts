@@ -34,6 +34,21 @@ export class WordDocumentGenerator {
   }
 
   /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  private joinWithRTLCommas(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  }
+
+  /**
    * Generate body-only document as buffer for merging
    */
   public async generateBodyBuffer(
@@ -439,7 +454,7 @@ export class WordDocumentGenerator {
       const speakersText = template.body.speakersLine.elements.map((element: any) => {
         switch (element.type) {
           case 'fileName': return mediaFileName;
-          case 'speakers': return speakerNames.join(', ') || 'לא צוינו';
+          case 'speakers': return this.joinWithRTLCommas(speakerNames) || 'לא צוינו';
           case 'duration': return duration;
           case 'userName': return 'משתמש';
           case 'date': return new Date().toLocaleDateString('he-IL');
@@ -554,7 +569,7 @@ export class WordDocumentGenerator {
               positions.left.forEach((element: any) => {
                 // Get the text value and wrap with RTL mark if it contains Hebrew
                 let textValue = element.type === 'fileName' ? mediaFileName :
-                              element.type === 'speakers' ? speakerNames.join(', ') :
+                              element.type === 'speakers' ? this.joinWithRTLCommas(speakerNames) :
                               element.type === 'duration' ? duration :
                               element.type === 'pageNumber' ? '' : // Will be replaced with actual page number
                               element.type === 'pageNumberFull' ? '' : // Will be replaced with actual page number
@@ -605,7 +620,7 @@ export class WordDocumentGenerator {
               positions.center.forEach((element: any) => {
                 // Get the text value and wrap with RTL mark if it contains Hebrew
                 let textValue = element.type === 'fileName' ? mediaFileName :
-                              element.type === 'speakers' ? speakerNames.join(', ') :
+                              element.type === 'speakers' ? this.joinWithRTLCommas(speakerNames) :
                               element.type === 'duration' ? duration :
                               element.type === 'pageNumber' ? '' :
                               element.type === 'pageNumberFull' ? '' :
@@ -656,7 +671,7 @@ export class WordDocumentGenerator {
               positions.right.forEach((element: any) => {
                 // Get the text value
                 let textValue = element.type === 'fileName' ? mediaFileName :
-                              element.type === 'speakers' ? speakerNames.join(', ') :
+                              element.type === 'speakers' ? this.joinWithRTLCommas(speakerNames) :
                               element.type === 'duration' ? duration :
                               element.type === 'pageNumber' ? '' :
                               element.type === 'pageNumberFull' ? '' :
@@ -906,7 +921,7 @@ export class WordDocumentGenerator {
     // Speakers line in the body (not in header) - use default Hebrew format if template not provided
     const speakersTemplate = settings.speakersTemplate || 'דוברים: {{speakers}}, משך ההקלטה: {{duration}}';
     let speakersText = speakersTemplate
-      .replace('{{speakers}}', speakerNames.join(', ') || 'לא צוינו')
+      .replace('{{speakers}}', this.joinWithRTLCommas(speakerNames) || 'לא צוינו')
       .replace('{{duration}}', duration);
     
     children.push(
@@ -1427,7 +1442,7 @@ export class WordDocumentGenerator {
     if (speakerNames.length > 0) {
       speakersTextRuns.push(
         new TextRun({
-          text: speakerNames.join(', '),
+          text: this.joinWithRTLCommas(speakerNames),
           size: 24,
           underline: {
             type: UnderlineType.SINGLE
@@ -1574,7 +1589,7 @@ export class WordDocumentGenerator {
     // Header
     output += `שם הקובץ: ${mediaFileName || 'ללא שם'}\n`;
     output += '='.repeat(50) + '\n\n';
-    output += `דוברים: ${speakerNames.join(', ') || 'לא צוינו'}, זמן הקלטה: ${duration} דקות\n\n`;
+    output += `דוברים: ${this.joinWithRTLCommas(speakerNames) || 'לא צוינו'}, זמן הקלטה: ${duration} דקות\n\n`;
     output += '-'.repeat(50) + '\n\n';
     
     // Content

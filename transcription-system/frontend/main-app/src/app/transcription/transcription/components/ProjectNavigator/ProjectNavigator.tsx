@@ -17,6 +17,7 @@ interface ProjectNavigatorProps {
   onNextMedia?: () => void;
   onAddProject?: () => void;
   onAddMedia?: () => void;
+  onRemoveMedia?: () => void;
   onProjectDrop?: (files: FileList) => void;
   onMediaDrop?: (files: FileList) => void;
 }
@@ -35,6 +36,7 @@ export default function ProjectNavigator({
   onNextMedia,
   onAddProject,
   onAddMedia,
+  onRemoveMedia,
   onProjectDrop,
   onMediaDrop
 }: ProjectNavigatorProps) {
@@ -89,61 +91,66 @@ export default function ProjectNavigator({
 
   return (
     <div 
-      className="project-navigator"
+      className="t-project-navigator"
       onDragEnter={handleMediaDrag}
       onDragLeave={handleMediaDrag}
       onDragOver={handleMediaDrag}
       onDrop={handleMediaDrop}
     >
       {/* Project Section */}
-      <div className="nav-section project-section">
-        <button className="nav-btn" onClick={onPreviousProject} disabled={currentProject <= 1}>
+      <div className="t-nav-section t-project-section">
+        <button className="t-nav-btn" onClick={onPreviousProject} disabled={currentProject <= 1}>
           →
         </button>
-        <div className="nav-info">
-          <span className="nav-label">פרויקט</span>
-          <span className="nav-value">{totalProjects} / {currentProject}</span>
+        <div className="t-nav-info">
+          <span className="t-nav-label">פרויקט</span>
+          <span className="t-nav-value">{totalProjects} / {currentProject}</span>
         </div>
-        <button className="nav-btn" onClick={onNextProject} disabled={currentProject >= totalProjects}>
+        <button className="t-nav-btn" onClick={onNextProject} disabled={currentProject >= totalProjects}>
           ←
         </button>
-        <button className="add-btn-small" onClick={onAddProject} title="פרויקט חדש">
+        <button className="t-add-btn-small" onClick={onAddProject} title="פרויקט חדש">
           +
         </button>
       </div>
 
-      <div className="nav-divider"></div>
+      <div className="t-nav-divider"></div>
 
       {/* Media Section */}
-      <div className="nav-section media-section">
-        <button className="nav-btn" onClick={onPreviousMedia} disabled={currentMedia <= 1}>
+      <div className="t-nav-section t-media-section">
+        <button className="t-nav-btn" onClick={onPreviousMedia} disabled={currentMedia <= 1}>
           →
         </button>
-        <div className="nav-info">
-          <span className="nav-label">מדיה</span>
-          <span className="nav-value">{totalMedia} / {currentMedia}</span>
+        <div className="t-nav-info">
+          <span className="t-nav-label">מדיה</span>
+          <span className="t-nav-value">{totalMedia} / {currentMedia}</span>
         </div>
-        <button className="nav-btn" onClick={onNextMedia} disabled={currentMedia >= totalMedia}>
+        <button className="t-nav-btn" onClick={onNextMedia} disabled={currentMedia >= totalMedia}>
           ←
         </button>
-        <button className="add-btn-small" onClick={onAddMedia} title="מדיה חדשה">
+        <button className="t-add-btn-small" onClick={onAddMedia} title="מדיה חדשה">
           +
         </button>
+        {totalMedia > 0 && (
+          <button className="t-remove-btn-small" onClick={onRemoveMedia} title="הסר מדיה">
+            ×
+          </button>
+        )}
       </div>
 
-      <div className="nav-divider"></div>
+      <div className="t-nav-divider"></div>
 
       {/* Media Info */}
-      <div className="media-info">
-        <div className="media-name-wrapper">
-          <div className={`media-name scroll-${scrollDirection}`}>
+      <div className="t-media-info">
+        <div className="t-media-name-wrapper">
+          <div className={`t-media-name scroll-${scrollDirection}`}>
             {mediaName}
           </div>
         </div>
-        <div className="media-details">
-          <span className="media-duration">{mediaDuration}</span>
-          <span className="media-separator">•</span>
-          <span className="media-size">{mediaSize}</span>
+        <div className="t-media-details">
+          <span className="t-media-duration">{mediaDuration}</span>
+          <span className="t-media-separator">•</span>
+          <span className="t-media-size">{mediaSize}</span>
         </div>
       </div>
     </div>

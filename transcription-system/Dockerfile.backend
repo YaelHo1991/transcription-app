@@ -1,0 +1,64 @@
+# Backend Dockerfile for Production
+# Node.js 18 with Alpine Linux for smaller image size
+
+FROM node:18-alpine AS builder
+
+# Install dependencies for native modules
+RUN apk add --no-cache python3 make g++
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY backend/package*.json ./backend/
+
+# Install dependencies
+WORKDIR /app/backend
+RUN npm ci --only=production
+
+# Copy backend source code
+COPY backend/ ./
+
+# Build TypeScript
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine
+
+# Install FFmpeg for waveform generation
+RUN apk add --no-cache ffmpeg
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application from builder
+COPY --from=builder --chown=nodejs:nodejs /app/backend/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/backend/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/backend/package*.json ./
+
+# Copy migration files
+COPY --chown=nodejs:nodejs backend/migrations ./migrations
+
+# Copy templates directory
+COPY --chown=nodejs:nodejs backend/templates ./templates
+
+# Create necessary directories
+RUN mkdir -p /app/uploads /app/temp /app/logs /app/waveform-cache /app/backups && \
+    chown -R nodejs:nodejs /app/uploads /app/temp /app/logs /app/waveform-cache /app/backups
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/api/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
+
+# Start the application
+CMD ["node", "dist/server.js"]

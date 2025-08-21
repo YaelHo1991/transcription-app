@@ -498,6 +498,25 @@ const TextBlock = React.memo(function TextBlock({
 
   // Handle speaker keydown
   const handleSpeakerKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
+    // Check if this is a special key that should bubble up to MediaPlayer
+    const isSpecialKey = 
+      // F-keys
+      (e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2) ||
+      // Numpad keys  
+      (e.code && e.code.startsWith('Numpad')) ||
+      // Combinations with Ctrl/Alt/Meta (except our specific shortcuts)
+      (e.ctrlKey || e.altKey || e.metaKey);
+    
+    // Check if this is one of our text editor shortcuts that we handle
+    const isTextEditorShortcut = 
+      (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA' || e.key === 'א'));
+    
+    // If it's a special key but NOT one of our text editor shortcuts, let it bubble up
+    if (isSpecialKey && !isTextEditorShortcut) {
+      console.log('Special key in speaker field, allowing propagation:', e.key, e.code);
+      return;
+    }
+    
     const input = e.currentTarget;
     const text = input.value;
     
@@ -694,6 +713,22 @@ const TextBlock = React.memo(function TextBlock({
   // Handle text keydown
   const handleTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     console.log('Key pressed in text area:', e.key);
+    
+    // Check if this is a special key that should bubble up to MediaPlayer
+    const isSpecialKey = 
+      // F-keys
+      (e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2) ||
+      // Numpad keys
+      (e.code && e.code.startsWith('Numpad')) ||
+      // Combinations with Ctrl/Alt/Meta (but not Shift alone)
+      (e.ctrlKey || e.altKey || e.metaKey);
+    
+    if (isSpecialKey) {
+      console.log('Special key detected, allowing propagation:', e.key, e.code);
+      // Don't stop propagation for special keys - let MediaPlayer handle them
+      return;
+    }
+    
     const textarea = e.currentTarget;
     const text = textarea.value;
     
@@ -1612,6 +1647,21 @@ const TextBlock = React.memo(function TextBlock({
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Check if this is our text area
       if (isActive && activeArea === 'text' && textRef.current && document.activeElement === textRef.current) {
+        // Check if this is a special key that should bubble up to MediaPlayer
+        const isSpecialKey = 
+          // F-keys
+          (e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2) ||
+          // Numpad keys
+          (e.code && e.code.startsWith('Numpad')) ||
+          // Combinations with Ctrl/Alt/Meta (but not Shift alone)
+          (e.ctrlKey || e.altKey || e.metaKey);
+        
+        if (isSpecialKey) {
+          console.log('Special key in global handler, allowing propagation:', e.key, e.code);
+          // Don't stop propagation for special keys
+          return;
+        }
+        
         if (e.key === 'End') {
           console.log('END key CAPTURED globally for block:', block.id);
           
@@ -1645,12 +1695,11 @@ const TextBlock = React.memo(function TextBlock({
     // Add at capture phase with highest priority
     document.addEventListener('keydown', handleGlobalKeyDown, true);
     
-    // Also add to window for extra insurance
-    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    // Removed window listener to avoid conflict with KeyboardShortcuts
+    // The document listener is sufficient for capturing END key
     
     return () => {
       document.removeEventListener('keydown', handleGlobalKeyDown, true);
-      window.removeEventListener('keydown', handleGlobalKeyDown, true);
     };
   }, [isActive, activeArea, block.id]);
 

@@ -22,6 +22,21 @@ export class TemplateProcessor {
   private templateBuffer: ArrayBuffer | null = null;
 
   /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  private joinWithRTLCommas(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  }
+
+  /**
    * Load a Word template file
    */
   public async loadTemplate(file: File): Promise<boolean> {
@@ -197,8 +212,8 @@ export class TemplateProcessor {
       
       // Fill template placeholders but leave transcriptionContent empty or with a marker
       const templateData: any = {
-        fileName: mediaFileName || 'ללא שם',
-        speakers: speakerNames.join(', ') || 'לא צוינו',
+        fileName: this.wrapFileNameForRTL(mediaFileName || 'ללא שם'),
+        speakers: this.joinWithRTLCommas(speakerNames) || 'לא צוינו',
         duration: duration,
         date: new Date().toLocaleDateString('he-IL'),
         transcriptionContent: '' // Leave empty for merge
@@ -293,8 +308,8 @@ export class TemplateProcessor {
       // For now, we'll use a marker that we can replace later
       // This is a placeholder approach - we'll enhance this
       const templateData: any = {
-        fileName: mediaFileName || 'ללא שם',
-        speakers: speakerNames.join(', ') || 'לא צוינו',
+        fileName: this.wrapFileNameForRTL(mediaFileName || 'ללא שם'),
+        speakers: this.joinWithRTLCommas(speakerNames) || 'לא צוינו',
         duration: duration,
         date: new Date().toLocaleDateString('he-IL'),
         // Use a special marker for where formatted content should go
@@ -511,6 +526,24 @@ export class TemplateProcessor {
   }
 
   /**
+   * Wrap file name with RTL direction for proper display
+   */
+  private wrapFileNameForRTL(fileName: string): string {
+    const RLE = '\u202B'; // Right-to-Left Embedding
+    const PDF = '\u202C'; // Pop Directional Formatting
+    return `${RLE}${fileName}${PDF}`;
+  }
+
+  /**
+   * Wrap speaker name with RTL marks for proper display
+   */
+  private wrapSpeakerForRTL(speaker: string): string {
+    if (!speaker) return '';
+    // Use the same wrapping as text for consistency
+    return this.wrapTextForRTL(speaker);
+  }
+
+  /**
    * Build pre-formatted content with proper RTL handling and line numbers
    * This creates structured data for docxtemplater with formatting preserved
    */
@@ -651,8 +684,8 @@ export class TemplateProcessor {
       
       // Prepare template data with both formats
       const templateData = {
-        fileName: mediaFileName || 'ללא שם',
-        speakers: speakerNames.join(', ') || 'לא צוינו',
+        fileName: this.wrapFileNameForRTL(mediaFileName || 'ללא שם'),
+        speakers: this.joinWithRTLCommas(speakerNames) || 'לא צוינו',
         duration: duration,
         date: new Date().toLocaleDateString('he-IL'),
         formattedContent: formattedContent,  // Single pre-formatted block (for templates using this)
@@ -695,6 +728,101 @@ export class TemplateProcessor {
         alert('שגיאה בעיבוד התבנית: ' + (error.message || error));
       }
       
+      return false;
+    }
+  }
+
+  /**
+   * Process template with Hebrew conversion
+   * Sends the document to backend for conversion and downloads the result
+   */
+  public async processTemplateWithConversion(
+    blocks: BlockData[],
+    speakers: Map<string, string>,
+    mediaFileName: string,
+    includeTimestamps: boolean,
+    mediaDuration?: string,
+    customFileName?: string
+  ): Promise<boolean> {
+    if (!this.templateBuffer) {
+      alert('אנא העלה תבנית Word תחילה');
+      return false;
+    }
+
+    try {
+      // First process the template normally
+      const zip = new PizZip(this.templateBuffer);
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: {
+          start: '{',
+          end: '}'
+        }
+      });
+
+      // Prepare speaker names
+      const speakerNames = Array.from(new Set(
+        blocks
+          .filter(b => b.speaker)
+          .map(b => speakers.get(b.speaker) || b.speaker)
+      ));
+
+      const duration = mediaDuration || this.calculateDuration(blocks);
+
+      // Prepare template data with RTL support
+      const templateData = {
+        fileName: this.wrapFileNameForRTL(mediaFileName || 'ללא שם'),
+        speakers: this.joinWithRTLCommas(speakerNames) || 'לא צוינו',
+        duration: duration,
+        date: new Date().toLocaleDateString('he-IL'),
+        formattedBlocks: blocks
+          .filter(block => block.text || block.speaker)
+          .map(block => ({
+            speaker: block.speaker 
+              ? this.wrapSpeakerForRTL((speakers.get(block.speaker) || block.speaker) + ':')
+              : '',
+            text: this.wrapTextForRTL(this.processTimestamp(block.text || '', includeTimestamps))
+          }))
+      };
+
+      // Render the template
+      doc.render(templateData);
+
+      // Get the document as blob
+      const blob = doc.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      // Create FormData for upload
+      const formData = new FormData();
+      formData.append('document', blob, 'temp.docx');
+      formData.append('fileName', customFileName || `${mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription'}_תמלול`);
+
+      // Send to backend for conversion
+      const response = await fetch('http://localhost:5000/api/template/convert-and-export', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || error.error || 'Conversion failed');
+      }
+
+      // Download the converted file
+      const convertedBlob = await response.blob();
+      const fileName = customFileName || 
+        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+      
+      saveAs(convertedBlob, fileName);
+      
+      console.log('Document converted and downloaded successfully');
+      return true;
+    } catch (error: any) {
+      console.error('Error processing template with conversion:', error);
+      alert('שגיאה בעיבוד המסמך: ' + (error.message || error));
       return false;
     }
   }

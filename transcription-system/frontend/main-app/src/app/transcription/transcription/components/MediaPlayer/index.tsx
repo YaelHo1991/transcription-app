@@ -17,8 +17,10 @@ import {
   formatFileSize 
 } from './utils/waveformStrategy';
 import { ChunkedWaveformProcessor } from './utils/ChunkedWaveformProcessor';
+import { waveformCache } from './utils/waveformCache';
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
+import { ResourceWarningModal } from './components/ResourceWarningModal';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
@@ -37,9 +39,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const workerManagerRef = useRef<WorkerManager | null>(null);
+  const mediaPositionsRef = useRef<Map<string, { position: number; timestamp: number; duration: number }>>(new Map());
+  const positionSaveIntervalRef = useRef<number | null>(null);
+  const currentMediaIdRef = useRef<string | null>(null);
+  const waveformAbortControllerRef = useRef<AbortController | null>(null);
   
   // Resource monitoring
-  const { checkOperation, showWarning } = useResourceCheck();
+  const { 
+    checkOperation, 
+    warningData, 
+    showResourceWarning, 
+    handleContinueRisky, 
+    handleUseAlternative, 
+    handleCloseWarning,
+    showWarning
+  } = useResourceCheck();
 
   // State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -73,6 +87,8 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     rewindOnPause: { enabled: false, amount: 0.5, source: 'keyboard' as 'keyboard' | 'pedal' | 'autodetect' | 'all' }
   });
   
+  // Waveform background processing setting
+  
   // Load and merge shortcuts from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -99,6 +115,32 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       }
     }
   }, []);
+  
+  // Save keyboard settings to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Save the current keyboard settings
+      const currentSettings = localStorage.getItem('mediaPlayerSettings');
+      let settingsToSave = {
+        shortcuts: keyboardSettings.shortcuts,
+        shortcutsEnabled: keyboardSettings.shortcutsEnabled,
+        rewindOnPause: keyboardSettings.rewindOnPause
+      };
+      
+      // Merge with existing settings if they exist
+      if (currentSettings) {
+        try {
+          const parsed = JSON.parse(currentSettings);
+          settingsToSave = { ...parsed, ...settingsToSave };
+        } catch (error) {
+          console.error('Failed to parse existing settings:', error);
+        }
+      }
+      
+      localStorage.setItem('mediaPlayerSettings', JSON.stringify(settingsToSave));
+      console.log('Saved keyboard settings to localStorage');
+    }
+  }, [keyboardSettings]); // Run whenever keyboardSettings change
   
   // Pedal settings
   const [pedalEnabled, setPedalEnabled] = useState(true);
@@ -505,6 +547,15 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
 
   // Analyze waveform for loaded media with smart strategy
   const analyzeWaveform = useCallback(async (url: string) => {
+    // Cancel any existing waveform processing
+    if (waveformAbortControllerRef.current) {
+      waveformAbortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this operation
+    const abortController = new AbortController();
+    waveformAbortControllerRef.current = abortController;
+    
     try {
       setWaveformLoading(true);
       setWaveformProgress(0);
@@ -513,6 +564,24 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       // Get file size to determine strategy
       const fileSize = await getFileSizeFromUrl(url);
       
+      // Check cache first (with error handling)
+      console.log('Checking waveform cache for:', url);
+      try {
+        const cachedData = await waveformCache.get(url, fileSize);
+        
+        if (cachedData) {
+          console.log('Using cached waveform data');
+          setWaveformData(cachedData);
+          setWaveformLoading(false);
+          setWaveformProgress(100);
+          return;
+        }
+        
+        console.log('No cached waveform found, generating new one');
+      } catch (cacheError) {
+        console.warn('Cache lookup failed, proceeding with generation:', cacheError);
+      }
+      
       // If file size detection failed (returns 0), use client-side as fallback
       if (fileSize === 0) {
         console.warn('Could not determine file size, using client-side processing as fallback');
@@ -520,24 +589,38 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       
       // Check system resources before processing
       const resourceCheck = await checkOperation(OperationType.WAVEFORM, fileSize || 50 * 1024 * 1024);
+      console.log('Resource check result:', resourceCheck);
+      console.log('File size:', fileSize ? `${(fileSize / (1024*1024)).toFixed(1)}MB` : 'unknown');
       
       if (!resourceCheck.safe) {
-        // Show warning and handle user response
-        const proceed = showWarning(resourceCheck);
-        
-        if (!proceed) {
-          // User cancelled, disable waveform
-          setWaveformEnabled(false);
-          setWaveformLoading(false);
-          showGlobalStatus('ניתוח צורת גל בוטל - אין מספיק משאבים');
-          return;
-        }
-        
-        // If alternative method suggested, switch strategy
-        if (resourceCheck.recommendation === Recommendation.USE_SERVER) {
-          // Force server-side processing
-          console.log('Switching to server-side processing due to low resources');
-        }
+        // Show warning with callback to proceed
+        showWarning(resourceCheck, () => {
+          // User chose to continue, proceed with waveform loading
+          continueWaveformLoad(url, fileSize, abortController.signal);
+        });
+        // If user cancels, clean up the loading state
+        setWaveformLoading(false);
+        setWaveformProgress(0);
+        waveformAbortControllerRef.current = null;
+        return;
+      }
+      
+      continueWaveformLoad(url, fileSize, abortController.signal);
+    } catch (error) {
+      console.error('Error loading waveform:', error);
+      setWaveformLoading(false);
+      setWaveformEnabled(false);
+      showGlobalStatus('שגיאה בטעינת צורת גל');
+      waveformAbortControllerRef.current = null;
+    }
+  }, [checkOperation, showWarning]);
+
+  const continueWaveformLoad = useCallback(async (url: string, fileSize: number | null, signal?: AbortSignal) => {
+    try {
+      // Check for abort signal
+      if (signal?.aborted) {
+        console.log('Waveform processing aborted before start');
+        return;
       }
       
       // Check if it's a blob URL (can't be processed server-side)
@@ -550,12 +633,13 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         strategy = { 
           method: WaveformMethod.CHUNKED, 
           threshold: fileSize || 0,
-          message: 'Processing waveform locally (blob URL)'
+          message: 'מעבד קובץ גדול מקומית (blob URL)'
         };
         console.log('Using chunked processing for blob URL (server processing not available for blobs)');
       }
       
       console.log(`File size: ${fileSize ? formatFileSize(fileSize) : 'Unknown'}, using ${strategy.method} method`);
+      console.log('Waveform strategy details:', strategy);
       
       // Show appropriate message
       setWaveformProgress(1); // Show loading started
@@ -568,6 +652,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         case WaveformMethod.CLIENT:
           // Small files: Original client-side processing
           if (!workerManagerRef.current) return;
+          
+          // Store info for caching after completion
+          currentWaveformInfoRef.current = { url, fileSize: fileSize || 0 };
           
           const response = await fetch(url);
           const arrayBuffer = await response.arrayBuffer();
@@ -585,9 +672,30 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           
         case WaveformMethod.CHUNKED:
           // Medium files: Process in chunks
+          console.log(`Starting chunked processing for ${formatFileSize(fileSize || 0)} file`);
+          
+          // Check for abort signal
+          if (signal?.aborted) {
+            console.log('Waveform processing aborted');
+            setWaveformLoading(false);
+            setWaveformProgress(0);
+            return;
+          }
+          
           const chunkedProcessor = new ChunkedWaveformProcessor({
-            onProgress: (progress) => setWaveformProgress(progress),
-            onError: (error) => console.error('Chunked processing error:', error)
+            onProgress: (progress) => {
+              // Check for abort during progress
+              if (signal?.aborted) {
+                console.log('Waveform processing aborted during progress');
+                setWaveformLoading(false);
+                setWaveformProgress(0);
+                return;
+              }
+              console.log(`Chunked processing progress: ${progress.toFixed(1)}%`);
+              setWaveformProgress(progress);
+            },
+            onError: (error) => console.error('Chunked processing error:', error),
+            signal // Pass abort signal to processor
           });
           
           const chunkedResult = await chunkedProcessor.processLargeFile(url);
@@ -598,14 +706,68 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           // Force re-render by updating a dummy state if needed
           if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
             console.log('Waveform data set successfully, peaks:', chunkedResult.peaks.length);
+            // Cache the result
+            try {
+              await waveformCache.set(url, chunkedResult, fileSize || undefined);
+            } catch (cacheError) {
+              console.warn('Failed to cache waveform data:', cacheError);
+            }
           }
           break;
           
         case WaveformMethod.SERVER:
-          // Large files: Request from server
+          // Large files: Request from server (only for HTTP URLs)
+          if (isBlobUrl) {
+            console.error('Server processing not available for blob URLs, falling back to chunked processing');
+            // This shouldn't happen due to our earlier override, but just in case
+            const fallbackProcessor = new ChunkedWaveformProcessor({
+              onProgress: (progress) => setWaveformProgress(progress),
+              onError: (error) => console.error('Fallback chunked processing error:', error)
+            });
+            const fallbackResult = await fallbackProcessor.processLargeFile(url);
+            setWaveformData(fallbackResult);
+            setWaveformLoading(false);
+            setWaveformProgress(100);
+            if (fallbackResult && fallbackResult.peaks && fallbackResult.peaks.length > 0) {
+              try {
+                await waveformCache.set(url, fallbackResult, fileSize || undefined);
+              } catch (cacheError) {
+                console.warn('Failed to cache fallback waveform:', cacheError);
+              }
+            }
+            break;
+          }
+          
           const fileId = generateFileId(url);
           
-          // First, trigger generation on server
+          // First, check if waveform already exists on server
+          try {
+            const existingResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+            if (existingResponse.ok) {
+              console.log('Using existing server-side waveform');
+              const data = await existingResponse.json();
+              const waveformData = {
+                peaks: data.peaks,
+                duration: data.duration,
+                sampleRate: data.sampleRate || 44100,
+                resolution: data.resolution || 10
+              };
+              setWaveformData(waveformData);
+              setWaveformLoading(false);
+              setWaveformProgress(100);
+              // Cache the server waveform locally too
+              try {
+                await waveformCache.set(url, waveformData, fileSize || undefined);
+              } catch (cacheError) {
+                console.warn('Failed to cache server waveform:', cacheError);
+              }
+              break;
+            }
+          } catch (existingError) {
+            console.log('No existing server waveform, generating new one');
+          }
+          
+          // If not found, trigger generation on server
           const generateResponse = await fetch('http://localhost:5000/api/waveform/generate', {
             method: 'POST',
             headers: {
@@ -638,14 +800,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 
                 if (waveformResponse.ok) {
                   const data = await waveformResponse.json();
-                  setWaveformData({
+                  const waveformData = {
                     peaks: data.peaks,
                     duration: data.duration,
                     sampleRate: data.sampleRate || 44100,
                     resolution: data.resolution || 10
-                  });
+                  };
+                  setWaveformData(waveformData);
                   setWaveformLoading(false);
                   setWaveformProgress(100);
+                  // Cache the server-generated waveform
+                  try {
+                    await waveformCache.set(url, waveformData, fileSize || undefined);
+                  } catch (cacheError) {
+                    console.warn('Failed to cache server waveform:', cacheError);
+                  }
                   break;
                 }
               } catch (pollError) {
@@ -665,14 +834,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             
             if (waveformResponse.ok) {
               const data = await waveformResponse.json();
-              setWaveformData({
+              const waveformData = {
                 peaks: data.peaks,
                 duration: data.duration,
                 sampleRate: data.sampleRate || 44100,
                 resolution: data.resolution || 10
-              });
+              };
+              setWaveformData(waveformData);
               setWaveformLoading(false);
               setWaveformProgress(100);
+              // Cache the server-generated waveform
+              try {
+                await waveformCache.set(url, waveformData, fileSize || undefined);
+              } catch (cacheError) {
+                console.warn('Failed to cache server waveform:', cacheError);
+              }
             } else {
               throw new Error('Failed to retrieve waveform data');
             }
@@ -712,15 +888,85 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       // Show error message to user
       showGlobalStatus(`שגיאה בטעינת צורת גל: ${errorMessage}`);
     }
-  }, [checkOperation, showWarning]);
+  }, []);
+
+  // Helper function to get media ID
+  const getMediaId = (media: MediaFile) => {
+    // Create a consistent ID from the media name (more stable than URL which can change)
+    // Encode it to handle special characters
+    return btoa(encodeURIComponent(media.name)).replace(/[^a-zA-Z0-9]/g, '');
+  };
+
+  // Helper function to save current position
+  const saveCurrentPosition = useCallback(() => {
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+    if (mediaElement && currentMediaIdRef.current && !isNaN(mediaElement.currentTime) && mediaElement.currentTime > 0) {
+      const positionData = {
+        position: mediaElement.currentTime,
+        timestamp: Date.now(),
+        duration: mediaElement.duration || 0
+      };
+      mediaPositionsRef.current.set(currentMediaIdRef.current, positionData);
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem(`mediaPosition_${currentMediaIdRef.current}`, JSON.stringify(positionData));
+        console.log(`Saved position for ${currentMediaIdRef.current}: ${mediaElement.currentTime}s`);
+      } catch (e) {
+        console.error('Failed to save media position:', e);
+      }
+    }
+  }, [showVideo]);
+
+  // Load saved positions from localStorage on mount
+  useEffect(() => {
+    // Load all saved positions
+    const loadedPositions = new Map();
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('mediaPosition_')) {
+        try {
+          const mediaId = key.replace('mediaPosition_', '');
+          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          
+          // Clean up old positions (older than 30 days)
+          if (data.timestamp && Date.now() - data.timestamp > 30 * 24 * 60 * 60 * 1000) {
+            localStorage.removeItem(key);
+          } else {
+            loadedPositions.set(mediaId, data);
+          }
+        } catch (e) {
+          console.error('Failed to load position:', e);
+        }
+      }
+    }
+    mediaPositionsRef.current = loadedPositions;
+  }, []);
+
+  // Save position on unmount or when media changes
+  useEffect(() => {
+    return () => {
+      saveCurrentPosition();
+      if (positionSaveIntervalRef.current) {
+        clearInterval(positionSaveIntervalRef.current);
+      }
+    };
+  }, [saveCurrentPosition]);
 
   // Load media
   useEffect(() => {
     console.log('MediaPlayer: Loading media', initialMedia);
     if (initialMedia && audioRef.current) {
+      // Save position of previous media before switching
+      if (currentMediaIdRef.current) {
+        saveCurrentPosition();
+      }
+      
+      const newMediaId = getMediaId(initialMedia);
+      currentMediaIdRef.current = newMediaId;
+      
       console.log('MediaPlayer: Setting audio source to', initialMedia.url);
-      // Reset playback states for new media
-      setCurrentTime(0);
+      // Reset playback states for new media but DON'T reset currentTime yet
       setDuration(0);
       setIsPlaying(false);
       setIsReady(false);
@@ -757,8 +1003,16 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         }, 100);
       }
 
-      // Don't analyze waveform automatically - wait for user to enable it
-      // This prevents the 3-click issue
+      // Automatically analyze waveform in background if waveform is enabled
+      if (waveformEnabled) {
+        console.log('Starting background waveform processing');
+        // Delay slightly to let media load first
+        setTimeout(() => {
+          if (initialMedia.url) {
+            analyzeWaveform(initialMedia.url);
+          }
+        }, 500);
+      }
     }
   }, [initialMedia?.url, initialMedia?.name]); // React to URL and name changes only, not volume
   
@@ -834,6 +1088,42 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         onDurationChange(audio.duration);
       }
       setIsReady(true);
+      
+      // Restore saved position if available
+      if (currentMediaIdRef.current) {
+        // First try to get from localStorage (in case component was remounted)
+        let savedPosition = mediaPositionsRef.current.get(currentMediaIdRef.current);
+        
+        if (!savedPosition) {
+          try {
+            const stored = localStorage.getItem(`mediaPosition_${currentMediaIdRef.current}`);
+            if (stored) {
+              savedPosition = JSON.parse(stored);
+              // Update the ref for future use
+              if (savedPosition && currentMediaIdRef.current) {
+                mediaPositionsRef.current.set(currentMediaIdRef.current, savedPosition);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to load position from localStorage:', e);
+          }
+        }
+        
+        if (savedPosition && savedPosition.position > 0) {
+          // Only restore if duration hasn't changed significantly (within 5%)
+          const durationMatch = Math.abs(audio.duration - savedPosition.duration) / audio.duration < 0.05;
+          if (durationMatch || savedPosition.duration === 0) {
+            console.log(`Restoring position for ${currentMediaIdRef.current}: ${savedPosition.position}s`);
+            audio.currentTime = savedPosition.position;
+            setCurrentTime(savedPosition.position);
+          } else {
+            console.log('Media duration changed significantly, starting from beginning');
+            setCurrentTime(0);
+          }
+        } else {
+          setCurrentTime(0);
+        }
+      }
     };
 
     const handleTimeUpdate = () => {
@@ -847,14 +1137,42 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     
     const handlePlay = () => {
       setIsPlaying(true);
+      
+      // Start periodic position saving (every 5 seconds)
+      if (positionSaveIntervalRef.current) {
+        clearInterval(positionSaveIntervalRef.current);
+      }
+      positionSaveIntervalRef.current = window.setInterval(() => {
+        saveCurrentPosition();
+      }, 5000);
     };
     
     const handlePause = () => {
       setIsPlaying(false);
+      
+      // Stop periodic saving and save current position
+      if (positionSaveIntervalRef.current) {
+        clearInterval(positionSaveIntervalRef.current);
+        positionSaveIntervalRef.current = null;
+      }
+      saveCurrentPosition();
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
+      
+      // Stop periodic saving when media ends
+      if (positionSaveIntervalRef.current) {
+        clearInterval(positionSaveIntervalRef.current);
+        positionSaveIntervalRef.current = null;
+      }
+      
+      // Clear saved position when media completes
+      if (currentMediaIdRef.current) {
+        mediaPositionsRef.current.delete(currentMediaIdRef.current);
+        localStorage.removeItem(`mediaPosition_${currentMediaIdRef.current}`);
+        console.log(`Cleared position for completed media: ${currentMediaIdRef.current}`);
+      }
     };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -870,7 +1188,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [onTimeUpdate]);
+  }, [onTimeUpdate, saveCurrentPosition]);
 
   // Video event handlers
   useEffect(() => {
@@ -887,6 +1205,42 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         onDurationChange(video.duration);
       }
       setIsReady(true);
+      
+      // Restore saved position if available (same logic as audio)
+      if (currentMediaIdRef.current) {
+        // First try to get from localStorage (in case component was remounted)
+        let savedPosition = mediaPositionsRef.current.get(currentMediaIdRef.current);
+        
+        if (!savedPosition) {
+          try {
+            const stored = localStorage.getItem(`mediaPosition_${currentMediaIdRef.current}`);
+            if (stored) {
+              savedPosition = JSON.parse(stored);
+              // Update the ref for future use
+              if (savedPosition && currentMediaIdRef.current) {
+                mediaPositionsRef.current.set(currentMediaIdRef.current, savedPosition);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to load position from localStorage:', e);
+          }
+        }
+        
+        if (savedPosition && savedPosition.position > 0) {
+          // Only restore if duration hasn't changed significantly (within 5%)
+          const durationMatch = Math.abs(video.duration - savedPosition.duration) / video.duration < 0.05;
+          if (durationMatch || savedPosition.duration === 0) {
+            console.log(`Restoring video position for ${currentMediaIdRef.current}: ${savedPosition.position}s`);
+            video.currentTime = savedPosition.position;
+            setCurrentTime(savedPosition.position);
+          } else {
+            console.log('Video duration changed significantly, starting from beginning');
+            setCurrentTime(0);
+          }
+        } else {
+          setCurrentTime(0);
+        }
+      }
     };
 
     const handleTimeUpdate = () => {
@@ -947,6 +1301,9 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     };
   }, [showVideo]);
   
+  // Store current waveform generation info for caching
+  const currentWaveformInfoRef = useRef<{ url: string; fileSize: number } | null>(null);
+  
   // Initialize worker manager
   useEffect(() => {
     workerManagerRef.current = new WorkerManager();
@@ -957,10 +1314,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         setWaveformProgress(progress);
       });
 
-      workerManagerRef.current.on('waveform:complete', (data: WaveformData) => {
+      workerManagerRef.current.on('waveform:complete', async (data: WaveformData) => {
         setWaveformData(data);
         setWaveformLoading(false);
         setWaveformProgress(100);
+        
+        // Cache the result if we have the info
+        if (currentWaveformInfoRef.current && data && data.peaks && data.peaks.length > 0) {
+          const { url, fileSize } = currentWaveformInfoRef.current;
+          console.log('Caching waveform data for:', url);
+          try {
+            await waveformCache.set(url, data, fileSize);
+          } catch (cacheError) {
+            console.warn('Failed to cache waveform data:', cacheError);
+          }
+        }
       });
 
       workerManagerRef.current.on('waveform:error', (error: string) => {
@@ -1214,17 +1582,82 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                   style={{ flex: 1 }}
                 >
                   {waveformLoading || waveformProgress > 0 ? (
-                    <div className="waveform-loading-bar" style={{ width: '100%', height: '60px' }}>
+                    <div className="waveform-loading-container" style={{ 
+                      width: '100%', 
+                      position: 'relative',
+                      height: '60px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      borderRadius: '4px',
+                      overflow: 'hidden'
+                    }}>
                       <div 
                         className="waveform-progress-fill"
                         style={{ 
                           width: `${waveformProgress}%`,
-                          background: 'linear-gradient(90deg, rgba(32, 201, 151, 0.4) 0%, rgba(23, 162, 184, 0.4) 100%)',
+                          background: 'linear-gradient(90deg, rgba(32, 201, 151, 0.6) 0%, rgba(23, 162, 184, 0.6) 100%)',
                           height: '100%',
-                          borderRadius: '4px',
-                          transition: 'width 0.3s ease'
+                          transition: 'width 0.3s ease',
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          direction: 'rtl'
                         }}
                       />
+                      <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '15px',
+                        zIndex: 10
+                      }}>
+                        <span style={{
+                          color: 'white',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)'
+                        }}>
+                          מעבד צורת גל... {waveformProgress.toFixed(0)}%
+                        </span>
+                        <button
+                          className="waveform-cancel-btn"
+                          onClick={() => {
+                            // Cancel waveform processing
+                            if (waveformAbortControllerRef.current) {
+                              waveformAbortControllerRef.current.abort();
+                              waveformAbortControllerRef.current = null;
+                            }
+                            setWaveformLoading(false);
+                            setWaveformProgress(0);
+                            setWaveformData(null);
+                            console.log('Waveform processing cancelled by user');
+                          }}
+                          style={{
+                            background: 'transparent',
+                            color: 'white',
+                            border: '1px solid rgba(255, 255, 255, 0.5)',
+                            borderRadius: '3px',
+                            padding: '4px 10px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '400',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                          }}
+                          title="בטל עיבוד צורת גל"
+                        >
+                          ביטול
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div 
@@ -1306,15 +1739,24 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             
             {/* Waveform Toggle Button */}
             <button 
-              className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''}`}
+              className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''} ${!initialMedia ? 'disabled' : ''}`}
               id="waveformToggleBtn" 
-              title={waveformEnabled ? "החלף לסרגל התקדמות רגיל" : "החלף לצורת גל"}
+              title={
+                !initialMedia 
+                  ? "טען מדיה כדי להפעיל צורת גל" 
+                  : waveformEnabled 
+                    ? "החלף לסרגל התקדמות רגיל" 
+                    : "החלף לצורת גל"
+              }
+              disabled={!initialMedia}
               onClick={() => {
+                if (!initialMedia) return;
+                
                 const newEnabled = !waveformEnabled;
                 setWaveformEnabled(newEnabled);
                 
                 // If enabling and we don't have data, analyze
-                if (newEnabled && !waveformData && initialMedia?.url) {
+                if (newEnabled && !waveformData && initialMedia.url) {
                   analyzeWaveform(initialMedia.url);
                 }
               }}
@@ -1506,6 +1948,25 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         </div>
       </div>
 
+      {/* Resource Warning Modal */}
+      <ResourceWarningModal
+        isOpen={showResourceWarning}
+        onClose={() => {
+          // Reset waveform state when user cancels
+          setWaveformEnabled(false);
+          setWaveformLoading(false);
+          setWaveformProgress(0);
+          // Cancel any ongoing processing
+          if (waveformAbortControllerRef.current) {
+            waveformAbortControllerRef.current.abort();
+            waveformAbortControllerRef.current = null;
+          }
+          handleCloseWarning();
+        }}
+        onContinue={handleContinueRisky}
+        onUseAlternative={warningData?.alternativeMethod ? handleUseAlternative : undefined}
+        data={warningData}
+      />
 
     </>
   );

@@ -9,13 +9,17 @@ interface HoveringHeaderProps {
   permissions: string;
   onLogout: () => void;
   themeColor?: 'golden' | 'blue' | 'purple' | 'pink';
+  onLockToggle?: () => void;
+  isLocked?: boolean;
 }
 
 export default function HoveringHeader({ 
   userFullName, 
   permissions, 
   onLogout,
-  themeColor = 'golden' 
+  themeColor = 'golden',
+  onLockToggle,
+  isLocked = false
 }: HoveringHeaderProps) {
   const [showHeader, setShowHeader] = useState(false);
   const pathname = usePathname();
@@ -69,71 +73,45 @@ export default function HoveringHeader({
   };
 
   return (
-    <>
-      {/* Hovering Header Reveal Zone */}
-      <div 
-        className="header-reveal-zone"
-        onMouseEnter={() => setShowHeader(true)}
-        onMouseLeave={() => setShowHeader(false)}
-      />
-      
-      {/* Collapsible Header */}
-      <div className={`collapsible-header ${showHeader ? 'show' : ''}`}>
-        <div className="header-content">
-          <div className="logo-section">
-            <h1 style={{
-              background: getGradient(),
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              אפליקציית תמלול
-            </h1>
-            <p className="page-subtitle">מערכת תמלול מקצועית</p>
-          </div>
-          
-          <nav className="nav">
-            <div className="nav-links">
-              {navItems.map((item) => {
-                if (!item.permission) return null;
-                
-                return (
-                  <Link
-                    key={item.path}
-                    href={item.path}
-                    className={pathname === item.path ? 'active' : ''}
-                    style={pathname === item.path ? {
-                      background: getGradient()
-                    } : {}}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-          
-          <div className="user-info">
-            <div className="user-profile" style={{
-              background: themeColor === 'blue' ? 'rgba(0, 123, 255, 0.1)' :
-                         themeColor === 'purple' ? 'rgba(111, 66, 193, 0.1)' :
-                         'rgba(224, 169, 109, 0.1)',
-              borderColor: themeColor === 'blue' ? 'rgba(0, 123, 255, 0.3)' :
-                          themeColor === 'purple' ? 'rgba(111, 66, 193, 0.3)' :
-                          'rgba(224, 169, 109, 0.3)'
-            }}>
-              שלום, {userFullName}
-            </div>
-            <button 
-              className="logout-btn" 
-              onClick={onLogout}
-              style={{ background: getGradient() }}
-            >
-              יציאה
-            </button>
+    <div className="header-content t-header-content">
+      <div className="t-left-section">
+        <div className="user-info t-user-info">
+          <div className="user-profile t-user-profile">
+            שלום, {userFullName}
           </div>
         </div>
       </div>
-    </>
+      
+      <div className="t-right-section">
+        <nav className="nav t-nav">
+          <div className="nav-links t-nav-links">
+            {navItems.map((item) => {
+              if (!item.permission) return null;
+              
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={pathname === item.path ? 'active' : ''}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+        {onLockToggle && (
+          <div className="header-controls">
+            <button 
+              onClick={onLockToggle}
+              className="lock-btn"
+              aria-label={isLocked ? 'Unlock header' : 'Lock header'}
+            >
+              {isLocked ? '🔓' : '🔒'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

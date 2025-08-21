@@ -5,7 +5,7 @@
   min-height: 100vh;
   max-height: 100vh;
   position: relative;
-  overflow: hidden !important;
+  overflow: visible; /* Changed from hidden to prevent layout issues */
 }
 
 /* ===== HEADER TRIGGER AREA ===== */
@@ -39,8 +39,17 @@
   transform: translateY(-80px);
   transition: transform 0.3s ease;
   will-change: transform;
-  /* Debug: temporary background */
-  /* background: rgba(0, 0, 255, 0.8) !important; */
+  /* Beautiful gradient theme matching WorkspaceHeader */
+  background: linear-gradient(135deg, 
+    #0f4c4c 0%,      /* Dark green */
+    #1a5d5d 20%,     /* Medium dark green */
+    #14b8a6 60%,     /* Light green/teal - more area */
+    #0f766e 80%,     /* Teal */
+    #1a5d5d 100%     /* Back to medium dark */
+  ) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid rgba(20, 184, 166, 0.3);
 }
 
 .hovering-header.visible {
@@ -58,57 +67,185 @@
   top: 0;
   pointer-events: auto;
   z-index: 1500;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
 }
 
-.hovering-header .header-content {
+.hovering-header.locked:hover {
+  opacity: 1;
+}
+
+/* T-prefixed header content to avoid conflicts */
+.t-header-content,
+.hovering-header > .header-content {
   height: 100%;
-  display: block;  /* Don't use flex here */
-  padding: 0;
-  width: 100%;
-  box-sizing: border-box;
-  position: relative;  /* For absolute positioning of lock button */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 20px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  color: white !important;
 }
 
+/* Left section for user greeting */
+.t-left-section {
+  display: flex !important;
+  align-items: center !important;
+  flex: 0 0 auto !important;
+  margin-right: auto !important;
+}
+
+/* Right section for navigation and controls */
+.t-right-section {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 1 auto !important;
+  justify-content: flex-end !important;
+  gap: 15px !important;
+}
+
+.t-header-controls,
 .hovering-header .header-controls {
-  display: flex;
-  align-items: center;
-  gap: 15px;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  margin-left: 10px !important;
 }
 
 .hovering-header .lock-btn,
 .hovering-sidebar .lock-btn {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  color: white;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
   padding: 6px 12px;
-  border: 1px solid rgba(40, 167, 69, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
   border-radius: 15px;
   font-weight: 600;
   transition: all 0.3s ease;
   cursor: pointer;
   font-size: 14px;
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .hovering-header .lock-btn:hover,
 .hovering-sidebar .lock-btn:hover {
-  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Specific header lock button override to ensure it applies */
+.hovering-header .header-controls .lock-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.hovering-header .header-controls .lock-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Transcription Header Specific Styles - Prefixed with t- */
+.t-nav,
+.hovering-header .nav {
+  display: flex !important;
+  align-items: center !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.t-nav-links,
+.hovering-header .nav-links {
+  display: inline-flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+  background: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.t-nav-links a,
+.hovering-header .nav-links a {
+  color: white !important;
+  text-decoration: none !important;
+  padding: 6px 14px !important;
+  border-radius: 15px !important;
+  transition: all 0.3s ease !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  display: inline-block !important;
+}
+
+.t-nav-links a:hover,
+.hovering-header .nav-links a:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.t-nav-links a.active,
+.hovering-header .nav-links a.active {
+  background: rgba(20, 184, 166, 0.4) !important;
+  border-color: rgba(20, 184, 166, 0.8) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(20, 184, 166, 0.5) !important;
+  transform: scale(1.05) !important;
+}
+
+/* User Info Styles - Prefixed */
+.t-user-info,
+.hovering-header .user-info {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.t-user-profile,
+.hovering-header .user-profile {
+  background: rgba(20, 184, 166, 0.15) !important;
+  border: 1px solid rgba(20, 184, 166, 0.4) !important;
+  color: white !important;
+  padding: 8px 16px !important;
+  border-radius: 20px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  box-shadow: 0 2px 8px rgba(20, 184, 166, 0.2) !important;
+  transition: all 0.3s ease !important;
+  display: inline-block !important;
+}
+
+.t-user-profile:hover,
+.hovering-header .user-profile:hover {
+  background: rgba(20, 184, 166, 0.25) !important;
+  border-color: rgba(20, 184, 166, 0.6) !important;
+  transform: translateY(-1px) !important;
 }
 
 /* ===== MAIN CONTENT WRAPPER ===== */
 .main-content-wrapper {
-  margin: 0 clamp(10px, 1.2vw, 25px) clamp(10px, 1.2vw, 25px) clamp(10px, 1.2vw, 25px);
-  transition: margin 0.3s ease;
-  min-height: calc(100vh - clamp(120px, 8vh, 170px));
+  margin: 0 15px 15px 15px; /* Fixed values to prevent recalculation */
+  /* Removed transition to prevent layout shift when navigating */
+  min-height: calc(100vh - 140px); /* Fixed value to prevent recalculation */
   display: flex;
   flex-direction: column;
 }
 
-/* Hide scrollbar on larger screens, show on very small */
+/* Allow scrollbars when needed */
 @media (min-height: 600px) {
   .main-content-wrapper {
-    overflow: hidden;
+    overflow: auto; /* Allow scrollbars when content exceeds container */
   }
 }
 
@@ -118,23 +255,25 @@
   margin-top: 0;
 }
 
-/* When sidebar is locked, adjust main content */
+/* When sidebar is locked, shrink available space */
 .main-content-wrapper.sidebar-locked {
-  margin-right: 230px;
-  width: calc(100% - 230px);
+  margin-right: 235px; /* Account for 220px sidebar + 15px margin */
+  width: calc(100% - 235px);
 }
 
 /* When both header and sidebar are locked */
 .main-content-wrapper.header-locked.sidebar-locked {
   min-height: calc(100vh - 200px);
-  margin-right: 230px;
-  width: calc(100% - 230px);
+  margin-right: 235px; /* Account for 220px sidebar + 15px margin */
+  width: calc(100% - 235px);
 }
 
 /* Full screen - adjust when both bars locked */
 @media (min-width: 1201px) {
   .main-content-wrapper.header-locked.sidebar-locked {
     min-height: calc(100vh - 210px);
+    margin-right: 235px;
+    width: calc(100% - 235px);
   }
 }
 
@@ -142,6 +281,8 @@
 @media (min-width: 600px) and (max-width: 1200px) {
   .main-content-wrapper.header-locked.sidebar-locked {
     min-height: calc(100vh - 220px);
+    margin-right: 235px;
+    width: calc(100% - 235px);
   }
 }
 
@@ -159,6 +300,17 @@
   border-radius: 15px 0 0 15px;
   padding: 0 !important;  /* NO PADDING */
   box-sizing: border-box;
+  /* Matching gradient theme with continuous flow */
+  background: linear-gradient(135deg, 
+    #1a5d5d 0%,      /* Start with medium dark to connect with header */
+    #14b8a6 40%,     /* Light green/teal - large area */
+    #17a2b8 60%,     /* More teal */
+    #0f766e 80%,     /* Deep teal */
+    #0f4c4c 100%     /* End with dark green */
+  ) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: -5px 0 20px rgba(0, 0, 0, 0.4);
+  border-left: 1px solid rgba(20, 184, 166, 0.3);
 }
 
 /* When header is locked, sidebar should always go down (locked or not) */
@@ -202,6 +354,13 @@
   z-index: 800;  /* Lower than header */
   padding: 0 !important;  /* NO PADDING AT ALL */
   box-sizing: border-box;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+  /* Keep gradient when locked */
+}
+
+.hovering-sidebar.locked:hover {
+  opacity: 1;
 }
 
 /* When both header and sidebar are locked, align sidebar with header */
@@ -209,6 +368,12 @@
   top: 80px;
   height: calc(100vh - 80px);
   z-index: 800;  /* Keep lower than header */
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.hovering-sidebar.locked.header-locked:hover {
+  opacity: 1;
 }
 
 .hovering-sidebar .sidebar-header {
@@ -246,8 +411,8 @@
 }
 
 .hovering-sidebar .sidebar-header-top .lock-btn {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
   font-size: 16px;
   cursor: pointer;
@@ -257,22 +422,28 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   position: absolute;
   left: 5px;  /* LEFT side where it's accessible */
   top: 50%;
   transform: translateY(-50%);
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .hovering-sidebar .sidebar-header-top .lock-btn:hover {
-  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .hovering-sidebar .sidebar-header-top .lock-btn.locked {
-  background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+  background: rgba(20, 184, 166, 0.25);
+  color: white;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  border-color: rgba(20, 184, 166, 0.6);
 }
 
 .hovering-sidebar .sidebar-content-wrapper {
@@ -296,15 +467,14 @@
   }
 }
 
-/* Very small screens - allow overflow */
+/* Very small screens - allow scrollbars when needed */
 @media (max-width: 599px), (max-height: 499px) {
   .main-content-wrapper {
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
   }
   
   .main-content-wrapper.header-locked {
-    overflow-y: auto !important;
+    overflow: auto;
     min-height: calc(100vh - 200px);
   }
 }
@@ -317,7 +487,7 @@
   }
   
   .hovering-header .header-content {
-    flex-direction: column;
+    flex-direction: row !important;  /* Keep row layout */
     gap: 10px;
     padding: 10px;
   }
@@ -332,6 +502,8 @@
   }
   
   .main-content-wrapper.sidebar-locked {
-    margin-right: 290px;
+    /* On medium screens, use margin approach but smaller margin */
+    margin-right: 295px; /* Account for 280px sidebar + 15px margin */
+    width: calc(100% - 295px);
   }
 }

@@ -9,7 +9,8 @@ export class ProjectService {
   private projectCounter: number = 0;
 
   constructor() {
-    this.baseDir = path.join(__dirname, '..', '..', 'user_data', 'user_live', 'projects');
+    // Base directory for all users' projects
+    this.baseDir = path.join(__dirname, '..', '..', 'user_data');
     this.initializeService();
   }
 
@@ -31,17 +32,32 @@ export class ProjectService {
    */
   private async loadProjectCounter() {
     try {
-      const entries = await fs.readdir(this.baseDir);
-      const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
+      // Check all user directories for the highest counter
+      const usersDir = path.join(this.baseDir, 'users');
+      await fs.mkdir(usersDir, { recursive: true });
       
-      if (projectFolders.length > 0) {
-        // Extract counters and find the highest
-        const counters = projectFolders.map(folder => {
-          const parts = folder.split('_');
-          return parseInt(parts[2], 10);
-        });
-        this.projectCounter = Math.max(...counters);
+      const users = await fs.readdir(usersDir);
+      let maxCounter = 0;
+      
+      for (const user of users) {
+        const userProjectsDir = path.join(usersDir, user, 'projects');
+        try {
+          const entries = await fs.readdir(userProjectsDir);
+          const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
+          
+          if (projectFolders.length > 0) {
+            const counters = projectFolders.map(folder => {
+              const parts = folder.split('_');
+              return parseInt(parts[2], 10);
+            });
+            maxCounter = Math.max(maxCounter, ...counters);
+          }
+        } catch (err) {
+          // User directory might not exist yet
+        }
       }
+      
+      this.projectCounter = maxCounter;
     } catch (error) {
       console.error('Error loading project counter:', error);
       this.projectCounter = 0;
@@ -67,11 +83,21 @@ export class ProjectService {
   }
 
   /**
+   * Get user-specific project directory
+   */
+  private getUserDir(userId: string): string {
+    // Sanitize user ID to make it safe for filesystem
+    const safeUserId = userId.toString().replace(/[^a-zA-Z0-9-_]/g, '_');
+    return path.join(this.baseDir, 'users', safeUserId, 'projects');
+  }
+  
+  /**
    * Create a new project
    */
-  async createProject(mediaFileName: string, projectName?: string): Promise<string> {
+  async createProject(mediaFileName: string, projectName?: string, userId: string = 'default'): Promise<string> {
     const projectId = this.generateProjectId();
-    const projectDir = path.join(this.baseDir, projectId);
+    const userDir = this.getUserDir(userId);
+    const projectDir = path.join(userDir, projectId);
     const backupsDir = path.join(projectDir, 'backups');
     
     // Create directories
@@ -148,9 +174,10 @@ export class ProjectService {
     blocks?: any[];
     speakers?: any[];
     remarks?: any[];
-  }): Promise<boolean> {
+  }, userId: string = 'default'): Promise<boolean> {
     try {
-      const projectDir = path.join(this.baseDir, projectId);
+      const userDir = this.getUserDir(userId);
+      const projectDir = path.join(userDir, projectId);
       
       // Check if project exists
       await fs.access(projectDir);
@@ -219,9 +246,18 @@ export class ProjectService {
   /**
    * Load project data
    */
-  async loadProject(projectId: string): Promise<any> {
+  async loadProject(projectId: string, userId?: string): Promise<any> {
     try {
-      const projectDir = path.join(this.baseDir, projectId);
+      // Try to find the project in user-specific directory first
+      let projectDir: string;
+      
+      if (userId) {
+        const userDir = this.getUserDir(userId);
+        projectDir = path.join(userDir, projectId);
+      } else {
+        // Fallback to old structure for backward compatibility
+        projectDir = path.join(this.baseDir, 'user_live', 'projects', projectId);
+      }
       
       // Check if project exists
       await fs.access(projectDir);
@@ -251,9 +287,10 @@ export class ProjectService {
   /**
    * Create a backup of the project
    */
-  async createBackup(projectId: string): Promise<string | null> {
+  async createBackup(projectId: string, userId: string = 'default'): Promise<string | null> {
     try {
-      const projectDir = path.join(this.baseDir, projectId);
+      const userDir = this.getUserDir(userId);
+      const projectDir = path.join(userDir, projectId);
       const backupsDir = path.join(projectDir, 'backups');
       
       // Create backup timestamp
@@ -305,9 +342,10 @@ export class ProjectService {
   /**
    * Restore from backup
    */
-  async restoreBackup(projectId: string, backupFile: string): Promise<boolean> {
+  async restoreBackup(projectId: string, backupFile: string, userId: string = 'default'): Promise<boolean> {
     try {
-      const projectDir = path.join(this.baseDir, projectId);
+      const userDir = this.getUserDir(userId);
+      const projectDir = path.join(userDir, projectId);
       const backupPath = path.join(projectDir, 'backups', backupFile);
       
       // Load backup
@@ -348,20 +386,25 @@ export class ProjectService {
   }
 
   /**
-   * List all projects
+   * List all projects for a specific user
    */
-  async listProjects(): Promise<any[]> {
+  async listProjects(userId: string = 'default'): Promise<any[]> {
     try {
-      const entries = await fs.readdir(this.baseDir);
-      console.log(`Found ${entries.length} entries in projects directory`);
+      const userDir = this.getUserDir(userId);
+      
+      // Ensure user directory exists
+      await fs.mkdir(userDir, { recursive: true });
+      
+      const entries = await fs.readdir(userDir);
+      console.log(`Found ${entries.length} entries in user ${userId} projects directory`);
       
       const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
-      console.log(`Found ${projectFolders.length} project folders`);
+      console.log(`Found ${projectFolders.length} project folders for user ${userId}`);
       
       const projects = [];
       for (const folder of projectFolders) {
         try {
-          const metadataPath = path.join(this.baseDir, folder, 'metadata.json');
+          const metadataPath = path.join(userDir, folder, 'metadata.json');
           const metadata = JSON.parse(
             await fs.readFile(metadataPath, 'utf8')
           );
@@ -389,9 +432,9 @@ export class ProjectService {
   /**
    * Get project by media file name
    */
-  async getProjectByMedia(mediaFileName: string): Promise<string | null> {
+  async getProjectByMedia(mediaFileName: string, userId: string = 'default'): Promise<string | null> {
     try {
-      const projects = await this.listProjects();
+      const projects = await this.listProjects(userId);
       const project = projects.find(p => p.mediaFile === mediaFileName);
       return project ? project.projectId : null;
     } catch (error) {
@@ -403,9 +446,10 @@ export class ProjectService {
   /**
    * List backups for a project
    */
-  async listBackups(projectId: string): Promise<any[]> {
+  async listBackups(projectId: string, userId: string = 'default'): Promise<any[]> {
     try {
-      const backupsDir = path.join(this.baseDir, projectId, 'backups');
+      const userDir = this.getUserDir(userId);
+      const backupsDir = path.join(userDir, projectId, 'backups');
       const files = await fs.readdir(backupsDir);
       
       const backups = [];
@@ -435,9 +479,10 @@ export class ProjectService {
   /**
    * Get backup content
    */
-  async getBackupContent(projectId: string, backupFile: string): Promise<any | null> {
+  async getBackupContent(projectId: string, backupFile: string, userId: string = 'default'): Promise<any | null> {
     try {
-      const backupPath = path.join(this.baseDir, projectId, 'backups', backupFile);
+      const userDir = this.getUserDir(userId);
+      const backupPath = path.join(userDir, projectId, 'backups', backupFile);
       
       // Check if file exists
       await fs.access(backupPath);
@@ -464,9 +509,10 @@ export class ProjectService {
   /**
    * Delete a project and all its data
    */
-  async deleteProject(projectId: string): Promise<boolean> {
+  async deleteProject(projectId: string, userId: string = 'default'): Promise<boolean> {
     try {
-      const projectDir = path.join(this.baseDir, projectId);
+      const userDir = this.getUserDir(userId);
+      const projectDir = path.join(userDir, projectId);
       
       // Check if project exists
       await fs.access(projectDir);

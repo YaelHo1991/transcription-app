@@ -11,9 +11,7 @@
 }
 
 /* Remove scrollbar from body when on transcription page */
-body:has(.transcription-work-page) {
-  overflow: hidden !important;
-}
+/* Body overflow handled by parent container */
 
 /* Hide all scrollbars in transcription page */
 .transcription-work-page * {
@@ -43,11 +41,11 @@ body:has(.transcription-work-page) {
   left: 0;
   right: 0;
   height: 80px;
-  background: linear-gradient(135deg, #201e20 0%, #3d3a3c 100%);
+  /* Gradient defined in HoveringBarsLayout.css */
   color: white;
   z-index: 1000;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(32, 30, 32, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .hovering-header.visible {
@@ -59,20 +57,15 @@ body:has(.transcription-work-page) {
   top: 0;
 }
 
-.hovering-header .header-content {
-  height: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-}
+/* Header content styles moved to HoveringBarsLayout.css to avoid conflicts */
 
+/* Removed - not using placeholder anymore
 .hovering-header .header-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 1;
-}
+} */
 
 .hovering-header .header-label {
   font-size: 18px;
@@ -129,117 +122,14 @@ body:has(.transcription-work-page) {
 }
 
 /* ===== WORKSPACE HEADER ===== */
-.workspace-header {
-  background: linear-gradient(135deg, 
-    #0f4c4c 0%, 
-    #1a5d5d 30%, 
-    #14b8a6 50%, 
-    #0f766e 70%, 
-    #1a5d5d 100%);
-  border-radius: 15px;
-  margin: 15px 15px 5px 15px; /* Reduced spacing: 15px top, 5px bottom */
-  padding: 10px 20px; /* Fixed padding */
-  height: 50px; /* Fixed height */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  width: calc(100% - 30px); /* Account for margins */
-  box-sizing: border-box;
-  border: none;
-}
+/* Workspace header styles moved to WorkspaceHeader.css to avoid conflicts */
 
-/* Align header with content padding on larger screens */
-@media (min-width: 1400px) {
-  .workspace-header {
-    margin: 15px 30px 5px 30px;
-    width: calc(100% - 60px);
-  }
-}
+/* All workspace header styles moved to WorkspaceHeader.css */
 
-@media (min-width: 1800px) {
-  .workspace-header {
-    margin: 15px 50px 5px 50px;
-    width: calc(100% - 100px);
-  }
-}
-
-@media (min-width: 2200px) {
-  .workspace-header {
-    margin: 15px 80px 5px 80px;
-    width: calc(100% - 160px);
-  }
-}
-
-.workspace-header.header-locked {
-  margin-top: 10px; /* Fixed margin */
-}
-
-/* Adjust workspace header when sidebar is locked */
-.workspace-header.sidebar-locked {
-  width: 100%; /* Full width - video cube is now inside media player */
-  margin-right: 0; /* No right margin */
-  margin-left: 0; /* No left margin */
-}
-
-.workspace-header .header-content {
-  display: flex;
-  justify-content: center;  /* Center everything */
-  align-items: center;
-  gap: 30px;
-}
-
-.workspace-header .workspace-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #ffffff;  /* White text */
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  letter-spacing: 0.5px;
-}
-
-.workspace-header .header-divider {
-  width: 2px;
-  height: 30px;
-  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.4), transparent);
-  border-radius: 1px;
-}
-
-.workspace-header .progress-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;  /* All items in one line */
-}
-
-.workspace-header .progress-label {
-  font-size: 14px;
-  color: #ffffff;  /* White text */
-  font-weight: 500;
-}
-
-.workspace-header .progress-percentage {
-  font-size: 18px;
-  font-weight: 700;
-  color: #ffffff;  /* White text */
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.workspace-header .progress-bar-wrapper {
-  width: 200px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.workspace-header .progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #28a745 0%, #20c997 50%, #17a2b8 100%);
-  transition: width 0.3s ease;
-  border-radius: 4px;
-  position: relative;
-}
+/* All workspace header content styles moved to WorkspaceHeader.css */
 
 /* ===== PROJECT NAVIGATOR ===== */
-.project-navigator {
+.t-project-navigator-deleted {
   background: linear-gradient(135deg, 
     #0f4c4c 0%, 
     #1a5d5d 30%, 
@@ -263,13 +153,13 @@ body:has(.transcription-work-page) {
   border: none;
 }
 
-.project-navigator .nav-section {
+.t-project-navigator-deleted .nav-section {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.project-navigator .nav-btn {
+.t-project-navigator-deleted .nav-btn {
   background: white;
   border: 2px solid #28a745;
   color: #28a745;
@@ -281,7 +171,7 @@ body:has(.transcription-work-page) {
   transition: all 0.3s ease;
 }
 
-.project-navigator .nav-btn:hover:not(:disabled) {
+.t-project-navigator-deleted .nav-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #28a745 0%, #20c997 50%, #17a2b8 100%);
   color: white;
   transform: translateY(-2px);
@@ -289,7 +179,7 @@ body:has(.transcription-work-page) {
   border-color: transparent;
 }
 
-.project-navigator .nav-btn:disabled {
+.t-project-navigator-deleted .nav-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
   background: #f8f9fa;
@@ -297,7 +187,7 @@ body:has(.transcription-work-page) {
   color: #adb5bd;
 }
 
-.project-navigator .upload-btn {
+.t-project-navigator-deleted .upload-btn {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
   padding: 8px 15px;
@@ -308,46 +198,46 @@ body:has(.transcription-work-page) {
   transition: all 0.3s ease;
 }
 
-.project-navigator .upload-btn:hover {
+.t-project-navigator-deleted .upload-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
 }
 
-.project-navigator .nav-info-group {
+.t-project-navigator-deleted .nav-info-group {
   text-align: center;
 }
 
-.project-navigator .nav-label {
+.t-project-navigator-deleted .nav-label {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.8);
   display: block;
 }
 
-.project-navigator .nav-value {
+.t-project-navigator-deleted .nav-value {
   font-size: 16px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
 }
 
-.project-navigator .nav-divider {
+.t-project-navigator-deleted .nav-divider {
   width: 2px;
   height: 40px;
   background: linear-gradient(to bottom, transparent 0%, rgba(40, 167, 69, 0.2) 20%, rgba(40, 167, 69, 0.2) 80%, transparent 100%);
   border-radius: 1px;
 }
 
-.project-navigator .file-info-section {
+.t-project-navigator-deleted .file-info-section {
   text-align: center;
 }
 
-.project-navigator .file-main-info {
+.t-project-navigator-deleted .file-main-info {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 5px;
 }
 
-.project-navigator .file-counter {
+.t-project-navigator-deleted .file-counter {
   font-size: 14px;
   font-weight: 700;
   color: #28a745;
@@ -356,13 +246,13 @@ body:has(.transcription-work-page) {
   border-radius: 10px;
 }
 
-.project-navigator .file-name {
+.t-project-navigator-deleted .file-name {
   font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
 }
 
-.project-navigator .file-details {
+.t-project-navigator-deleted .file-details {
   display: flex;
   gap: 15px;
   font-size: 12px;
@@ -371,11 +261,11 @@ body:has(.transcription-work-page) {
 
 /* ===== MAIN CONTENT ===== */
 .main-content {
-  transition: all 0.3s ease;
-  height: calc(100vh - 70px); /* Fill entire viewport minus workspace header */
+  /* Removed transition to prevent layout shift */
+  height: calc(100vh - 80px); /* Account for workspace header 50px + margins 30px */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Prevent main container scroll */
+  overflow: auto; /* Allow scrollbars when content overflows */
   padding: 0;
   margin: 0;
 }
@@ -389,7 +279,7 @@ body:has(.transcription-work-page) {
   flex-direction: column;
   flex: 1;
   height: 100%;
-  overflow: hidden; /* Remove scrollbar */
+  overflow: hidden; /* Keep hidden for consistent layout */
 }
 
 /* Responsive padding that increases with screen size */
@@ -415,7 +305,7 @@ body:has(.transcription-work-page) {
 
 /* When header is locked, adjust for the header being part of layout */
 .main-content.header-locked {
-  height: calc(100vh - 140px); /* Account for locked header (80px) + workspace header (60px) */
+  height: calc(100vh - 160px); /* Account for locked header (80px) + workspace header (80px) */
   margin-top: 0;
 }
 
@@ -475,10 +365,10 @@ body:has(.transcription-work-page) {
   }
 }
 
-/* Very small screens - allow overflow */
+/* Very small screens - keep hidden for layout consistency */
 @media (max-width: 599px), (max-height: 499px) {
   .main-content.header-locked {
-    overflow-y: auto !important;
+    overflow: hidden;
     height: calc(100vh - 200px);
   }
 }
@@ -571,7 +461,7 @@ body:has(.transcription-work-page) {
   gap: 15px; /* Base gap */
   height: 100%;
   max-height: 100%;
-  overflow: hidden; /* Prevent expansion */
+  overflow: auto; /* Allow scrollbars when content doesn't fit */
 }
 
 /* Increase gap on larger screens */
@@ -610,7 +500,7 @@ body:has(.transcription-work-page) {
   height: 100%;
   width: 100%;
   max-height: 100%;
-  overflow: hidden;
+  overflow: hidden; /* Keep hidden for proper containment */
 }
 
 /* Increase gap on larger screens */
@@ -695,12 +585,10 @@ body:has(.transcription-work-page) {
 /* Media player styles moved to MediaPlayer.css */
 
 .placeholder-container.text-editor {
-  flex: 0 0 auto; /* Don't grow or shrink */
-  height: 300px; /* Fixed height */
-  min-height: 300px;
-  max-height: 300px;
+  flex: 2; /* Allow growing and shrinking - give it 2x weight */
+  min-height: clamp(250px, 30vh, 400px); /* Responsive min-height */
   background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(32, 201, 151, 0.08) 50%, rgba(23, 162, 184, 0.05) 100%);
-  overflow-y: auto; /* Add scroll if content is too large */
+  overflow: auto; /* Allow scrollbars when content overflows */
 }
 
 /* Sidebar containers */
@@ -853,9 +741,9 @@ body:has(.transcription-work-page) {
   right: calc(-1 * clamp(350px, 25vw, 500px));
   width: clamp(350px, 25vw, 500px);
   height: 100vh;
-  background: white;
+  /* Gradient defined in HoveringBarsLayout.css */
   backdrop-filter: blur(10px);
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
   z-index: 999;
   transition: all 0.3s ease;
   border-radius: 15px 0 0 15px;
@@ -981,10 +869,7 @@ body:has(.transcription-work-page) {
     gap: 15px;
   }
   
-  .workspace-header {
-    margin: 10px 10px 5px 10px;
-    width: calc(100% - 20px);
-  }
+  /* Responsive workspace header styles moved to WorkspaceHeader.css */
   
   .side-workspace {
     display: grid;
@@ -1006,28 +891,14 @@ body:has(.transcription-work-page) {
     height: calc(100vh - 60px);
   }
   
-  .workspace-header {
-    margin: 8px 8px 5px 8px;
-    width: calc(100% - 16px);
-  }
+  /* All responsive workspace header styles moved to WorkspaceHeader.css */
   
-  .workspace-header,
-  .project-navigator {
-    margin: 10px;
-    padding: 10px 15px;
-  }
-  
-  .workspace-header .header-content {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .project-navigator {
+  .t-project-navigator-deleted {
     flex-direction: column;
     gap: 15px;
   }
   
-  .project-navigator .nav-divider {
+  .t-project-navigator-deleted .nav-divider {
     width: 100%;
     height: 2px;
   }
@@ -1036,11 +907,7 @@ body:has(.transcription-work-page) {
     grid-template-columns: 1fr;
   }
   
-  .hovering-header .header-content {
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px;
-  }
+  /* Header content styles moved to HoveringBarsLayout.css */
   
   .hovering-header .nav-links {
     flex-wrap: wrap;

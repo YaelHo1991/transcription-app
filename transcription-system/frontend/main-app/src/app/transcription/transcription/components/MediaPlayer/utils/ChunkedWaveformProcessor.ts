@@ -9,6 +9,7 @@ export interface ChunkedProcessorOptions {
   chunkSize?: number; // Default: 10MB
   onProgress?: (progress: number) => void;
   onError?: (error: string) => void;
+  signal?: AbortSignal; // Abort signal for cancellation
 }
 
 export class ChunkedWaveformProcessor {
@@ -16,11 +17,13 @@ export class ChunkedWaveformProcessor {
   private onProgress?: (progress: number) => void;
   private onError?: (error: string) => void;
   private audioContext: AudioContext | null = null;
+  private signal?: AbortSignal;
   
   constructor(options: ChunkedProcessorOptions = {}) {
     this.chunkSize = options.chunkSize || 10 * 1024 * 1024; // 10MB default
     this.onProgress = options.onProgress;
     this.onError = options.onError;
+    this.signal = options.signal;
   }
 
   /**
@@ -28,6 +31,17 @@ export class ChunkedWaveformProcessor {
    */
   async processLargeFile(url: string): Promise<WaveformData> {
     try {
+      // Check for abort signal
+      if (this.signal?.aborted) {
+        console.log('Processing aborted at start');
+        return {
+          peaks: new Float32Array(0),
+          duration: 0,
+          sampleRate: 44100,
+          resolution: 10
+        };
+      }
+      
       // Check if it's a blob URL
       const isBlobUrl = url.startsWith('blob:');
       
@@ -58,6 +72,22 @@ export class ChunkedWaveformProcessor {
       
       // Process each chunk
       for (let i = 0; i < chunks; i++) {
+        // Check for abort signal
+        if (this.signal?.aborted) {
+          console.log('Processing aborted during chunk processing');
+          // Clean up and return empty result
+          if (this.audioContext) {
+            await this.audioContext.close();
+            this.audioContext = null;
+          }
+          return {
+            peaks: new Float32Array(0),
+            duration: 0,
+            sampleRate: 44100,
+            resolution: 10
+          };
+        }
+        
         const start = i * this.chunkSize;
         const end = Math.min(start + this.chunkSize - 1, fileSize - 1);
         
@@ -263,55 +293,64 @@ export class ChunkedWaveformProcessor {
   }
 
   /**
-   * Process blob URL with optimized memory usage
+   * Process blob URL with true chunked processing (using File.slice)
    */
   private async processBlobUrl(url: string): Promise<WaveformData> {
-    console.log('Processing blob URL with optimized memory usage');
+    console.log('Processing blob URL with true chunked processing');
     
     try {
+      // Check for abort signal
+      if (this.signal?.aborted) {
+        console.log('Processing aborted before blob processing');
+        return {
+          peaks: new Float32Array(0),
+          duration: 0,
+          sampleRate: 44100,
+          resolution: 10
+        };
+      }
+      
       // Initialize audio context
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
       // Fetch the blob
-      this.onProgress?.(10);
+      this.onProgress?.(5);
       const response = await fetch(url);
       const blob = await response.blob();
       const fileSize = blob.size;
       
       console.log(`Blob size: ${this.formatBytes(fileSize)}`);
-      this.onProgress?.(20);
+      this.onProgress?.(10);
       
-      // Convert to ArrayBuffer
-      const arrayBuffer = await blob.arrayBuffer();
-      this.onProgress?.(40);
-      
-      // Decode audio data with lower sample rate to save memory
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      this.onProgress?.(60);
-      
-      // Get channel data
-      const channelData = audioBuffer.getChannelData(0);
-      const duration = audioBuffer.duration;
-      
-      // Extract peaks with reduced resolution for large files
-      const targetPeaks = fileSize > 100 * 1024 * 1024 ? 1500 : 2000; // Fewer peaks for very large files
-      const peaks = this.extractPeaksOptimized(channelData, targetPeaks);
-      this.onProgress?.(90);
-      
-      // Close audio context
-      if (this.audioContext) {
-        await this.audioContext.close();
-        this.audioContext = null;
+      // If the file is small enough, process it directly
+      if (fileSize < 50 * 1024 * 1024) { // Less than 50MB
+        console.log('Small blob file, processing directly');
+        const arrayBuffer = await blob.arrayBuffer();
+        this.onProgress?.(40);
+        
+        const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+        const channelData = audioBuffer.getChannelData(0);
+        const duration = audioBuffer.duration;
+        
+        const peaks = this.extractPeaksOptimized(channelData, 2000);
+        this.onProgress?.(100);
+        
+        if (this.audioContext) {
+          await this.audioContext.close();
+          this.audioContext = null;
+        }
+        
+        return {
+          peaks: new Float32Array(peaks),
+          duration,
+          sampleRate: audioBuffer.sampleRate,
+          resolution: 10
+        };
       }
       
-      this.onProgress?.(100);
+      // For large blob files, use true chunked processing with File.slice()
+      return await this.processLargeBlobInChunks(blob);
       
-      return {
-        peaks: new Float32Array(peaks),
-        duration,
-        sampleRate: audioBuffer.sampleRate,
-        resolution: 10
-      };
     } catch (error) {
       if (this.audioContext) {
         await this.audioContext.close();
@@ -319,6 +358,96 @@ export class ChunkedWaveformProcessor {
       }
       throw error;
     }
+  }
+
+  /**
+   * Process large blob files in true chunks using File.slice()
+   */
+  private async processLargeBlobInChunks(blob: Blob): Promise<WaveformData> {
+    const fileSize = blob.size;
+    const chunks = Math.ceil(fileSize / this.chunkSize);
+    const allPeaks: number[] = [];
+    let totalDuration = 0;
+    let sampleRate = 44100;
+    
+    console.log(`Processing large blob in ${chunks} chunks of ${this.formatBytes(this.chunkSize)} each`);
+    
+    // Process each chunk
+    for (let i = 0; i < chunks; i++) {
+      // Check for abort signal
+      if (this.signal?.aborted) {
+        console.log('Processing aborted during blob chunk processing');
+        // Don't throw error for user-initiated abort
+        return {
+          peaks: new Float32Array(0),
+          duration: 0,
+          sampleRate: 44100,
+          resolution: 10
+        };
+      }
+      
+      const start = i * this.chunkSize;
+      const end = Math.min(start + this.chunkSize, fileSize);
+      
+      // Create chunk from blob using slice (memory efficient!)
+      const chunkBlob = blob.slice(start, end);
+      const chunkBuffer = await chunkBlob.arrayBuffer();
+      
+      try {
+        // Try to decode this chunk as audio
+        const audioBuffer = await this.audioContext!.decodeAudioData(chunkBuffer.slice(0));
+        
+        // Get channel data for this chunk
+        const channelData = audioBuffer.getChannelData(0);
+        
+        // Store duration and sample rate from first successful chunk
+        if (i === 0) {
+          // Estimate total duration based on first chunk
+          const chunkDuration = audioBuffer.duration;
+          const bytesPerSecond = this.chunkSize / chunkDuration;
+          totalDuration = fileSize / bytesPerSecond;
+          sampleRate = audioBuffer.sampleRate;
+          console.log(`Estimated total duration: ${totalDuration.toFixed(2)}s from first chunk`);
+        }
+        
+        // Extract peaks from this chunk (fewer peaks per chunk)
+        const chunkPeaks = this.extractPeaks(channelData, 100);
+        allPeaks.push(...chunkPeaks);
+        
+      } catch (chunkError) {
+        // Skip chunks that can't be decoded (might be at audio boundaries)
+        console.warn(`Skipping chunk ${i + 1}/${chunks} due to decode error:`, chunkError);
+      }
+      
+      // Report progress
+      const progress = 15 + ((i + 1) / chunks) * 75; // 15-90% for chunk processing
+      this.onProgress?.(progress);
+      
+      // Allow browser to breathe between chunks
+      await this.delay(50);
+      
+      // Check memory usage and clean up if needed
+      if (i % 3 === 0) { // Check more frequently for blob processing
+        await this.checkMemoryAndCleanup();
+      }
+    }
+    
+    // Close audio context
+    if (this.audioContext) {
+      await this.audioContext.close();
+      this.audioContext = null;
+    }
+    
+    // Normalize and downsample peaks if needed
+    const finalPeaks = this.normalizePeaks(allPeaks, 1500); // Fewer final peaks for large files
+    this.onProgress?.(100);
+    
+    return {
+      peaks: new Float32Array(finalPeaks),
+      duration: totalDuration,
+      sampleRate,
+      resolution: 10
+    };
   }
 
   /**

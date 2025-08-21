@@ -21,6 +21,21 @@ export default function HTMLPreviewModal({
   mediaFileName,
   mediaDuration = '00:00:00'
 }: HTMLPreviewModalProps) {
+  /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  const joinWithRTLCommas = (items: string[]): string => {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  };
+
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -162,7 +177,7 @@ export default function HTMLPreviewModal({
               <span class="placeholder-name">{speakers}</span>
               <span class="arrow">←</span>
             </div>
-            <div class="placeholder-value">${speakerNames.join(', ') || 'לא צוינו'}</div>
+            <div class="placeholder-value">${joinWithRTLCommas(speakerNames) || 'לא צוינו'}</div>
           </div>
 
           <div class="placeholder-item">

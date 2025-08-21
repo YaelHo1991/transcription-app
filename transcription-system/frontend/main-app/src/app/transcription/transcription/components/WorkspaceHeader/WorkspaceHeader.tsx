@@ -17,16 +17,16 @@ export default function WorkspaceHeader({
   sidebarLocked = false 
 }: WorkspaceHeaderProps) {
   return (
-    <div className={`workspace-header ${headerLocked ? 'header-locked' : ''} ${sidebarLocked ? 'sidebar-locked' : ''}`}>
-      <div className="header-content">
-        <div className="workspace-title">{projectTitle}</div>
-        <div className="header-divider"></div>
-        <div className="progress-container">
-          <span className="progress-label">התקדמות תמלול:</span>
-          <div className="progress-bar-wrapper">
-            <div className="progress-bar-fill" style={{width: `${progress}%`}}></div>
+    <div className={`t-workspace-header ${headerLocked ? 't-header-locked' : ''} ${sidebarLocked ? 't-sidebar-locked' : ''}`}>
+      <div className="t-header-content">
+        <div className="t-workspace-title">{projectTitle}</div>
+        <div className="t-header-divider"></div>
+        <div className="t-progress-container">
+          <span className="t-progress-label">התקדמות תמלול:</span>
+          <div className="t-progress-bar-wrapper">
+            <div className="t-progress-bar-fill" style={{width: `${progress}%`}}></div>
           </div>
-          <span className="progress-percentage">{progress}%</span>
+          <span className="t-progress-percentage">{progress}%</span>
         </div>
       </div>
     </div>

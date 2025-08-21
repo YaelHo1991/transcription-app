@@ -14,6 +14,21 @@ import { BlockData } from './WordDocumentGenerator';
 
 export class DirectWordGenerator {
   /**
+   * Join array of Hebrew text with RTL-proper comma placement
+   */
+  private joinWithRTLCommas(items: string[]): string {
+    if (items.length === 0) return '';
+    if (items.length === 1) return items[0];
+    
+    // For RTL Hebrew text, the comma should stick to the previous word
+    // Use Right-to-Left Mark (RLM) after comma to ensure proper positioning
+    const RLM = '\u200F'; // Right-to-Left Mark
+    
+    // Join with comma + RLM to keep comma with previous text in RTL
+    return items.join(`,${RLM} `);
+  }
+
+  /**
    * Generate a Word document with line numbers and proper RTL formatting
    * This creates the entire document from scratch with all features
    */
@@ -93,7 +108,7 @@ export class DirectWordGenerator {
     const paragraphs: Paragraph[] = [];
 
     // Add header information with proper RTL
-    const speakersList = speakerNames.join(', ');
+    const speakersList = this.joinWithRTLCommas(speakerNames);
     paragraphs.push(
       new Paragraph({
         children: [

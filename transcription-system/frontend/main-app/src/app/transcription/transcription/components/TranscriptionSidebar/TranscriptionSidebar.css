@@ -1,14 +1,8 @@
 /* ===== TRANSCRIPTION SIDEBAR - TEAL-GREEN THEME ===== */
 
 .theme-transcription .hovering-sidebar {
-  background: linear-gradient(135deg, 
-    rgba(40, 167, 69, 0.95) 0%, 
-    rgba(32, 201, 151, 0.92) 35%, 
-    rgba(23, 162, 184, 0.95) 70%,
-    rgba(32, 30, 32, 0.98) 100%);
+  /* Gradient now defined in HoveringBarsLayout.css for consistency */
   color: white;
-  box-shadow: -5px 0 20px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
 }
 
 .theme-transcription .sidebar-header {

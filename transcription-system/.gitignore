@@ -1,0 +1,5 @@
+
+# Production environment files
+.env.production
+backend/.env.production
+frontend/main-app/.env.production

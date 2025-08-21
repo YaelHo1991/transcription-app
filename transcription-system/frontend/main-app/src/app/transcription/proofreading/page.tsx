@@ -119,7 +119,7 @@ export default function ProofreadingPage() {
     <div className="proofreading-page" dir="rtl">
       {/* Header Reveal Zone */}
       <div 
-        className="header-reveal-zone"
+        className="p-header-reveal-zone"
         onMouseEnter={() => {
           if (headerTimeout) clearTimeout(headerTimeout);
           setShowHeader(true);
@@ -136,7 +136,7 @@ export default function ProofreadingPage() {
 
       {/* Collapsible Header */}
       <div 
-        className={`collapsible-header ${showHeader ? 'show' : ''}`}
+        className={`p-collapsible-header ${showHeader ? 'show' : ''}`}
         onMouseEnter={() => {
           if (headerTimeout) clearTimeout(headerTimeout);
           setShowHeader(true);
@@ -148,9 +148,9 @@ export default function ProofreadingPage() {
           setHeaderTimeout(timeout);
         }}
       >
-        <div className="nav">
-          <div className="nav-content">
-            <div className="nav-links">
+        <div className="p-nav">
+          <div className="p-nav-content">
+            <div className="p-nav-links">
             <Link href="/transcription">דף הבית</Link>
             {canAccessTranscription && (
               <Link href="/transcription/transcription">תמלול</Link>
@@ -161,11 +161,11 @@ export default function ProofreadingPage() {
             )}
             <Link href="/transcription/records">רישומים</Link>
             </div>
-            <div className="user-info">
-              <div className="user-profile">
+            <div className="p-user-info">
+              <div className="p-user-profile">
                 <span>שלום, {userFullName}</span>
               </div>
-              <a href="#" onClick={handleLogout} className="logout-btn">התנתק</a>
+              <a href="#" onClick={handleLogout} className="p-logout-btn">התנתק</a>
             </div>
           </div>
         </div>
@@ -173,7 +173,7 @@ export default function ProofreadingPage() {
 
       {/* Sidebar Reveal Zone */}
       <div 
-        className="sidebar-reveal-zone"
+        className="p-sidebar-reveal-zone"
         onMouseEnter={() => {
           if (sidebarTimeout) clearTimeout(sidebarTimeout);
           setShowSidebar(true);
@@ -188,7 +188,7 @@ export default function ProofreadingPage() {
 
       {/* Sidebar */}
       <div 
-        className={`sidebar ${showSidebar ? 'show' : ''}`}
+        className={`p-sidebar ${showSidebar ? 'show' : ''}`}
         onMouseEnter={() => {
           if (sidebarTimeout) clearTimeout(sidebarTimeout);
           setShowSidebar(true);
@@ -200,30 +200,30 @@ export default function ProofreadingPage() {
           setSidebarTimeout(timeout);
         }}
       >
-        <div className="sidebar-header">
-          <h3 className="sidebar-title">פרויקטים להגהה</h3>
-          <button className="sidebar-close" onClick={() => setShowSidebar(false)}>×</button>
+        <div className="p-sidebar-header">
+          <h3 className="p-sidebar-title">פרויקטים להגהה</h3>
+          <button className="p-sidebar-close" onClick={() => setShowSidebar(false)}>×</button>
         </div>
-        <div className="sidebar-content">
+        <div className="p-sidebar-content">
           {/* Statistics */}
-          <div className="sidebar-stats">
-            <div className="sidebar-stats-title">סטטיסטיקות הגהה</div>
-            <div className="sidebar-stats-grid">
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">8</div>
-                <div className="sidebar-stat-label">ממתינים להגהה</div>
+          <div className="p-sidebar-stats">
+            <div className="p-sidebar-stats-title">סטטיסטיקות הגהה</div>
+            <div className="p-sidebar-stats-grid">
+              <div className="p-sidebar-stat-item">
+                <div className="p-sidebar-stat-number">8</div>
+                <div className="p-sidebar-stat-label">ממתינים להגהה</div>
               </div>
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">3</div>
-                <div className="sidebar-stat-label">בעבודה</div>
+              <div className="p-sidebar-stat-item">
+                <div className="p-sidebar-stat-number">3</div>
+                <div className="p-sidebar-stat-label">בעבודה</div>
               </div>
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">15</div>
-                <div className="sidebar-stat-label">הושלמו השבוע</div>
+              <div className="p-sidebar-stat-item">
+                <div className="p-sidebar-stat-number">15</div>
+                <div className="p-sidebar-stat-label">הושלמו השבוע</div>
               </div>
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">92%</div>
-                <div className="sidebar-stat-label">דירוג איכות</div>
+              <div className="p-sidebar-stat-item">
+                <div className="p-sidebar-stat-number">92%</div>
+                <div className="p-sidebar-stat-label">דירוג איכות</div>
               </div>
             </div>
           </div>
@@ -261,9 +261,9 @@ export default function ProofreadingPage() {
       <div className="overlay" id="overlay" onClick={() => setShowSidebar(false)}></div>
 
       {/* Main Content */}
-      <div className="main-content" id="mainContent">
+      <div className="p-main-content" id="mainContent">
         <div className="proofreading-workspace">
-          <div className="workspace-header">
+          <div className="p-workspace-header">
             <div className="workspace-title-section">
               <div className="project-info">
                 <div className="workspace-title">הגהת תמלול ישיבת בית המשפט</div>
@@ -276,7 +276,7 @@ export default function ProofreadingPage() {
             </div>
           </div>
 
-          <div className="workspace-grid">
+          <div className="proofreading-workspace-grid">
             {/* Media Player Section */}
             <div className="media-section">
               <div className="section-title">

@@ -64,6 +64,11 @@ export interface SafetyCheck {
     cpuOverload?: number;
     storageNeeded?: number;
   };
+  metadata?: {
+    fileSize?: string;
+    memoryNeeded?: string;
+    memoryAvailable?: string;
+  };
 }
 
 export enum SafetyReason {

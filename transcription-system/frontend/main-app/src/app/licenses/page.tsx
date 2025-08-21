@@ -25,8 +25,6 @@ const PERMISSIONS = {
 interface UserForm {
   fullName: string;
   email: string;
-  password: string;
-  confirmPassword: string;
   personalCompany: string;
   permissions: string[];
 }
@@ -38,8 +36,6 @@ export default function LicensesPage() {
   const [userForm, setUserForm] = useState<UserForm>({
     fullName: '',
     email: '',
-    password: '',
-    confirmPassword: '',
     personalCompany: '',
     permissions: []
   });
@@ -124,20 +120,10 @@ export default function LicensesPage() {
       return;
     }
 
-    if (userForm.password !== userForm.confirmPassword) {
-      alert('הסיסמאות אינן תואמות');
-      return;
-    }
-
-    if (userForm.password.length < 6) {
-      alert('הסיסמה חייבת להכיל לפחות 6 תווים');
-      return;
-    }
     
     const formData = {
       fullName: userForm.fullName,
       email: userForm.email,
-      password: userForm.password,
       personalCompany: userForm.personalCompany || null,
       permissions: selectedPermissions,
       totalAmount: grandTotal
@@ -155,9 +141,9 @@ export default function LicensesPage() {
       const result = await response.json();
       
       if (result.success) {
-        alert('הזמנה נשלחה בהצלחה! נחזור אליך בהקדם.');
+        alert(result.message || 'הזמנה נשלחה בהצלחה! נחזור אליך בהקדם.');
         // Reset form
-        setUserForm({ fullName: '', email: '', password: '', confirmPassword: '', personalCompany: '', permissions: [] });
+        setUserForm({ fullName: '', email: '', personalCompany: '', permissions: [] });
         setSelectedPermissions([]);
       } else {
         const errorMsg = result.error ? `${result.message}\n\nError: ${result.error}` : result.message;
@@ -250,29 +236,6 @@ export default function LicensesPage() {
                     value={userForm.email}
                     onChange={(e) => setUserForm({...userForm, email: e.target.value})}
                     required 
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="password">סיסמה *</label>
-                  <input 
-                    type="password" 
-                    id="password"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                    required
-                    minLength={6}
-                    placeholder="לפחות 6 תווים"
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label htmlFor="confirm-password">אימות סיסמה *</label>
-                  <input 
-                    type="password" 
-                    id="confirm-password"
-                    value={userForm.confirmPassword}
-                    onChange={(e) => setUserForm({...userForm, confirmPassword: e.target.value})}
-                    required 
-                    minLength={6}
                   />
                 </div>
                 <div className={styles.formGroup}>

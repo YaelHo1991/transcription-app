@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import './HoveringBarsLayout.css';
 
 interface HoveringBarsLayoutProps {
@@ -110,18 +110,10 @@ export default function HoveringBarsLayout({
         onMouseEnter={handleHeaderMouseEnter}
         onMouseLeave={handleHeaderMouseLeave}
       >
-        <div className="header-content">
-          {headerContent}
-          <div className="header-controls">
-            <button 
-              onClick={handleHeaderLockToggle}
-              className="lock-btn"
-              aria-label={headerLocked ? 'Unlock header' : 'Lock header'}
-            >
-              {headerLocked ? '🔓' : '🔒'}
-            </button>
-          </div>
-        </div>
+        {React.cloneElement(headerContent as React.ReactElement, {
+          onLockToggle: handleHeaderLockToggle,
+          isLocked: headerLocked
+        })}
       </div>
 
       {/* Main Content Area */}

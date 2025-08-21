@@ -154,7 +154,7 @@ export default function ExportPage() {
     <div className="export-page" dir="rtl">
       {/* Header Reveal Zone */}
       <div 
-        className="header-reveal-zone"
+        className="e-header-reveal-zone"
         onMouseEnter={() => {
           if (headerTimeout) clearTimeout(headerTimeout);
           setShowHeader(true);
@@ -171,7 +171,7 @@ export default function ExportPage() {
 
       {/* Collapsible Header */}
       <div 
-        className={`collapsible-header ${showHeader ? 'show' : ''}`}
+        className={`e-collapsible-header ${showHeader ? 'show' : ''}`}
         onMouseEnter={() => {
           if (headerTimeout) clearTimeout(headerTimeout);
           setShowHeader(true);
@@ -183,9 +183,9 @@ export default function ExportPage() {
           setHeaderTimeout(timeout);
         }}
       >
-        <div className="nav">
-          <div className="nav-content">
-            <div className="nav-links">
+        <div className="e-nav">
+          <div className="e-nav-content">
+            <div className="e-nav-links">
             <Link href="/transcription">דף הבית</Link>
             {canAccessTranscription && (
               <Link href="/transcription/transcription">תמלול</Link>
@@ -196,11 +196,11 @@ export default function ExportPage() {
             <Link href="/transcription/export" className="active">ייצוא</Link>
             <Link href="/transcription/records">רישומים</Link>
             </div>
-            <div className="user-info">
-              <div className="user-profile">
+            <div className="e-user-info">
+              <div className="e-user-profile">
                 <span>שלום, {userFullName}</span>
               </div>
-              <a href="#" onClick={handleLogout} className="logout-btn">התנתק</a>
+              <a href="#" onClick={handleLogout} className="e-logout-btn">התנתק</a>
             </div>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function ExportPage() {
 
       {/* Sidebar Reveal Zone */}
       <div 
-        className="sidebar-reveal-zone"
+        className="e-sidebar-reveal-zone"
         onMouseEnter={() => {
           if (sidebarTimeout) clearTimeout(sidebarTimeout);
           setShowSidebar(true);
@@ -223,7 +223,7 @@ export default function ExportPage() {
 
       {/* Sidebar */}
       <div 
-        className={`sidebar ${showSidebar ? 'show' : ''}`}
+        className={`e-sidebar ${showSidebar ? 'show' : ''}`}
         onMouseEnter={() => {
           if (sidebarTimeout) clearTimeout(sidebarTimeout);
           setShowSidebar(true);
@@ -235,30 +235,30 @@ export default function ExportPage() {
           setSidebarTimeout(timeout);
         }}
       >
-        <div className="sidebar-header">
-          <h3 className="sidebar-title">היסטוריית ייצוא</h3>
-          <button className="sidebar-close" onClick={() => setShowSidebar(false)}>×</button>
+        <div className="e-sidebar-header">
+          <h3 className="e-sidebar-title">היסטוריית ייצוא</h3>
+          <button className="e-sidebar-close" onClick={() => setShowSidebar(false)}>×</button>
         </div>
-        <div className="sidebar-content">
+        <div className="e-sidebar-content">
           {/* Export Statistics */}
-          <div className="sidebar-stats">
-            <div className="sidebar-stats-title">סטטיסטיקות ייצוא</div>
-            <div className="sidebar-stats-grid">
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">47</div>
-                <div className="sidebar-stat-label">ייצואים השבוע</div>
+          <div className="e-sidebar-stats">
+            <div className="e-sidebar-stats-title">סטטיסטיקות ייצוא</div>
+            <div className="e-sidebar-stats-grid">
+              <div className="e-sidebar-stat-item">
+                <div className="e-sidebar-stat-number">47</div>
+                <div className="e-sidebar-stat-label">ייצואים השבוע</div>
               </div>
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">12</div>
-                <div className="sidebar-stat-label">ממתינים</div>
+              <div className="e-sidebar-stat-item">
+                <div className="e-sidebar-stat-number">12</div>
+                <div className="e-sidebar-stat-label">ממתינים</div>
               </div>
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">PDF</div>
-                <div className="sidebar-stat-label">פורמט נפוץ</div>
+              <div className="e-sidebar-stat-item">
+                <div className="e-sidebar-stat-number">PDF</div>
+                <div className="e-sidebar-stat-label">פורמט נפוץ</div>
               </div>
-              <div className="sidebar-stat-item">
-                <div className="sidebar-stat-number">1.2GB</div>
-                <div className="sidebar-stat-label">נפח כולל</div>
+              <div className="e-sidebar-stat-item">
+                <div className="e-sidebar-stat-number">1.2GB</div>
+                <div className="e-sidebar-stat-label">נפח כולל</div>
               </div>
             </div>
           </div>
@@ -290,9 +290,9 @@ export default function ExportPage() {
       <div className="overlay" id="overlay" onClick={() => setShowSidebar(false)}></div>
 
       {/* Main Content */}
-      <div className="main-content" id="mainContent">
+      <div className="e-main-content" id="mainContent">
         <div className="export-workspace">
-          <div className="workspace-header">
+          <div className="e-workspace-header">
             <div className="workspace-title-section">
               <div className="project-info">
                 <div className="workspace-title">ייצוא תמלול ישיבת בית המשפט</div>
@@ -305,7 +305,7 @@ export default function ExportPage() {
             </div>
           </div>
 
-          <div className="workspace-grid">
+          <div className="export-workspace-grid">
             {/* Media Section */}
             <div className="media-section">
               <div className="section-title">

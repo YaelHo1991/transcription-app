@@ -61,7 +61,9 @@ export class ResourceMonitor {
         memoryNeeded,
         availableMemory,
         'Critical: Not enough memory to proceed safely',
-        'קריטי: אין מספיק זיכרון להמשיך בבטחה'
+        'קריטי: אין מספיק זיכרון להמשיך בבטחה',
+        undefined,
+        estimatedSize
       );
     }
 
@@ -75,7 +77,8 @@ export class ResourceMonitor {
         availableMemory,
         `Need ${this.formatBytes(memoryNeeded)} but only ${this.formatBytes(availableMemory)} available`,
         `נדרש ${this.formatBytes(memoryNeeded)} אך רק ${this.formatBytes(availableMemory)} זמין`,
-        alternative
+        alternative,
+        estimatedSize
       );
     }
 
@@ -88,7 +91,9 @@ export class ResourceMonitor {
         memoryNeeded,
         availableMemory,
         'System is too busy, please wait',
-        'המערכת עמוסה מדי, אנא המתן'
+        'המערכת עמוסה מדי, אנא המתן',
+        undefined,
+        estimatedSize
       );
     }
 
@@ -101,7 +106,9 @@ export class ResourceMonitor {
         memoryNeeded,
         availableMemory,
         'Low memory - operation may be slow',
-        'זיכרון נמוך - הפעולה עלולה להיות איטית'
+        'זיכרון נמוך - הפעולה עלולה להיות איטית',
+        undefined,
+        estimatedSize
       );
     }
 
@@ -113,7 +120,9 @@ export class ResourceMonitor {
         memoryNeeded,
         availableMemory,
         'High CPU usage - operation may be slow',
-        'שימוש גבוה במעבד - הפעולה עלולה להיות איטית'
+        'שימוש גבוה במעבד - הפעולה עלולה להיות איטית',
+        undefined,
+        estimatedSize
       );
     }
 
@@ -125,7 +134,9 @@ export class ResourceMonitor {
       memoryNeeded,
       availableMemory,
       'Safe to proceed',
-      'בטוח להמשיך'
+      'בטוח להמשיך',
+      undefined,
+      estimatedSize
     );
   }
 
@@ -319,7 +330,8 @@ export class ResourceMonitor {
     availableMemory: number = 0,
     message: string = '',
     messageHebrew: string = '',
-    alternativeMethod?: string
+    alternativeMethod?: string,
+    fileSize?: number
   ): SafetyCheck {
     return {
       safe,
@@ -332,7 +344,12 @@ export class ResourceMonitor {
       messageHebrew,
       details: reason === SafetyReason.INSUFFICIENT_MEMORY ? {
         memoryShortfall: Math.max(0, estimatedMemoryNeeded - availableMemory)
-      } : undefined
+      } : undefined,
+      metadata: {
+        fileSize: fileSize ? this.formatBytes(fileSize) : 'לא ידוע',
+        memoryNeeded: this.formatBytes(estimatedMemoryNeeded),
+        memoryAvailable: this.formatBytes(availableMemory)
+      }
     };
   }
 

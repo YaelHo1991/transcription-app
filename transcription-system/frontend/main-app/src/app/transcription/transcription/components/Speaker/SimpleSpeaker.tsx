@@ -670,7 +670,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
       <div className="speaker-list" onClick={handlePanelClick}>
         {blocks.map((block, index) => (
           <SpeakerBlock
-            key={block.id}
+            key={`speaker-${block.id}-${index}`}
             speaker={block}
             isActive={block.id === activeBlockId}
             isFirstBlock={index === 0}

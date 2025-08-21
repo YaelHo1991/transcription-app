@@ -72,8 +72,14 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
         (activeElement instanceof HTMLInputElement && !activeElement.closest('.transcription-textarea')) ||
         (activeElement instanceof HTMLTextAreaElement && !activeElement.closest('.transcription-textarea'));
       
-      if (inNonTranscriptionInput) {
-        return; // Let the input handle all keys normally
+      // Check if it's an F-key, Numpad key, or combination key FIRST
+      const isFKey = e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2;
+      const isNumpadKey = e.code && e.code.startsWith('Numpad');
+      const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+      
+      // Allow F-keys, Numpad keys, and combination keys through even in non-transcription inputs
+      if (inNonTranscriptionInput && !isFKey && !isNumpadKey && !hasModifier) {
+        return; // Block everything EXCEPT F-keys, Numpad keys, and combinations
       }
       
       const inTextEditor = 
@@ -88,59 +94,87 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       const key = buildKeyString(e);
       const shortcut = activeShortcuts.current.get(key);
       
-      // Check if this is a key combination (not just a single key)
-      const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+      // isFKey, isNumpadKey, and hasModifier already declared above for early check
       
-      // Check if it's an F-key
-      const isFKey = e.key.startsWith('F') && e.key.length <= 3;
-      
-      // Check if it's a numpad key
-      const isNumpadKey = e.code && e.code.startsWith('Numpad');
-      
-      // Special: Shift+Numpad should ALWAYS work, even in text editor
-      const isShiftNumpad = e.shiftKey && isNumpadKey;
-      
-      // If it's a numpad key that's registered as a shortcut, it should work in text editor
-      const isRegisteredNumpadShortcut = isNumpadKey && shortcut && shortcut.enabled;
-      
-      // Special handling for END and HOME keys in text editor - they should work normally
-      const isNavigationKey = ['End', 'Home'].includes(e.key);
-      
-      // Block single keys in text editor (except F-keys, registered numpad shortcuts, combinations, navigation keys)
-      if (inTextEditor && !hasModifier && !isFKey && !isRegisteredNumpadShortcut && !isShiftNumpad) {
-        // If it's a navigation key (End/Home) in text editor, let it work normally
-        if (isNavigationKey) {
-          console.log('Navigation key in text editor - allowing default behavior:', e.key);
-          return; // Let the text editor handle it
-        }
-        return; // Block other single keys that would type characters
-      }
+      // Always log key presses for debugging
+      console.log('KEY DEBUG:', {
+        key: e.key,
+        code: e.code,
+        keyString: key,
+        hasShortcut: !!shortcut,
+        shortcutAction: shortcut?.action,
+        inTextEditor,
+        enabled,
+        isFKey,
+        isNumpadKey,
+        hasModifier,
+        activeElement: activeElement.tagName,
+        contentEditable: activeElement.contentEditable,
+        classList: activeElement.classList.toString()
+      });
       
       // Prevent key repeat
       if (isPressed.current.has(key)) {
         return;
       }
-      isPressed.current.add(key);
-
-      // We already have shortcut from above, just check if it exists
+      
+      // Special handling for END and HOME keys in text editor - they should work normally
+      const isNavigationKey = ['End', 'Home'].includes(e.key);
+      
+      // Check if this key has a shortcut assigned
       if (shortcut && shortcut.enabled) {
+        // Special keys (F-keys, Numpad, combinations) that should work in text editor
+        const isSpecialKey = isFKey || isNumpadKey || hasModifier;
+        
         // Check if this is a toggle action (these always work)
         const toggleActions = ['toggleShortcuts', 'toggleSettings', 'togglePedal', 'toggleAutoDetect', 'toggleMode'];
         const isToggleAction = toggleActions.includes(shortcut.action);
         
-        // If it's a toggle action OR shortcuts are enabled, execute it
-        if (isToggleAction || enabled) {
+        // Determine if we should execute this shortcut
+        let shouldExecute = false;
+        
+        if (inTextEditor) {
+          // In text editor: only special keys (F-keys, numpad, combinations) or toggle actions work
+          shouldExecute = isSpecialKey || isToggleAction;
+          
+          // Exception: navigation keys (Home/End) should not trigger shortcuts in text editor
+          if (isNavigationKey && !hasModifier) {
+            shouldExecute = false;
+          }
+        } else {
+          // Outside text editor: respect global enabled state or allow toggle actions
+          shouldExecute = enabled || isToggleAction;
+        }
+        
+        console.log('SHORTCUT EXECUTION CHECK:', {
+          action: shortcut.action,
+          isSpecialKey,
+          isToggleAction,
+          shouldExecute,
+          inTextEditor,
+          enabled,
+          isNavigationKey
+        });
+        
+        if (shouldExecute) {
+          isPressed.current.add(key);
           e.preventDefault();
           e.stopPropagation();
+          console.log('EXECUTING SHORTCUT:', shortcut.action);
           onAction(shortcut.action);
-          return; // Important: return here to prevent default behavior
+          return;
         }
       }
       
-      // Special handling for numpad in text editor - prevent default if it's a shortcut
-      if (inTextEditor && isNumpadKey && shortcut && shortcut.enabled && enabled) {
-        e.preventDefault(); // Prevent the number from being typed
-        e.stopPropagation();
+      // If we're in text editor and it's a regular single key without a special shortcut, let it type
+      if (inTextEditor) {
+        // Block only if: it's not a special key AND it has a shortcut (but shouldn't execute)
+        if (!isFKey && !isNumpadKey && !hasModifier && shortcut && shortcut.enabled) {
+          // This is a regular key with a shortcut - block it from typing
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        // Otherwise let the key type normally
       }
     };
 
@@ -165,25 +199,11 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
         key = key.toLowerCase();
       }
       
-      // Handle numpad keys - use the actual number/operator
+      // Handle numpad keys - keep the full Numpad code for proper identification
       if (e.code && e.code.startsWith('Numpad')) {
-        // Special handling for Numpad0-9
-        if (e.code === 'Numpad0') key = '0';
-        else if (e.code === 'Numpad1') key = '1';
-        else if (e.code === 'Numpad2') key = '2';
-        else if (e.code === 'Numpad3') key = '3';
-        else if (e.code === 'Numpad4') key = '4';
-        else if (e.code === 'Numpad5') key = '5';
-        else if (e.code === 'Numpad6') key = '6';
-        else if (e.code === 'Numpad7') key = '7';
-        else if (e.code === 'Numpad8') key = '8';
-        else if (e.code === 'Numpad9') key = '9';
-        else if (e.code === 'NumpadDivide') key = '/';
-        else if (e.code === 'NumpadMultiply') key = '*';
-        else if (e.code === 'NumpadSubtract') key = '-';
-        else if (e.code === 'NumpadAdd') key = '+';
-        else if (e.code === 'NumpadEnter') key = 'Enter';
-        else if (e.code === 'NumpadDecimal') key = '.';
+        // Use the code directly (e.g., "Numpad0", "Numpad1", "NumpadAdd")
+        // This allows users to assign Numpad keys in settings and have them work properly
+        key = e.code;
       }
       
       if (key === ' ') key = 'Space';
@@ -200,12 +220,13 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       return parts.join('+');
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    // Use capture phase to get events before other handlers
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
       isPressed.current.clear();
     };
   }, [enabled, onAction]);

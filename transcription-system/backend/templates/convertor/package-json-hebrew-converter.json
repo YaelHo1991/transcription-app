@@ -1,0 +1,24 @@
+{
+  "name": "word-hebrew-converter",
+  "version": "1.0.0",
+  "description": "ממיר מסמכי Word מאנגלית לעברית תוך שמירה על העיצוב",
+  "main": "word-hebrew-converter.js",
+  "scripts": {
+    "start": "node word-hebrew-converter.js",
+    "convert": "node word-hebrew-converter.js"
+  },
+  "keywords": [
+    "word",
+    "docx",
+    "hebrew",
+    "converter",
+    "language"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "pizzip": "^3.1.4",
+    "@xmldom/xmldom": "^0.8.10",
+    "docx": "^8.5.0"
+  }
+}

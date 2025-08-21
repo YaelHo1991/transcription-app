@@ -5,21 +5,60 @@ import fs from 'fs';
 
 const router = Router();
 
-// Middleware to allow dev mode without auth
-const devAuth = (req: Request, res: Response, next: NextFunction) => {
-  // In development, ALWAYS allow access for testing
-  const isDev = process.env.NODE_ENV?.trim() === 'development' || true;
-  if (isDev) {
-    (req as any).user = { id: 999, username: 'dev-user' };
-    return next();
+// Import JWT for token verification
+import jwt from 'jsonwebtoken';
+
+// Middleware to verify user from JWT token
+const verifyUser = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    
+    const isDev = process.env.NODE_ENV?.trim() === 'development';
+    
+    if (!token) {
+      // In dev mode, allow without token but use a default user
+      if (isDev) {
+        (req as any).user = { id: 'dev-user-default', username: 'dev-user' };
+        return next();
+      }
+      return res.status(401).json({ error: 'No authorization token provided' });
+    }
+    
+    // In dev mode, accept any token starting with 'dev-'
+    if (isDev && token && token.startsWith('dev-')) {
+      const userId = token.substring(4) || 'dev-user-default';
+      (req as any).user = { id: userId, username: userId };
+      return next();
+    }
+    
+    // Verify token and extract user info
+    const secret = process.env.JWT_SECRET || 'default-secret-key';
+    const decoded = jwt.verify(token, secret) as any;
+    
+    // Use the actual user ID from the token
+    (req as any).user = { 
+      id: decoded.userId || decoded.id || 'unknown', 
+      username: decoded.username || decoded.email || 'unknown'
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Auth error:', error);
+    // In dev mode, continue with default user
+    if (process.env.NODE_ENV === 'development') {
+      (req as any).user = { id: 'dev-user-default', username: 'dev-user' };
+      return next();
+    }
+    return res.status(401).json({ error: 'Invalid token' });
   }
-  return next();
 };
 
 /**
  * Create a new project
  */
-router.post('/create', devAuth, async (req: Request, res: Response) => {
+router.post('/create', verifyUser, async (req: Request, res: Response) => {
   try {
     const { mediaFileName, projectName } = req.body;
     
@@ -27,9 +66,10 @@ router.post('/create', devAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Media file name is required' });
     }
     
-    console.log('📁 Creating new project for media:', mediaFileName);
+    const userId = (req as any).user?.id || 'unknown';
+    console.log('📁 Creating new project for user:', userId, 'media:', mediaFileName);
     
-    const projectId = await projectService.createProject(mediaFileName, projectName);
+    const projectId = await projectService.createProject(mediaFileName, projectName, userId);
     
     res.json({
       success: true,
@@ -45,7 +85,7 @@ router.post('/create', devAuth, async (req: Request, res: Response) => {
 /**
  * Save project data
  */
-router.post('/:projectId/save', devAuth, async (req: Request, res: Response) => {
+router.post('/:projectId/save', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     const { blocks, speakers, remarks } = req.body;
@@ -56,11 +96,12 @@ router.post('/:projectId/save', devAuth, async (req: Request, res: Response) => 
       remarksCount: remarks?.length || 0
     });
     
+    const userId = (req as any).user?.id || 'unknown';
     const success = await projectService.saveProject(projectId, {
       blocks,
       speakers,
       remarks
-    });
+    }, userId);
     
     if (success) {
       res.json({
@@ -79,13 +120,14 @@ router.post('/:projectId/save', devAuth, async (req: Request, res: Response) => 
 /**
  * Load project data
  */
-router.get('/:projectId/load', devAuth, async (req: Request, res: Response) => {
+router.get('/:projectId/load', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
+    const userId = (req as any).user?.id || 'unknown';
     
-    console.log(`📂 Loading project ${projectId}`);
+    console.log(`📂 Loading project ${projectId} for user ${userId}`);
     
-    const data = await projectService.loadProject(projectId);
+    const data = await projectService.loadProject(projectId, userId);
     
     if (data) {
       console.log(`✅ Loaded project ${projectId}:`, {
@@ -110,13 +152,14 @@ router.get('/:projectId/load', devAuth, async (req: Request, res: Response) => {
 /**
  * Create a backup
  */
-router.post('/:projectId/backup', devAuth, async (req: Request, res: Response) => {
+router.post('/:projectId/backup', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     
     console.log(`📸 Creating backup for project ${projectId}`);
     
-    const backupFile = await projectService.createBackup(projectId);
+    const userId = (req as any).user?.id || 'unknown';
+    const backupFile = await projectService.createBackup(projectId, userId);
     
     if (backupFile) {
       res.json({
@@ -136,17 +179,19 @@ router.post('/:projectId/backup', devAuth, async (req: Request, res: Response) =
 /**
  * Restore from backup
  */
-router.post('/:projectId/restore/:backupFile', devAuth, async (req: Request, res: Response) => {
+router.post('/:projectId/restore/:backupFile', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId, backupFile } = req.params;
     
     console.log(`♻️ Restoring project ${projectId} from backup ${backupFile}`);
     
-    const success = await projectService.restoreBackup(projectId, backupFile);
+    const userId = (req as any).user?.id || 'unknown';
+    const success = await projectService.restoreBackup(projectId, backupFile, userId);
     
     if (success) {
       // Load the restored data
-      const data = await projectService.loadProject(projectId);
+      const userId = (req as any).user?.id || 'unknown';
+      const data = await projectService.loadProject(projectId, userId);
       
       res.json({
         success: true,
@@ -165,11 +210,12 @@ router.post('/:projectId/restore/:backupFile', devAuth, async (req: Request, res
 /**
  * List all projects
  */
-router.get('/list', devAuth, async (req: Request, res: Response) => {
+router.get('/list', verifyUser, async (req: Request, res: Response) => {
   try {
-    console.log('📋 Listing all projects');
+    const userId = (req as any).user?.id || 'unknown';
+    console.log('📋 Listing projects for user:', userId);
     
-    const projects = await projectService.listProjects();
+    const projects = await projectService.listProjects(userId);
     
     res.json({
       success: true,
@@ -185,13 +231,14 @@ router.get('/list', devAuth, async (req: Request, res: Response) => {
 /**
  * Get project by media file
  */
-router.get('/by-media/:mediaFileName', devAuth, async (req: Request, res: Response) => {
+router.get('/by-media/:mediaFileName', verifyUser, async (req: Request, res: Response) => {
   try {
     const { mediaFileName } = req.params;
     
     console.log('🔍 Finding project for media:', mediaFileName);
     
-    const projectId = await projectService.getProjectByMedia(mediaFileName);
+    const userId = (req as any).user?.id || 'unknown';
+    const projectId = await projectService.getProjectByMedia(mediaFileName, userId);
     
     if (projectId) {
       res.json({
@@ -215,13 +262,14 @@ router.get('/by-media/:mediaFileName', devAuth, async (req: Request, res: Respon
 /**
  * List backups for a project
  */
-router.get('/:projectId/backups', devAuth, async (req: Request, res: Response) => {
+router.get('/:projectId/backups', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     
     console.log(`📋 Listing backups for project ${projectId}`);
     
-    const backups = await projectService.listBackups(projectId);
+    const userId = (req as any).user?.id || 'unknown';
+    const backups = await projectService.listBackups(projectId, userId);
     
     res.json({
       success: true,
@@ -237,13 +285,14 @@ router.get('/:projectId/backups', devAuth, async (req: Request, res: Response) =
 /**
  * Get specific backup content
  */
-router.get('/:projectId/backups/:backupFile', devAuth, async (req: Request, res: Response) => {
+router.get('/:projectId/backups/:backupFile', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId, backupFile } = req.params;
     
     console.log(`📄 Loading backup ${backupFile} for project ${projectId}`);
     
-    const content = await projectService.getBackupContent(projectId, backupFile);
+    const userId = (req as any).user?.id || 'unknown';
+    const content = await projectService.getBackupContent(projectId, backupFile, userId);
     
     if (content) {
       res.json({
@@ -262,13 +311,14 @@ router.get('/:projectId/backups/:backupFile', devAuth, async (req: Request, res:
 /**
  * Delete a project
  */
-router.delete('/:projectId', devAuth, async (req: Request, res: Response) => {
+router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId } = req.params;
     
     console.log(`🗑️ Deleting project ${projectId}`);
     
-    const success = await projectService.deleteProject(projectId);
+    const userId = (req as any).user?.id || 'unknown';
+    const success = await projectService.deleteProject(projectId, userId);
     
     if (success) {
       res.json({
@@ -287,14 +337,16 @@ router.delete('/:projectId', devAuth, async (req: Request, res: Response) => {
 /**
  * Serve media file from project folder
  */
-router.get('/:projectId/media/:filename', devAuth, async (req: Request, res: Response) => {
+router.get('/:projectId/media/:filename', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId, filename } = req.params;
     
     console.log(`🎵 Serving media file: ${filename} from project: ${projectId}`);
     
-    // Get the project folder path
-    const userDataPath = path.join(process.cwd(), 'user_data', 'user_live', 'projects', projectId);
+    // Get the project folder path with user-specific directory
+    const userId = (req as any).user?.id || 'unknown';
+    const safeUserId = userId.toString().replace(/[^a-zA-Z0-9-_]/g, '_');
+    const userDataPath = path.join(process.cwd(), 'user_data', 'users', safeUserId, 'projects', projectId);
     const mediaPath = path.join(userDataPath, filename);
     
     // Check if file exists
