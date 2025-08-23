@@ -21,6 +21,12 @@ export default function HoveringHeader({
   onLockToggle,
   isLocked = false
 }: HoveringHeaderProps) {
+  // Debug logging
+  console.log('[HoveringHeader] Props:', { 
+    hasOnLockToggle: !!onLockToggle, 
+    isLocked,
+    themeColor 
+  });
   const [showHeader, setShowHeader] = useState(false);
   const pathname = usePathname();
 

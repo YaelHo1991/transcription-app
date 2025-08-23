@@ -6,8 +6,8 @@ module.exports = {
     {
       // Backend API Server
       name: 'transcription-backend',
-      script: './transcription-system/backend/dist/server.js',
-      cwd: './transcription-system/backend',
+      script: 'dist/server.js',
+      cwd: '/var/app/transcription-system/transcription-system/backend',
       instances: 1,
       autorestart: true,
       watch: false,
@@ -30,7 +30,7 @@ module.exports = {
       name: 'transcription-frontend',
       script: 'npm',
       args: 'start',
-      cwd: './transcription-system/frontend/main-app',
+      cwd: '/var/app/transcription-system/transcription-system/frontend/main-app',
       instances: 1,
       autorestart: true,
       watch: false,

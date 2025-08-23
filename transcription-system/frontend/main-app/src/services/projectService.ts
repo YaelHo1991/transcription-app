@@ -36,6 +36,25 @@ export interface IncrementalSaveData {
 }
 
 class ProjectService {
+  private authErrorCallback: (() => void) | null = null;
+  
+  /**
+   * Set callback for authentication errors
+   */
+  setAuthErrorCallback(callback: () => void) {
+    this.authErrorCallback = callback;
+  }
+  
+  /**
+   * Handle authentication errors
+   */
+  private handleAuthError() {
+    console.log('[Project] Authentication required - prompting user to re-login');
+    if (this.authErrorCallback) {
+      this.authErrorCallback();
+    }
+  }
+  
   /**
    * Get auth headers with token
    */
@@ -76,6 +95,10 @@ class ProjectService {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          this.handleAuthError();
+          return null;
+        }
         console.error('[Project] Create failed:', response.status, response.statusText);
         const text = await response.text();
         console.error('[Project] Response body:', text);
@@ -113,6 +136,10 @@ class ProjectService {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          this.handleAuthError();
+          return false;
+        }
         console.warn('[Project] Save returned non-OK status:', response.status);
         return false;
       }
@@ -185,6 +212,10 @@ class ProjectService {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          this.handleAuthError();
+          return null;
+        }
         console.warn('[Project] Load returned non-OK status:', response.status);
         return null;
       }
@@ -301,9 +332,10 @@ class ProjectService {
       
       if (!response.ok) {
         if (response.status === 401) {
-          console.error('[Project] Failed to list projects: "Unauthorized"');
-          // Don't throw error, just return empty array to avoid breaking the UI
-          // The user can still work locally without backend
+          // Handle authentication error silently and trigger re-login
+          this.handleAuthError();
+          // Return empty array to avoid breaking the UI
+          return [];
         } else {
           console.error('[Project] Failed to list projects:', response.status, response.statusText);
         }

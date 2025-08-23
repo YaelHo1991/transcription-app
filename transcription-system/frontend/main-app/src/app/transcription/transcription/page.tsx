@@ -18,6 +18,7 @@ import Remarks from './components/Remarks/Remarks';
 import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
+import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import { projectService } from '../../../services/projectService';
 import './transcription-theme.css';
 import './transcription-page.css';
@@ -106,6 +107,11 @@ export default function TranscriptionWorkPage() {
     const userId = getCurrentUserId();
     setCurrentUserId(userId);
     console.log('[Auth] Current user ID:', userId);
+    
+    // Set up authentication error callback
+    projectService.setAuthErrorCallback(() => {
+      setShowAuthRequiredModal(true);
+    });
   }, []);
   
   // Store project remarks to pass to RemarksProvider
@@ -144,6 +150,9 @@ export default function TranscriptionWorkPage() {
   const [showDeleteErrorModal, setShowDeleteErrorModal] = useState(false);
   const [authErrorMessage, setAuthErrorMessage] = useState('');
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('');
+  
+  // Authentication required modal
+  const [showAuthRequiredModal, setShowAuthRequiredModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectFolderRef = useRef<HTMLInputElement>(null);
@@ -1379,6 +1388,13 @@ export default function TranscriptionWorkPage() {
         cancelText=""
         type="success"
         showIcon={false}
+      />
+      
+      {/* Authentication Required Modal */}
+      <AuthRequiredModal
+        isOpen={showAuthRequiredModal}
+        onClose={() => setShowAuthRequiredModal(false)}
+        message="פג תוקף ההתחברות שלך. אנא התחבר מחדש כדי לשמור שינויים בשרת."
       />
     </HoveringBarsLayout>
   );
