@@ -1,0 +1,19 @@
+[Unit]
+Description=Transcription System Frontend
+After=network.target transcription-backend.service
+Wants=transcription-backend.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/transcription-system/transcription-system/frontend/main-app
+Environment="NODE_ENV=production"
+Environment="PORT=3002"
+ExecStart=/usr/bin/npx next start -p 3002
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/transcription-frontend.log
+StandardError=append:/var/log/transcription-frontend.log
+
+[Install]
+WantedBy=multi-user.target
