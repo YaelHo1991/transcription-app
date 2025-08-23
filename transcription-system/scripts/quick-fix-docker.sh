@@ -76,6 +76,8 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY frontend/main-app/package*.json ./
 RUN npm ci
+# Install missing type definitions
+RUN npm install --save-dev @types/file-saver
 
 FROM node:18-alpine AS builder
 WORKDIR /app

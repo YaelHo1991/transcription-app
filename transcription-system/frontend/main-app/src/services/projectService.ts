@@ -300,7 +300,13 @@ class ProjectService {
       });
       
       if (!response.ok) {
-        console.error('[Project] Failed to list projects:', response.statusText);
+        if (response.status === 401) {
+          console.error('[Project] Failed to list projects: "Unauthorized"');
+          // Don't throw error, just return empty array to avoid breaking the UI
+          // The user can still work locally without backend
+        } else {
+          console.error('[Project] Failed to list projects:', response.status, response.statusText);
+        }
         return [];
       }
       

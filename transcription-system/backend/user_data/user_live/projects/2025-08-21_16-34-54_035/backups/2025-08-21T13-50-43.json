@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-08-21T13:50:43.613Z",
+  "transcription": {
+    "blocks": [
+      {
+        "id": "block-1755783294606",
+        "speaker": "ש",
+        "text": "זו דוגמא ראשונה.",
+        "speakerTime": 5166.665865
+      },
+      {
+        "id": "block-1755783357044-ta6j7y9z9",
+        "speaker": "ע",
+        "text": "בסדר גמור. ",
+        "speakerTime": 5166.665865
+      },
+      {
+        "id": "block-1755783360036-7uggjlfsd",
+        "speaker": "א",
+        "text": "אחר כך ננסה.",
+        "speakerTime": 5166.665865
+      },
+      {
+        "id": "block-1755784228607-bnz68fz8i",
+        "speaker": "ש",
+        "text": "היא אמרה לו,",
+        "speakerTime": 0
+      },
+      {
+        "id": "block-1755784240038-d3eanewxs",
+        "speaker": "ש",
+        "text": "",
+        "speakerTime": 0
+      }
+    ],
+    "version": "1.0.0",
+    "lastSaved": "2025-08-21T13:50:43.602Z"
+  },
+  "speakers": {
+    "speakers": [
+      {
+        "code": "ש",
+        "name": "",
+        "description": "רעה",
+        "color": "#667eea"
+      },
+      {
+        "code": "ע",
+        "name": "",
+        "description": "",
+        "color": "#f59e0b"
+      },
+      {
+        "code": "א",
+        "name": "",
+        "description": "",
+        "color": "#10b981"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  "remarks": {
+    "remarks": [],
+    "version": "1.0.0"
+  }
+}

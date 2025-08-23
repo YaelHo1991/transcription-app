@@ -439,8 +439,14 @@ export default function TranscriptionWorkPage() {
           
           if (allTranscriptions.length > 0) {
             // Only set default index if we don't already have a restored index from session
-            const savedSession = localStorage.getItem('transcriptionSessionState');
-            const hasRestoredIndex = savedSession && JSON.parse(savedSession).currentTranscriptionIndex !== undefined;
+            const userId = getCurrentUserId();
+            let hasRestoredIndex = false;
+            
+            if (userId) {
+              const sessionKey = `transcriptionSessionState_${userId}`;
+              const savedSession = localStorage.getItem(sessionKey);
+              hasRestoredIndex = savedSession && JSON.parse(savedSession).currentTranscriptionIndex !== undefined;
+            }
             
             if (!hasRestoredIndex) {
               // Find the first non-default transcription, or fall back to 0
@@ -473,13 +479,17 @@ export default function TranscriptionWorkPage() {
         }
         
         // Double-check session wasn't just restored
-        const savedSession = localStorage.getItem('transcriptionSessionState');
-        if (savedSession) {
-          const sessionData = JSON.parse(savedSession);
-          const collections = sessionData.mediaCollections || sessionData.projects;
-          if (collections && collections.length > 0) {
-            console.log('[Page] Session has collections, skipping backend load to avoid duplicates');
-            return;
+        const userId = getCurrentUserId();
+        if (userId) {
+          const sessionKey = `transcriptionSessionState_${userId}`;
+          const savedSession = localStorage.getItem(sessionKey);
+          if (savedSession) {
+            const sessionData = JSON.parse(savedSession);
+            const collections = sessionData.mediaCollections || sessionData.projects;
+            if (collections && collections.length > 0) {
+              console.log('[Page] Session has collections, skipping backend load to avoid duplicates');
+              return;
+            }
           }
         }
         
@@ -726,22 +736,22 @@ export default function TranscriptionWorkPage() {
         return updated;
       });
       
-      if (!currentProject?.mediaItems.length) {
+      if (!currentCollection?.mediaItems.length) {
         setCurrentMediaIndex(0);
       }
     }
   };
   
   const handlePreviousProject = () => {
-    if (currentProjectIndex > 0) {
-      setCurrentProjectIndex(currentProjectIndex - 1);
+    if (currentCollectionIndex > 0) {
+      setCurrentCollectionIndex(currentCollectionIndex - 1);
       setCurrentMediaIndex(0);
     }
   };
   
   const handleNextProject = () => {
-    if (currentProjectIndex < projects.length - 1) {
-      setCurrentProjectIndex(currentProjectIndex + 1);
+    if (currentCollectionIndex < mediaCollections.length - 1) {
+      setCurrentCollectionIndex(currentCollectionIndex + 1);
       setCurrentMediaIndex(0);
     }
   };
@@ -874,7 +884,15 @@ export default function TranscriptionWorkPage() {
         <HoveringHeader 
           userFullName={userFullName}
           permissions="DEF"
-          onLogout={() => router.push('/login')}
+          onLogout={() => {
+            // Clear only current user's session data
+            if (currentUserId) {
+              const sessionKey = `transcriptionSessionState_${currentUserId}`;
+              localStorage.removeItem(sessionKey);
+              console.log('[Session] Cleared session for user:', currentUserId);
+            }
+            router.push('/login');
+          }}
           themeColor="pink"
         />
       }
@@ -1167,8 +1185,11 @@ export default function TranscriptionWorkPage() {
                     setMediaCollections([]);
                     setCurrentCollectionIndex(0);
                     setCurrentMediaIndex(0);
-                    // Clear saved session and mappings
-                    localStorage.removeItem('transcriptionSessionState');
+                    // Clear saved session and mappings for current user
+                    if (currentUserId) {
+                      const sessionKey = `transcriptionSessionState_${currentUserId}`;
+                      localStorage.removeItem(sessionKey);
+                    }
                     setMediaProjectsMap(new Map());
                   }
                 }}
@@ -1229,8 +1250,11 @@ export default function TranscriptionWorkPage() {
                     setMediaCollections([]);
                     setCurrentCollectionIndex(0);
                     setCurrentMediaIndex(0);
-                    // Clear saved session and mappings
-                    localStorage.removeItem('transcriptionSessionState');
+                    // Clear saved session and mappings for current user
+                    if (currentUserId) {
+                      const sessionKey = `transcriptionSessionState_${currentUserId}`;
+                      localStorage.removeItem(sessionKey);
+                    }
                     setMediaProjectsMap(new Map());
                   }
                 }}
