@@ -70,13 +70,9 @@ export const notFound = (req: Request, res: Response, next: NextFunction) => {
   // Don't handle frontend routes - let them pass through
   const frontendRoutes = ['/dev-portal', '/licenses', '/crm', '/transcription', '/login'];
   if (frontendRoutes.some(route => req.originalUrl.startsWith(route))) {
-    // These should be handled by the frontend, not the backend
-    // Return a redirect or just skip
-    return res.status(404).json({ 
-      success: false, 
-      message: `Frontend route - should be handled by Next.js: ${req.originalUrl}`,
-      redirect: req.originalUrl
-    });
+    // Skip this middleware for frontend routes
+    // The request will fall through and nginx will handle it
+    return next();
   }
   
   const error = new Error(`נתיב לא נמצא - ${req.originalUrl}`) as ApiError;

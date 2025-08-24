@@ -112,7 +112,8 @@ if (isDevelopment) {
 app.use('/api', apiRouter);
 
 // Error handling middleware (must be last)
-app.use(notFound);
+// Don't use notFound middleware - let unmatched routes fall through
+// app.use(notFound);
 app.use(errorHandler);
 
 // Initialize database and start server

@@ -194,6 +194,11 @@ export default function TextEditor({
           console.log('[ShortcutManager] Initializing with userId:', userId);
           await shortcutManagerRef.current.initialize(userId, token);
           console.log('[ShortcutManager] Initialized successfully');
+          
+          // After initialization, update the loadedShortcuts state
+          const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+          console.log('[ShortcutManager] Loaded', shortcutsMap.size, 'shortcuts after auth');
+          setLoadedShortcuts(new Map(shortcutsMap));
         } catch (error) {
           console.error('[ShortcutManager] Failed to initialize:', error);
         }
@@ -808,39 +813,7 @@ export default function TextEditor({
     historyRef.current = initialHistory; // Sync the ref with initial state
     historyIndexRef.current = 0; // Sync the ref with initial state
     
-    // Initialize shortcuts manager
-    const initShortcuts = async () => {
-      try {
-        // Load shortcuts from public endpoint (no auth required for now)
-        const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/shortcuts/public').catch((err) => {
-          console.warn('TextEditor: Shortcuts endpoint not available, using defaults');
-          return null;
-        });
-        
-        if (response && response.ok) {
-          const data = await response.json();
-          const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
-          shortcutsMap.clear();
-          data.shortcuts.forEach(([shortcut, shortcutData]: [string, any]) => {
-            shortcutsMap.set(shortcut, shortcutData);
-          });
-          console.log('TextEditor: Loaded', shortcutsMap.size, 'shortcuts');
-          setLoadedShortcuts(new Map(shortcutsMap));
-        } else {
-          // Use default shortcuts if endpoint fails
-          console.log('TextEditor: Using default shortcuts');
-          const defaultShortcuts = shortcutManagerRef.current.getAllShortcuts();
-          setLoadedShortcuts(new Map(defaultShortcuts));
-        }
-      } catch (error) {
-        console.warn('TextEditor: Failed to load shortcuts, using defaults');
-        // Use default shortcuts on error
-        const defaultShortcuts = shortcutManagerRef.current.getAllShortcuts();
-        setLoadedShortcuts(new Map(defaultShortcuts));
-      }
-    };
-    
-    initShortcuts();
+    // Shortcuts initialization is now handled in the useEffect above with authentication
     
     // Load shortcuts enabled preference
     const savedEnabled = localStorage.getItem('textEditorShortcutsEnabled');
