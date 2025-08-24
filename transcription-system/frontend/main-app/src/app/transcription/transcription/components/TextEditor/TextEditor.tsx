@@ -179,7 +179,7 @@ export default function TextEditor({
   }, [inputLanguage]);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
-  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts'));
+  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/shortcuts'));
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
   
@@ -301,7 +301,7 @@ export default function TextEditor({
     saveBeforeSwitch();
     
     // Format media ID from filename (remove extension, sanitize)
-    const mediaId = `0-0-${mediaFileName}`;
+    const mediaId = '0-0-' + mediaFileName;
     setTCurrentMediaId(mediaId);
     
     // Clear remarks and speakers when switching to different media
@@ -454,7 +454,7 @@ export default function TextEditor({
         // Call parent's bulk delete handler
         if (onBulkTranscriptionDelete) {
           onBulkTranscriptionDelete(Array.from(selectedTranscriptions));
-          showFeedback(`${selectedTranscriptions.size} תמלולים נמחקו בהצלחה`);
+          showFeedback(selectedTranscriptions.size + ' תמלולים נמחקו בהצלחה');
         } else {
           console.warn('No bulk delete handler provided');
           showFeedback('לא ניתן למחוק - חסר handler');
@@ -645,17 +645,17 @@ export default function TextEditor({
             if (b.id === currentActiveId && selectionStart !== selectionEnd) {
               // For current block with text selection, use the selected portion
               const selectedPortion = activeElement.value.substring(selectionStart, selectionEnd);
-              return `${b.speaker}: ${selectedPortion}`;
+              return b.speaker + ': ' + selectedPortion;
             }
-            return `${b.speaker}: ${b.text}`;
+            return b.speaker + ': ' + b.text;
           }).join('\n');
         } else {
           // No active selection, use full text
-          selectedText = selectedBlocks.map(b => `${b.speaker}: ${b.text}`).join('\n');
+          selectedText = selectedBlocks.map(b => b.speaker + ': ' + b.text).join('\n');
         }
         
         navigator.clipboard.writeText(selectedText).then(() => {
-          showFeedback(`${selectedBlocks.length} בלוקים נבחרו`);
+          showFeedback(selectedBlocks.length + ' בלוקים נבחרו');
         });
         return;
       }
@@ -736,8 +736,8 @@ export default function TextEditor({
       
       // Get all text content
       const allText = allBlocks.map(b => {
-        const speaker = b.speaker ? `${b.speaker}: ` : '';
-        return `${speaker}${b.text}`;
+        const speaker = b.speaker ? '${b.speaker}: ` : '';
+        return speaker + b.text;
       }).join('\n');
       
       // Copy to clipboard
@@ -790,7 +790,7 @@ export default function TextEditor({
     const initShortcuts = async () => {
       try {
         // Load shortcuts from public endpoint (no auth required for now)
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public').catch((err) => {
+        const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/shortcuts/public').catch((err) => {
           console.warn('TextEditor: Shortcuts endpoint not available, using defaults');
           return null;
         });
@@ -1189,8 +1189,8 @@ export default function TextEditor({
     
     // Get all text content
     const allText = allBlocks.map(b => {
-      const speaker = b.speaker ? `${b.speaker}: ` : '';
-      return `${speaker}${b.text}`;
+      const speaker = b.speaker ? '${b.speaker}: ` : '';
+      return speaker + b.text;
     }).join('\n');
     
     // Try to select all text in all textareas
@@ -1274,7 +1274,7 @@ export default function TextEditor({
       setSpeakerColors(prev => new Map(prev).set(toSpeaker, speaker.color));
     }
     
-    showFeedback(`${updatedCount} בלוקים עודכנו: ${fromSpeaker} → ${toSpeaker}`);
+    showFeedback(updatedCount + ' בלוקים עודכנו: ' + fromSpeaker + ' → ' + toSpeaker);
   }, [saveToHistory, showFeedback]);
 
   // Handle block removal
@@ -1473,7 +1473,7 @@ export default function TextEditor({
         // Load speakers into SimpleSpeaker component if available
         if (speakerComponentRef?.current) {
           speakerComponentRef.current.loadSpeakers(projectData.speakers.map((s: any) => ({
-            id: `speaker-${s.code}`,
+            id: 'speaker-' + s.code,
             code: s.code,
             name: s.name || '',
             description: s.description || '',
@@ -1746,7 +1746,7 @@ export default function TextEditor({
       } else {
         let escapedText = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         if (options.wholeWord) {
-          escapedText = `\\b${escapedText}\\b`;
+          escapedText = '\\b' + escapedText + '\\b';
         }
         pattern = new RegExp(escapedText, options.caseSensitive ? 'g' : 'gi');
       }
@@ -1790,7 +1790,7 @@ export default function TextEditor({
     // Scroll to first result if any, but don't focus
     if (results.length > 0) {
       const result = results[0];
-      const blockElement = document.getElementById(`block-${result.blockId}`);
+      const blockElement = document.getElementById('block-' + result.blockId);
       if (blockElement) {
         blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -1860,7 +1860,7 @@ export default function TextEditor({
     
     if (replacedCount > 0) {
       setBlocks([...blockManagerRef.current.getBlocks()]);
-      showFeedback(`הוחלפו ${replacedCount} מופעים`);
+      showFeedback('הוחלפו ' + replacedCount + ' מופעים');
     } else {
       showFeedback('לא נמצאו מופעים להחלפה');
     }
@@ -1924,7 +1924,7 @@ export default function TextEditor({
       setBlocks(updatedBlocks);
       
       if (swapCount > 0) {
-        showFeedback(`הוחלפו ${swapCount} בלוקים`);
+        showFeedback('הוחלפו ' + swapCount + ' בלוקים');
         saveToHistoryRef.current?.(updatedBlocks);
       }
     };
@@ -2171,7 +2171,7 @@ export default function TextEditor({
       if (data.blocks && Array.isArray(data.blocks)) {
         // Load the blocks
         const importedBlocks = data.blocks.map((block: any, index: number) => ({
-          id: `block-${Date.now()}-${index}`,
+          id: 'block-' + Date.now() + '-' + index,
           speaker: block.speaker || '',
           text: block.text || '',
           speakerTime: block.timestamp || block.speakerTime || 0
@@ -2187,7 +2187,7 @@ export default function TextEditor({
         document.dispatchEvent(event);
         
         console.log('[Import] Loaded ' + importedBlocks.length + ' blocks');
-        showFeedback(`יובאו ${importedBlocks.length} בלוקים`);
+        showFeedback('יובאו ' + importedBlocks.length + ' בלוקים');
         
         // Load speakers if available
         if (data.speakers && Array.isArray(data.speakers)) {
@@ -2324,7 +2324,7 @@ export default function TextEditor({
             {(marks || []).map((mark: any) => (
               <div 
                 key={mark.id}
-                className={`mark-item ${activeMark?.id === mark.id ? 'active' : ''}`}
+                className={'mark-item ' + (activeMark?.id === mark.id ? 'active' : '')}
                 onClick={() => handleMarkNavigation(mark.id)}
               >
                 <span className="mark-time">{formatTime(mark.time)}</span>
@@ -2371,9 +2371,9 @@ export default function TextEditor({
               
               <span className="te-project-counter">
                 {transcriptions.length > 0 && currentTranscriptionIndex < transcriptions.length 
-                  ? `${currentTranscriptionIndex + 1} / ${transcriptions.length}` 
+                  ? (currentTranscriptionIndex + 1) + ' / ' + transcriptions.length 
                   : transcriptions.length > 0 
-                    ? `1 / ${transcriptions.length}` 
+                    ? '1 / ' + (transcriptions.length) 
                     : '0 / 0'}
               </span>
               
@@ -2398,11 +2398,11 @@ export default function TextEditor({
               <div className="media-name-wrapper">
                 <div 
                   ref={mediaNameRef}
-                  className={`media-name-scrollable ${
+                  className={'media-name-scrollable ' + (
                     isMediaNameOverflowing && currentMediaFileName 
                       ? (/[\u0590-\u05FF]/.test(currentMediaFileName) ? 'scroll-rtl' : 'scroll-ltr')
                       : ''
-                  }`}
+                  )}
                 >
                   {currentMediaFileName || 'אין תמלול'}
                   {mediaDuration && mediaDuration !== '00:00:00' && (
@@ -2461,7 +2461,7 @@ export default function TextEditor({
                               e.stopPropagation();
                               handleBulkDelete();
                             }}
-                            title={`מחק ${selectedTranscriptions.size} תמלולים`}
+                            title={'מחק ' + (selectedTranscriptions.size) + ' תמלולים'}
                           >
                             🗑️ מחק ({selectedTranscriptions.size})
                           </button>
@@ -2477,8 +2477,8 @@ export default function TextEditor({
                     ) : (
                       transcriptions.map((transcription, index) => (
                         <div 
-                          key={transcription.projectId || `default-${index}`}
-                          className={`te-dropdown-item ${index === currentTranscriptionIndex ? 'te-active' : ''}`}
+                          key={transcription.projectId || 'default-' + (index)}
+                          className={'te-dropdown-item ' + (index === currentTranscriptionIndex ? 'te-active' : '')}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <label className="te-item-checkbox" onClick={(e) => e.stopPropagation()}>
@@ -2546,9 +2546,9 @@ export default function TextEditor({
               </button>
               
               <button 
-                className={`te-header-btn te-delete-btn ${
+                className={'te-header-btn te-delete-btn ' + (
                   (transcriptions[currentTranscriptionIndex]?.isDefault || transcriptions[currentTranscriptionIndex]?.name === 'אין תמלול') ? 'te-disabled' : ''
-                }`}
+                )}
                 onClick={() => {
                   console.log('[TextEditor] Delete button onClick - isDefault:', transcriptions[currentTranscriptionIndex]?.isDefault);
                   handleDeleteTranscription();
@@ -2654,7 +2654,7 @@ export default function TextEditor({
               const isSelected = isRangeSelected || isMultiSelected;
               
               return (
-                <div key={block.id} id={`block-${block.id}`} 
+                <div key={block.id} id={'block-' + (block.id)} 
                      className={isSelected ? 'block-selected' : ''}
                      onClick={(e) => {
                        // Only handle if clicking on the wrapper div, not the TextBlock itself
@@ -2752,7 +2752,7 @@ export default function TextEditor({
           try {
             // Use the project restore endpoint to load version data and make it current
             const response = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}'}/api/projects/${currentProjectId}/restore/${version.filename}`,
+              (process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/projects/${currentProjectId}/restore/${version.filename}',
               {
                 method: 'POST',
                 headers: {
@@ -2783,7 +2783,7 @@ export default function TextEditor({
                   // Load speakers into SimpleSpeaker component if available
                   if (speakerComponentRef?.current) {
                     speakerComponentRef.current.loadSpeakers(data.speakers.map((s: any) => ({
-                      id: `speaker-${s.code}`,
+                      id: 'speaker-' + s.code,
                       code: s.code,
                       name: s.name || '',
                       description: s.description || '',
@@ -2873,7 +2873,7 @@ export default function TextEditor({
           // Scroll to the result without focusing
           if (searchHighlights[index]) {
             const result = searchHighlights[index];
-            const blockElement = document.getElementById(`block-${result.blockId}`);
+            const blockElement = document.getElementById('block-' + result.blockId);
             if (blockElement) {
               blockElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -2907,7 +2907,7 @@ export default function TextEditor({
         mediaFileName={currentMediaFileName}
         mediaDuration={mediaDuration}
         onExportComplete={(format) => {
-          showFeedback(`המסמך יוצא בהצלחה בפורמט ${format}`);
+          showFeedback('המסמך יוצא בהצלחה בפורמט ' + (format));
         }}
       />
 
@@ -2944,9 +2944,9 @@ export default function TextEditor({
         }}
         onConfirm={confirmBulkDelete}
         title="מחיקת תמלולים"
-        message={`האם אתה בטוח שברצונך למחוק ${selectedTranscriptions.size} תמלולים?`}
+        message={'האם אתה בטוח שברצונך למחוק ' + (selectedTranscriptions.size) + ' תמלולים?'}
         subMessage="פעולה זו אינה ניתנת לביטול"
-        confirmText={`מחק ${selectedTranscriptions.size} תמלולים`}
+        confirmText={'מחק ' + (selectedTranscriptions.size) + ' תמלולים'}
         cancelText="ביטול"
         type="danger"
       />
@@ -2966,5 +2966,5 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  return '${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.' + (ms.toString().padStart(2, '0'));
 }
