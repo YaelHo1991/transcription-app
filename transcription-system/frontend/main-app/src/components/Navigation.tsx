@@ -11,6 +11,9 @@ export default function Navigation() {
     return pathname === path ? styles.active : '';
   };
 
+  // Use environment variables or fallback to production URLs
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://yalitranscription.duckdns.org:5000';
+
   return (
     <nav className={styles.navigationBar}>
       <div className={styles.navContainer}>
@@ -20,7 +23,7 @@ export default function Navigation() {
         </Link>
         <div className={styles.navLinks}>
           <a 
-            href="http://localhost:5000/dev" 
+            href={`${apiBaseUrl}/dev`}
             className={styles.navLink}
             target="_blank"
             rel="noopener noreferrer"
@@ -37,7 +40,7 @@ export default function Navigation() {
             🎯 תמלול
           </Link>
           <a 
-            href="http://localhost:5000/api/health" 
+            href={`${apiBaseUrl}/api/health`}
             className={styles.navLink}
             target="_blank"
             rel="noopener noreferrer"
