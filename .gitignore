@@ -18,12 +18,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local env files
+# Environment files
 .env
 .env.local
+.env.development
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 
 # IDE
 .vscode/
@@ -60,3 +62,29 @@ logs/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+
+# User data and test files
+transcription-system/backend/user_data/
+transcription-system/backend/uploads/
+transcription-system/backend/temp/
+transcription-system/backend/dist/
+transcription-system/frontend/main-app/.next/
+transcription-system/frontend/main-app/out/
+
+# Test files
+test-*.json
+test-*.txt
+test-*.html
+generate-*.js
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
