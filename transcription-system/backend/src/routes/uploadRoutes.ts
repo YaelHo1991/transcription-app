@@ -91,7 +91,7 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
 
     // Save regular file
     const timestamp = Date.now();
-    const fileName = `${userId}_${projectId}_${timestamp}_${req.file.originalname}`;
+    const fileName = '${userId}_' + projectId + '_${timestamp}_${req.file.originalname}';
     const filePath = path.join(process.env.UPLOAD_DIR || './uploads', fileName);
     
     require('fs').writeFileSync(filePath, req.file.buffer);

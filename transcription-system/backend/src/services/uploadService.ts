@@ -96,7 +96,7 @@ class UploadService {
       
       // Generate unique filename
       const timestamp = Date.now();
-      const tempFileName = `import_${userId}_${projectId}_${timestamp}`;
+      const tempFileName = 'import_${userId}_' + projectId + '_${timestamp}';
       const tempFilePath = path.join(this.tempDir, tempFileName);
       
       // Download file with streaming to handle large files
@@ -151,7 +151,7 @@ class UploadService {
       }
       
       // Final file path
-      const finalFileName = `${userId}_${projectId}_${timestamp}_${fileName}`;
+      const finalFileName = '${userId}_' + projectId + '_${timestamp}_${fileName}';
       const finalFilePath = path.join(this.uploadsDir, finalFileName);
       
       // Download and save file
@@ -167,7 +167,7 @@ class UploadService {
           const progress = Math.round((downloadedBytes / totalBytes) * 100);
           // Could emit progress event here if needed
           if (progress % 10 === 0) {
-            console.log(`📊 Download progress: ${progress}%`);
+            console.log('📊 Download progress: ' + progress + '%');
           }
         }
       });
@@ -197,7 +197,7 @@ class UploadService {
   ): Promise<{ complete: boolean; fileName?: string }> {
     const { fileName, chunkIndex, totalChunks, fileId } = metadata;
     
-    console.log(`📦 Receiving chunk ${chunkIndex + 1}/${totalChunks} for file: ${fileName}`);
+    console.log('📦 Receiving chunk ${chunkIndex + 1}/' + totalChunks + ' for file: ${fileName}');
     
     // Initialize storage for this file if needed
     if (!this.chunkStorage.has(fileId)) {

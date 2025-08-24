@@ -108,7 +108,7 @@ export class ProjectService {
       projectId,
       createdAt: new Date().toISOString(),
       mediaFile: mediaFileName,
-      projectName: projectName || `Project ${projectId}`,
+      projectName: projectName || 'Project ' + projectId + '',
       lastModified: new Date().toISOString()
     };
     
@@ -121,7 +121,7 @@ export class ProjectService {
     // Initialize empty files
     await this.initializeProjectFiles(projectDir);
     
-    console.log(`✅ Created new project: ${projectId}`);
+    console.log('✅ Created new project: ' + projectId + '');
     return projectId;
   }
 
@@ -235,7 +235,7 @@ export class ProjectService {
       }
       
       await Promise.all(saves);
-      console.log(`✅ Saved project: ${projectId}`);
+      console.log('✅ Saved project: ' + projectId + '');
       return true;
     } catch (error) {
       console.error(`Error saving project ${projectId}:`, error);
@@ -270,7 +270,7 @@ export class ProjectService {
         fs.readFile(path.join(projectDir, 'remarks.json'), 'utf8').then(JSON.parse)
       ]);
       
-      console.log(`✅ Loaded project: ${projectId}`);
+      console.log('✅ Loaded project: ' + projectId + '');
       
       return {
         metadata,
@@ -331,7 +331,7 @@ export class ProjectService {
         }
       }
       
-      console.log(`✅ Created backup: ${backupFile}`);
+      console.log('✅ Created backup: ' + backupFile + '');
       return backupFile;
     } catch (error) {
       console.error(`Error creating backup for ${projectId}:`, error);
@@ -377,7 +377,7 @@ export class ProjectService {
       metadata.restoredFrom = backupFile;
       await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
       
-      console.log(`✅ Restored from backup: ${backupFile}`);
+      console.log('✅ Restored from backup: ' + backupFile + '');
       return true;
     } catch (error) {
       console.error(`Error restoring backup ${backupFile}:`, error);
@@ -396,10 +396,10 @@ export class ProjectService {
       await fs.mkdir(userDir, { recursive: true });
       
       const entries = await fs.readdir(userDir);
-      console.log(`Found ${entries.length} entries in user ${userId} projects directory`);
+      console.log('Found ${entries.length} entries in user ' + userId + ' projects directory');
       
       const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
-      console.log(`Found ${projectFolders.length} project folders for user ${userId}`);
+      console.log('Found ${projectFolders.length} project folders for user ' + userId + '');
       
       const projects = [];
       for (const folder of projectFolders) {
@@ -520,11 +520,11 @@ export class ProjectService {
       // Delete the entire project directory
       await fs.rm(projectDir, { recursive: true, force: true });
       
-      console.log(`✅ Deleted project ${projectId}`);
+      console.log('✅ Deleted project ' + projectId + '');
       return true;
     } catch (error: any) {
       if (error.code === 'ENOENT') {
-        console.error(`Project ${projectId} not found`);
+        console.error('Project ' + projectId + ' not found');
         return false;
       }
       console.error(`Error deleting project ${projectId}:`, error);
