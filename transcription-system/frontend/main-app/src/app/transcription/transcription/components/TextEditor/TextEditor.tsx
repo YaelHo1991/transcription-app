@@ -225,7 +225,7 @@ export default function TextEditor({
       detail: { count: blocks.length }
     });
     document.dispatchEvent(event);
-    console.log(`[TextEditor] Dispatched blocksLoaded event with ${blocks.length} blocks`);
+    console.log('[TextEditor] Dispatched blocksLoaded event with ' + blocks.length + ' blocks');
   }, [blocks.length]);
   
   // Project: Save old project and load new one when project ID changes
@@ -1406,7 +1406,7 @@ export default function TextEditor({
       return;
     }
     
-    console.log(`[Project] Loading project ${projectId}`);
+    console.log('[Project] Loading project ' + projectId);
     
     // Try to load from IndexedDB first for instant loading
     if (shouldUseIndexedDB()) {
@@ -1414,7 +1414,7 @@ export default function TextEditor({
         await indexedDBService.init();
         const cachedData = await indexedDBService.loadTranscription(projectId);
         if (cachedData && cachedData.blocks && cachedData.blocks.length > 0) {
-          console.log(`[IndexedDB] Loaded ${cachedData.blocks.length} blocks from cache`);
+          console.log('[IndexedDB] Loaded ' + cachedData.blocks.length + ' blocks from cache');
           
           // Load cached data immediately for instant display
           blockManagerRef.current.setBlocks(cachedData.blocks);
@@ -1441,7 +1441,7 @@ export default function TextEditor({
       const projectData = await projectService.loadProject(projectId);
     
     if (projectData && projectData.blocks && projectData.blocks.length > 0) {
-      console.log(`[Project] Loaded ${projectData.blocks.length} blocks`);
+      console.log('[Project] Loaded ' + projectData.blocks.length + ' blocks');
       
       // Ensure blocks have proper structure including timestamps
       const loadedBlocks = projectData.blocks.map((block: any) => ({
@@ -1563,7 +1563,7 @@ export default function TextEditor({
   
   // T-Session: Handle loading existing transcription
   const tHandleLoadExisting = (transcriptionNumber: number) => {
-    console.log(`[T-Session] User selected to load transcription ${transcriptionNumber}`);
+    console.log('[T-Session] User selected to load transcription ' + transcriptionNumber);
     // Load will be triggered by project ID change
     setTCurrentTranscriptionNumber(transcriptionNumber);
   };
@@ -1571,7 +1571,7 @@ export default function TextEditor({
   // T-Session: Handle creating new transcription
   const tHandleCreateNew = async () => {
     const nextNumber = await tSessionService.tGetNextTranscriptionNumber(tCurrentMediaId);
-    console.log(`[T-Session] Creating new transcription ${nextNumber}`);
+    console.log('[T-Session] Creating new transcription ' + nextNumber);
     setTCurrentTranscriptionNumber(nextNumber);
     
     // Start with empty editor
@@ -1705,7 +1705,7 @@ export default function TextEditor({
       try {
         const backupFile = await projectService.createBackup(currentProjectId);
         if (backupFile) {
-          console.log(`[Project] Backup created: ${backupFile}`);
+          console.log('[Project] Backup created: ' + backupFile);
         }
       } catch (error) {
         console.error('[Project] Failed to create backup:', error);
@@ -1993,7 +1993,7 @@ export default function TextEditor({
         // Update ALL blocks that EXACTLY match the updateFrom value
         blocks.forEach(block => {
           if (block.speaker === updateFrom) {
-            console.log(`[TextEditor] Updating block ${block.id} speaker from "${updateFrom}" to "${updateTo}"`);
+            console.log('[TextEditor] Updating block ' + block.id + ' speaker from "' + updateFrom + '" to "' + updateTo + '"');
             blockManagerRef.current.updateBlock(block.id, 'speaker', updateTo);
             hasUpdates = true;
           }
@@ -2186,7 +2186,7 @@ export default function TextEditor({
         });
         document.dispatchEvent(event);
         
-        console.log(`[Import] Loaded ${importedBlocks.length} blocks`);
+        console.log('[Import] Loaded ' + importedBlocks.length + ' blocks');
         showFeedback(`יובאו ${importedBlocks.length} בלוקים`);
         
         // Load speakers if available
@@ -2833,7 +2833,7 @@ export default function TextEditor({
                 setTHasChanges(false);
                 setTLastSaveTime(new Date());
                 
-                console.log(`[T-Session] Successfully restored to version ${version.version}`);
+                console.log('[T-Session] Successfully restored to version ' + version.version);
               }
             }
           } catch (error) {
