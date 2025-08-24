@@ -174,7 +174,7 @@ export default function DocumentExportModal({
       const hours = Math.floor(maxTime / 3600);
       const minutes = Math.floor((maxTime % 3600) / 60);
       const seconds = Math.floor(maxTime % 60);
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
     })();
     
     return {
@@ -217,8 +217,8 @@ export default function DocumentExportModal({
             <input
               type="text"
               className="filename-input"
-              placeholder={`${mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription'}_תמלול`}
-              value={customFileName || `${mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription'}_תמלול`}
+              placeholder={(mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription') + '_תמלול'}
+              value={customFileName || (mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription') + '_תמלול'}
               onChange={(e) => setCustomFileName(e.target.value)}
             />
           </div>

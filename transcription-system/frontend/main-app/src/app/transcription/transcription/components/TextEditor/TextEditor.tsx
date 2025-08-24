@@ -736,7 +736,7 @@ export default function TextEditor({
       
       // Get all text content
       const allText = allBlocks.map(b => {
-        const speaker = b.speaker ? '${b.speaker}: ` : '';
+        const speaker = b.speaker ? b.speaker + ': ' : '';
         return speaker + b.text;
       }).join('\n');
       
@@ -1189,7 +1189,7 @@ export default function TextEditor({
     
     // Get all text content
     const allText = allBlocks.map(b => {
-      const speaker = b.speaker ? '${b.speaker}: ` : '';
+      const speaker = b.speaker ? b.speaker + ': ' : '';
       return speaker + b.text;
     }).join('\n');
     
@@ -2752,7 +2752,7 @@ export default function TextEditor({
           try {
             // Use the project restore endpoint to load version data and make it current
             const response = await fetch(
-              (process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/projects/${currentProjectId}/restore/${version.filename}',
+              (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api') + '/projects/' + currentProjectId + '/restore/' + version.filename,
               {
                 method: 'POST',
                 headers: {
@@ -2966,5 +2966,5 @@ function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
-  return '${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.' + (ms.toString().padStart(2, '0'));
+  return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0') + '.' + ms.toString().padStart(2, '0');
 }
