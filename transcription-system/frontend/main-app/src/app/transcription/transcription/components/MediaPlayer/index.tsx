@@ -34,7 +34,7 @@ interface MediaPlayerProps {
 }
 
 export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCopy, onDurationChange }: MediaPlayerProps) {
-  // Refs
+  // Refs - component references
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -43,6 +43,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const positionSaveIntervalRef = useRef<number | null>(null);
   const currentMediaIdRef = useRef<string | null>(null);
   const waveformAbortControllerRef = useRef<AbortController | null>(null);
+  const currentWaveformInfoRef = useRef<{ url: string; fileSize: number } | null>(null);
   
   // Resource monitoring
   const { 
@@ -768,7 +769,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           }
           
           // If not found, trigger generation on server
-          const generateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/generate', {
+          const generateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/generate`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -1300,9 +1301,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       document.removeEventListener('seekMedia', handleSeekRequest as EventListener);
     };
   }, [showVideo]);
-  
-  // Store current waveform generation info for caching
-  const currentWaveformInfoRef = useRef<{ url: string; fileSize: number } | null>(null);
   
   // Initialize worker manager
   useEffect(() => {

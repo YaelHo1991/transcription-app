@@ -86,7 +86,7 @@ const getCurrentUserId = (): string | null => {
 };
 
 export default function TranscriptionWorkPage() {
-  // Phase 2 completed - Fixed projectName references
+  // Main transcription page component
   const router = useRouter();
   
   // User information
@@ -992,7 +992,7 @@ export default function TranscriptionWorkPage() {
                   // For backend-loaded transcription projects, construct the media URL
                   // The media file is stored in the transcription project folder on the server
                   const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}' 
+                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}`
                     : '';
                   mediaUrl = `${apiUrl}/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}`;
                   console.log('Page: Constructed media URL for backend project:', mediaUrl);
