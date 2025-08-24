@@ -325,7 +325,7 @@ export const developmentHTML = `<!DOCTYPE html>
                 <a href="javascript:void(0)" onclick="navigateTo('/transcription')">
                     🎯 תמלול
                 </a>
-                <a href="javascript:void(0)" onclick="navigateTo('/dev-portal/shortcuts-admin')">
+                <a href="javascript:void(0)" onclick="window.location.href = window.location.protocol + '//' + window.location.hostname + '/dev-portal/shortcuts-admin'; return false;">
                     ⌨️ קיצורים
                 </a>
                 <a href="/api" target="_blank">
@@ -424,7 +424,7 @@ export const developmentHTML = `<!DOCTYPE html>
                 <div class="tool-card">
                     <h4>📝 ניהול קיצורים</h4>
                     <div class="tool-buttons">
-                        <button class="tool-btn primary" onclick="navigateTo('/dev-portal/shortcuts-admin')">ניהול קיצורי מערכת</button>
+                        <button class="tool-btn primary" onclick="window.location.href = window.location.protocol + '//' + window.location.hostname + '/dev-portal/shortcuts-admin'">ניהול קיצורי מערכת</button>
                         <button class="tool-btn success" onclick="showShortcutsStats()">סטטיסטיקות קיצורים</button>
                         <button class="tool-btn warning" onclick="exportSystemShortcuts()">ייצא קיצורי מערכת</button>
                     </div>
