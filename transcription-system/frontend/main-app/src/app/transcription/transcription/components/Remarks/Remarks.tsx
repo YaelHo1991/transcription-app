@@ -45,7 +45,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
 
   const addDebug = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setDebugInfo(prev => [...prev.slice(-9), `${timestamp}: ${msg}`]);
+    setDebugInfo(prev => [...prev.slice(-9), timestamp + ': ' + msg]);
     console.log('DEBUG:', msg);
   };
   const containerRef = useRef<HTMLDivElement>(null);
@@ -91,10 +91,10 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
 
   // Focus input when editing ID changes
   useEffect(() => {
-    addDebug(`Focus effect running: pinnedEditingId = ${pinnedEditingId}`);
+    addDebug('Focus effect running: pinnedEditingId = ' + pinnedEditingId);
     
     if (pinnedEditingId) {
-      addDebug(`Starting focus attempts for: ${pinnedEditingId}`);
+      addDebug('Starting focus attempts for: ' + pinnedEditingId);
       
       // Initial focus attempt with selection only once
       let hasSelected = false;
@@ -120,7 +120,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
           const input = pinnedInputRefs.current[pinnedEditingId];
           
           if (input && document.activeElement !== input) {
-            addDebug(`Focus attempt at ${delay}ms`);
+            addDebug('Focus attempt at ' + delay + 'ms');
             input.focus();
             if (!hasSelected && !input.value) {
               input.select();
@@ -182,7 +182,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
       const newRemark = event.detail.remark;
       if (newRemark.type === RemarkType.PINNED && !handled) {
         handled = true; // Mark as handled
-        addDebug(`Remark created event received: ${newRemark.id}`);
+        addDebug('Remark created event received: ' + newRemark.id);
         
         // Mark as new for tracking
         setNewPinnedIds(prev => {
@@ -212,7 +212,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
       color: ''
     };
     
-    addDebug(`Adding new pinned remark`);
+    addDebug('Adding new pinned remark');
     addRemark(newRemark);
     
     // Fallback in case event doesn't fire
@@ -222,7 +222,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
       if (!handled) {
         // Use latest state from ref
         const pinnedRemarks = latestStateRef.current.remarks.filter(r => r.type === RemarkType.PINNED);
-        addDebug(`Fallback check: Total pinned remarks: ${pinnedRemarks.length}`);
+        addDebug('Fallback check: Total pinned remarks: ' + pinnedRemarks.length);
         
         if (pinnedRemarks.length > 0) {
           // Get the most recently created pinned remark
@@ -231,7 +231,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
           
           if (!newPinnedIds.has(newestRemark.id)) {
             handled = true;
-            addDebug(`Fallback: Setting editing mode for: ${newestRemark.id}`);
+            addDebug('Fallback: Setting editing mode for: ' + newestRemark.id);
             
             setNewPinnedIds(prev => {
               const next = new Set(prev);
@@ -302,7 +302,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
         <div className="remarks-header-controls">
           {/* Toggle checkbox for filter icons and sort options */}
           <button
-            className={`sort-toggle-btn ${showFilterIcons ? 'active' : ''}`}
+            className={'sort-toggle-btn' + (showFilterIcons ? ' active' : '')}
             onClick={() => {
               setShowFilterIcons(!showFilterIcons);
               if (!showFilterIcons) {
@@ -352,7 +352,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
           {showFilterIcons && (
           <div className="filter-icons" style={{ display: 'flex', gap: '4px' }}>
             <button
-              className={`filter-icon ${activeFilter === RemarkType.UNCERTAINTY ? 'active' : ''}`}
+              className={'filter-icon' + (activeFilter === RemarkType.UNCERTAINTY ? ' active' : '')}
               onClick={() => handleFilterToggle(activeFilter === RemarkType.UNCERTAINTY ? 'all' : RemarkType.UNCERTAINTY)}
               title="אי-ודאות"
               style={{
@@ -368,7 +368,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
               ?
             </button>
             <button
-              className={`filter-icon ${activeFilter === RemarkType.SPELLING ? 'active' : ''}`}
+              className={'filter-icon' + (activeFilter === RemarkType.SPELLING ? ' active' : '')}
               onClick={() => handleFilterToggle(activeFilter === RemarkType.SPELLING ? 'all' : RemarkType.SPELLING)}
               title="איות/שמות"
               style={{
@@ -383,7 +383,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
               ✎
             </button>
             <button
-              className={`filter-icon ${activeFilter === RemarkType.MEDIA_NOTE ? 'active' : ''}`}
+              className={'filter-icon' + (activeFilter === RemarkType.MEDIA_NOTE ? ' active' : '')}
               onClick={() => handleFilterToggle(activeFilter === RemarkType.MEDIA_NOTE ? 'all' : RemarkType.MEDIA_NOTE)}
               title="הערות מדיה"
               style={{
@@ -414,19 +414,19 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
           background: 'rgba(15, 118, 110, 0.05)'
         }}>
           <button
-            className={`sort-btn ${state.sortOptions.by === SortBy.TIME ? 'active' : ''}`}
+            className={'sort-btn' + (state.sortOptions.by === SortBy.TIME ? ' active' : '')}
             onClick={() => handleSortChange(SortBy.TIME)}
           >
             זמן {state.sortOptions.by === SortBy.TIME && (state.sortOptions.order === SortOrder.DESC ? '↓' : '↑')}
           </button>
           <button
-            className={`sort-btn ${state.sortOptions.by === SortBy.TYPE ? 'active' : ''}`}
+            className={'sort-btn' + (state.sortOptions.by === SortBy.TYPE ? ' active' : '')}
             onClick={() => handleSortChange(SortBy.TYPE)}
           >
             סוג
           </button>
           <button
-            className={`sort-btn ${state.sortOptions.by === SortBy.STATUS ? 'active' : ''}`}
+            className={'sort-btn' + (state.sortOptions.by === SortBy.STATUS ? ' active' : '')}
             onClick={() => handleSortChange(SortBy.STATUS)}
           >
             סטטוס
@@ -469,7 +469,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
                 
                 // Only log once when editing starts
                 if (shouldShowInput && remark.id.includes('pinned-temp')) {
-                  console.log(`Showing input for ${remark.id}`);
+                  console.log('Showing input for ' + remark.id);
                 }
                 
                 return (

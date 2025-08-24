@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import TextEditor from './TextEditor';
-import { BackupService } from '../../services/backupService';
 
 // Threshold for switching to virtualized mode
 const VIRTUALIZATION_THRESHOLD = 30; // Set to 30 for testing (normally 200)
@@ -21,7 +20,6 @@ interface TextEditorWrapperProps {
 const TextEditorWrapper: React.FC<TextEditorWrapperProps> = (props) => {
   const [blockCount, setBlockCount] = useState(0);
   const [useVirtualized, setUseVirtualized] = useState(false);
-  const backupServiceRef = useRef<BackupService | null>(null);
 
   useEffect(() => {
     // Monitor block count changes

@@ -59,14 +59,18 @@ function remarksReducer(state: RemarksState, action: Action): RemarksState {
       };
 
     case RemarkAction.UPDATE:
-      return {
-        ...state,
-        remarks: state.remarks.map(remark =>
-          remark.id === action.payload.id
-            ? { ...remark, ...action.payload.updates, updatedAt: new Date() }
-            : remark
-        )
-      };
+      const updatedRemarks = [];
+      for (const remark of state.remarks) {
+        if (remark.id === action.payload.id) {
+          const updatedRemark = Object.assign({}, remark, action.payload.updates, { updatedAt: new Date() });
+          updatedRemarks.push(updatedRemark);
+        } else {
+          updatedRemarks.push(remark);
+        }
+      }
+      const newState = Object.assign({}, state);
+      newState.remarks = updatedRemarks;
+      return newState;
 
     case RemarkAction.DELETE:
       return {
@@ -157,9 +161,11 @@ interface RemarksProviderProps {
 
 export function RemarksProvider({ children, transcriptionId, initialRemarks }: RemarksProviderProps) {
   // Use transcription ID or session ID for storage key
-  const storageKey = transcriptionId 
-    ? `transcription-remarks-${transcriptionId}`
-    : 'transcription-remarks-session-default';
+  let storageKey = 'transcription-remarks-session-default';
+  if (transcriptionId) {
+    const prefix = 'transcription-remarks-';
+    storageKey = prefix.concat(transcriptionId);
+  }
   const [state, dispatch] = useReducer(remarksReducer, initialState);
 
   /**
@@ -260,7 +266,7 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
             );
             
             // Also filter duplicates with same timestamp and content
-            const key = `${r.timestamp?.formatted || ''}-${r.content || r.originalText || ''}`;
+            const key = (r.timestamp?.formatted || '') + '-' + (r.content || r.originalText || '');
             if (seen.has(key)) {
               return false;
             }
@@ -299,7 +305,7 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
     const randomStr = typeof window !== 'undefined' ? Math.random().toString(36).substring(2, 11) : 'default';
     const newRemark: Remark = {
       ...remark,
-      id: `remark-${timestamp}-${randomStr}`,
+      id: 'remark-' + timestamp + '-' + randomStr,
       createdAt: new Date(),
       updatedAt: new Date()
     } as Remark;
@@ -423,8 +429,10 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
         case SortBy.PRIORITY:
           // Only for media notes
           if (a.type === RemarkType.MEDIA_NOTE && b.type === RemarkType.MEDIA_NOTE) {
-            const priorityOrder = { high: 3, medium: 2, low: 1 };
-            comparison = priorityOrder[(a as any).priority] - priorityOrder[(b as any).priority];
+            const priorityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
+            const aPriority = priorityOrder[(a as any).priority] || 0;
+            const bPriority = priorityOrder[(b as any).priority] || 0;
+            comparison = aPriority - bPriority;
           }
           break;
       }
