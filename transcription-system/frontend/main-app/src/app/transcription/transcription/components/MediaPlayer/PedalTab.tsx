@@ -647,8 +647,8 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             <p className="warning-title">נדרש חיבור מאובטח (HTTPS)</p>
             <p className="warning-text">
               לשימוש בדוושת USB, יש לגשת לאתר דרך חיבור מאובטח.
-              בקר בכתובת: <a href="https://yalitranscription.duckdns.org" target="_blank" rel="noopener noreferrer">
-                https://yalitranscription.duckdns.org
+              בקר בכתובת: <a href="https://146.190.57.51" target="_blank" rel="noopener noreferrer">
+                https://146.190.57.51
               </a>
             </p>
           </div>

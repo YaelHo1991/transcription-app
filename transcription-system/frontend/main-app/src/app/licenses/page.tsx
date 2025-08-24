@@ -130,7 +130,7 @@ export default function LicensesPage() {
     };
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://yalitranscription.duckdns.org/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://146.190.57.51/api';
       const response = await fetch(`${apiUrl}/licenses/purchase`, {
         method: 'POST',
         headers: {
@@ -162,7 +162,7 @@ export default function LicensesPage() {
 
   // Load stats from API
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://yalitranscription.duckdns.org/api';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://146.190.57.51/api';
     fetch(`${apiUrl}/licenses/stats`)
       .then(res => res.json())
       .then(data => {

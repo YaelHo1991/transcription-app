@@ -31,7 +31,7 @@ export const redirectToHTTPS = () => {
 export const getSecureURL = () => {
   if (typeof window === 'undefined') return '';
   
-  const domain = process.env.NEXT_PUBLIC_DOMAIN || 'yalitranscription.duckdns.org';
+  const domain = process.env.NEXT_PUBLIC_DOMAIN || '146.190.57.51';
   return `https://${domain}${window.location.pathname}${window.location.search}`;
 };
 
