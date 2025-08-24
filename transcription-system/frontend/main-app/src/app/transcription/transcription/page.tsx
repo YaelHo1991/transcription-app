@@ -202,7 +202,7 @@ export default function TranscriptionWorkPage() {
       const mStr = m < 10 ? '0' + m : '' + m;
       const sStr = s < 10 ? '0' + s : '' + s;
       
-      return hStr + ':${mStr}:${sStr}';
+      return hStr + ':' + mStr + ':' + sStr;
     } catch (error) {
       console.error('[formatDuration] Error:', error);
       return '00:00:00';
