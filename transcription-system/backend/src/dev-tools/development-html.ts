@@ -713,21 +713,21 @@ export const developmentHTML = `<!DOCTYPE html>
             const currentHost = window.location.host;
             const protocol = window.location.protocol;
             
-            // Determine if we're accessing via domain or IP
-            const isDomain = currentHost.includes('yalitranscription') || currentHost.includes('duckdns');
-            
             // Frontend routes that should go to the frontend server
             const frontendRoutes = ['/dev-portal', '/licenses', '/crm', '/transcription', '/dev-portal/shortcuts-admin', '/login'];
             
             // If it's a frontend route
             if (frontendRoutes.some(route => path.startsWith(route))) {
-                if (isDomain) {
-                    // If accessed via domain, just use the path (nginx will route properly)
-                    window.location.href = path;
+                // Always use the base domain/IP (port 80) which nginx will route correctly
+                const baseHost = currentHost.split(':')[0]; // Remove port if present
+                
+                // If we're on port 5000, we need to go through nginx on port 80
+                if (currentHost.includes(':5000')) {
+                    // Use the base IP/domain without port (nginx on port 80)
+                    window.location.href = protocol + '//' + baseHost + path;
                 } else {
-                    // If accessed via IP, go to port 3002
-                    const host = currentHost.split(':')[0]; // Remove port if present
-                    window.location.href = protocol + '//' + host + ':3002' + path;
+                    // Already on port 80, just use the path
+                    window.location.href = path;
                 }
             } else {
                 // Backend routes stay on current origin

@@ -79,7 +79,9 @@
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Bash(deploy-to-do.bat)",
       "Bash(bash:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(./deploy-to-do.bat)",
+      "WebFetch(domain:146.190.57.51)"
     ],
     "deny": [],
     "additionalDirectories": [
