@@ -12,7 +12,7 @@ export default function Navigation() {
   };
 
   // Use environment variables or fallback to production URLs
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://yalitranscription.duckdns.org:5000';
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
 
   return (
     <nav className={styles.navigationBar}>

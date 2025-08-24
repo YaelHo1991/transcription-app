@@ -18,23 +18,23 @@ export default function DevPortal() {
         
         {/* Top Navigation - Dev Tools and Server */}
         <div className={styles.topNavGrid}>
-          <a href=`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev" className={styles.navLink} target="_blank">
+          <a href={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev`} className={styles.navLink} target="_blank">
             ⚙️ כלי פיתוח
           </a>
-          <a href=`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}" className={styles.navLink} target="_blank">
+          <a href={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}`} className={styles.navLink} target="_blank">
             🖥️ Server (Backend)
           </a>
         </div>
         
         {/* Main Navigation - Three Systems */}
         <div className={styles.navGrid}>
-          <a href="http://localhost:3002/licenses" className={`${styles.navLink} ${styles.licenseTheme}`}>
+          <a href="/licenses" className={`${styles.navLink} ${styles.licenseTheme}`}>
             📋 מכירת רישיונות
           </a>
-          <a href="http://localhost:3002/crm" className={`${styles.navLink} ${styles.crmTheme}`}>
+          <a href="/crm" className={`${styles.navLink} ${styles.crmTheme}`}>
             👥 CRM
           </a>
-          <a href="http://localhost:3002/transcription" className={`${styles.navLink} ${styles.transcriptionTheme}`}>
+          <a href="/transcription" className={`${styles.navLink} ${styles.transcriptionTheme}`}>
             🎯 תמלול
           </a>
         </div>
