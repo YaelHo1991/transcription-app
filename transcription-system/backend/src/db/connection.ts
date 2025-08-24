@@ -103,13 +103,28 @@ export async function initializeDatabase(): Promise<void> {
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_licenses_user_id ON licenses(user_id);
-      CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
-      CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-      CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
-      CREATE INDEX IF NOT EXISTS idx_waveforms_file_id ON waveforms(file_id);
-      CREATE INDEX IF NOT EXISTS idx_waveforms_created_at ON waveforms(created_at);
     `);
+    
+    // Create other indexes only if tables exist
+    try {
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_licenses_user_id ON licenses(user_id);`);
+    } catch (e) {
+      // Licenses table might not exist
+    }
+    
+    try {
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);`);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);`);
+    } catch (e) {
+      // Sessions table might not exist
+    }
+    
+    try {
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_waveforms_file_id ON waveforms(file_id);`);
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_waveforms_created_at ON waveforms(created_at);`);
+    } catch (e) {
+      // Waveforms table might not exist
+    }
 
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
