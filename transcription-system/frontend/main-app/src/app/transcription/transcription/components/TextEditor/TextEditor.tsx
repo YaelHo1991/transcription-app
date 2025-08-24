@@ -183,6 +183,28 @@ export default function TextEditor({
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
   
+  // Initialize ShortcutManager with authentication
+  useEffect(() => {
+    const initShortcuts = async () => {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const userId = localStorage.getItem('userId');
+      
+      if (token && userId && shortcutManagerRef.current) {
+        try {
+          console.log('[ShortcutManager] Initializing with userId:', userId);
+          await shortcutManagerRef.current.initialize(userId, token);
+          console.log('[ShortcutManager] Initialized successfully');
+        } catch (error) {
+          console.error('[ShortcutManager] Failed to initialize:', error);
+        }
+      } else {
+        console.warn('[ShortcutManager] Missing authentication credentials - token:', !!token, 'userId:', !!userId);
+      }
+    };
+    
+    initShortcuts();
+  }, []); // Run once on mount
+  
   
   // Undo/Redo history
   const [history, setHistory] = useState<TextBlockData[][]>([]);
