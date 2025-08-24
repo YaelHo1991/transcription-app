@@ -165,14 +165,11 @@ export class TemplateProcessor {
     // For now, just copy to clipboard instead
     await this.copyToClipboard(blocks, speakers, includeTimestamps);
     
-    alert(`
-התוכן המעוצב הועתק ללוח!
-      
-1. פתח את תבנית Word שלך
-2. מקם את הסמן במקום הרצוי
-3. הדבק (Ctrl+V)
-4. העיצוב יישמר - כולל bold, tabs, ו-RTL
-    ");
+    alert('התוכן המעוצב הועתק ללוח!\n\n' +
+          '1. פתח את תבנית Word שלך\n' +
+          '2. מקם את הסמן במקום הרצוי\n' +
+          '3. הדבק (Ctrl+V)\n' +
+          '4. העיצוב יישמר - כולל bold, tabs, ו-RTL');
     
     return true;
   }
