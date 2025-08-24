@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import './login.css';
+import { buildApiUrl } from '@/utils/api';
 
 function LoginContent() {
   const router = useRouter();
@@ -32,7 +33,7 @@ function LoginContent() {
 
     try {
       console.log('Attempting login with:', formData.email);
-      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000') + '/api/auth/login', {
+      const response = await fetch(buildApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

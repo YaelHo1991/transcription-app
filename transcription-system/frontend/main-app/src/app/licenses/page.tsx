@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './licenses.module.css';
+import { buildApiUrl } from '@/utils/api';
 
 // Exact pricing from original
 const PRICING = {
@@ -130,8 +131,7 @@ export default function LicensesPage() {
     };
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(apiUrl + '/api/licenses/purchase', {
+      const response = await fetch(buildApiUrl('/api/licenses/purchase'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,8 +162,7 @@ export default function LicensesPage() {
 
   // Load stats from API
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    fetch(apiUrl + '/api/licenses/stats')
+    fetch(buildApiUrl('/api/licenses/stats'))
       .then(res => res.json())
       .then(data => {
         if (data.success) {
