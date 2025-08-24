@@ -212,7 +212,7 @@ export default function TranscriptionPage() {
   };
 
   const renderCompanyGroup = (group: CompanyGroup, workType: string) => {
-    const companyKey = workType + '-${group.name}';
+    const companyKey = `${workType}-${group.name}`;
     const isExpanded = expandedCompanies.has(companyKey);
 
     return (

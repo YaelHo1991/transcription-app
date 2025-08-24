@@ -1,0 +1,44 @@
+name: Deploy to Digital Ocean
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to Digital Ocean
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.DO_HOST }}
+        username: ${{ secrets.DO_USERNAME }}
+        key: ${{ secrets.DO_SSH_KEY }}
+        port: 22
+        script: |
+          # Navigate to project directory
+          cd /opt/transcription-system
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Backend deployment
+          cd transcription-system/backend
+          npm install --production
+          npm run build
+          
+          # Frontend deployment
+          cd ../frontend/main-app
+          npm install
+          npm run build
+          
+          # Restart services
+          sudo systemctl restart transcription-backend
+          sudo systemctl restart transcription-frontend
+          
+          # Reload nginx
+          sudo nginx -s reload

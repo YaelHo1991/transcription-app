@@ -28,13 +28,13 @@ export default function DevPortal() {
         
         {/* Main Navigation - Three Systems */}
         <div className={styles.navGrid}>
-          <a href="/licenses" className={styles.navLink + ' ${styles.licenseTheme}'}>
+          <a href="/licenses" className={`${styles.navLink} ${styles.licenseTheme}`}>
             📋 מכירת רישיונות
           </a>
-          <a href="/crm" className={styles.navLink + ' ${styles.crmTheme}'}>
+          <a href="/crm" className={`${styles.navLink} ${styles.crmTheme}`}>
             👥 CRM
           </a>
-          <a href="/transcription" className={styles.navLink + ' ${styles.transcriptionTheme}'}>
+          <a href="/transcription" className={`${styles.navLink} ${styles.transcriptionTheme}`}>
             🎯 תמלול
           </a>
         </div>
@@ -46,7 +46,7 @@ export default function DevPortal() {
             <div className={styles.previewHeader}>
               <h4>📋 מכירת רישיונות - תצוגה מקדימה</h4>
               <div className={styles.previewIndicators}>
-                <span className={styles.indicator + ' ${styles.active}'}></span>
+                <span className={`${styles.indicator} ${styles.active}`}></span>
                 <span className={styles.indicator}></span>
                 <span className={styles.indicator}></span>
               </div>
@@ -97,7 +97,7 @@ export default function DevPortal() {
             <div className={styles.previewHeader}>
               <h4>👥 CRM - תצוגה מקדימה</h4>
               <div className={styles.previewIndicators}>
-                <span className={styles.indicator + ' ${styles.active}'}></span>
+                <span className={`${styles.indicator} ${styles.active}`}></span>
                 <span className={styles.indicator}></span>
                 <span className={styles.indicator}></span>
                 <span className={styles.indicator}></span>
@@ -111,19 +111,19 @@ export default function DevPortal() {
                     <div className={styles.mockUser}>שלום משתמש</div>
                   </div>
                   <div className={styles.mockStats}>
-                    <div className={styles.mockStat + ' ${styles.red}'}>
+                    <div className={`${styles.mockStat} ${styles.red}`}>
                       <div className={styles.statNum}>24</div>
                       <div className={styles.statLabel}>לקוחות פעילים</div>
                     </div>
-                    <div className={styles.mockStat + ' ${styles.brown}'}>
+                    <div className={`${styles.mockStat} ${styles.brown}`}>
                       <div className={styles.statNum}>8</div>
                       <div className={styles.statLabel}>פרויקטים בעבודה</div>
                     </div>
-                    <div className={styles.mockStat + ' ${styles.green}'}>
+                    <div className={`${styles.mockStat} ${styles.green}`}>
                       <div className={styles.statNum}>12</div>
                       <div className={styles.statLabel}>מתמללים זמינים</div>
                     </div>
-                    <div className={styles.mockStat + ' ${styles.blue}'}>
+                    <div className={`${styles.mockStat} ${styles.blue}`}>
                       <div className={styles.statNum}>₪45K</div>
                       <div className={styles.statLabel}>הכנסות החודש</div>
                     </div>
@@ -143,7 +143,7 @@ export default function DevPortal() {
             <div className={styles.previewHeader}>
               <h4>🎯 תמלול - תצוגה מקדימה</h4>
               <div className={styles.previewIndicators}>
-                <span className={styles.indicator + ' ${styles.active}'}></span>
+                <span className={`${styles.indicator} ${styles.active}`}></span>
                 <span className={styles.indicator}></span>
                 <span className={styles.indicator}></span>
               </div>
@@ -156,15 +156,15 @@ export default function DevPortal() {
                     <div className={styles.mockUser}>מתמלל פעיל</div>
                   </div>
                   <div className={styles.mockStats}>
-                    <div className={styles.mockStat + ' ${styles.transcriptionStat}'}>
+                    <div className={`${styles.mockStat} ${styles.transcriptionStat}`}>
                       <div className={styles.statNum}>8</div>
                       <div className={styles.statLabel}>עבודות תמלול</div>
                     </div>
-                    <div className={styles.mockStat + ' ${styles.transcriptionStat}'}>
+                    <div className={`${styles.mockStat} ${styles.transcriptionStat}`}>
                       <div className={styles.statNum}>5</div>
                       <div className={styles.statLabel}>עבודות הגהה</div>
                     </div>
-                    <div className={styles.mockStat + ' ${styles.transcriptionStat}'}>
+                    <div className={`${styles.mockStat} ${styles.transcriptionStat}`}>
                       <div className={styles.statNum}>3</div>
                       <div className={styles.statLabel}>עבודות ייצוא</div>
                     </div>
