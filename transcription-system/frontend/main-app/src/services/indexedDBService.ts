@@ -130,7 +130,7 @@ class IndexedDBService {
       const metadataStore = transaction.objectStore('metadata');
 
       const transcriptionData = {
-        id: `${projectId}_${Date.now()}`,
+        id: projectId + '_${Date.now()}',
         projectId,
         blocks,
         speakers,
@@ -155,8 +155,8 @@ class IndexedDBService {
       const metadataRequest = metadataStore.put(metadataData);
 
       transaction.oncomplete = () => {
-        console.log(`[IndexedDB] Saved transcription for project ${projectId}`);
-        console.log(`[IndexedDB] Stats: ${blocks.length} blocks, ${speakers.length} speakers, ${remarks.length} remarks`);
+        console.log('[IndexedDB] Saved transcription for project ' + projectId);
+        console.log('[IndexedDB] Stats: ' + blocks.length + ' blocks, ' + speakers.length + ' speakers, ' + remarks.length + ' remarks');
         resolve(true);
       };
 
@@ -192,8 +192,8 @@ class IndexedDBService {
         const cursor = request.result;
         if (cursor) {
           const data = cursor.value;
-          console.log(`[IndexedDB] Loaded transcription for project ${projectId}`);
-          console.log(`[IndexedDB] Stats: ${data.blocks.length} blocks, ${data.speakers.length} speakers`);
+          console.log('[IndexedDB] Loaded transcription for project ' + projectId);
+          console.log('[IndexedDB] Stats: ' + data.blocks.length + ' blocks, ' + data.speakers.length + ' speakers');
           resolve({
             blocks: data.blocks,
             speakers: data.speakers,
@@ -201,7 +201,7 @@ class IndexedDBService {
             version: data.version
           });
         } else {
-          console.log(`[IndexedDB] No transcription found for project ${projectId}`);
+          console.log('[IndexedDB] No transcription found for project ' + projectId);
           resolve(null);
         }
       };
@@ -231,7 +231,7 @@ class IndexedDBService {
       const store = transaction.objectStore('backups');
 
       const backupData = {
-        id: `${projectId}_v${version}_${Date.now()}`,
+        id: projectId + '_v${version}_${Date.now()}',
         projectId,
         version,
         data,
@@ -241,7 +241,7 @@ class IndexedDBService {
       const request = store.add(backupData);
 
       request.onsuccess = () => {
-        console.log(`[IndexedDB] Created backup v${version} for project ${projectId}`);
+        console.log('[IndexedDB] Created backup v' + version + ' for project ' + projectId);
         resolve(true);
       };
 
@@ -274,7 +274,7 @@ class IndexedDBService {
       
       request.onsuccess = () => {
         const backups = request.result || [];
-        console.log(`[IndexedDB] Found ${backups.length} backups for project ${projectId}`);
+        console.log('[IndexedDB] Found ' + backups.length + ' backups for project ' + projectId);
         resolve(backups.sort((a, b) => b.timestamp - a.timestamp));
       };
 
@@ -334,7 +334,7 @@ class IndexedDBService {
       };
 
       transaction.oncomplete = () => {
-        console.log(`[IndexedDB] Cleaned up ${deletedCount} old records`);
+        console.log('[IndexedDB] Cleaned up ' + deletedCount + ' old records');
         resolve(deletedCount);
       };
 
@@ -355,7 +355,7 @@ class IndexedDBService {
       const quota = estimate.quota || 0;
       const percent = quota > 0 ? (usage / quota) * 100 : 0;
       
-      console.log(`[IndexedDB] Storage: ${(usage / 1024 / 1024).toFixed(2)}MB / ${(quota / 1024 / 1024).toFixed(2)}MB (${percent.toFixed(2)}%)`);
+      console.log('[IndexedDB] Storage: ' + (usage / 1024 / 1024).toFixed(2) + 'MB / ' + (quota / 1024 / 1024).toFixed(2) + 'MB (' + percent.toFixed(2) + '%)');
       
       return { usage, quota, percent };
     }
@@ -394,13 +394,13 @@ class IndexedDBService {
                 migratedCount++;
               }
             } catch (e) {
-              console.error(`[IndexedDB] Failed to migrate ${key}:`, e);
+              console.error('[IndexedDB] Failed to migrate ' + key + ':', e);
             }
           }
         }
       }
 
-      console.log(`[IndexedDB] Migrated ${migratedCount} items from localStorage`);
+      console.log('[IndexedDB] Migrated ' + migratedCount + ' items from localStorage');
       return true;
     } catch (error) {
       console.error('[IndexedDB] Migration failed:', error);

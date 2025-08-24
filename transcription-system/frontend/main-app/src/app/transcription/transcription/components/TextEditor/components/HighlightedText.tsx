@@ -26,7 +26,7 @@ export default function HighlightedText({ text, highlights }: HighlightedTextPro
     // Add text before highlight
     if (highlight.startIndex > lastIndex) {
       segments.push(
-        <span key={`text-${idx}`}>
+        <span key={'text-' + idx}>
           {text.substring(lastIndex, highlight.startIndex)}
         </span>
       );
@@ -35,7 +35,7 @@ export default function HighlightedText({ text, highlights }: HighlightedTextPro
     // Add highlighted text
     segments.push(
       <span 
-        key={`highlight-${idx}`}
+        key={'highlight-' + idx}
         style={{
           backgroundColor: highlight.isCurrent ? '#fde047' : '#bbf7d0',
           borderBottom: highlight.isCurrent ? '2px solid #eab308' : '1px solid #4ade80',

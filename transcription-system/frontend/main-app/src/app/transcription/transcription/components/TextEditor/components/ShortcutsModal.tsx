@@ -185,13 +185,13 @@ export default function ShortcutsModal({
 
         <div className="shortcuts-tabs">
           <button
-            className={`tab-btn ${activeTab === 'system' ? 'active' : ''}`}
+            className={'tab-btn ' + (activeTab === 'system' ? 'active' : '')}
             onClick={() => setActiveTab('system')}
           >
             קיצורי מערכת ({systemCount})
           </button>
           <button
-            className={`tab-btn ${activeTab === 'personal' ? 'active' : ''}`}
+            className={'tab-btn ' + (activeTab === 'personal' ? 'active' : '')}
             onClick={() => setActiveTab('personal')}
           >
             קיצורים אישיים ({personalCount})
@@ -227,7 +227,7 @@ export default function ShortcutsModal({
                 <h3 className="category-title">{getCategoryLabel(category)}</h3>
                 <div className="shortcuts-grid">
                   {Array.from(categoryShortcuts.entries()).map(([shortcut, data]) => (
-                    <div key={shortcut} className={`shortcut-item ${data.source === 'user' ? 'user-shortcut' : ''}`}>
+                    <div key={shortcut} className={'shortcut-item ' + (data.source === 'user' ? 'user-shortcut' : '')}>
                       <span className="shortcut-key">{shortcut}</span>
                       <span className="shortcut-arrow">←</span>
                       <span className="shortcut-expansion">{data.expansion}</span>
@@ -244,7 +244,7 @@ export default function ShortcutsModal({
                             ✏️
                           </button>
                           <button 
-                            className={`action-btn delete-btn ${deletingShortcut === shortcut ? 'confirming' : ''}`}
+                            className={'action-btn delete-btn ' + (deletingShortcut === shortcut ? 'confirming' : '')}
                             onClick={() => handleDelete(shortcut)}
                             title={deletingShortcut === shortcut ? 'לחץ שוב למחיקה' : 'מחק'}
                           >
@@ -279,7 +279,7 @@ export default function ShortcutsModal({
               <div className="quota-bar">
                 <div 
                   className="quota-fill" 
-                  style={{ width: `${(personalCount / (userQuota?.max || 100)) * 100}%` }}
+                  style={{ width: ((personalCount / (userQuota?.max || 100)) * 100) + '%' }}
                 />
               </div>
             </div>

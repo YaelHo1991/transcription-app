@@ -57,7 +57,7 @@ export default function TTranscriptionNotification({
     } else if (transcriptionCount === 2) {
       return 'נמצאו 2 תמלולים קיימים עבור מדיה זו';
     } else {
-      return `נמצאו ${transcriptionCount} תמלולים קיימים עבור מדיה זו`;
+      return 'נמצאו ' + transcriptionCount + ' תמלולים קיימים עבור מדיה זו';
     }
   };
 
@@ -113,7 +113,7 @@ export default function TTranscriptionNotification({
                 {existingTranscriptions.map(trans => (
                   <label 
                     key={trans.transcriptionNumber}
-                    className={`t-transcription-item ${selectedTranscription === trans.transcriptionNumber ? 'selected' : ''}`}
+                    className={'t-transcription-item ' + (selectedTranscription === trans.transcriptionNumber ? 'selected' : '')}
                   >
                     <input
                       type="radio"

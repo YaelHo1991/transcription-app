@@ -117,7 +117,7 @@ export default function AutoDetectEnhanced({
         if (shouldResumeRef.current && onPlayPauseRef.current) {
           // Resume playback
           onPlayPauseRef.current();
-          console.log(`[Enhanced Mode] Media resumed after ${secondPauseDelayRef.current}s of no typing`);
+          console.log('[Enhanced Mode] Media resumed after ' + secondPauseDelayRef.current + 's of no typing');
           
           // Reset the flags
           shouldResumeRef.current = false;
@@ -143,7 +143,7 @@ export default function AutoDetectEnhanced({
             onRewindRef.current(rewindOnPauseRef.current.amount);
           }
           
-          console.log(`[Enhanced Mode] Media paused after ${firstPauseDelayRef.current}s of no typing`);
+          console.log('[Enhanced Mode] Media paused after ' + firstPauseDelayRef.current + 's of no typing');
           setIsTyping(false);
           
           // STEP 3: Start auto-resume timer after pause
@@ -152,7 +152,7 @@ export default function AutoDetectEnhanced({
             if (wasPlayingBeforeTypingRef.current && onPlayPauseRef.current) {
               // Resume playback
               onPlayPauseRef.current();
-              console.log(`[Enhanced Mode] Auto-resumed after ${autoResumeDelayRef.current}s of no activity`);
+              console.log('[Enhanced Mode] Auto-resumed after ' + autoResumeDelayRef.current + 's of no activity');
               wasPlayingBeforeTypingRef.current = false;
             }
           }, autoResumeDelayRef.current * 1000);

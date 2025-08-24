@@ -135,7 +135,7 @@ export default function ShortcutsTab({
     // Check if key is already used by a different action
     for (let i = 0; i < shortcuts.length; i++) {
       if (i !== index && shortcuts[i].key === keyString) {
-        showStatus(`המקש ${formatKeyDisplay(keyString)} כבר בשימוש עבור ${shortcuts[i].description}`);
+        showStatus('המקש ' + formatKeyDisplay(keyString) + ' כבר בשימוש עבור ' + shortcuts[i].description);
         setEditingIndex(null);
         setTempKey('');
         return;
@@ -299,7 +299,7 @@ export default function ShortcutsTab({
                   <button
                     className="media-shortcut-key"
                     data-action={shortcut.action}
-                    id={`shortcut-${shortcut.action}`}
+                    id={'shortcut-' + shortcut.action}
                     onClick={() => handleKeyCapture(shortcut.index)}
                   >
                     {formatKeyDisplay(shortcut.key)}
@@ -337,7 +337,7 @@ export default function ShortcutsTab({
             </label>
             <span>אפשר חזרה אחורה בעצירה</span>
           </div>
-          <div className={`rewind-amount-container ${rewindOnPause.enabled ? '' : 'disabled'}`} id="rewindAmountContainer">
+          <div className={'rewind-amount-container ' + (rewindOnPause.enabled ? '' : 'disabled')} id="rewindAmountContainer">
             <label>כמות (שניות):</label>
             <div className="number-input-wrapper">
               <button 
@@ -389,7 +389,7 @@ export default function ShortcutsTab({
       {/* Footer with reset button - EXACT original structure */}
       <div className="shortcuts-footer">
         <button className="reset-shortcuts-btn" onClick={resetShortcuts}>אפס לברירת מחדל</button>
-        <div className={`media-shortcuts-status ${statusMessage ? 'visible' : ''}`} id="mediaShortcutsStatus">
+        <div className={'media-shortcuts-status ' + (statusMessage ? 'visible' : '')} id="mediaShortcutsStatus">
           {statusMessage}
         </div>
       </div>

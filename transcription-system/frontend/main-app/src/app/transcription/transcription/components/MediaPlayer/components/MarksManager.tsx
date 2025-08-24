@@ -540,14 +540,14 @@ const MarksManager = forwardRef(function MarksManager({
                   data-mark-end={mark.endTime}
                   style={{
                     position: 'absolute',
-                    left: `${Math.min(startPosition, endPosition)}%`,
-                    width: `${Math.abs(startPosition - endPosition)}%`,
+                    left: (Math.min(startPosition, endPosition)) + '%',
+                    width: (Math.abs(startPosition - endPosition)) + '%',
                     height: '100%',
                     backgroundColor: color.secondary,
                     opacity: editingMarkId === mark.id ? 0.5 : (selectedMarkId === mark.id ? 0.4 : 0.3),
                     pointerEvents: editingMarkId === mark.id ? 'auto' : 'none', // Only interactive when editing this specific mark
                     cursor: editingMarkId === mark.id ? 'pointer' : 'default',
-                    border: editingMarkId === mark.id ? `2px solid ${color.primary}` : (selectedMarkId === mark.id ? `1px solid ${color.primary}` : 'none'),
+                    border: editingMarkId === mark.id ? '2px solid ' + color.primary : (selectedMarkId === mark.id ? '1px solid ' + color.primary : 'none'),
                     boxSizing: 'border-box',
                     zIndex: editingMarkId === mark.id ? 20 : (selectedMarkId === mark.id ? 10 : 1)
                   }}
@@ -559,7 +559,7 @@ const MarksManager = forwardRef(function MarksManager({
                 className="mark-bar mark-bar-start"
                 style={{
                   position: 'absolute',
-                  left: `${startPosition}%`,
+                  left: startPosition + '%',
                   top: 0,
                   width: editingMarkId === mark.id ? '5px' : '3px',
                   height: '100%',
@@ -567,10 +567,10 @@ const MarksManager = forwardRef(function MarksManager({
                   cursor: editingMarkId === mark.id ? 'ew-resize' : 'pointer',
                   pointerEvents: editingMarkId === mark.id ? 'auto' : 'none',
                   zIndex: editingMarkId === mark.id ? 21 : (selectedMarkId === mark.id ? 11 : 2),
-                  boxShadow: editingMarkId === mark.id ? `0 0 8px ${color.primary}` : `0 0 4px ${color.primary}`
+                  boxShadow: editingMarkId === mark.id ? '0 0 8px ' + color.primary : '0 0 4px ' + color.primary
                 }}
                 onMouseDown={(e) => handleBarMouseDown(e, mark.id, 'start')}
-                title={`${mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime || mark.time)}`}
+                title={(mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew) + ': ${formatTime(mark.time)} - ${formatTime(mark.endTime || mark.time)}'}
               >
                 {/* Timestamp label */}
                 <div
@@ -602,7 +602,7 @@ const MarksManager = forwardRef(function MarksManager({
                   className="mark-bar mark-bar-end"
                   style={{
                     position: 'absolute',
-                    left: `${endPosition}%`,
+                    left: endPosition + '%',
                     top: 0,
                     width: editingMarkId === mark.id ? '5px' : '3px',
                     height: '100%',
@@ -610,10 +610,10 @@ const MarksManager = forwardRef(function MarksManager({
                     cursor: editingMarkId === mark.id ? 'ew-resize' : 'pointer',
                     pointerEvents: editingMarkId === mark.id ? 'auto' : 'none',
                     zIndex: editingMarkId === mark.id ? 21 : (selectedMarkId === mark.id ? 11 : 2),
-                    boxShadow: editingMarkId === mark.id ? `0 0 8px ${color.primary}` : `0 0 4px ${color.primary}`
+                    boxShadow: editingMarkId === mark.id ? '0 0 8px ' + color.primary : '0 0 4px ' + color.primary
                   }}
                   onMouseDown={(e) => handleBarMouseDown(e, mark.id, 'end')}
-                  title={`${mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime)}`}
+                  title={(mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew) + ': ${formatTime(mark.time)} - ${formatTime(mark.endTime)}'}
                 >
                   {/* Timestamp label */}
                   <div
@@ -861,5 +861,5 @@ export default MarksManager;
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return (mins.toString().padStart(2, '0')) + ':${secs.toString().padStart(2, \'0\')}';
 }

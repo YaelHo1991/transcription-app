@@ -67,7 +67,7 @@ export default function SpeakerList({
       {speakers.map((speaker) => (
         <div
           key={speaker.id}
-          className={`speaker-item ${activeSpeakerId === speaker.id ? 'active' : ''}`}
+          className={'speaker-item ' + (activeSpeakerId === speaker.id ? 'active' : '')}
           onClick={() => onSelect(speaker)}
         >
           <span 
@@ -123,7 +123,7 @@ export default function SpeakerList({
                 className="speaker-delete-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(`למחוק את ${speaker.name}?`)) {
+                  if (confirm('למחוק את ' + speaker.name + '?')) {
                     onDelete(speaker.id);
                   }
                 }}

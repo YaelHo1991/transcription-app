@@ -63,7 +63,7 @@ export default function VersionHistoryModal({
     try {
       // Load backups from project service
       const response = await fetch(
-        `${getApiUrl()}/api/projects/${mediaId}/backups`,
+        (getApiUrl()) + '/api/projects/${mediaId}/backups',
         {
           headers: {
             'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ export default function VersionHistoryModal({
     try {
       // Load backup content from project service
       const response = await fetch(
-        `${getApiUrl()}/api/projects/${mediaId}/backups/${version.filename}`,
+        (getApiUrl()) + '/api/projects/${mediaId}/backups/${version.filename}',
         {
           headers: {
             'Content-Type': 'application/json',
@@ -169,7 +169,7 @@ export default function VersionHistoryModal({
         if (data.speakers && data.speakers.length > 0) {
           content += '=== דוברים ===\n';
           data.speakers.forEach((s: any) => {
-            content += `${s.code}: ${s.name}\n`;
+            content += s.code + ': ${s.name}\n';
           });
           content += '\n';
         }
@@ -178,17 +178,17 @@ export default function VersionHistoryModal({
           content += '=== תמלול ===\n';
           data.blocks.forEach((block: any) => {
             const timestamp = block.timestamp || '';
-            const speaker = block.speaker ? `[${block.speaker}]` : '';
-            const prefix = timestamp || speaker ? `${timestamp} ${speaker}: ` : '';
-            content += `${prefix}${block.text || ''}\n`;
+            const speaker = block.speaker ? '[' + block.speaker + ']' : '';
+            const prefix = timestamp || speaker ? timestamp + ' ${speaker}: ' : '';
+            content += prefix + '${block.text || \'\'}\n';
           });
           content += '\n';
         }
         
-        content += `=== מידע ===\n`;
-        content += `בלוקים: ${data.blocks?.length || 0}\n`;
-        content += `דוברים: ${data.speakers?.length || 0}\n`;
-        content += `מילים: ${data.metadata?.totalWords || 0}`;
+        content += '=== מידע ===\n';
+        content += 'בלוקים: ' + (data.blocks?.length || 0) + '\n';
+        content += 'דוברים: ' + (data.speakers?.length || 0) + '\n';
+        content += 'מילים: ' + (data.metadata?.totalWords || 0);
         
         setVersionContent(content);
       } else {
@@ -247,9 +247,9 @@ export default function VersionHistoryModal({
   };
 
   const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return ((bytes / 1024).toFixed(1)) + ' KB';
+    return ((bytes / (1024 * 1024)).toFixed(1)) + ' MB';
   };
 
   const filteredVersions = versions.filter(v => 
@@ -317,7 +317,7 @@ export default function VersionHistoryModal({
                 {versions.map(version => (
                   <div
                     key={version.id}
-                    className={`version-item ${selectedVersion?.id === version.id ? 'selected' : ''}`}
+                    className={'version-item ' + (selectedVersion?.id === version.id ? 'selected' : '')}
                     onClick={() => handleVersionClick(version)}
                   >
                     <div className="version-main">

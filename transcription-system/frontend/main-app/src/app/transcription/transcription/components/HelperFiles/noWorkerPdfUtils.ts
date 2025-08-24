@@ -62,7 +62,7 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
           totalPages: totalPages
         });
         
-        console.log(`Page ${i}/${totalPages} converted`);
+        console.log('Page ' + i + '/' + totalPages + ' converted');
         
         // Clean up
         page.cleanup();

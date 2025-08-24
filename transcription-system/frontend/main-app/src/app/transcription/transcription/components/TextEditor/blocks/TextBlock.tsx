@@ -137,7 +137,7 @@ const TextBlock = React.memo(function TextBlock({
 
   // Helper function to switch input language
   const switchLanguage = (lang: 'hebrew' | 'english') => {
-    addDebugLog(`Switching language to: ${lang}`);
+    addDebugLog('Switching language to: ' + lang);
     setCursorColor(lang);
     setInputLanguage(lang);
     
@@ -302,20 +302,20 @@ const TextBlock = React.memo(function TextBlock({
       
       // Immediate focus attempt
       if (targetRef.current) {
-        console.log(`[TextBlock] Immediate focus attempt for ${activeArea} field, block ${block.id}`);
+        console.log('[TextBlock] Immediate focus attempt for ' + activeArea + ' field, block ' + block.id);
         targetRef.current.focus();
       }
       
       // Delayed focus to ensure DOM is ready
       const focusTimeout = setTimeout(() => {
         if (targetRef.current) {
-          console.log(`[TextBlock] Delayed focus for ${activeArea} field, block ${block.id}`);
+          console.log('[TextBlock] Delayed focus for ' + activeArea + ' field, block ' + block.id);
           targetRef.current.focus();
           
           // Force focus again after a moment to ensure it takes
           setTimeout(() => {
             if (targetRef.current && document.activeElement !== targetRef.current) {
-              console.log(`[TextBlock] Force re-focus ${activeArea} field, block ${block.id} (not focused)`);
+              console.log('[TextBlock] Force re-focus ' + activeArea + ' field, block ' + block.id + ' (not focused)');
               targetRef.current.focus();
               targetRef.current.click(); // Try clicking to force focus
             }
@@ -374,9 +374,9 @@ const TextBlock = React.memo(function TextBlock({
   const formatListItem = (number: number, isRtl?: boolean): string => {
     if (isRtl || textDirection === 'rtl') {
       // Add RLM before number to keep cursor moving right-to-left
-      return `\u200F${number}. `;
+      return '\u200F' + number + '. ';
     }
-    return `${number}. `;
+    return number + '. ';
   };
 
   // Auto-renumber lists when text changes
@@ -402,9 +402,9 @@ const TextBlock = React.memo(function TextBlock({
         
         // Replace the old number with the new one
         if (textDirection === 'rtl') {
-          return `\u200F${listNumber}. ${listMatch[2]}`;
+          return '\u200F' + listNumber + '. ' + listMatch[2];
         } else {
-          return `${listNumber}. ${listMatch[2]}`;
+          return listNumber + '. ${listMatch[2]}';
         }
       } else if (line.trim() === '') {
         // Empty line - could be end of list or just spacing
@@ -751,7 +751,7 @@ const TextBlock = React.memo(function TextBlock({
           // Jump to BEFORE the opening bracket (outside)
           e.preventDefault();
           textarea.setSelectionRange(bracketStart, bracketStart);
-          addDebugLog(`Skipped timestamp right: moved to position ${bracketStart} (before [)`);
+          addDebugLog('Skipped timestamp right: moved to position ' + bracketStart + ' (before [)');
           // Check for highlight after move
           setTimeout(() => checkTimestampHover(bracketStart, text), 10);
           return;
@@ -762,7 +762,7 @@ const TextBlock = React.memo(function TextBlock({
           // Jump to just before the closing bracket
           e.preventDefault();
           textarea.setSelectionRange(bracketEnd, bracketEnd);
-          addDebugLog(`Skipped timestamp left: moved to position ${bracketEnd} (before ])`);
+          addDebugLog('Skipped timestamp left: moved to position ' + bracketEnd + ' (before ])');
           return;
         }
         
@@ -771,7 +771,7 @@ const TextBlock = React.memo(function TextBlock({
           // Jump to after the closing bracket (outside)
           e.preventDefault();
           textarea.setSelectionRange(bracketEnd + 1, bracketEnd + 1);
-          addDebugLog(`Exited bracket left: moved to position ${bracketEnd + 1} (after ])`);
+          addDebugLog('Exited bracket left: moved to position ' + bracketEnd + 1 + ' (after ])');
           return;
         }
       }
@@ -1392,9 +1392,9 @@ const TextBlock = React.memo(function TextBlock({
     if (value.includes('...')) {
       const currentTime = getCurrentMediaTime();
       const timestamp = formatTimestamp(currentTime || 0);
-      const timestampWithBrackets = ` [${timestamp}] `;
+      const timestampWithBrackets = ' [' + timestamp + '] ';
       value = value.replace('...', timestampWithBrackets);
-      addDebugLog(`Transformed ... to: ${timestampWithBrackets}`);
+      addDebugLog('Transformed ... to: ' + timestampWithBrackets);
       // Don't move cursor - let it stay naturally after the timestamp
       // User can manually go back if they want to add uncertainty remark
     }
@@ -1402,8 +1402,8 @@ const TextBlock = React.memo(function TextBlock({
     // Check for uncertainty remarks pattern
     // Debug: Log the current value to see what we're working with
     if (value.includes('[') && value.includes(']')) {
-      addDebugLog(`Text contains brackets. Value: "${value}"`);
-      addDebugLog(`Cursor position: ${cursorPos}`);
+      addDebugLog('Text contains brackets. Value: "' + value + '"');
+      addDebugLog('Cursor position: ' + cursorPos);
     }
     
     // The text comes AFTER the timestamp in the string: [HH:MM:SS text]
@@ -1417,8 +1417,8 @@ const TextBlock = React.memo(function TextBlock({
       const textAfterTimestamp = match[2];
       const confidence = match[3]; // '', '?', or '??'
       
-      addDebugLog(`Pattern matched: "${fullMatch}" at index ${match.index}`);
-      addDebugLog(`Timestamp: "${timestamp}", Text: "${textAfterTimestamp}"`);
+      addDebugLog('Pattern matched: "' + fullMatch + '" at index ' + match.index);
+      addDebugLog('Timestamp: "' + timestamp + '", Text: "' + textAfterTimestamp + '"');
       
       // Only process if there's text after the timestamp
       const uncertainText = textAfterTimestamp.trim();
@@ -1427,7 +1427,7 @@ const TextBlock = React.memo(function TextBlock({
         continue;
       }
       
-      addDebugLog(`Found uncertainty: text="${uncertainText}", timestamp="${timestamp}", confidence="${confidence}"`);
+      addDebugLog('Found uncertainty: text="' + uncertainText + '", timestamp="' + timestamp + '", confidence="' + confidence + '"');
       
       // Check if cursor has left the brackets completely
       const bracketStart = match.index;
@@ -1435,19 +1435,19 @@ const TextBlock = React.memo(function TextBlock({
       // Only consider cursor "outside" if it's completely outside the brackets
       const cursorOutside = cursorPos === null || cursorPos <= bracketStart || cursorPos >= bracketEnd;
       
-      addDebugLog(`Cursor check: pos=${cursorPos}, start=${bracketStart}, end=${bracketEnd}, outside=${cursorOutside}`);
+      addDebugLog('Cursor check: pos=' + cursorPos + ', start=' + bracketStart + ', end=' + bracketEnd + ', outside=' + cursorOutside);
       
       // Store this remark in a data attribute to avoid re-processing
-      const remarkKey = `${timestamp}-${uncertainText}`;
+      const remarkKey = timestamp + '-${uncertainText}';
       
-      addDebugLog(`Processing check: key="${remarkKey}", already processed=${processedRemarks.has(remarkKey)}`);
+      addDebugLog('Processing check: key="' + remarkKey + '", already processed=' + processedRemarks.has(remarkKey));
       
       if (cursorOutside && !processedRemarks.has(remarkKey)) {
         // Parse timestamp to get time in seconds
         const [hours, minutes, seconds] = timestamp.split(':').map(Number);
         const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
         
-        addDebugLog(`DISPATCHING EVENT: text="${uncertainText}", time=${timeInSeconds}`);
+        addDebugLog('DISPATCHING EVENT: text="' + uncertainText + '", time=' + timeInSeconds);
         
         // Trigger uncertainty remark event
         const event = new CustomEvent('createUncertaintyRemark', {
@@ -1466,7 +1466,7 @@ const TextBlock = React.memo(function TextBlock({
         setProcessedRemarks(prev => new Set(prev).add(remarkKey));
         
         // Remove the uncertain text from brackets, keeping just the timestamp
-        const cleanedBrackets = ` [${timestamp}]${confidence} `;
+        const cleanedBrackets = ' [' + timestamp + ']' + confidence + ' ';
         value = value.substring(0, bracketStart) + cleanedBrackets + value.substring(bracketEnd);
         
         // Adjust cursor position if it was after the brackets
@@ -1708,7 +1708,7 @@ const TextBlock = React.memo(function TextBlock({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return (hours.toString().padStart(2, '0')) + ':${minutes.toString().padStart(2, \'0\')}:${secs.toString().padStart(2, \'0\')}';
   };
   
   // Check if cursor is at or within a timestamp
@@ -1733,7 +1733,7 @@ const TextBlock = React.memo(function TextBlock({
 
   // Handle focus events
   const handleSpeakerFocus = (e: FocusEvent<HTMLInputElement>) => {
-    console.log(`[TextBlock] Speaker focused for block ${block.id}`);
+    console.log('[TextBlock] Speaker focused for block ' + block.id);
     const input = e.currentTarget;
     // Detect text direction based on existing content
     const direction = detectTextDirection(input.value);
@@ -1744,7 +1744,7 @@ const TextBlock = React.memo(function TextBlock({
     
     // Ensure navigation state is correct
     if (!isActive || activeArea !== 'speaker') {
-      console.log(`[TextBlock] Triggering navigation to speaker for block ${block.id}`);
+      console.log('[TextBlock] Triggering navigation to speaker for block ' + block.id);
       onNavigate('speaker', undefined);
     }
   };
@@ -1769,7 +1769,7 @@ const TextBlock = React.memo(function TextBlock({
       if (cursorPos >= bracketStart && cursorPos <= bracketEnd) {
         const timestamp = match[1];
         foundTimestamp = true;
-        addDebugLog(`Cursor in timestamp bracket: ${timestamp} at pos ${cursorPos}`);
+        addDebugLog('Cursor in timestamp bracket: ' + timestamp + ' at pos ' + cursorPos);
         
         // Dispatch event to highlight this timestamp's remark
         // This will highlight ANY remark with this timestamp, whether it has text or not
@@ -1783,7 +1783,7 @@ const TextBlock = React.memo(function TextBlock({
     
     // If cursor is not in any timestamp, clear highlight
     if (!foundTimestamp) {
-      addDebugLog(`Cursor not in any timestamp at pos ${cursorPos}`);
+      addDebugLog('Cursor not in any timestamp at pos ' + cursorPos);
       const event = new CustomEvent('highlightRemarkByTimestamp', {
         detail: { timestamp: null }
       });
@@ -1803,7 +1803,7 @@ const TextBlock = React.memo(function TextBlock({
     
     // Ensure navigation state is correct
     if (!isActive || activeArea !== 'text') {
-      console.log(`[TextBlock] Triggering navigation to text for block ${block.id}`);
+      console.log('[TextBlock] Triggering navigation to text for block ' + block.id);
       onNavigate('text', undefined);
     }
     
@@ -1905,9 +1905,9 @@ const TextBlock = React.memo(function TextBlock({
 
   return (
     <div 
-      className={`text-block ${isActive ? 'active' : ''} ${!isIsolated ? 'non-isolated' : ''} ${hasCurrentHighlight ? 'has-current-highlight' : hasHighlight ? 'has-highlight' : ''} ${!blockViewEnabled ? 'regular-view' : ''}`} 
+      className={'text-block ' + (isActive ? 'active' : '') + ' ' + (!isIsolated ? 'non-isolated' : '') + ' ' + (hasCurrentHighlight ? 'has-current-highlight' : hasHighlight ? 'has-highlight' : '') + ' ' + (!blockViewEnabled ? 'regular-view' : '')} 
       style={{ 
-        fontSize: `${fontSize}px`,
+        fontSize: fontSize + 'px',
         borderLeftColor: blockViewEnabled ? (isIsolated ? speakerColor : '#cbd5e1') : 'transparent',
         borderRightColor: blockViewEnabled ? (isIsolated ? speakerColor : '#cbd5e1') : 'transparent',
         borderLeftWidth: blockViewEnabled ? '4px' : '0',
@@ -1936,7 +1936,7 @@ const TextBlock = React.memo(function TextBlock({
           // Only add colon for multi-character names (not single codes)
           const isSingleCode = fullSpeakerName.length === 1 && 
             (/^[א-ת]$/.test(fullSpeakerName) || /^[A-Za-z]$/.test(fullSpeakerName));
-          return isSingleCode ? fullSpeakerName : `${fullSpeakerName}:`;
+          return isSingleCode ? fullSpeakerName : fullSpeakerName + ':';
         })()}
         onChange={handleSpeakerChange}
         onKeyDown={handleSpeakerKeyDown}
@@ -1948,7 +1948,7 @@ const TextBlock = React.memo(function TextBlock({
           color: isIsolated ? '#333' : '#cbd5e1',
           direction: speakerDirection,
           textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
-          fontSize: `${fontSize}px`,
+          fontSize: fontSize + 'px',
           fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
           fontWeight: isIsolated ? 600 : 400,
           position: 'relative',
@@ -1958,14 +1958,14 @@ const TextBlock = React.memo(function TextBlock({
         data-timestamp={block.speakerTime || 0}
         />
         {blockViewEnabled && nameCompletion && (
-          <span className="name-completion" style={{ fontSize: `${fontSize}px` }}>
+          <span className="name-completion" style={{ fontSize: fontSize + 'px' }}>
             {nameCompletion}
           </span>
         )}
       </div>
       
       {blockViewEnabled && (
-        <span className="block-separator" style={{ fontSize: `${fontSize}px` }}>:</span>
+        <span className="block-separator" style={{ fontSize: fontSize + 'px' }}>:</span>
       )}
       
       <div style={{ position: 'relative', flex: 1 }}>
@@ -1999,7 +1999,7 @@ const TextBlock = React.memo(function TextBlock({
             textAlign: 'right',
             resize: 'none',
             overflow: 'hidden',
-            fontSize: `${fontSize}px`,
+            fontSize: fontSize + 'px',
             fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
             color: isIsolated ? 'inherit' : '#94a3b8',
             caretColor: inputLanguage === 'english' ? '#2196f3' : '#e91e63',

@@ -45,7 +45,7 @@ export class WordDocumentGenerator {
     const RLM = '\u200F'; // Right-to-Left Mark
     
     // Join with comma + RLM to keep comma with previous text in RTL
-    return items.join(`,${RLM} `);
+    return items.join(',' + RLM + ' ');
   }
 
   /**
@@ -347,7 +347,7 @@ export class WordDocumentGenerator {
     const hours = Math.floor(maxTime / 3600);
     const minutes = Math.floor((maxTime % 3600) / 60);
     const seconds = Math.floor(maxTime % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return (hours.toString().padStart(2, '0')) + ':${minutes.toString().padStart(2, \'0\')}:${seconds.toString().padStart(2, \'0\')}';
   }
 
   /**
@@ -410,7 +410,7 @@ export class WordDocumentGenerator {
       const blob = converted;
       
       const defaultFileName = fileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       
       console.log('Saving file as:', defaultFileName);
       saveAs(blob, defaultFileName);
@@ -899,7 +899,7 @@ export class WordDocumentGenerator {
     
     const blob = await Packer.toBlob(doc);
     const defaultFileName = fileName || 
-      `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+      (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
     saveAs(blob, defaultFileName);
   }
 
@@ -1135,7 +1135,7 @@ export class WordDocumentGenerator {
     try {
       const blob = await Packer.toBlob(doc);
       const defaultFileName = fileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       saveAs(blob, defaultFileName);
     } catch (error) {
       console.error('Error generating document with advanced template:', error);
@@ -1412,7 +1412,7 @@ export class WordDocumentGenerator {
     const headerParagraph = new Paragraph({
       children: [
         new TextRun({
-          text: `שם הקובץ: ${mediaFileName || 'ללא שם'}`,
+          text: 'שם הקובץ: ' + (mediaFileName || 'ללא שם'),
           size: 24,
           bold: false,
           underline: {
@@ -1562,7 +1562,7 @@ export class WordDocumentGenerator {
       
       // Generate filename
       const defaultFileName = fileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       
       saveAs(blob, defaultFileName);
     } catch (error) {
@@ -1587,9 +1587,9 @@ export class WordDocumentGenerator {
     let output = '';
     
     // Header
-    output += `שם הקובץ: ${mediaFileName || 'ללא שם'}\n`;
+    output += 'שם הקובץ: ' + (mediaFileName || 'ללא שם') + '\n';
     output += '='.repeat(50) + '\n\n';
-    output += `דוברים: ${this.joinWithRTLCommas(speakerNames) || 'לא צוינו'}, זמן הקלטה: ${duration} דקות\n\n`;
+    output += 'דוברים: ' + (this.joinWithRTLCommas(speakerNames) || 'לא צוינו') + ', זמן הקלטה: ' + duration + ' דקות\n\n';
     output += '-'.repeat(50) + '\n\n';
     
     // Content
@@ -1600,9 +1600,9 @@ export class WordDocumentGenerator {
       const processedText = this.processTimestamp(block.text || '', includeTimestamps);
       
       if (speakerName) {
-        output += `${speakerName}:\t${processedText}\n\n`;
+        output += speakerName + ':\t${processedText}\n\n';
       } else {
-        output += `${processedText}\n\n`;
+        output += processedText + '\n\n';
       }
     });
     

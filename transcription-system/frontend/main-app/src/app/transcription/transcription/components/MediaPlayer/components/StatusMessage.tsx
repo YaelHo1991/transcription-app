@@ -18,7 +18,7 @@ export default function StatusMessage({ type, title, message, onClose }: StatusM
   };
 
   const getClassName = () => {
-    return `media-status-message media-status-${type}`;
+    return 'media-status-message media-status-' + type;
   };
 
   return (

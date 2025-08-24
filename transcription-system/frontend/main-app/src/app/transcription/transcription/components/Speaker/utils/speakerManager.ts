@@ -49,7 +49,7 @@ export class SpeakerManager {
 
   // Generate unique ID
   private generateId(): string {
-    return `speaker-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return 'speaker-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
   }
 
   // Check if character is Hebrew
@@ -87,9 +87,9 @@ export class SpeakerManager {
   private generateDefaultName(code: string): string {
     if (this.isHebrewLetter(code)) {
       const index = this.hebrewCodes.indexOf(code) + 1;
-      return `דובר ${index}`;
+      return 'דובר ' + index;
     } else if (this.isEnglishLetter(code)) {
-      return `Speaker ${code.toUpperCase()}`;
+      return 'Speaker ' + code.toUpperCase();
     }
     return 'דובר חדש';
   }

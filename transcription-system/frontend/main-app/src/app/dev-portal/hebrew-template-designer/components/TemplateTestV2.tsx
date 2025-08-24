@@ -38,10 +38,10 @@ export default function TemplateTestV2({ sampleData }: TemplateTestV2Props) {
     const result = await processor.loadTemplate(file);
     
     if (result.success) {
-      setTemplateStatus(`✓ תבנית נטענה: ${file.name}`);
+      setTemplateStatus('✓ תבנית נטענה: ' + file.name);
       setPlaceholders(result.placeholders || []);
     } else {
-      setTemplateStatus(`❌ שגיאה: ${result.message}`);
+      setTemplateStatus('❌ שגיאה: ' + result.message);
       setPlaceholders([]);
     }
   };
@@ -62,12 +62,12 @@ export default function TemplateTestV2({ sampleData }: TemplateTestV2Props) {
       const result = await processor.processTemplate(templateData);
       
       if (result.success) {
-        setTemplateStatus(`✓ ${result.message}`);
+        setTemplateStatus('✓ ' + result.message);
       } else {
-        setTemplateStatus(`❌ שגיאה: ${result.message}`);
+        setTemplateStatus('❌ שגיאה: ' + result.message);
       }
     } catch (error) {
-      setTemplateStatus(`❌ שגיאה: ${error}`);
+      setTemplateStatus('❌ שגיאה: ' + error);
     } finally {
       setIsProcessing(false);
     }
@@ -113,7 +113,7 @@ export default function TemplateTestV2({ sampleData }: TemplateTestV2Props) {
         </div>
 
         {templateStatus && (
-          <div className={`status-message ${templateStatus.includes('✓') ? 'success' : templateStatus.includes('❌') ? 'error' : 'info'}`}>
+          <div className={'status-message ' + (templateStatus.includes('✓') ? 'success' : templateStatus.includes('❌') ? 'error' : 'info')}>
             {templateStatus}
           </div>
         )}

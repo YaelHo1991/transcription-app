@@ -135,7 +135,7 @@ export function useMediaSync({
     const minutes = Math.floor(currentTime / 60);
     const seconds = Math.floor(currentTime % 60);
     const milliseconds = Math.floor((currentTime % 1) * 100);
-    return `[${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}]`;
+    return '[' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0') + '.' + milliseconds.toString().padStart(2, '0') + ']';
   }, [currentTime]);
 
   // Create mark at cursor position
@@ -145,8 +145,8 @@ export function useMediaSync({
     const newMark: Partial<Mark> = {
       time: currentTime,
       type: MarkType.CUSTOM,
-      label: `Mark at line ${position.line}`,
-      customName: `Editor Mark ${position.line}:${position.column}`
+      label: 'Mark at line ' + position.line,
+      customName: 'Editor Mark ' + position.line + ':' + position.column
     };
 
     onMarkCreate(newMark);

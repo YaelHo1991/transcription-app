@@ -52,10 +52,10 @@ export const getWaveformStrategy = (fileSize: number): WaveformStrategy => {
  * Format file size for display
  */
 export const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return ((bytes / 1024).toFixed(1)) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return ((bytes / (1024 * 1024)).toFixed(1)) + ' MB';
+  return ((bytes / (1024 * 1024 * 1024)).toFixed(2)) + ' GB';
 };
 
 /**
@@ -73,7 +73,7 @@ export const checkMemoryAvailable = async (): Promise<boolean> => {
     const requiredMemory = 500 * 1024 * 1024;
     
     if (availableMemory < requiredMemory) {
-      console.warn(`Low memory: ${formatFileSize(availableMemory)} available`);
+      console.warn('Low memory: ' + formatFileSize(availableMemory) + ' available');
       return false;
     }
   }
@@ -160,5 +160,5 @@ export const generateFileId = (url: string): string => {
   }
   
   // Add timestamp for uniqueness
-  return `file_${Math.abs(hash)}_${Date.now()}`;
+  return 'file_' + Math.abs(hash) + '_' + Date.now();
 };

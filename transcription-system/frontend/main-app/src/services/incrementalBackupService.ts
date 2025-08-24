@@ -71,7 +71,7 @@ class IncrementalBackupService {
       this.originalBlocks.set(block.id, { ...block });
     });
     
-    console.log(`[IncrementalBackup] Initialized with ${blocks.length} blocks, version ${version}`);
+    console.log('[IncrementalBackup] Initialized with ' + blocks.length + ' blocks, version ' + version);
   }
 
   /**
@@ -87,7 +87,7 @@ class IncrementalBackupService {
     this.addedBlocks.add(block.id);
     this.deletedBlocks.delete(block.id); // In case it was previously deleted
     
-    console.log(`[IncrementalBackup] Block created: ${block.id}`);
+    console.log('[IncrementalBackup] Block created: ' + block.id);
   }
 
   /**
@@ -121,7 +121,7 @@ class IncrementalBackupService {
         
         if (!hasOtherChanges) {
           this.modifiedBlocks.delete(blockId);
-          console.log(`[IncrementalBackup] Block ${blockId} reverted to original`);
+          console.log('[IncrementalBackup] Block ' + blockId + ' reverted to original');
           return;
         }
       }
@@ -144,7 +144,7 @@ class IncrementalBackupService {
       Object.assign(change, fullBlock);
     }
     
-    console.log(`[IncrementalBackup] Block updated: ${blockId}.${field}`);
+    console.log('[IncrementalBackup] Block updated: ' + blockId + '.' + field);
   }
 
   /**
@@ -155,7 +155,7 @@ class IncrementalBackupService {
     if (this.addedBlocks.has(blockId)) {
       this.addedBlocks.delete(blockId);
       this.modifiedBlocks.delete(blockId);
-      console.log(`[IncrementalBackup] Newly added block deleted: ${blockId}`);
+      console.log('[IncrementalBackup] Newly added block deleted: ' + blockId);
       return;
     }
 
@@ -167,7 +167,7 @@ class IncrementalBackupService {
       operation: 'delete'
     });
     
-    console.log(`[IncrementalBackup] Block deleted: ${blockId}`);
+    console.log('[IncrementalBackup] Block deleted: ' + blockId);
   }
 
   /**
@@ -253,7 +253,7 @@ class IncrementalBackupService {
       this.originalBlocks.set(block.id, { ...block });
     });
     
-    console.log(`[IncrementalBackup] Save successful, version ${newVersion}`);
+    console.log('[IncrementalBackup] Save successful, version ' + newVersion);
   }
 
   /**
@@ -295,9 +295,9 @@ class IncrementalBackupService {
     const deleted = this.deletedBlocks.size;
     
     const parts = [];
-    if (added > 0) parts.push(`${added} added`);
-    if (modified > 0) parts.push(`${modified} modified`);
-    if (deleted > 0) parts.push(`${deleted} deleted`);
+    if (added > 0) parts.push(added + ' added');
+    if (modified > 0) parts.push(modified + ' modified');
+    if (deleted > 0) parts.push(deleted + ' deleted');
     
     return parts.length > 0 ? parts.join(', ') : 'No changes';
   }

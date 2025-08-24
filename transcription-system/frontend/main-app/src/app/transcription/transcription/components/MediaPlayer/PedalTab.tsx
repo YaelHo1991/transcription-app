@@ -701,7 +701,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             <div className="pedal-visual">
               {/* Right Button (displays on right side in RTL, controls physical right button) */}
               <div className="pedal-button-visual" data-button="right">
-                <div className={`pedal-button-circle ${pressedButton === 'right' ? 'pressed' : ''}`}>
+                <div className={'pedal-button-circle ' + (pressedButton === 'right' ? 'pressed' : '')}>
                   <span className="pedal-button-arrow">➡️</span>
                 </div>
                 <div className="pedal-button-label">ימין</div>
@@ -723,7 +723,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
               
               {/* Center Button */}
               <div className="pedal-button-visual" data-button="center">
-                <div className={`pedal-button-circle ${pressedButton === 'center' ? 'pressed' : ''}`}>
+                <div className={'pedal-button-circle ' + (pressedButton === 'center' ? 'pressed' : '')}>
                   <span className="pedal-button-arrow">⏸️</span>
                 </div>
                 <div className="pedal-button-label">מרכז</div>
@@ -745,7 +745,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
               
               {/* Left Button (displays on left side in RTL, controls physical left button) */}
               <div className="pedal-button-visual" data-button="left">
-                <div className={`pedal-button-circle ${pressedButton === 'left' ? 'pressed' : ''}`}>
+                <div className={'pedal-button-circle ' + (pressedButton === 'left' ? 'pressed' : '')}>
                   <span className="pedal-button-arrow">⬅️</span>
                 </div>
                 <div className="pedal-button-label">שמאל</div>
@@ -837,7 +837,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
                 </label>
                 <span>אפשר חזרה אחורה בעצירה</span>
               </div>
-              <div className={`rewind-amount-container ${rewindOnPause.enabled ? '' : 'disabled'}`}>
+              <div className={'rewind-amount-container ' + (rewindOnPause.enabled ? '' : 'disabled')}>
                 <label>כמות (שניות):</label>
                 <div className="number-input-wrapper">
                   <button 
@@ -923,21 +923,21 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             <p className="pedal-test-hint">לחץ על כפתורי הדוושה לבדיקה</p>
             <div className="pedal-test-display" id="pedal-test-display">
               <span 
-                className={`pedal-test-button ${pressedButton === 'right' ? 'active' : ''}`}
+                className={'pedal-test-button ' + (pressedButton === 'right' ? 'active' : '')}
                 id="test-right"
                 onMouseDown={() => handleTestButton('right', 'press')}
                 onMouseUp={() => handleTestButton('right', 'release')}
                 onMouseLeave={() => handleTestButton('right', 'release')}
               >➡️</span>
               <span 
-                className={`pedal-test-button ${pressedButton === 'center' ? 'active' : ''}`}
+                className={'pedal-test-button ' + (pressedButton === 'center' ? 'active' : '')}
                 id="test-center"
                 onMouseDown={() => handleTestButton('center', 'press')}
                 onMouseUp={() => handleTestButton('center', 'release')}
                 onMouseLeave={() => handleTestButton('center', 'release')}
               >⏸️</span>
               <span 
-                className={`pedal-test-button ${pressedButton === 'left' ? 'active' : ''}`}
+                className={'pedal-test-button ' + (pressedButton === 'left' ? 'active' : '')}
                 id="test-left"
                 onMouseDown={() => handleTestButton('left', 'press')}
                 onMouseUp={() => handleTestButton('left', 'release')}

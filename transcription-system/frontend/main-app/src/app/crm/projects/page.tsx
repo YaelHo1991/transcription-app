@@ -221,7 +221,7 @@ export default function ProjectsPage() {
                 <div 
                   className="progress-fill"
                   style={{ 
-                    width: `${project.progress}%`,
+                    width: project.progress + '%',
                     background: getStatusColor(project.status)
                   }}
                 />

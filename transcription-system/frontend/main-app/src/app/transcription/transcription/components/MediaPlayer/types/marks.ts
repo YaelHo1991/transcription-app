@@ -80,7 +80,7 @@ export interface MarksState {
  * Generate a unique ID for a mark
  */
 export const generateMarkId = (): string => {
-  return `mark_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  return 'mark_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
 };
 
 /**
@@ -112,5 +112,5 @@ export const getMarksStorageKey = (mediaUrl: string): string => {
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
-  return `mediaplayer_marks_${Math.abs(hash)}`;
+  return 'mediaplayer_marks_' + Math.abs(hash);
 };

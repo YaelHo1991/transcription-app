@@ -33,9 +33,9 @@ export default function TranscriptionWorkPage() {
 
       {/* Hovering Header */}
       <div 
-        className={`hovering-header ${
+        className={'hovering-header ' + (
           headerLocked || headerHovered ? 'visible' : ''
-        } ${headerLocked ? 'locked' : ''}`}
+        ) + ' ' + (headerLocked ? 'locked' : '')}
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
       >
@@ -55,7 +55,7 @@ export default function TranscriptionWorkPage() {
       </div>
 
       {/* Workspace Header */}
-      <div className={`workspace-header ${headerLocked ? 'header-locked' : ''} ${sidebarLocked ? 'sidebar-locked' : ''}`}>
+      <div className={'workspace-header ' + (headerLocked ? 'header-locked' : '') + ' ' + (sidebarLocked ? 'sidebar-locked' : '')}>
         <div className="header-content">
           <div className="workspace-title">פרויקט תמלול דוגמה</div>
           <div className="header-divider"></div>
@@ -72,16 +72,16 @@ export default function TranscriptionWorkPage() {
       </div>
 
       {/* Main Content */}
-      <div className={`main-content ${
+      <div className={'main-content ' + (
         headerLocked ? 'header-locked' : ''
-      } ${
+      ) + ' ' + (
         sidebarLocked ? 'sidebar-locked' : ''
-      }`}>
+      )}>
         <div className="workspace-grid">
           {/* Main Workspace */}
           <div className="main-workspace">
             {/* Project Navigator - Same width as MediaPlayer */}
-            <div className={`project-navigator ${headerLocked ? 'header-locked' : ''}`}>
+            <div className={'project-navigator ' + (headerLocked ? 'header-locked' : '')}>
               <div className="nav-section project-nav">
                 <button className="nav-btn">►</button>
                 <div className="nav-info-group">
@@ -136,9 +136,9 @@ export default function TranscriptionWorkPage() {
           {/* Side Workspace */}
           <div className="side-workspace">
             {/* Speakers Placeholder */}
-            <div className={`placeholder-container speakers ${
+            <div className={'placeholder-container speakers ' + (
               helperFilesExpanded ? 'compressed' : 'normal'
-            }`}>
+            )}>
               <div className="placeholder-header">
                 <span className="placeholder-icon">👥</span>
                 <h3>Speakers</h3>
@@ -149,9 +149,9 @@ export default function TranscriptionWorkPage() {
             </div>
 
             {/* Remarks Placeholder */}
-            <div className={`placeholder-container remarks ${
+            <div className={'placeholder-container remarks ' + (
               helperFilesExpanded ? 'compressed' : 'normal'
-            }`}>
+            )}>
               <div className="placeholder-header">
                 <span className="placeholder-icon">💬</span>
                 <h3>Remarks</h3>
@@ -162,9 +162,9 @@ export default function TranscriptionWorkPage() {
             </div>
 
             {/* HelperFiles Placeholder */}
-            <div className={`placeholder-container helper-files ${
+            <div className={'placeholder-container helper-files ' + (
               helperFilesExpanded ? 'expanded' : 'collapsed'
-            }`}>
+            )}>
               {!helperFilesExpanded ? (
                 <button 
                   className="helper-files-toggle-btn"
@@ -196,16 +196,16 @@ export default function TranscriptionWorkPage() {
 
       {/* Sidebar Trigger Corner */}
       <div 
-        className={`sidebar-trigger-corner ${headerLocked ? 'header-locked' : ''}`}
+        className={'sidebar-trigger-corner ' + (headerLocked ? 'header-locked' : '')}
         onMouseEnter={() => setSidebarHovered(true)}
         onMouseLeave={() => setSidebarHovered(false)}
       ></div>
 
       {/* Hovering Sidebar */}
       <div 
-        className={`hovering-sidebar ${
+        className={'hovering-sidebar ' + (
           sidebarLocked || sidebarHovered ? 'visible' : ''
-        } ${sidebarLocked ? 'locked' : ''} ${headerLocked ? 'header-locked' : ''}`}
+        ) + ' ' + (sidebarLocked ? 'locked' : '') + ' ' + (headerLocked ? 'header-locked' : '')}
         onMouseEnter={() => setSidebarHovered(true)}
         onMouseLeave={() => setSidebarHovered(false)}
       >

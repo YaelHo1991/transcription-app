@@ -13,7 +13,7 @@ export class HtmlDocumentGenerator {
     const RLM = '\u200F'; // Right-to-Left Mark
     
     // Join with comma + RLM to keep comma with previous text in RTL
-    return items.join(`,${RLM} `);
+    return items.join(',' + RLM + ' ');
   }
 
   /**
@@ -45,14 +45,14 @@ export class HtmlDocumentGenerator {
       <html dir="rtl" lang="he">
       <head>
         <meta charset="UTF-8">
-        <title>${mediaFileName} - תמלול</title>
+        <title>' + mediaFileName + ' - תמלול</title>
         <style>
           body {
-            font-family: '${fontFamily}', 'Arial Hebrew', 'Arial', sans-serif;
+            font-family: \'' + fontFamily + '\', \'Arial Hebrew\', \'Arial\', sans-serif;
             direction: rtl;
-            text-align: ${alignment};
-            font-size: ${fontSize}pt;
-            line-height: ${lineSpacing};
+            text-align: ' + alignment + ';
+            font-size: ' + fontSize + 'pt;
+            line-height: ' + lineSpacing + ';
           }
           .header {
             margin-bottom: 20px;
@@ -78,8 +78,8 @@ export class HtmlDocumentGenerator {
             margin: 20px 0;
           }
           .speaker {
-            font-weight: ${speakerBold ? 'bold' : 'normal'};
-            color: #${speakerColor};
+            font-weight: ' + (speakerBold ? 'bold' : 'normal') + ';
+            color: #' + speakerColor + ';
           }
           hr {
             border: none;
@@ -89,7 +89,7 @@ export class HtmlDocumentGenerator {
         </style>
       </head>
       <body>
-    `;
+    ';
 
     // Add header based on template settings
     if (template?.header?.enabled) {
@@ -147,7 +147,6 @@ export class HtmlDocumentGenerator {
           html += this.renderHeaderElement(el, mediaFileName, speakerNames, duration);
         });
         html += '</div>';
-        
         html += '</div>';
       });
       
@@ -166,12 +165,12 @@ export class HtmlDocumentGenerator {
         .replace('{{speakers}}', this.joinWithRTLCommas(speakerNames) || 'לא צוינו')
         .replace('{{duration}}', duration);
       
-      html += `
+      html += '
         <div class="content">
-          <p><strong>${speakersText}</strong></p>
+          <p><strong>' + speakersText + '</strong></p>
         </div>
         <hr/>
-      `;
+      ';
     }
     
     // Add transcription content
@@ -184,9 +183,9 @@ export class HtmlDocumentGenerator {
       const speakerSuffix = template?.body?.content?.speakerSuffix || ':';
       
       if (speakerName && processedText) {
-        html += `<p><span class="speaker">${speakerName}${speakerSuffix}</span> ${processedText}</p>`;
+        html += '<p><span class="speaker">' + speakerName + speakerSuffix + '</span> ' + processedText + '</p>';
       } else if (processedText) {
-        html += `<p>${processedText}</p>`;
+        html += '<p>' + processedText + '</p>';
       }
     });
     html += '</div>';
@@ -201,18 +200,17 @@ export class HtmlDocumentGenerator {
         } else if (element.type === 'pageNumberFull') {
           html += '<p>עמוד 1 מתוך 1</p>';
         } else if (element.value) {
-          html += `<p>${element.value}</p>`;
+          html += '<p>' + element.value + '</p>';
         }
       });
       
       html += '</div>';
     }
     
-    html += `
+    html += '
       </body>
       </html>
     `;
-    
     return html;
   }
   
@@ -268,19 +266,19 @@ export class HtmlDocumentGenerator {
     
     switch (element.type) {
       case 'fileName':
-        value = `קובץ: ${mediaFileName}`;
+        value = 'קובץ: ' + mediaFileName;
         break;
       case 'speakers':
-        value = `דוברים: ${this.joinWithRTLCommas(speakerNames)}`;
+        value = 'דוברים: ' + this.joinWithRTLCommas(speakerNames);
         break;
       case 'duration':
-        value = `משך: ${duration}`;
+        value = 'משך: ' + duration;
         break;
       case 'userName':
         value = 'משתמש';
         break;
       case 'date':
-        value = `תאריך: ${new Date().toLocaleDateString('he-IL')}`;
+        value = 'תאריך: ' + new Date().toLocaleDateString('he-IL');
         break;
       case 'pageNumber':
         value = 'עמוד 1';
@@ -303,10 +301,10 @@ export class HtmlDocumentGenerator {
     if (element.bold) style += 'font-weight: bold; ';
     if (element.italic) style += 'font-style: italic; ';
     if (element.underline) style += 'text-decoration: underline; ';
-    if (element.size) style += `font-size: ${element.size}pt; `;
-    if (element.color) style += `color: #${element.color}; `;
+    if (element.size) style += 'font-size: ' + element.size + 'pt; ';
+    if (element.color) style += 'color: #' + element.color + '; ';
     
-    return `<p style="${style}">${value}</p>`;
+    return '<p style="' + style + '">' + value + '</p>';
   }
   
   /**
@@ -379,7 +377,7 @@ export class HtmlDocumentGenerator {
     const hours = Math.floor(maxTime / 3600);
     const minutes = Math.floor((maxTime % 3600) / 60);
     const seconds = Math.floor(maxTime % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return (hours.toString().padStart(2, '0')) + ':${minutes.toString().padStart(2, \'0\')}:${seconds.toString().padStart(2, \'0\')}';
   }
   
   /**

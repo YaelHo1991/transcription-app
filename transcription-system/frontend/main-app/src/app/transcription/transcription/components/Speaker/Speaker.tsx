@@ -168,7 +168,7 @@ export default function Speaker({
   };
 
   return (
-    <div className={`speaker-panel theme-${theme} ${isExpanded ? 'expanded' : 'collapsed'}`}>
+    <div className={'speaker-panel theme-' + theme + ' ' + (isExpanded ? 'expanded' : 'collapsed')}>
       <div className="speaker-header">
         <h3 className="speaker-title">רשימת דוברים</h3>
         <div className="speaker-header-controls">

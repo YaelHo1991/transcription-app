@@ -25,7 +25,7 @@ export class DirectWordGenerator {
     const RLM = '\u200F'; // Right-to-Left Mark
     
     // Join with comma + RLM to keep comma with previous text in RTL
-    return items.join(`,${RLM} `);
+    return items.join(',' + RLM + ' ');
   }
 
   /**
@@ -85,7 +85,7 @@ export class DirectWordGenerator {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
       });
       
-      const fileName = `${mediaFileName.replace(/\.[^/.]+$/, '')}_with_lines.docx`;
+      const fileName = (mediaFileName.replace(/\.[^/.]+$/, '')) + '_with_lines.docx';
       saveAs(blob, fileName);
       
     } catch (error) {

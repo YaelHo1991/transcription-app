@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker - use the bundled worker
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.54/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '//cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.54/pdf.worker.min.js';
 }
 
 export interface PDFPageImage {
@@ -30,7 +30,7 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
     
     // Convert each page to image
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-      console.log(`Processing page ${pageNum}/${totalPages}`);
+      console.log('Processing page ' + pageNum + '/' + totalPages);
       const page = await pdf.getPage(pageNum);
       
       // Set scale for good quality snapshots
@@ -56,7 +56,7 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
       };
       
       await page.render(renderContext as any).promise;
-      console.log(`Page ${pageNum} rendered to canvas`);
+      console.log('Page ' + pageNum + ' rendered to canvas');
       
       // Convert canvas to blob
       const blob = await new Promise<Blob | null>((resolve) => {
@@ -70,7 +70,7 @@ export async function convertPDFToImages(file: File): Promise<PDFPageImage[]> {
           pageNumber: pageNum,
           totalPages
         });
-        console.log(`Page ${pageNum} converted to image`);
+        console.log('Page ' + pageNum + ' converted to image');
       } else {
         console.error('Failed to create blob for page', pageNum);
       }

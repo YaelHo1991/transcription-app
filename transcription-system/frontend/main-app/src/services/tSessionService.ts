@@ -39,7 +39,7 @@ class TSessionService {
    */
   async tCheckExistingTranscriptions(mediaId: string): Promise<boolean> {
     try {
-      const response = await fetch(`${API_URL}/api/transcription/sessions/t-list/${mediaId}`, {
+      const response = await fetch(API_URL + '/api/transcription/sessions/t-list/${mediaId}', {
         headers: {
           'Content-Type': 'application/json',
           // Dev mode header - backend accepts this in development
@@ -61,7 +61,7 @@ class TSessionService {
    */
   async tGetTranscriptionCount(mediaId: string): Promise<number> {
     try {
-      const response = await fetch(`${API_URL}/api/transcription/sessions/t-list/${mediaId}`, {
+      const response = await fetch(API_URL + '/api/transcription/sessions/t-list/${mediaId}', {
         headers: {
           'Content-Type': 'application/json',
           'X-Dev-Mode': 'true'
@@ -82,7 +82,7 @@ class TSessionService {
    */
   async tListSessions(mediaId: string): Promise<TSessionInfo[]> {
     try {
-      const response = await fetch(`${API_URL}/api/transcription/sessions/t-list/${mediaId}`, {
+      const response = await fetch(API_URL + '/api/transcription/sessions/t-list/${mediaId}', {
         headers: {
           'Content-Type': 'application/json',
           'X-Dev-Mode': 'true'
@@ -118,7 +118,7 @@ class TSessionService {
         blockCount: data.blocks?.length
       });
       
-      const response = await fetch(`${API_URL}/api/transcription/sessions/save`, {
+      const response = await fetch(API_URL + '/api/transcription/sessions/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ class TSessionService {
   async tLoadSession(mediaId: string, transcriptionNumber: number): Promise<any> {
     try {
       const response = await fetch(
-        `${API_URL}/api/transcription/sessions/load/${mediaId}/${transcriptionNumber}`,
+        API_URL + '/api/transcription/sessions/load/${mediaId}/${transcriptionNumber}',
         {
           headers: {
             'Content-Type': 'application/json',
@@ -189,9 +189,9 @@ class TSessionService {
    */
   tGetSaveMessage(success: boolean, transcriptionNumber: number): string {
     if (success) {
-      return `✅ תמלול ${transcriptionNumber} נשמר בהצלחה`;
+      return '✅ תמלול ' + transcriptionNumber + ' נשמר בהצלחה';
     } else {
-      return `❌ שגיאה בשמירת תמלול ${transcriptionNumber}`;
+      return '❌ שגיאה בשמירת תמלול ' + transcriptionNumber;
     }
   }
 
@@ -200,11 +200,11 @@ class TSessionService {
    */
   tGetExistingMessage(count: number): string {
     if (count === 1) {
-      return `נמצא תמלול אחד קיים עבור מדיה זו`;
+      return 'נמצא תמלול אחד קיים עבור מדיה זו';
     } else if (count === 2) {
-      return `נמצאו 2 תמלולים קיימים עבור מדיה זו`;
+      return 'נמצאו 2 תמלולים קיימים עבור מדיה זו';
     } else {
-      return `נמצאו ${count} תמלולים קיימים עבור מדיה זו`;
+      return 'נמצאו ' + count + ' תמלולים קיימים עבור מדיה זו';
     }
   }
 }

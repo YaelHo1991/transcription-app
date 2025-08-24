@@ -19,11 +19,11 @@ export default function TestShortcuts() {
     // Initialize ShortcutManager
     const initManager = async () => {
       try {
-        const manager = new ShortcutManager(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts');
+        const manager = new ShortcutManager((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/shortcuts');
         managerRef.current = manager;
         
         // Fetch shortcuts directly from public endpoint for testing
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public`);
         if (response.ok) {
           const data = await response.json();
           console.log('Loaded shortcuts from API:', data.shortcuts.length);
@@ -82,7 +82,7 @@ export default function TestShortcuts() {
         // Add the space after the expansion
         const expandedWithSpace = result.text + ' ' + newText.substring(newCursorPos);
         setText(expandedWithSpace);
-        setLastExpansion(`Expanded: "${result.expandedShortcut}" → "${result.expandedTo}"`);
+        setLastExpansion('Expanded: "' + result.expandedShortcut + '" → "' + result.expandedTo + '"');
         
         // Set cursor position after the expansion and space
         setTimeout(() => {
@@ -122,7 +122,7 @@ export default function TestShortcuts() {
         // Keep the punctuation after expansion
         const expandedWithPunctuation = result.text + currentText.substring(cursorPos - 1);
         setText(expandedWithPunctuation);
-        setLastExpansion(`Expanded: "${result.expandedShortcut}" → "${result.expandedTo}"`);
+        setLastExpansion('Expanded: "' + result.expandedShortcut + '" → "' + result.expandedTo + '"');
         
         setTimeout(() => {
           if (textareaRef.current) {
@@ -159,9 +159,9 @@ export default function TestShortcuts() {
     
     if (result.expanded) {
       setText(result.text);
-      setLastExpansion(`Test: "${shortcut}" → "${result.expandedTo}"`);
+      setLastExpansion('Test: "' + shortcut + '" → "' + result.expandedTo + '"');
     } else {
-      setLastExpansion(`No expansion for: "${shortcut}"`);
+      setLastExpansion('No expansion for: "' + shortcut + '"');
       // Check if shortcut exists
       const exists = managerRef.current.hasShortcut(shortcut);
       console.log('Shortcut exists in manager:', exists);

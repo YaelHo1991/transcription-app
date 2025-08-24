@@ -59,15 +59,15 @@ export default function MediaLinkModal({
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      return hours + ':${minutes.toString().padStart(2, \'0\')}:${secs.toString().padStart(2, \'0\')}';
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return minutes + ':${secs.toString().padStart(2, \'0\')}';
   };
 
   const formatSize = (bytes?: number) => {
     if (!bytes) return '';
     const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
+    return (mb.toFixed(1)) + ' MB';
   };
 
   const handleLink = async () => {
@@ -157,7 +157,7 @@ export default function MediaLinkModal({
               filteredMedia.map(media => (
                 <div
                   key={media.id}
-                  className={`modal-media-item ${selectedMediaId === media.id ? 'selected' : ''}`}
+                  className={'modal-media-item ' + (selectedMediaId === media.id ? 'selected' : '')}
                   onClick={() => setSelectedMediaId(media.id)}
                 >
                   <div className="modal-media-icon">

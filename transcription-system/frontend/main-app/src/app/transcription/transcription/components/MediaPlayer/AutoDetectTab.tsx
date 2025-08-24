@@ -326,7 +326,7 @@ export default function AutoDetectTab({
       <div className="auto-detect-status-section">
         <h3>מצב נוכחי</h3>
         <div className="auto-detect-status">
-          <div className={`status-indicator ${autoDetectEnabled ? 'active' : ''}`}>
+          <div className={'status-indicator ' + (autoDetectEnabled ? 'active' : '')}>
             <span className="status-icon" style={{ color: autoDetectEnabled ? '#20c997' : '#666' }}>•</span>
             <span className="status-text">{autoDetectEnabled ? 'פעיל' : 'כבוי'}</span>
           </div>
@@ -351,7 +351,7 @@ export default function AutoDetectTab({
             </label>
             <span>אפשר חזרה אחורה בעצירה</span>
           </div>
-          <div className={`rewind-amount-container ${rewindOnPause.enabled ? '' : 'disabled'}`}>
+          <div className={'rewind-amount-container ' + (rewindOnPause.enabled ? '' : 'disabled')}>
             <label>כמות (שניות):</label>
             <div className="number-input-wrapper">
               <button 

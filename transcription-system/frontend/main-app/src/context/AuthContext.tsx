@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Validate token with our API proxy
         const response = await fetch('/api/auth/verify', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': 'Bearer ' + token
           }
         })
         

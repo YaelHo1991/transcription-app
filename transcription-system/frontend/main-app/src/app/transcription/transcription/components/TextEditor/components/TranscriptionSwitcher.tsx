@@ -168,9 +168,9 @@ export default function TranscriptionSwitcher({
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return 'עכשיו';
-    if (diffMins < 60) return `לפני ${diffMins} דק'`;
-    if (diffHours < 24) return `לפני ${diffHours} שעות`;
-    if (diffDays < 7) return `לפני ${diffDays} ימים`;
+    if (diffMins < 60) return 'לפני ' + diffMins + ' דק\'';
+    if (diffHours < 24) return 'לפני ' + diffHours + ' שעות';
+    if (diffDays < 7) return 'לפני ' + diffDays + ' ימים';
     
     return date.toLocaleDateString('he-IL');
   };
@@ -192,9 +192,9 @@ export default function TranscriptionSwitcher({
             transcriptions.map((transcription) => (
               <div
                 key={transcription.id}
-                className={`transcription-item ${
+                className={'transcription-item ' + (
                   transcription.id === currentTranscription?.id ? 'current' : ''
-                }`}
+                )}
                 onClick={() => handleTranscriptionSelect(transcription)}
               >
                 <div className="item-main">

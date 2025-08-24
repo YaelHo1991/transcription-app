@@ -26,28 +26,28 @@ export default function BodySettings({ settings, onSettingsChange }: BodySetting
         <h3>יישור טקסט:</h3>
         <div className="alignment-buttons">
           <button
-            className={`align-btn ${settings.alignment === 'right' ? 'active' : ''}`}
+            className={'align-btn ' + (settings.alignment === 'right' ? 'active' : '')}
             onClick={() => updateSetting('alignment', 'right')}
             title="יישור לימין"
           >
             ←
           </button>
           <button
-            className={`align-btn ${settings.alignment === 'center' ? 'active' : ''}`}
+            className={'align-btn ' + (settings.alignment === 'center' ? 'active' : '')}
             onClick={() => updateSetting('alignment', 'center')}
             title="יישור למרכז"
           >
             ≡
           </button>
           <button
-            className={`align-btn ${settings.alignment === 'left' ? 'active' : ''}`}
+            className={'align-btn ' + (settings.alignment === 'left' ? 'active' : '')}
             onClick={() => updateSetting('alignment', 'left')}
             title="יישור לשמאל"
           >
             →
           </button>
           <button
-            className={`align-btn ${settings.alignment === 'justify' ? 'active' : ''}`}
+            className={'align-btn ' + (settings.alignment === 'justify' ? 'active' : '')}
             onClick={() => updateSetting('alignment', 'justify')}
             title="יישור לשני הצדדים"
           >

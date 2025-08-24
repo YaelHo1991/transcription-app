@@ -120,7 +120,7 @@ export default function TranscriptionManagementDropdown({
     const diffHours = Math.floor(diffMs / 3600000);
     
     if (diffHours < 1) return 'עכשיו';
-    if (diffHours < 24) return `לפני ${diffHours} שעות`;
+    if (diffHours < 24) return 'לפני ' + diffHours + ' שעות';
     
     return date.toLocaleDateString('he-IL');
   };
@@ -131,7 +131,7 @@ export default function TranscriptionManagementDropdown({
         {/* Trigger Button */}
         <button
           ref={triggerRef}
-          className={`dropdown-trigger ${isOpen ? 'open active' : ''}`}
+          className={'dropdown-trigger ' + (isOpen ? 'open active' : '')}
           onClick={() => setIsOpen(!isOpen)}
           title="ניהול תמלולים"
         >
@@ -144,10 +144,10 @@ export default function TranscriptionManagementDropdown({
       {isOpen && (
         <div 
           ref={dropdownRef}
-          className={`dropdown-menu transcription-dropdown ${isOpen ? 'open' : ''}`}
+          className={'dropdown-menu transcription-dropdown ' + (isOpen ? 'open' : '')}
           style={{
-            top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`
+            top: dropdownPosition.top + 'px',
+            left: dropdownPosition.left + 'px'
           }}>
         {/* Header */}
         <div className="dropdown-header">
@@ -169,9 +169,9 @@ export default function TranscriptionManagementDropdown({
               {currentMediaTranscriptions.map((transcription) => (
                 <div
                   key={transcription.id}
-                  className={`dropdown-item transcription-item ${
+                  className={'dropdown-item transcription-item ' + (
                     transcription.id === currentTranscriptionId ? 'active' : ''
-                  }`}
+                  )}
                   onClick={() => handleAction(() => onTranscriptionSwitch(transcription.id))}
                 >
                   <span className="dropdown-item-icon">
@@ -179,7 +179,7 @@ export default function TranscriptionManagementDropdown({
                   </span>
                   <span className="dropdown-item-text">
                     {transcription.name}
-                    {transcription.number && ` ${transcription.number}`}
+                    {transcription.number && ' ' + transcription.number}
                   </span>
                   {transcription.wordCount > 0 && (
                     <span className="dropdown-item-badge">{transcription.wordCount} מילים</span>
@@ -201,7 +201,7 @@ export default function TranscriptionManagementDropdown({
           
           {/* New Transcription */}
           <div 
-            className={`dropdown-item ${!currentMediaId ? 'disabled' : ''}`}
+            className={'dropdown-item ' + (!currentMediaId ? 'disabled' : '')}
             onClick={() => currentMediaId && handleAction(onNewTranscription)}
           >
             <span className="dropdown-item-icon">➕</span>
@@ -211,7 +211,7 @@ export default function TranscriptionManagementDropdown({
           {/* Clear Current Transcription */}
           {currentTranscriptionId && (
             <div 
-              className={`dropdown-item ${!currentMediaId ? 'disabled' : ''}`}
+              className={'dropdown-item ' + (!currentMediaId ? 'disabled' : '')}
               onClick={() => currentMediaId && handleAction(() => onClearTranscription(currentTranscriptionId))}
             >
               <span className="dropdown-item-icon">🗑️</span>
@@ -260,7 +260,7 @@ export default function TranscriptionManagementDropdown({
           <div className="dropdown-info">
             <div className="info-row">
               <span className="info-label">מדיה:</span>
-              <span className={`info-value ${!currentMediaName ? 'empty' : ''}`}>
+              <span className={'info-value ' + (!currentMediaName ? 'empty' : '')}>
                 {currentMediaName || 'אין מדיה נטענת'}
               </span>
             </div>

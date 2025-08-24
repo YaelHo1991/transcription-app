@@ -49,7 +49,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
       
       // Save to localStorage if mediaId is available
       if (mediaId && transcriptionNumber) {
-        const storageKey = `speakers-${mediaId}-${transcriptionNumber}`;
+        const storageKey = 'speakers-' + mediaId + '-' + transcriptionNumber;
         localStorage.setItem(storageKey, JSON.stringify(speakers));
       }
     }
@@ -142,14 +142,14 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
   
   // Handle name field focus - start editing
   const handleNameFocus = useCallback((id: string, currentName: string) => {
-    console.log(`[SimpleSpeaker] Name field focused for block ${id}, current name: "${currentName}"`);
+    console.log('[SimpleSpeaker] Name field focused for block ' + id + ', current name: "' + currentName + '"');
     setEditingNameBlockId(id);
     nameBeforeEditRef.current = currentName || '';
   }, []);
   
   // Handle name field blur - finish editing and send update
   const handleNameBlur = useCallback((id: string) => {
-    console.log(`[SimpleSpeaker] Name field blurred for block ${id}`);
+    console.log('[SimpleSpeaker] Name field blurred for block ' + id);
     
     if (editingNameBlockId === id) {
       const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
@@ -159,7 +159,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
         
         // Only dispatch event if name actually changed
         if (oldName !== newName) {
-          console.log(`[SimpleSpeaker] Name changed from "${oldName}" to "${newName}", dispatching update`);
+          console.log('[SimpleSpeaker] Name changed from "' + oldName + '" to "' + newName + '", dispatching update');
           
           document.dispatchEvent(new CustomEvent('speakerUpdated', {
             detail: {
@@ -210,7 +210,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
     
     // Save to localStorage if mediaId is available
     if (mediaId && transcriptionNumber) {
-      const storageKey = `speakers-${mediaId}-${transcriptionNumber}`;
+      const storageKey = 'speakers-' + mediaId + '-' + transcriptionNumber;
       localStorage.setItem(storageKey, JSON.stringify(updatedBlocks));
     }
     
@@ -224,7 +224,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
     if (field === 'code' || (field === 'name' && editingNameBlockId !== id)) {
       const block = blockManagerRef.current.getBlocks().find(b => b.id === id);
       if (block) {
-        console.log(`[SimpleSpeaker] Dispatching speakerUpdated for ${field} change (not in edit mode)`);
+        console.log('[SimpleSpeaker] Dispatching speakerUpdated for ' + field + ' change (not in edit mode)');
         document.dispatchEvent(new CustomEvent('speakerUpdated', {
           detail: {
             speakerId: block.id,  // Send the unique speaker ID
@@ -237,7 +237,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
         }));
       }
     } else if (field === 'name' && editingNameBlockId === id) {
-      console.log(`[SimpleSpeaker] Skipping name update dispatch - currently editing block ${id}`);
+      console.log('[SimpleSpeaker] Skipping name update dispatch - currently editing block ' + id);
     }
   }, [editingNameBlockId, mediaId, transcriptionNumber, onSpeakersChange]);
   
@@ -347,7 +347,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
       if (inUse) {
         // Show error message and prevent deletion
         const displayName = block.name || block.code;
-        alert(`לא ניתן למחוק את הדובר "${displayName}" (קוד: ${block.code}) כי הוא בשימוש בעורך הטקסט.\nניתן לשנות את הקוד, אך לא למחוק אותו.`);
+        alert('לא ניתן למחוק את הדובר "' + displayName + '" (קוד: ' + block.code + ') כי הוא בשימוש בעורך הטקסט.\nניתן לשנות את הקוד, אך לא למחוק אותו.');
         // Important: Return here to prevent deletion
         return;
       }
@@ -593,13 +593,13 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
   }, [activeBlockId]);
 
   return (
-    <div className={`simple-speaker-panel ${isSelectionMode ? 'selection-mode' : ''}`} ref={panelRef} onClick={handlePanelClick}>
+    <div className={'simple-speaker-panel ' + (isSelectionMode ? 'selection-mode' : '')} ref={panelRef} onClick={handlePanelClick}>
       <div className="speaker-panel-header">
         <h3>רשימת דוברים</h3>
         <div className="speaker-header-controls">
           {stats.totalSpeakers >= 2 && (
             <button 
-              className={`selection-mode-btn ${isSelectionMode ? 'active' : ''}`}
+              className={'selection-mode-btn ' + (isSelectionMode ? 'active' : '')}
               onClick={() => {
                 setIsSelectionMode(!isSelectionMode);
                 if (isSelectionMode) {
@@ -652,7 +652,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start' }}>
           תיאור
           <button
-            className={`description-tooltip-toggle ${showDescriptionTooltips ? 'active' : ''}`}
+            className={'description-tooltip-toggle ' + (showDescriptionTooltips ? 'active' : '')}
             onClick={() => {
               setShowDescriptionTooltips(!showDescriptionTooltips);
               // Notify TextEditor about the change
@@ -670,7 +670,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
       <div className="speaker-list" onClick={handlePanelClick}>
         {blocks.map((block, index) => (
           <SpeakerBlock
-            key={`speaker-${block.id}-${index}`}
+            key={'speaker-' + block.id + '-' + index}
             speaker={block}
             isActive={block.id === activeBlockId}
             isFirstBlock={index === 0}

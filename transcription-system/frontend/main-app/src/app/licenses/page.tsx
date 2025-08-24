@@ -131,7 +131,7 @@ export default function LicensesPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://146.190.57.51/api';
-      const response = await fetch(`${apiUrl}/licenses/purchase`, {
+      const response = await fetch(apiUrl + '/licenses/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export default function LicensesPage() {
         setUserForm({ fullName: '', email: '', personalCompany: '', permissions: [] });
         setSelectedPermissions([]);
       } else {
-        const errorMsg = result.error ? `${result.message}\n\nError: ${result.error}` : result.message;
+        const errorMsg = result.error ? result.message + '\n\nError: ${result.error}' : result.message;
         alert('שגיאה בשליחת ההזמנה: ' + errorMsg);
         console.error('Purchase error details:', result);
         if (result.stack) {
@@ -163,7 +163,7 @@ export default function LicensesPage() {
   // Load stats from API
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://146.190.57.51/api';
-    fetch(`${apiUrl}/licenses/stats`)
+    fetch(apiUrl + '/licenses/stats')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -217,7 +217,7 @@ export default function LicensesPage() {
           
           <form onSubmit={handleSubmit}>
             {/* User Details Section */}
-            <div className={`${styles.userDetailsSection} ${styles.crmThemed}`}>
+            <div className={styles.userDetailsSection + ' ${styles.crmThemed}'}>
               <h4>📋 פרטים אישיים</h4>
               <div className={styles.userFormGrid}>
                 <div className={styles.formGroup}>
@@ -256,7 +256,7 @@ export default function LicensesPage() {
             {/* Systems Grid */}
             <div className={styles.systemsGrid}>
               {/* CRM System */}
-              <div className={`${styles.systemCube} ${styles.crmSystem}`}>
+              <div className={styles.systemCube + ' ${styles.crmSystem}'}>
                 <div className={styles.systemHeader}>
                   <h3>💼 מערכת CRM</h3>
                   <p>ניהול לקוחות ופרויקטים</p>
@@ -280,12 +280,12 @@ export default function LicensesPage() {
                         type="checkbox" 
                         name="permissions" 
                         value={permission.code}
-                        id={`perm-${permission.code.toLowerCase()}`}
+                        id={'perm-' + permission.code.toLowerCase()}
                         checked={selectedPermissions.includes(permission.code)}
                         onChange={() => handlePermissionChange(permission.code)}
                         className={styles.crmCheckbox}
                       />
-                      <label htmlFor={`perm-${permission.code.toLowerCase()}`}>
+                      <label htmlFor={'perm-' + permission.code.toLowerCase()}>
                         {permission.name} (₪{permission.price} לחודש)
                       </label>
                     </div>
@@ -298,7 +298,7 @@ export default function LicensesPage() {
               </div>
 
               {/* Transcription System */}
-              <div className={`${styles.systemCube} ${styles.transcriptionSystem}`}>
+              <div className={styles.systemCube + ' ${styles.transcriptionSystem}'}>
                 <div className={styles.systemHeader}>
                   <h3>🎯 אפליקציית תמלול</h3>
                   <p>כלים לתמלול ועיבוד אודיו</p>
@@ -322,12 +322,12 @@ export default function LicensesPage() {
                         type="checkbox" 
                         name="permissions" 
                         value={permission.code}
-                        id={`perm-${permission.code.toLowerCase()}`}
+                        id={'perm-' + permission.code.toLowerCase()}
                         checked={selectedPermissions.includes(permission.code)}
                         onChange={() => handlePermissionChange(permission.code)}
                         className={styles.transcriptionCheckbox}
                       />
-                      <label htmlFor={`perm-${permission.code.toLowerCase()}`}>
+                      <label htmlFor={'perm-' + permission.code.toLowerCase()}>
                         {permission.name} (₪{permission.price} לחודש)
                       </label>
                     </div>

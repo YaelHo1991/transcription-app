@@ -46,7 +46,7 @@ export class DocxTemplateProcessor {
       
       return {
         success: true,
-        message: `Template "${file.name}" loaded successfully`,
+        message: 'Template "' + file.name + '" loaded successfully',
         placeholders
       };
     } catch (error) {
@@ -67,7 +67,7 @@ export class DocxTemplateProcessor {
       
       return {
         success: false,
-        message: `Error loading template: ${errorMessage}`
+        message: 'Error loading template: ' + errorMessage
       };
     }
   }
@@ -117,23 +117,23 @@ export class DocxTemplateProcessor {
               return 'Found {#blocks} without matching {/blocks}. Make sure loop closing is not split by Word formatting.';
             }
             if (e.name === 'TemplateError') {
-              return `Template syntax error: "${e.id}" - ${e.message || 'Invalid placeholder format'}`;
+              return 'Template syntax error: "' + e.id + '" - ' + (e.message || 'Invalid placeholder format');
             }
             if (e.name === 'RenderingError') {
-              return `Rendering error: ${e.message}`;
+              return 'Rendering error: ' + e.message;
             }
             return e.message || 'Unknown error';
           });
           
           return {
             success: false,
-            message: `Template errors: ${errorMessages.join('; ')}`
+            message: 'Template errors: ' + errorMessages.join('; ')
           };
         }
         
         return {
           success: false,
-          message: `Template error: ${templateError.message || 'Unknown template syntax error'}`
+          message: 'Template error: ' + (templateError.message || 'Unknown template syntax error')
         };
       }
       
@@ -155,7 +155,7 @@ export class DocxTemplateProcessor {
         // Format all text as a single string, just like speakers
         allText: data.blocks.map(b => b.text).join('\n\n'),
         // Format all content as a single string for perfect RTL
-        allContent: data.blocks.map(b => `${b.speaker}: ${b.text}`).join('\n\n'),
+        allContent: data.blocks.map(b => b.speaker + ': ${b.text}').join('\n\n'),
         // Keep blocks for backward compatibility
         blocks: data.blocks.map((block, index) => ({
           speaker: block.speaker,
@@ -196,14 +196,14 @@ export class DocxTemplateProcessor {
       });
       
       // Save the file
-      const fileName = `${data.fileName.replace(/\.[^/.]+$/, '')}_תמלול_${Date.now()}.docx`;
+      const fileName = (data.fileName.replace(/\.[^/.]+$/, '')) + '_תמלול_${Date.now()}.docx';
       saveAs(output, fileName);
       
       console.log('Template processed successfully');
       
       return {
         success: true,
-        message: `Document generated: ${fileName}`
+        message: 'Document generated: ' + fileName
       };
     } catch (error) {
       console.error('Error processing template:', error);
@@ -215,7 +215,7 @@ export class DocxTemplateProcessor {
       
       return {
         success: false,
-        message: `Error processing template: ${errorMessage}`
+        message: 'Error processing template: ' + errorMessage
       };
     }
   }

@@ -63,14 +63,14 @@ class EnvironmentConfig {
     if (hostname.includes('digitalocean') || hostname.includes('your-domain')) {
       // If your API is on a subdomain
       if (process.env.NEXT_PUBLIC_API_SUBDOMAIN) {
-        return `${protocol}//api.${hostname}`;
+        return protocol + '//api.${hostname}';
       }
       // If API is on same domain with /api prefix
-      return `${protocol}//${hostname}${port ? ':' + port : ''}/api`;
+      return protocol + '//${hostname}${port ? \':\' + port : \'\'}/api';
     }
 
     // Default fallback
-    return `${protocol}//${hostname}:5000`;
+    return protocol + '//${hostname}:5000';
   }
 
   /**
@@ -85,7 +85,7 @@ class EnvironmentConfig {
    * Get media upload URL
    */
   getMediaUrl(): string {
-    return `${this.getApiUrl()}/media`;
+    return (this.getApiUrl()) + '/media';
   }
 
   /**

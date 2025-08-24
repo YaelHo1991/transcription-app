@@ -284,7 +284,7 @@ export function validateShortcuts(
  * Download file helper
  */
 export function downloadFile(content: string, filename: string, mimeType: string = 'text/plain'): void {
-  const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
+  const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   
@@ -305,7 +305,7 @@ export function downloadFile(content: string, filename: string, mimeType: string
  */
 function escapeCSV(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-    return `"${value.replace(/"/g, '""')}"`;
+    return '"' + value.replace(/"/g, '""') + '"';
   }
   return value;
 }

@@ -58,13 +58,13 @@ export default function ImportExportModal({
     switch (exportFormat) {
       case 'csv':
         content = exportToCSV(shortcuts, exportPersonalOnly);
-        filename = `shortcuts_${dateStr}.csv`;
+        filename = 'shortcuts_' + dateStr + '.csv';
         mimeType = 'text/csv';
         break;
         
       case 'json':
         content = exportToJSON(shortcuts, exportPersonalOnly);
-        filename = `shortcuts_${dateStr}.json`;
+        filename = 'shortcuts_' + dateStr + '.json';
         mimeType = 'application/json';
         break;
         
@@ -73,10 +73,10 @@ export default function ImportExportModal({
         const lines: string[] = [];
         shortcuts.forEach((data, shortcut) => {
           if (exportPersonalOnly && data.source !== 'user') return;
-          lines.push(`${shortcut}\t${data.expansion}`);
+          lines.push(shortcut + '\t${data.expansion}');
         });
         content = lines.join('\r\n');
-        filename = `shortcuts_${dateStr}.txt`;
+        filename = 'shortcuts_' + dateStr + '.txt';
         mimeType = 'text/plain';
         break;
     }
@@ -123,7 +123,7 @@ export default function ImportExportModal({
       // Check quota
       const remainingQuota = (userQuota?.max || 100) - (userQuota?.used || 0);
       if (validation.valid.length > remainingQuota) {
-        setImportError(`לא ניתן לייבא ${validation.valid.length} קיצורים. נותרו ${remainingQuota} מקומות פנויים במכסה`);
+        setImportError('לא ניתן לייבא ' + validation.valid.length + ' קיצורים. נותרו ' + remainingQuota + ' מקומות פנויים במכסה');
         validation.valid = validation.valid.slice(0, remainingQuota);
       }
       
@@ -176,13 +176,13 @@ export default function ImportExportModal({
 
         <div className="import-export-tabs">
           <button
-            className={`tab-btn ${activeTab === 'export' ? 'active' : ''}`}
+            className={'tab-btn ' + (activeTab === 'export' ? 'active' : '')}
             onClick={() => setActiveTab('export')}
           >
             ייצוא קיצורים
           </button>
           <button
-            className={`tab-btn ${activeTab === 'import' ? 'active' : ''}`}
+            className={'tab-btn ' + (activeTab === 'import' ? 'active' : '')}
             onClick={() => setActiveTab('import')}
           >
             ייבוא קיצורים
@@ -197,19 +197,19 @@ export default function ImportExportModal({
                   <label>פורמט ייצוא:</label>
                   <div className="format-buttons">
                     <button
-                      className={`format-btn ${exportFormat === 'csv' ? 'active' : ''}`}
+                      className={'format-btn ' + (exportFormat === 'csv' ? 'active' : '')}
                       onClick={() => setExportFormat('csv')}
                     >
                       CSV (Excel)
                     </button>
                     <button
-                      className={`format-btn ${exportFormat === 'json' ? 'active' : ''}`}
+                      className={'format-btn ' + (exportFormat === 'json' ? 'active' : '')}
                       onClick={() => setExportFormat('json')}
                     >
                       JSON
                     </button>
                     <button
-                      className={`format-btn ${exportFormat === 'text' ? 'active' : ''}`}
+                      className={'format-btn ' + (exportFormat === 'text' ? 'active' : '')}
                       onClick={() => setExportFormat('text')}
                     >
                       טקסט פשוט
@@ -363,7 +363,7 @@ export default function ImportExportModal({
                         onClick={handleImportConfirm}
                         disabled={importing}
                       >
-                        {importing ? 'מייבא...' : `ייבא ${importPreview.valid.length} קיצורים`}
+                        {importing ? 'מייבא...' : 'ייבא ' + importPreview.valid.length + ' קיצורים'}
                       </button>
                     </div>
                   )}

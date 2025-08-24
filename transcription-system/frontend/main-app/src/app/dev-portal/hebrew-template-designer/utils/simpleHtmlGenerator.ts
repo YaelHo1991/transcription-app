@@ -48,7 +48,7 @@ export function generateSimpleHtml(
     centerElements.forEach(element => {
       const content = getElementContent(element, sampleData);
       const style = getElementStyle(element);
-      headerHtml += `<p style="text-align: center; ${style}">${content}</p>\n`;
+      headerHtml += '<p style="text-align: center; ' + style + '">' + content + '</p>\n';
     });
   }
   
@@ -57,7 +57,7 @@ export function generateSimpleHtml(
     rightElements.forEach(element => {
       const content = getElementContent(element, sampleData);
       const style = getElementStyle(element);
-      headerHtml += `<p style="text-align: right; ${style}">${content}</p>\n`;
+      headerHtml += '<p style="text-align: right; ' + style + '">' + content + '</p>\n';
     });
   }
   
@@ -66,7 +66,7 @@ export function generateSimpleHtml(
     leftElements.forEach(element => {
       const content = getElementContent(element, sampleData);
       const style = getElementStyle(element);
-      headerHtml += `<p style="text-align: left; ${style}">${content}</p>\n`;
+      headerHtml += '<p style="text-align: left; ' + style + '">' + content + '</p>\n';
     });
   }
   
@@ -84,7 +84,7 @@ export function generateSimpleHtml(
         <title>${sampleData.fileName} - תמלול</title>
         <style>
           body {
-            font-family: 'David', 'Arial Hebrew', 'Arial', sans-serif;
+            font-family: \'David\', \'Arial Hebrew\', \'Arial\', sans-serif;
             direction: rtl;
             text-align: ${textAlign === 'justify' ? 'justify' : textAlign};
             font-size: 14pt;
@@ -129,8 +129,7 @@ export function generateSimpleHtml(
             font-family: monospace;
             background: white;
             padding: 2px;
-          }
-          ` : ''}
+          }` : ''}
         </style>
       </head>
       <body>
@@ -171,15 +170,15 @@ export function generateSimpleHtml(
 function getElementContent(element: HeaderElement, sampleData: SampleData): string {
   switch (element.type) {
     case 'fileName':
-      return `קובץ: ${sampleData.fileName}`;
+      return 'קובץ: ' + sampleData.fileName;
     case 'date':
-      return `תאריך: ${new Date().toLocaleDateString('he-IL')}`;
+      return 'תאריך: ' + new Date().toLocaleDateString('he-IL');
     case 'pageNumber':
       return 'עמוד 1';
     case 'speakers':
-      return `דוברים: ${sampleData.speakers.join(', ')}`;
+      return 'דוברים: ' + sampleData.speakers.join(', ');
     case 'duration':
-      return `משך: ${sampleData.duration}`;
+      return 'משך: ' + sampleData.duration;
     case 'text':
       return element.value || '';
     default:
@@ -203,11 +202,11 @@ function getElementStyle(element: HeaderElement): string {
   }
   
   if (element.style.size) {
-    styles.push(`font-size: ${element.style.size}pt`);
+    styles.push('font-size: ' + element.style.size + 'pt');
   }
   
   if (element.style.color) {
-    styles.push(`color: #${element.style.color}`);
+    styles.push('color: #' + element.style.color);
   }
   
   return styles.join('; ');

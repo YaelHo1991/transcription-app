@@ -168,7 +168,7 @@ export default function FooterDesigner({ elements, onElementsChange }: FooterDes
 
                 <div className="style-buttons">
                   <button
-                    className={`style-btn ${element.style.bold ? 'active' : ''}`}
+                    className={'style-btn ' + (element.style.bold ? 'active' : '')}
                     onClick={() => updateElementStyle(element.id, { 
                       bold: !element.style.bold 
                     })}
@@ -176,7 +176,7 @@ export default function FooterDesigner({ elements, onElementsChange }: FooterDes
                     <strong>B</strong>
                   </button>
                   <button
-                    className={`style-btn ${element.style.italic ? 'active' : ''}`}
+                    className={'style-btn ' + (element.style.italic ? 'active' : '')}
                     onClick={() => updateElementStyle(element.id, { 
                       italic: !element.style.italic 
                     })}
@@ -184,7 +184,7 @@ export default function FooterDesigner({ elements, onElementsChange }: FooterDes
                     <em>I</em>
                   </button>
                   <button
-                    className={`style-btn ${element.style.underline ? 'active' : ''}`}
+                    className={'style-btn ' + (element.style.underline ? 'active' : '')}
                     onClick={() => updateElementStyle(element.id, { 
                       underline: !element.style.underline 
                     })}
@@ -197,7 +197,7 @@ export default function FooterDesigner({ elements, onElementsChange }: FooterDes
                   <label>צבע:</label>
                   <input
                     type="color"
-                    value={`#${element.style.color || '000000'}`}
+                    value={'#' + (element.style.color || '000000')}
                     onChange={(e) => updateElementStyle(element.id, { 
                       color: e.target.value.substring(1) 
                     })}

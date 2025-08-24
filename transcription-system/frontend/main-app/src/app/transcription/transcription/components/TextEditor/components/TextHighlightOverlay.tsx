@@ -71,7 +71,7 @@ export default function TextHighlightOverlay({
     // Add text before highlight
     if (highlight.startIndex > lastIndex) {
       segments.push(
-        <span key={`text-${idx}`} className="overlay-text">
+        <span key={'text-' + idx} className="overlay-text">
           {text.substring(lastIndex, highlight.startIndex)}
         </span>
       );
@@ -80,8 +80,8 @@ export default function TextHighlightOverlay({
     // Add highlighted text
     segments.push(
       <span 
-        key={`highlight-${idx}`}
-        className={`overlay-highlight ${highlight.isCurrent ? 'current' : ''}`}
+        key={'highlight-' + idx}
+        className={'overlay-highlight ' + (highlight.isCurrent ? 'current' : '')}
       >
         {text.substring(highlight.startIndex, highlight.endIndex)}
       </span>
@@ -102,7 +102,7 @@ export default function TextHighlightOverlay({
   return (
     <div 
       ref={overlayRef}
-      className={`text-highlight-overlay ${isTextArea ? 'textarea' : 'input'}`}
+      className={'text-highlight-overlay ' + (isTextArea ? 'textarea' : 'input')}
       style={{
         width: dimensions.width,
         height: dimensions.height

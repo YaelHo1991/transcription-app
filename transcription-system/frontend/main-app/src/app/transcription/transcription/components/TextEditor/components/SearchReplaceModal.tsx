@@ -178,7 +178,7 @@ export default function SearchReplaceModal({
       onKeyDown={handleKeyDown}
       onMouseDown={handleMouseDown}
       style={{
-        transform: `translate(${position.x}px, ${position.y}px)`,
+        transform: 'translate(' + position.x + 'px, ' + position.y + 'px)',
         cursor: isDragging ? 'grabbing' : 'default'
       }}
     >
@@ -208,7 +208,7 @@ export default function SearchReplaceModal({
             </button>
             <span className="match-counter" title={searchResults[currentResultIndex]?.matchText || ''}>
               {searchResults.length > 0 
-                ? `${currentResultIndex + 1} / ${searchResults.length}`
+                ? currentResultIndex + 1 + ' / ${searchResults.length}'
                 : '0 / 0'
               }
             </span>

@@ -171,7 +171,7 @@ export default function ExportPage() {
 
       {/* Collapsible Header */}
       <div 
-        className={`e-collapsible-header ${showHeader ? 'show' : ''}`}
+        className={'e-collapsible-header ' + (showHeader ? 'show' : '')}
         onMouseEnter={() => {
           if (headerTimeout) clearTimeout(headerTimeout);
           setShowHeader(true);
@@ -223,7 +223,7 @@ export default function ExportPage() {
 
       {/* Sidebar */}
       <div 
-        className={`e-sidebar ${showSidebar ? 'show' : ''}`}
+        className={'e-sidebar ' + (showSidebar ? 'show' : '')}
         onMouseEnter={() => {
           if (sidebarTimeout) clearTimeout(sidebarTimeout);
           setShowSidebar(true);
@@ -328,7 +328,7 @@ export default function ExportPage() {
                   {exportFormats.map(format => (
                     <div 
                       key={format.id}
-                      className={`format-card ${selectedFormat?.id === format.id ? 'selected' : ''}`}
+                      className={'format-card ' + (selectedFormat?.id === format.id ? 'selected' : '')}
                       onClick={() => setSelectedFormat(format)}
                     >
                       <div className="format-icon">{format.icon}</div>

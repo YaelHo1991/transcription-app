@@ -231,8 +231,8 @@ export default function WaveformCanvas({
     const dpr = window.devicePixelRatio || 1;
     
     // Set display size
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
     
     // Set actual size in memory (scaled for retina displays)
     canvas.width = rect.width * dpr;
@@ -295,7 +295,7 @@ export default function WaveformCanvas({
       const dataStr = JSON.stringify(marks, null, 2);
       const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
       
-      const exportFileDefaultName = `marks_${new Date().toISOString().slice(0,10)}.json`;
+      const exportFileDefaultName = 'marks_' + new Date().toISOString().slice(0,10) + '.json';
       
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
@@ -324,7 +324,7 @@ export default function WaveformCanvas({
               );
               if (validMarks.length > 0) {
                 // Replace current marks with imported ones
-                const storageKey = `mediaplayer_marks_${Math.abs(mediaUrl.split('').reduce((a,b)=>(a<<5)-a+b.charCodeAt(0)|0,0))}`;
+                const storageKey = 'mediaplayer_marks_' + Math.abs(mediaUrl.split('').reduce((a,b)=>(a<<5)-a+b.charCodeAt(0)|0,0));
                 localStorage.setItem(storageKey, JSON.stringify(validMarks));
                 // Reload the component to show imported marks
                 window.location.reload();
@@ -452,7 +452,7 @@ export default function WaveformCanvas({
     // Format time for tooltip
     const minutes = Math.floor(hoverTime / 60);
     const seconds = Math.floor(hoverTime % 60);
-    const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const timeStr = (minutes.toString().padStart(2, '0')) + ':${seconds.toString().padStart(2, \'0\')}';
     
     // Update cursor
     canvas.style.cursor = isDragging ? 'grabbing' : (zoomLevel > 1 ? 'grab' : 'pointer');
@@ -669,7 +669,7 @@ export default function WaveformCanvas({
             'skip-marked': 'דלג על סימונים',
             'loop-mark': 'לולאה בסימון'
           };
-          console.log(`מצב הפעלה: ${modeNames[modes[nextIndex]]}`);
+          console.log('מצב הפעלה: ' + modeNames[modes[nextIndex]]);
           break;
           
         case 'loopCurrentMark':
@@ -1104,7 +1104,7 @@ export default function WaveformCanvas({
                   const dataStr = JSON.stringify(marks, null, 2);
                   const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
                   
-                  const exportFileDefaultName = `marks_${new Date().toISOString().slice(0,10)}.json`;
+                  const exportFileDefaultName = 'marks_' + new Date().toISOString().slice(0,10) + '.json';
                   
                   const linkElement = document.createElement('a');
                   linkElement.setAttribute('href', dataUri);
@@ -1152,7 +1152,7 @@ export default function WaveformCanvas({
                           );
                           if (validMarks.length > 0) {
                             // Replace current marks with imported ones
-                            const storageKey = `mediaplayer_marks_${Math.abs(mediaUrl.split('').reduce((a,b)=>(a<<5)-a+b.charCodeAt(0)|0,0))}`;
+                            const storageKey = 'mediaplayer_marks_' + Math.abs(mediaUrl.split('').reduce((a,b)=>(a<<5)-a+b.charCodeAt(0)|0,0));
                             localStorage.setItem(storageKey, JSON.stringify(validMarks));
                             // Reload the component to show imported marks
                             window.location.reload();

@@ -33,7 +33,7 @@ export default function HTMLPreviewModal({
     const RLM = '\u200F'; // Right-to-Left Mark
     
     // Join with comma + RLM to keep comma with previous text in RTL
-    return items.join(`,${RLM} `);
+    return items.join(',' + RLM + ' ');
   };
 
   const [htmlContent, setHtmlContent] = useState<string>('');
@@ -104,7 +104,7 @@ export default function HTMLPreviewModal({
           .placeholder-name {
             color: #0066cc;
             font-weight: bold;
-            font-family: 'Courier New', monospace;
+            font-family: \'Courier New\', monospace;
             background: #e3f2fd;
             padding: 4px 8px;
             border-radius: 3px;
@@ -169,7 +169,7 @@ export default function HTMLPreviewModal({
               <span class="placeholder-name">{fileName}</span>
               <span class="arrow">←</span>
             </div>
-            <div class="placeholder-value">${mediaFileName || 'ללא שם'}</div>
+            <div class="placeholder-value">' + (mediaFileName || 'ללא שם') + '</div>
           </div>
 
           <div class="placeholder-item">
@@ -177,7 +177,7 @@ export default function HTMLPreviewModal({
               <span class="placeholder-name">{speakers}</span>
               <span class="arrow">←</span>
             </div>
-            <div class="placeholder-value">${joinWithRTLCommas(speakerNames) || 'לא צוינו'}</div>
+            <div class="placeholder-value">' + (joinWithRTLCommas(speakerNames) || 'לא צוינו') + '</div>
           </div>
 
           <div class="placeholder-item">
@@ -185,7 +185,7 @@ export default function HTMLPreviewModal({
               <span class="placeholder-name">{duration}</span>
               <span class="arrow">←</span>
             </div>
-            <div class="placeholder-value">${mediaDuration}</div>
+            <div class="placeholder-value">' + mediaDuration + '</div>
           </div>
 
           <div class="placeholder-item">
@@ -193,7 +193,7 @@ export default function HTMLPreviewModal({
               <span class="placeholder-name">{date}</span>
               <span class="arrow">←</span>
             </div>
-            <div class="placeholder-value">${new Date().toLocaleDateString('he-IL')}</div>
+            <div class="placeholder-value">' + new Date().toLocaleDateString('he-IL') + '</div>
           </div>
 
           <div class="placeholder-item">
@@ -202,7 +202,7 @@ export default function HTMLPreviewModal({
               <span class="arrow">←</span>
             </div>
             <div class="placeholder-value">
-              ${transcriptionBlocks}
+              ' + transcriptionBlocks + '
             </div>
           </div>
         </div>
@@ -230,7 +230,7 @@ export default function HTMLPreviewModal({
         mediaDuration
       );
       
-      alert(`המסמך נוצר בהצלחה עם מספרי שורות ועיצוב RTL מלא!`);
+      alert('המסמך נוצר בהצלחה עם מספרי שורות ועיצוב RTL מלא!');
       
     } catch (error) {
       console.error('Export error:', error);

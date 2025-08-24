@@ -70,7 +70,7 @@ export default function CRMNavigation() {
           <Link
             key={item.id}
             href={item.href}
-            className={`crm-nav-item ${pathname === item.href ? 'active' : ''}`}
+            className={'crm-nav-item ' + (pathname === item.href ? 'active' : '')}
           >
             {item.label}
           </Link>

@@ -143,10 +143,10 @@ export default function VideoDisplay({ videoRef }: VideoDisplayProps) {
       onMouseDown={handleMouseDown}
       style={{
         position: 'fixed',
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        width: `${size.width}px`,
-        height: `${size.height}px`,
+        left: position.x + 'px',
+        top: position.y + 'px',
+        width: size.width + 'px',
+        height: size.height + 'px',
         backgroundColor: '#1a2332',
         border: '2px solid #26d0ce',
         borderRadius: '8px',

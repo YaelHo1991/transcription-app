@@ -30,7 +30,7 @@ const TextEditorWrapper: React.FC<TextEditorWrapperProps> = (props) => {
       // Automatically switch to virtualized mode for large documents
       const shouldVirtualize = count > VIRTUALIZATION_THRESHOLD;
       if (shouldVirtualize !== useVirtualized) {
-        console.log(`Switching to ${shouldVirtualize ? 'virtualized' : 'regular'} mode (${count} blocks)`);
+        console.log('Switching to ' + (shouldVirtualize ? 'virtualized' : 'regular') + ' mode (' + count + ' blocks)');
         setUseVirtualized(shouldVirtualize);
       }
     };
@@ -45,7 +45,7 @@ const TextEditorWrapper: React.FC<TextEditorWrapperProps> = (props) => {
   useEffect(() => {
     if (blockCount > 0) {
       const mode = useVirtualized ? 'virtualized' : 'regular';
-      console.log(`TextEditor: Using ${mode} mode for ${blockCount} blocks`);
+      console.log('TextEditor: Using ' + mode + ' mode for ' + blockCount + ' blocks');
     }
   }, [useVirtualized, blockCount]);
 

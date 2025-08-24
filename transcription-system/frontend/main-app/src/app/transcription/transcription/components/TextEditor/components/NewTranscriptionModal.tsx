@@ -102,9 +102,9 @@ export default function NewTranscriptionModal({
     
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/projects/user/${userId}`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/projects/user/${userId}',
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: 'Bearer ' + token }
         }
       );
       
@@ -152,9 +152,9 @@ export default function NewTranscriptionModal({
     
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/transcriptions/user/${userId}`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/transcriptions/user/' + userId,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: 'Bearer ' + token }
         }
       );
       
@@ -212,7 +212,7 @@ export default function NewTranscriptionModal({
       if (DEV_MODE) {
         console.log('DEV MODE: Creating mock transcription');
         const mockTranscription = {
-          id: `trans-${Date.now()}`,
+          id: 'trans-' + Date.now(),
           title: title.trim(),
           project_id: selectedProjectId || null,
           media_ids: linkCurrentMedia ? ['current-media'] : [],
@@ -234,7 +234,7 @@ export default function NewTranscriptionModal({
       // For development without token, create mock transcription
       if (!token) {
         const mockTranscription = {
-          id: `trans-${Date.now()}`,
+          id: 'trans-' + Date.now(),
           title: title.trim(),
           project_id: selectedProjectId || null,
           media_ids: linkCurrentMedia ? ['current-media'] : [],
@@ -253,14 +253,14 @@ export default function NewTranscriptionModal({
       
       // Create transcription with auth
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/transcriptions/create`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/transcriptions/create',
         {
           title: title.trim(),
           projectId: selectedProjectId || undefined,
           mediaIds: linkCurrentMedia ? ['current-media'] : []
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: 'Bearer ' + token }
         }
       );
 

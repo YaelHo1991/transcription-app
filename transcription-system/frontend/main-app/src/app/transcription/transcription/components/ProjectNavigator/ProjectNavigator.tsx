@@ -143,7 +143,7 @@ export default function ProjectNavigator({
       {/* Media Info */}
       <div className="t-media-info">
         <div className="t-media-name-wrapper">
-          <div className={`t-media-name scroll-${scrollDirection}`}>
+          <div className={'t-media-name scroll-' + scrollDirection}>
             {mediaName}
           </div>
         </div>

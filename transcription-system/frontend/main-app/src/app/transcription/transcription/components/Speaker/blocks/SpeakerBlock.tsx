@@ -132,7 +132,7 @@ export default function SpeakerBlock({
         // Check for duplicate code before moving
         if (localCode && !validateUniqueCode(localCode)) {
           // Show error - code already exists
-          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setErrorMessage('הקוד "' + localCode + '" כבר קיים');
           setShowError(true);
           setTimeout(() => {
             setShowError(false);
@@ -145,7 +145,7 @@ export default function SpeakerBlock({
         e.preventDefault();
         // Check for duplicate code before navigating to name field
         if (localCode && !validateUniqueCode(localCode)) {
-          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setErrorMessage('הקוד "' + localCode + '" כבר קיים');
           setShowError(true);
           setTimeout(() => {
             setShowError(false);
@@ -158,7 +158,7 @@ export default function SpeakerBlock({
         e.preventDefault();
         // Check for duplicate code before creating new block
         if (localCode && !validateUniqueCode(localCode)) {
-          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setErrorMessage('הקוד "' + localCode + '" כבר קיים');
           setShowError(true);
           setTimeout(() => {
             setShowError(false);
@@ -195,7 +195,7 @@ export default function SpeakerBlock({
         e.preventDefault();
         // Check for duplicate code before navigating
         if (localCode && !validateUniqueCode(localCode)) {
-          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setErrorMessage('הקוד "' + localCode + '" כבר קיים');
           setShowError(true);
           setTimeout(() => {
             setShowError(false);
@@ -208,7 +208,7 @@ export default function SpeakerBlock({
         e.preventDefault();
         // Check for duplicate code before navigating
         if (localCode && !validateUniqueCode(localCode)) {
-          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setErrorMessage('הקוד "' + localCode + '" כבר קיים');
           setShowError(true);
           setTimeout(() => {
             setShowError(false);
@@ -224,7 +224,7 @@ export default function SpeakerBlock({
           e.preventDefault();
           // Check for duplicate code before navigating
           if (localCode && !validateUniqueCode(localCode)) {
-            setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+            setErrorMessage('הקוד "' + localCode + '" כבר קיים');
             setShowError(true);
             setTimeout(() => {
               setShowError(false);
@@ -249,7 +249,7 @@ export default function SpeakerBlock({
           e.preventDefault();
           // Check for duplicate code before navigating
           if (localCode && !validateUniqueCode(localCode)) {
-            setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+            setErrorMessage('הקוד "' + localCode + '" כבר קיים');
             setShowError(true);
             setTimeout(() => {
               setShowError(false);
@@ -273,7 +273,7 @@ export default function SpeakerBlock({
         e.preventDefault();
         // Check for duplicate code when leaving name field
         if (localCode && !validateUniqueCode(localCode)) {
-          setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+          setErrorMessage('הקוד "' + localCode + '" כבר קיים');
           setShowError(true);
           setTimeout(() => {
             setShowError(false);
@@ -476,7 +476,7 @@ export default function SpeakerBlock({
       // Don't update the value, just navigate to next field
       // Check for duplicate code before navigating
       if (localCode && !validateUniqueCode(localCode)) {
-        setErrorMessage(`הקוד "${localCode}" כבר קיים`);
+        setErrorMessage('הקוד "' + localCode + '" כבר קיים');
         setShowError(true);
         setTimeout(() => {
           setShowError(false);
@@ -531,7 +531,7 @@ export default function SpeakerBlock({
 
   return (
     <div 
-      className={`speaker-block ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isSelectionMode ? 'selection-mode' : ''}`}
+      className={'speaker-block ' + (isActive ? 'active' : '') + ' ' + (isSelected ? 'selected' : '') + ' ' + (isSelectionMode ? 'selection-mode' : '')}
       draggable={!isActive && !isSelectionMode}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -548,7 +548,7 @@ export default function SpeakerBlock({
           />
         </div>
       )}
-      <div className={`speaker-field ${isActive && activeField === 'code' ? 'active' : ''}`}>
+      <div className={'speaker-field ' + (isActive && activeField === 'code' ? 'active' : '')}>
         <input
           ref={codeRef}
           type="text"
@@ -563,7 +563,7 @@ export default function SpeakerBlock({
         />
       </div>
       
-      <div className={`speaker-field ${isActive && activeField === 'name' ? 'active' : ''}`}>
+      <div className={'speaker-field ' + (isActive && activeField === 'name' ? 'active' : '')}>
         <input
           ref={nameRef}
           type="text"
@@ -589,7 +589,7 @@ export default function SpeakerBlock({
         />
       </div>
       
-      <div className={`speaker-field ${isActive && activeField === 'description' ? 'active' : ''}`}>
+      <div className={'speaker-field ' + (isActive && activeField === 'description' ? 'active' : '')}>
         <textarea
           ref={descriptionRef as any}
           value={localDescription}

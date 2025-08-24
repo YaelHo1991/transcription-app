@@ -76,7 +76,7 @@ class BackupService {
       this.checkAndSave();
     }, intervalMs);
 
-    console.log(`Auto-save initialized for transcription ${transcriptionId} every ${intervalMs/1000}s`);
+    console.log('Auto-save initialized for transcription ' + transcriptionId + ' every ' + intervalMs/1000 + 's');
   }
 
   /**
@@ -162,7 +162,7 @@ class BackupService {
         this.currentVersion = this.currentVersion + 1;
         this.isBackingUp = false;
         this.notifyStatusListeners();
-        console.log(`DEV MODE backup simulated: v${this.currentVersion}`);
+        console.log('DEV MODE backup simulated: v' + this.currentVersion);
       }, 500);
       return;
     }
@@ -179,17 +179,17 @@ class BackupService {
           this.currentVersion = this.currentVersion + 1;
           this.isBackingUp = false;
           this.notifyStatusListeners();
-          console.log(`No token backup simulated: v${this.currentVersion}`);
+          console.log('No token backup simulated: v' + this.currentVersion);
         }, 500);
         return;
       }
       
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/backups/trigger/${this.currentTranscriptionId}`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/trigger/${this.currentTranscriptionId}',
         data,
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: 'Bearer ' + token
           }
         }
       );
@@ -198,7 +198,7 @@ class BackupService {
         this.lastSaveTime = Date.now();
         this.hasChanges = false;
         this.currentVersion = response.data.version;
-        console.log(`Backup created: v${response.data.version}`);
+        console.log('Backup created: v' + response.data.version);
       }
     } catch (error: any) {
       console.error('Backup failed:', error);
@@ -265,11 +265,11 @@ class BackupService {
       }
       
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/backups/history/${transcriptionId}`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/history/' + transcriptionId,
         {
           params: { limit },
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: 'Bearer ' + token
           }
         }
       );
@@ -306,10 +306,10 @@ class BackupService {
       }
       
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/backups/preview/${backupId}`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/preview/' + backupId,
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: 'Bearer ' + token
           }
         }
       );
@@ -349,11 +349,11 @@ class BackupService {
       }
       
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transcription/backups/restore/${backupId}`,
+        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/restore/' + backupId,
         {},
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: 'Bearer ' + token
           }
         }
       );

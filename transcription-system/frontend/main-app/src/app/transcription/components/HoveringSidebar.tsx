@@ -25,7 +25,7 @@ export default function HoveringSidebar({
       />
       
       {/* Hovering Sidebar */}
-      <div className={`hovering-sidebar ${showSidebar ? 'show' : ''}`}>
+      <div className={'hovering-sidebar ' + (showSidebar ? 'show' : '')}>
         <div className="sidebar-header">
           <h2>{title}</h2>
           {subtitle && <p>{subtitle}</p>}

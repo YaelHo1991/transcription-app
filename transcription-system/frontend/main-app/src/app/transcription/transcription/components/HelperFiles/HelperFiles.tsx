@@ -82,7 +82,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
       if (file.type.startsWith('image/')) {
         // Handle regular images
         newFiles.push({
-          id: `file-${Date.now()}-${currentOrder}`,
+          id: 'file-' + Date.now() + '-' + currentOrder,
           file,
           url: URL.createObjectURL(file),
           name: file.name,
@@ -99,9 +99,9 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
           // Create a HelperFile entry for each page
           pdfImages.forEach((pageImage, pageIndex) => {
             newFiles.push({
-              id: `pdf-${Date.now()}-${currentOrder}`,
+              id: 'pdf-' + Date.now() + '-' + currentOrder,
               url: pageImage.url,
-              name: `${file.name} - עמוד ${pageImage.pageNumber}`,
+              name: file.name + ' - עמוד ${pageImage.pageNumber}',
               type: 'pdf-page' as const,
               rotation: 0,
               order: currentOrder++,
@@ -216,9 +216,9 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
           if (blob) {
             const croppedUrl = URL.createObjectURL(blob);
             const newFile: HelperFile = {
-              id: `cropped-${Date.now()}`,
+              id: 'cropped-' + Date.now(),
               url: croppedUrl,
-              name: `${selectedFile.name} (חתוך)`,
+              name: selectedFile.name + ' (חתוך)',
               type: 'image',
               rotation: 0,
               order: files.length
@@ -395,7 +395,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
           <div className="edit-files-sidebar">
             <h4>קבצים</h4>
             <div 
-              className={`edit-files-list ${draggedIndex !== null ? 'dragging-active' : ''}`}
+              className={'edit-files-list ' + (draggedIndex !== null ? 'dragging-active' : '')}
               onDragOver={(e) => {
                 // Auto-scroll when dragging near edges
                 const container = e.currentTarget;
@@ -416,7 +416,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
               {files.map((file, index) => (
                 <div 
                   key={file.id}
-                  className={`edit-file-item ${selectedEditFileId === file.id ? 'active' : ''} ${draggedIndex === index ? 'dragging' : ''} ${dragOverIndex === index ? 'drag-over' : ''}`}
+                  className={'edit-file-item ' + (selectedEditFileId === file.id ? 'active' : '') + ' ' + (draggedIndex === index ? 'dragging' : '') + ' ' + (dragOverIndex === index ? 'drag-over' : '')}
                   onClick={() => setSelectedEditFileId(file.id)}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -559,7 +559,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
                     </button>
                   </div>
                   <button 
-                    className={`crop-btn ${isCropping ? 'active' : ''}`} 
+                    className={'crop-btn ' + (isCropping ? 'active' : '')} 
                     onClick={() => {
                       if (isCropping && cropStart && cropEnd) {
                         handleCrop();
@@ -649,11 +649,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
                       src={selectedEditFile.url} 
                       alt={selectedEditFile.name}
                       style={{ 
-                        transform: `
-                          translate(${editPanPosition.x}px, ${editPanPosition.y}px)
-                          scale(${editZoom / 100}) 
-                          rotate(${selectedEditFile.rotation}deg)
-                        `,
+                        transform: `translate(${editPanPosition.x}px, ${editPanPosition.y}px) scale(${editZoom / 100}) rotate(${selectedEditFile.rotation}deg)`,
                         width: '100%',
                         height: '100%',
                         objectFit: 'contain',
@@ -760,11 +756,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
                   src={currentFile.url} 
                   alt={currentFile.name}
                   style={{ 
-                    transform: `
-                      translate(${panPosition.x}px, ${panPosition.y}px)
-                      scale(${zoom / 100}) 
-                      rotate(${currentFile.rotation}deg)
-                    `,
+                    transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoom / 100}) rotate(${currentFile.rotation}deg)`,
                     transformOrigin: 'center',
                     userSelect: 'none',
                     pointerEvents: 'none',
@@ -772,7 +764,7 @@ export default function HelperFiles({ isExpanded, onToggle, projects = [] }: Hel
                     height: '100%',
                     objectFit: 'contain',
                     ...(currentFile.cropData ? {
-                      clipPath: `inset(${currentFile.cropData.y}px ${currentFile.cropData.x}px)`
+                      clipPath: 'inset(' + currentFile.cropData.y + 'px ' + currentFile.cropData.x + 'px)'
                     } : {})
                   }}
                 />

@@ -42,13 +42,13 @@ export class HybridTemplateProcessor {
       
       return {
         success: true,
-        message: `Template "${file.name}" loaded successfully`
+        message: 'Template "' + file.name + '" loaded successfully'
       };
     } catch (error) {
       console.error('Error loading template:', error);
       return {
         success: false,
-        message: `Error loading template: ${error}`
+        message: 'Error loading template: ' + error
       };
     }
   }
@@ -74,7 +74,7 @@ export class HybridTemplateProcessor {
       const finalBuffer = await this.insertRTLContent(phase1Buffer, data.blocks);
       
       // Save the final document
-      const fileName = `${data.fileName.replace(/\.[^/.]+$/, '')}_תמלול_${Date.now()}.docx`;
+      const fileName = (data.fileName.replace(/\.[^/.]+$/, '')) + '_תמלול_${Date.now()}.docx';
       const blob = new Blob([finalBuffer], { 
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
       });
@@ -84,13 +84,13 @@ export class HybridTemplateProcessor {
       
       return {
         success: true,
-        message: `Document generated: ${fileName}`
+        message: 'Document generated: ' + fileName
       };
     } catch (error) {
       console.error('Error in hybrid processing:', error);
       return {
         success: false,
-        message: `Error processing template: ${error}`
+        message: 'Error processing template: ' + error
       };
     }
   }

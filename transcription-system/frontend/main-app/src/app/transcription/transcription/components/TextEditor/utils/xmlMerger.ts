@@ -112,7 +112,7 @@ export function injectFormattedXML(
       if (text.includes(marker) && !replaced) {
         replaced = true;
         // Find the paragraph this text belongs to and replace it
-        const paragraphRegex = new RegExp(`<w:p\\b[^>]*>[\\s\\S]*?${match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?</w:p>`);
+        const paragraphRegex = new RegExp('<w:p\\b[^>]*>[\\s\\S]*?' + 'match.replace(/[.*+?^' + '()|[\]\\]/g, \'\\`<w:p\\b[^>]*>[\\s\\S]*?${match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?</w:p>`\')}[\\s\\S]*?</w:p>');
         const paragraphMatch = documentXml.match(paragraphRegex);
         if (paragraphMatch) {
           documentXml = documentXml.replace(paragraphMatch[0], formattedXML);

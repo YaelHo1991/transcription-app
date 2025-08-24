@@ -69,7 +69,7 @@ export default function ShortcutsAdminPage() {
     setLoading(true);
     try {
       // First try to load from public API for reading
-      const publicResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public');
+      const publicResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/shortcuts/public');
       
       if (publicResponse.ok) {
         const publicData = await publicResponse.json();
@@ -177,12 +177,12 @@ export default function ShortcutsAdminPage() {
           await loadData(); // Reload data from server
         } else {
           const error = await response.json();
-          alert(`שגיאה: ${error.error}`);
+          alert('שגיאה: ' + error.error);
           return;
         }
       } else {
         // Add new shortcut - use dev endpoint
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/shortcuts', {
+        const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/dev/admin/shortcuts', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -204,7 +204,7 @@ export default function ShortcutsAdminPage() {
               return;
             }
           } else {
-            alert(`שגיאה: ${error.error}`);
+            alert('שגיאה: ' + error.error);
           }
           return;
         }
@@ -236,7 +236,7 @@ export default function ShortcutsAdminPage() {
         ));
       } else {
         // Add new category - use dev endpoint
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/categories', {
+        const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/dev/admin/categories', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -316,13 +316,13 @@ export default function ShortcutsAdminPage() {
           📝 קיצורים
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'categories' ? 'active' : ''}`}
+          className={'tab-btn ' + (activeTab === 'categories' ? 'active' : '')}
           onClick={() => setActiveTab('categories')}
         >
           📁 קטגוריות
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'conflicts' ? 'active' : ''}`}
+          className={'tab-btn ' + (activeTab === 'conflicts' ? 'active' : '')}
           onClick={() => setActiveTab('conflicts')}
         >
           ⚠️ התנגשויות
@@ -429,7 +429,7 @@ export default function ShortcutsAdminPage() {
                           if (confirm('למחוק קיצור זה?')) {
                             try {
                               // Use the shortcut text as identifier for deletion
-                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}`, {
+                              const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}', {
                                 method: 'DELETE',
                                 headers: {
                                   'Content-Type': 'application/json'
@@ -440,7 +440,7 @@ export default function ShortcutsAdminPage() {
                                 await loadData(); // Reload data from server
                               } else {
                                 const error = await response.json();
-                                alert(`שגיאה במחיקה: ${error.error}`);
+                                alert('שגיאה במחיקה: ' + error.error);
                               }
                             } catch (error) {
                               console.error('Error deleting shortcut:', error);
@@ -528,7 +528,7 @@ export default function ShortcutsAdminPage() {
                         className="delete-btn"
                         onClick={() => {
                           if (category.shortcut_count > 0) {
-                            alert(`לא ניתן למחוק קטגוריה עם ${category.shortcut_count} קיצורים`);
+                            alert('לא ניתן למחוק קטגוריה עם ' + category.shortcut_count + ' קיצורים');
                             return;
                           }
                           if (confirm('למחוק קטגוריה זו?')) {

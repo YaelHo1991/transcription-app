@@ -169,7 +169,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
     const hours = Math.floor(time / 3600);
     const minutes = Math.floor((time % 3600) / 60);
     const seconds = Math.floor(time % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return (hours.toString().padStart(2, '0')) + ':${minutes.toString().padStart(2, \'0\')}:${seconds.toString().padStart(2, \'0\')}';
   };
 
   // Play/Pause
@@ -465,21 +465,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       case 'toggleShortcuts':
         setKeyboardSettings(prev => {
           const newEnabled = !prev.shortcutsEnabled;
-          showGlobalStatus(`קיצורי מקלדת: ${newEnabled ? 'פעילים' : 'כבויים'}`);
+          showGlobalStatus('קיצורי מקלדת: ' + (newEnabled ? 'פעילים' : 'כבויים'));
           return { ...prev, shortcutsEnabled: newEnabled };
         });
         break;
       case 'togglePedal':
         setPedalEnabled(prev => {
           const newEnabled = !prev;
-          showGlobalStatus(`דוושה: ${newEnabled ? 'פעילה' : 'כבויה'}`);
+          showGlobalStatus('דוושה: ' + (newEnabled ? 'פעילה' : 'כבויה'));
           return newEnabled;
         });
         break;
       case 'toggleAutoDetect':
         setAutoDetectEnabled(prev => {
           const newEnabled = !prev;
-          showGlobalStatus(`זיהוי אוטומטי: ${newEnabled ? 'פעיל' : 'כבוי'}`);
+          showGlobalStatus('זיהוי אוטומטי: ' + (newEnabled ? 'פעיל' : 'כבוי'));
           return newEnabled;
         });
         break;
@@ -487,7 +487,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         // Toggle between regular and enhanced auto-detect modes
         setAutoDetectMode(prev => {
           const newMode = prev === 'regular' ? 'enhanced' : 'regular';
-          showGlobalStatus(`מצב זיהוי: ${newMode === 'regular' ? 'רגיל' : 'משופר'}`);
+          showGlobalStatus('מצב זיהוי: ' + (newMode === 'regular' ? 'רגיל' : 'משופר'));
           return newMode;
         });
         break;
@@ -591,7 +591,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       // Check system resources before processing
       const resourceCheck = await checkOperation(OperationType.WAVEFORM, fileSize || 50 * 1024 * 1024);
       console.log('Resource check result:', resourceCheck);
-      console.log('File size:', fileSize ? `${(fileSize / (1024*1024)).toFixed(1)}MB` : 'unknown');
+      console.log('File size:', fileSize ? ((fileSize / (1024*1024)).toFixed(1)) + 'MB' : 'unknown');
       
       if (!resourceCheck.safe) {
         // Show warning with callback to proceed
@@ -639,7 +639,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         console.log('Using chunked processing for blob URL (server processing not available for blobs)');
       }
       
-      console.log(`File size: ${fileSize ? formatFileSize(fileSize) : 'Unknown'}, using ${strategy.method} method`);
+      console.log('File size: ' + (fileSize ? formatFileSize(fileSize) : 'Unknown') + ', using ' + strategy.method + ' method');
       console.log('Waveform strategy details:', strategy);
       
       // Show appropriate message
@@ -673,7 +673,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           
         case WaveformMethod.CHUNKED:
           // Medium files: Process in chunks
-          console.log(`Starting chunked processing for ${formatFileSize(fileSize || 0)} file`);
+          console.log('Starting chunked processing for ' + (formatFileSize(fileSize || 0)) + ' file');
           
           // Check for abort signal
           if (signal?.aborted) {
@@ -692,7 +692,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 setWaveformProgress(0);
                 return;
               }
-              console.log(`Chunked processing progress: ${progress.toFixed(1)}%`);
+              console.log('Chunked processing progress: ' + progress.toFixed(1) + '%');
               setWaveformProgress(progress);
             },
             onError: (error) => console.error('Chunked processing error:', error),
@@ -743,7 +743,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           
           // First, check if waveform already exists on server
           try {
-            const existingResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/${fileId}`);
+            const existingResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/${fileId}');
             if (existingResponse.ok) {
               console.log('Using existing server-side waveform');
               const data = await existingResponse.json();
@@ -769,7 +769,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           }
           
           // If not found, trigger generation on server
-          const generateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/generate`, {
+          const generateResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/generate', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -797,7 +797,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
               
               try {
-                const waveformResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/${fileId}`);
+                const waveformResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/${fileId}');
                 
                 if (waveformResponse.ok) {
                   const data = await waveformResponse.json();
@@ -831,7 +831,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             }
           } else if (statusData.status === 'completed') {
             // Small files complete immediately
-            const waveformResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/${fileId}`);
+            const waveformResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/${fileId}');
             
             if (waveformResponse.ok) {
               const data = await waveformResponse.json();
@@ -887,7 +887,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       });
       
       // Show error message to user
-      showGlobalStatus(`שגיאה בטעינת צורת גל: ${errorMessage}`);
+      showGlobalStatus('שגיאה בטעינת צורת גל: ' + errorMessage);
     }
   }, []);
 
@@ -911,8 +911,8 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       
       // Save to localStorage
       try {
-        localStorage.setItem(`mediaPosition_${currentMediaIdRef.current}`, JSON.stringify(positionData));
-        console.log(`Saved position for ${currentMediaIdRef.current}: ${mediaElement.currentTime}s`);
+        localStorage.setItem('mediaPosition_' + currentMediaIdRef.current, JSON.stringify(positionData));
+        console.log('Saved position for ' + currentMediaIdRef.current + ': ' + mediaElement.currentTime + 's');
       } catch (e) {
         console.error('Failed to save media position:', e);
       }
@@ -1097,7 +1097,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         
         if (!savedPosition) {
           try {
-            const stored = localStorage.getItem(`mediaPosition_${currentMediaIdRef.current}`);
+            const stored = localStorage.getItem('mediaPosition_' + currentMediaIdRef.current);
             if (stored) {
               savedPosition = JSON.parse(stored);
               // Update the ref for future use
@@ -1114,7 +1114,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           // Only restore if duration hasn't changed significantly (within 5%)
           const durationMatch = Math.abs(audio.duration - savedPosition.duration) / audio.duration < 0.05;
           if (durationMatch || savedPosition.duration === 0) {
-            console.log(`Restoring position for ${currentMediaIdRef.current}: ${savedPosition.position}s`);
+            console.log('Restoring position for ' + currentMediaIdRef.current + ': ' + savedPosition.position + 's');
             audio.currentTime = savedPosition.position;
             setCurrentTime(savedPosition.position);
           } else {
@@ -1171,8 +1171,8 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       // Clear saved position when media completes
       if (currentMediaIdRef.current) {
         mediaPositionsRef.current.delete(currentMediaIdRef.current);
-        localStorage.removeItem(`mediaPosition_${currentMediaIdRef.current}`);
-        console.log(`Cleared position for completed media: ${currentMediaIdRef.current}`);
+        localStorage.removeItem('mediaPosition_' + currentMediaIdRef.current);
+        console.log('Cleared position for completed media: ' + currentMediaIdRef.current);
       }
     };
 
@@ -1214,7 +1214,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         
         if (!savedPosition) {
           try {
-            const stored = localStorage.getItem(`mediaPosition_${currentMediaIdRef.current}`);
+            const stored = localStorage.getItem('mediaPosition_' + currentMediaIdRef.current);
             if (stored) {
               savedPosition = JSON.parse(stored);
               // Update the ref for future use
@@ -1231,7 +1231,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           // Only restore if duration hasn't changed significantly (within 5%)
           const durationMatch = Math.abs(video.duration - savedPosition.duration) / video.duration < 0.05;
           if (durationMatch || savedPosition.duration === 0) {
-            console.log(`Restoring video position for ${currentMediaIdRef.current}: ${savedPosition.position}s`);
+            console.log('Restoring video position for ' + currentMediaIdRef.current + ': ' + savedPosition.position + 's');
             video.currentTime = savedPosition.position;
             setCurrentTime(savedPosition.position);
           } else {
@@ -1459,12 +1459,12 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       />
       
       {/* Global Status Display */}
-      <div className={`media-global-status ${globalStatus ? 'visible' : ''}`} id="mediaGlobalStatus">
+      <div className={'media-global-status ' + (globalStatus ? 'visible' : '')} id="mediaGlobalStatus">
         {globalStatus}
       </div>
       
       {/* Media Player Component */}
-      <div className={`media-player-container ${showVideoCube ? 'video-active' : ''}`} id="mediaPlayerContainer">
+      <div className={'media-player-container ' + (showVideoCube ? 'video-active' : '')} id="mediaPlayerContainer">
         {/* Media Player Content Wrapper */}
         <div className="media-player-content">
           {/* Hidden Audio Element */}
@@ -1473,7 +1473,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         
         
         {/* Controls Section Wrapper */}
-        <div className={`section-wrapper controls-wrapper ${controlsCollapsed ? 'collapsed' : ''}`} id="controlsWrapper">
+        <div className={'section-wrapper controls-wrapper ' + (controlsCollapsed ? 'collapsed' : '')} id="controlsWrapper">
           {/* Collapse/Expand Toggle */}
           <button 
             className="collapse-toggle" 
@@ -1591,7 +1591,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                       <div 
                         className="waveform-progress-fill"
                         style={{ 
-                          width: `${waveformProgress}%`,
+                          width: waveformProgress + '%',
                           background: 'linear-gradient(90deg, rgba(32, 201, 151, 0.6) 0%, rgba(23, 162, 184, 0.6) 100%)',
                           height: '100%',
                           transition: 'width 0.3s ease',
@@ -1693,7 +1693,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
                 <div 
                   className="progress-fill" 
                   id="progressFill" 
-                  style={{ width: `${progressPercentage}%` }}
+                  style={{ width: progressPercentage + '%' }}
                 />
               </div>
             )}
@@ -1737,7 +1737,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             
             {/* Waveform Toggle Button */}
             <button 
-              className={`waveform-toggle-btn ${waveformEnabled ? 'active' : ''} ${!initialMedia ? 'disabled' : ''}`}
+              className={'waveform-toggle-btn ' + (waveformEnabled ? 'active' : '') + ' ' + (!initialMedia ? 'disabled' : '')}
               id="waveformToggleBtn" 
               title={
                 !initialMedia 
@@ -1765,7 +1765,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
         </div>
         
         {/* Sliders Section Wrapper */}
-        <div className={`section-wrapper sliders-wrapper ${slidersCollapsed ? 'collapsed' : ''}`} id="slidersWrapper">
+        <div className={'section-wrapper sliders-wrapper ' + (slidersCollapsed ? 'collapsed' : '')} id="slidersWrapper">
           {/* Collapse/Expand Toggle */}
           <button 
             className="collapse-toggle" 
@@ -1781,7 +1781,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             {/* Volume Slider */}
             <div className="slider-group">
               <span 
-                className={`slider-icon ${isMuted ? 'muted' : ''}`} 
+                className={'slider-icon ' + (isMuted ? 'muted' : '')} 
                 id="volumeIcon" 
                 title="השתק/בטל השתקה"
                 onClick={toggleMute}
@@ -1869,7 +1869,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
       </div>
       
       {/* Settings Modal */}
-      <div className={`media-modal-overlay ${showSettings ? 'active' : ''}`} id="modalOverlay">
+      <div className={'media-modal-overlay ' + (showSettings ? 'active' : '')} id="modalOverlay">
         <div className="settings-modal">
           {/* Modal Header */}
           <div className="settings-modal-header">
@@ -1886,21 +1886,21 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           {/* Modal Tabs */}
           <div className="settings-modal-tabs">
             <button 
-              className={`settings-tab-btn ${activeTab === 'shortcuts' ? 'active' : ''}`} 
+              className={'settings-tab-btn ' + (activeTab === 'shortcuts' ? 'active' : '')} 
               data-tab="shortcuts"
               onClick={() => setActiveTab('shortcuts')}
             >
               קיצורי מקלדת
             </button>
             <button 
-              className={`settings-tab-btn ${activeTab === 'pedal' ? 'active' : ''}`} 
+              className={'settings-tab-btn ' + (activeTab === 'pedal' ? 'active' : '')} 
               data-tab="pedal"
               onClick={() => setActiveTab('pedal')}
             >
               דוושת רגל
             </button>
             <button 
-              className={`settings-tab-btn ${activeTab === 'autodetect' ? 'active' : ''}`} 
+              className={'settings-tab-btn ' + (activeTab === 'autodetect' ? 'active' : '')} 
               data-tab="autodetect"
               onClick={() => setActiveTab('autodetect')}
             >
@@ -1911,7 +1911,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           {/* Modal Content */}
           <div className="settings-modal-content">
             {/* Shortcuts Tab */}
-            <div className={`settings-tab-content ${activeTab === 'shortcuts' ? 'active' : ''}`} id="shortcuts-tab">
+            <div className={'settings-tab-content ' + (activeTab === 'shortcuts' ? 'active' : '')} id="shortcuts-tab">
               <ShortcutsTab
                 shortcuts={keyboardSettings.shortcuts}
                 shortcutsEnabled={keyboardSettings.shortcutsEnabled}
@@ -1923,7 +1923,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             </div>
             
             {/* Pedal Tab */}
-            <div className={`settings-tab-content ${activeTab === 'pedal' ? 'active' : ''}`} id="pedal-tab">
+            <div className={'settings-tab-content ' + (activeTab === 'pedal' ? 'active' : '')} id="pedal-tab">
               <PedalTab
                 pedalEnabled={pedalEnabled}
                 onPedalEnabledChange={setPedalEnabled}
@@ -1932,7 +1932,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             </div>
             
             {/* Auto-detect Tab */}
-            <div className={`settings-tab-content ${activeTab === 'autodetect' ? 'active' : ''}`} id="autodetect-tab">
+            <div className={'settings-tab-content ' + (activeTab === 'autodetect' ? 'active' : '')} id="autodetect-tab">
               <AutoDetectTab
                 autoDetectEnabled={autoDetectEnabled}
                 onAutoDetectEnabledChange={setAutoDetectEnabled}

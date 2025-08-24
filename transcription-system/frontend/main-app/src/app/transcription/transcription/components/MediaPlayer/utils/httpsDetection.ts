@@ -32,7 +32,7 @@ export const getSecureURL = () => {
   if (typeof window === 'undefined') return '';
   
   const domain = process.env.NEXT_PUBLIC_DOMAIN || '146.190.57.51';
-  return `https://${domain}${window.location.pathname}${window.location.search}`;
+  return 'https://' + domain + window.location.pathname + window.location.search;
 };
 
 export const canUsePedal = () => {
@@ -53,7 +53,7 @@ export const getPedalStatusMessage = () => {
     return {
       type: 'warning' as const,
       title: 'דרוש חיבור מאובטח (HTTPS) לחיבור דוושה',
-      message: `אנא גש לכתובת: ${getSecureURL()}`
+      message: 'אנא גש לכתובת: ' + getSecureURL()
     };
   }
   

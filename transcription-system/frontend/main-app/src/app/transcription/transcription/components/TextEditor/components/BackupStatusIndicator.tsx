@@ -39,13 +39,13 @@ export default function BackupStatusIndicator({ onShowHistory }: BackupStatusInd
         return 'נשמר לפני דקה';
       }
       if (minutesAgo < 60) {
-        return `נשמר לפני ${minutesAgo} דקות`;
+        return 'נשמר לפני ' + minutesAgo + ' דקות';
       }
       const hoursAgo = Math.floor(minutesAgo / 60);
       if (hoursAgo === 1) {
         return 'נשמר לפני שעה';
       }
-      return `נשמר לפני ${hoursAgo} שעות`;
+      return 'נשמר לפני ' + hoursAgo + ' שעות';
     }
     return 'לא נשמר';
   };
@@ -85,7 +85,7 @@ export default function BackupStatusIndicator({ onShowHistory }: BackupStatusInd
   return (
     <div className="backup-status-container">
       <div 
-        className={`backup-status-indicator ${getStatusClass()}`}
+        className={'backup-status-indicator ' + getStatusClass()}
         onClick={() => setShowDetails(!showDetails)}
         title="לחץ לפרטים"
       >
@@ -114,7 +114,7 @@ export default function BackupStatusIndicator({ onShowHistory }: BackupStatusInd
           <div className="backup-details-content">
             <div className="detail-row">
               <span className="detail-label">מצב:</span>
-              <span className={`detail-value ${getStatusClass()}`}>
+              <span className={'detail-value ' + getStatusClass()}>
                 {getStatusText()}
               </span>
             </div>

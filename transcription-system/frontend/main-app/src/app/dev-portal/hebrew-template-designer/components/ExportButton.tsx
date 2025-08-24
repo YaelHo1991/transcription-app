@@ -27,7 +27,7 @@ export default function ExportButton({ html, fileName, headerElements, footerEle
       setExportStatus('✓ קובץ Word נוצר עם Header ו-Footer אמיתיים!');
     } catch (error) {
       console.error('Error generating DOCX:', error);
-      setExportStatus(`❌ שגיאה: ${error}`);
+      setExportStatus('❌ שגיאה: ' + error);
     } finally {
       setIsExporting(false);
     }
@@ -72,7 +72,7 @@ export default function ExportButton({ html, fileName, headerElements, footerEle
       console.log('Blob type:', converted.type);
       
       // Save the file
-      const fullFileName = `${fileName}_${new Date().getTime()}.docx`;
+      const fullFileName = fileName + '_${new Date().getTime()}.docx';
       console.log('Saving as:', fullFileName);
       
       saveAs(converted, fullFileName);
@@ -82,12 +82,12 @@ export default function ExportButton({ html, fileName, headerElements, footerEle
       
     } catch (error) {
       console.error('!!! Export Error !!!', error);
-      setExportStatus(`❌ שגיאה: ${error}`);
+      setExportStatus('❌ שגיאה: ' + error);
       
       // Fallback to HTML export
       console.log('Falling back to HTML export...');
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const fullFileName = `${fileName}_${new Date().getTime()}.html`;
+      const fullFileName = fileName + '_${new Date().getTime()}.html';
       saveAs(blob, fullFileName);
       setExportStatus('⚠️ נשמר כ-HTML - פתח ב-Word ושמור כ-DOCX');
     } finally {
@@ -98,7 +98,7 @@ export default function ExportButton({ html, fileName, headerElements, footerEle
   const handleExportHtml = () => {
     console.log('Exporting as HTML for testing...');
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    saveAs(blob, `${fileName}_test.html`);
+    saveAs(blob, fileName + '_test.html');
     setExportStatus('✓ קובץ HTML נשמר - פתח ב-Word לבדיקה');
   };
 
@@ -129,7 +129,7 @@ export default function ExportButton({ html, fileName, headerElements, footerEle
       </button>
       
       {exportStatus && (
-        <div className={`export-status ${exportStatus.includes('✓') ? 'success' : exportStatus.includes('❌') ? 'error' : ''}`}>
+        <div className={'export-status ' + (exportStatus.includes('✓') ? 'success' : exportStatus.includes('❌') ? 'error' : '')}>
           {exportStatus}
         </div>
       )}

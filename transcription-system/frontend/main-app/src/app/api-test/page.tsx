@@ -19,7 +19,7 @@ export default function ApiTestPage() {
       if (requiresAuth) {
         const token = localStorage.getItem('auth_token')
         if (token) {
-          headers['Authorization'] = `Bearer ${token}`
+          headers['Authorization'] = 'Bearer ' + token
         }
       }
       
@@ -152,20 +152,20 @@ export default function ApiTestPage() {
               {results.map((result, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg border-r-4 ${
+                  className={'p-4 rounded-lg border-r-4 ' + (
                     result.success 
                       ? 'bg-green-50 border-green-400' 
                       : 'bg-red-50 border-red-400'
-                  }`}
+                  )}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <span className="font-bold text-gray-800">{result.endpoint}</span>
-                      <span className={`mr-2 px-2 py-1 rounded text-sm font-medium ${
+                      <span className={'mr-2 px-2 py-1 rounded text-sm font-medium ' + (
                         result.success 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
-                      }`}>
+                      )}>
                         {result.status}
                       </span>
                     </div>

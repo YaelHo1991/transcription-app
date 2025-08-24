@@ -66,7 +66,7 @@ class ProjectService {
     };
     
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers['Authorization'] = 'Bearer ' + token;
     }
     
     return headers;
@@ -85,7 +85,7 @@ class ProjectService {
         return null;
       }
       
-      const response = await fetch(`${API_URL}/api/projects/create`, {
+      const response = await fetch(API_URL + '/api/projects/create', {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
@@ -129,7 +129,7 @@ class ProjectService {
         remarksCount: data.remarks?.length || 0
       });
       
-      const response = await fetch(`${API_URL}/api/projects/${projectId}/save`, {
+      const response = await fetch(API_URL + '/api/projects/${projectId}/save', {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(data)
@@ -163,7 +163,7 @@ class ProjectService {
   async saveProjectIncremental(projectId: string, data: IncrementalSaveData): Promise<boolean> {
     try {
       const changeType = data.fullSnapshot ? 'full' : 'incremental';
-      console.log(`[Project] Saving ${changeType} update:`, projectId, {
+      console.log('[Project] Saving ' + changeType + ' update:', projectId, {
         changesCount: data.changes.length,
         fullSnapshot: data.fullSnapshot,
         version: data.version,
@@ -207,7 +207,7 @@ class ProjectService {
     try {
       console.log('[Project] Loading project:', projectId);
       
-      const response = await fetch(`${API_URL}/api/projects/${projectId}/load`, {
+      const response = await fetch(API_URL + '/api/projects/${projectId}/load', {
         headers: this.getHeaders()
       });
       
@@ -245,7 +245,7 @@ class ProjectService {
   async getProjectByMedia(mediaFileName: string): Promise<string | null> {
     try {
       const response = await fetch(
-        `${API_URL}/api/projects/by-media/${encodeURIComponent(mediaFileName)}`,
+        API_URL + '/api/projects/by-media/${encodeURIComponent(mediaFileName)}',
         {
           headers: this.getHeaders()
         }
@@ -270,7 +270,7 @@ class ProjectService {
     try {
       console.log('[Project] Creating backup for:', projectId);
       
-      const response = await fetch(`${API_URL}/api/projects/${projectId}/backup`, {
+      const response = await fetch(API_URL + '/api/projects/${projectId}/backup', {
         method: 'POST',
         headers: this.getHeaders()
       });
@@ -297,7 +297,7 @@ class ProjectService {
       console.log('[Project] Restoring backup:', projectId, backupFile);
       
       const response = await fetch(
-        `${API_URL}/api/projects/${projectId}/restore/${backupFile}`,
+        API_URL + '/api/projects/${projectId}/restore/${backupFile}',
         {
           method: 'POST',
           headers: this.getHeaders()
@@ -333,7 +333,7 @@ class ProjectService {
         return [];
       }
       
-      const response = await fetch(`${API_URL}/api/projects/list`, {
+      const response = await fetch(API_URL + '/api/projects/list', {
         method: 'GET',
         headers: this.getHeaders()
       });
@@ -370,7 +370,7 @@ class ProjectService {
    */
   async listBackups(projectId: string): Promise<any[]> {
     try {
-      const response = await fetch(`${API_URL}/api/projects/${projectId}/backups`, {
+      const response = await fetch(API_URL + '/api/projects/${projectId}/backups', {
         headers: this.getHeaders()
       });
       
@@ -402,7 +402,7 @@ class ProjectService {
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
       
-      return `${day}/${month}/${year} ${hours}:${minutes}`;
+      return day + '/${month}/${year} ${hours}:${minutes}';
     } catch (error) {
       console.error('[Project] Error formatting timestamp:', timestamp, error);
       return 'תאריך לא תקין';
@@ -416,13 +416,13 @@ class ProjectService {
     try {
       console.log('[Project] Deleting project:', projectId);
       
-      const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
+      const response = await fetch(API_URL + '/api/projects/${projectId}', {
         method: 'DELETE',
         headers: this.getHeaders()
       });
       
       if (!response.ok) {
-        console.error(`Failed to delete project: ${response.statusText}`);
+        console.error('Failed to delete project: ' + response.statusText);
         return false;
       }
       

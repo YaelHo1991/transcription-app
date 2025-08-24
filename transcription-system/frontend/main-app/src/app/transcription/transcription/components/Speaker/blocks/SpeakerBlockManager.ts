@@ -14,20 +14,20 @@ export default class SpeakerBlockManager {
   private colorIndex = 0;
 
   constructor(skipInitialBlock = false) {
-    console.log(`[SpeakerBlockManager] Constructor called, skipInitialBlock: ${skipInitialBlock}`);
+    console.log('[SpeakerBlockManager] Constructor called, skipInitialBlock: ' + skipInitialBlock);
     // Only initialize with empty block if not skipped
     if (!skipInitialBlock) {
       // Create initial empty block with a color already assigned
-      console.log(`[SpeakerBlockManager] Creating initial block with colorIndex: ${this.colorIndex}`);
+      console.log('[SpeakerBlockManager] Creating initial block with colorIndex: ' + this.colorIndex);
       const initialBlock: SpeakerBlockData = {
-        id: `speaker-${this.nextId++}`,
+        id: 'speaker-' + this.nextId++,
         code: '',
         name: '',
         description: '',
         color: this.colors[this.colorIndex % this.colors.length],
         count: 0
       };
-      console.log(`[SpeakerBlockManager] Initial block color: ${initialBlock.color}`);
+      console.log('[SpeakerBlockManager] Initial block color: ' + initialBlock.color);
       this.colorIndex++;
       this.blocks.push(initialBlock);
       this.activeBlockId = initialBlock.id;
@@ -81,9 +81,9 @@ export default class SpeakerBlockManager {
   }
 
   addBlock(code = '', name = '', description = '', afterId?: string): SpeakerBlockData {
-    console.log(`[SpeakerBlockManager] addBlock called, current colorIndex: ${this.colorIndex}`);
+    console.log('[SpeakerBlockManager] addBlock called, current colorIndex: ' + this.colorIndex);
     const newBlock: SpeakerBlockData = {
-      id: `speaker-${this.nextId++}`,
+      id: 'speaker-' + this.nextId++,
       code,
       name,
       description,
@@ -91,7 +91,7 @@ export default class SpeakerBlockManager {
       count: 0
     };
     
-    console.log(`[SpeakerBlockManager] Assigned color: ${newBlock.color} at index ${this.colorIndex}`);
+    console.log('[SpeakerBlockManager] Assigned color: ' + newBlock.color + ' at index ' + this.colorIndex);
     this.colorIndex++;
 
     if (afterId) {
@@ -153,21 +153,21 @@ export default class SpeakerBlockManager {
   updateBlock(id: string, field: 'code' | 'name' | 'description', value: string) {
     const block = this.blocks.find(b => b.id === id);
     if (block) {
-      console.log(`[SpeakerBlockManager] updateBlock: id=${id}, field=${field}, value="${value}", current color=${block.color}`);
+      console.log('[SpeakerBlockManager] updateBlock: id=' + id + ', field=' + field + ', value="' + value + '", current color=' + block.color);
       block[field] = value;
       
       // If this is an empty block getting its first code, assign a color
       if (field === 'code' && value && !block.color) {
-        console.log(`[SpeakerBlockManager] Block has no color, assigning color at index ${this.colorIndex}`);
+        console.log('[SpeakerBlockManager] Block has no color, assigning color at index ' + this.colorIndex);
         block.color = this.colors[this.colorIndex % this.colors.length];
         this.colorIndex++;
-        console.log(`[SpeakerBlockManager] Assigned color: ${block.color}`);
+        console.log('[SpeakerBlockManager] Assigned color: ' + block.color);
       }
       
       // Update count based on usage (will be implemented with TextEditor integration)
       return true;
     }
-    console.log(`[SpeakerBlockManager] updateBlock: Block with id ${id} not found`);
+    console.log('[SpeakerBlockManager] updateBlock: Block with id ' + id + ' not found');
     return false;
   }
 
@@ -269,11 +269,11 @@ export default class SpeakerBlockManager {
     
     // Try appending numbers until we find a unique name
     let counter = 1;
-    let uniqueName = `${baseName}1`;
+    let uniqueName = baseName + '1';
     
     while (this.blocks.some(b => b.name === uniqueName && b.id !== excludeId)) {
       counter++;
-      uniqueName = `${baseName}${counter}`;
+      uniqueName = baseName + '${counter}';
     }
     
     return uniqueName;

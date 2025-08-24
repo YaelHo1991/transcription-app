@@ -120,14 +120,14 @@ class NavigationManager {
     
     if (counter && activeItem) {
       const currentIndex = Array.from(projectItems).indexOf(activeItem) + 1;
-      counter.textContent = `${currentIndex}/${projectItems.length}`;
+      counter.textContent = currentIndex + '/${projectItems.length}';
     }
   }
 
   updateMediaCounter(current: number, total: number): void {
     const counter = document.getElementById('mediaCounter');
     if (counter) {
-      counter.textContent = `${current}/${total}`;
+      counter.textContent = current + '/${total}';
     }
   }
 
@@ -143,7 +143,7 @@ class NavigationManager {
         
         setTimeout(() => {
           if (element.scrollWidth > wrapper.offsetWidth) {
-            element.innerHTML = `<span class="file-name-scroll">${filename} • ${filename} • </span>`;
+            element.innerHTML = '<span class="file-name-scroll">' + filename + ' • ' + filename + ' • </span>';
             element.classList.add('marquee');
           }
         }, 100);
@@ -162,7 +162,7 @@ class NavigationManager {
     const sizeEl = document.getElementById('fileSize');
     if (sizeEl) {
       const sizeInMB = file.file_size ? (file.file_size / (1024 * 1024)).toFixed(2) : '0';
-      sizeEl.textContent = `${sizeInMB} MB`;
+      sizeEl.textContent = sizeInMB + ' MB';
     }
     
     // Update type

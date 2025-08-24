@@ -127,7 +127,7 @@ export default function ClientsPage() {
                 <td>{client.phone}</td>
                 <td className="text-center">{client.projects}</td>
                 <td>
-                  <span className={`status-badge ${client.status}`}>
+                  <span className={'status-badge ' + client.status}>
                     {client.status === 'active' ? 'פעיל' : 'לא פעיל'}
                   </span>
                 </td>

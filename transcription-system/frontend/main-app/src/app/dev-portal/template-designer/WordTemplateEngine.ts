@@ -305,7 +305,7 @@ export class WordTemplateEngine {
           for (let c = 0; c < section.table.columns; c++) {
             cells.push(
               new TableCell({
-                children: [new Paragraph({ text: `Row ${r + 1}, Col ${c + 1}` })],
+                children: [new Paragraph({ text: 'Row ' + r + 1 + ', Col ' + c + 1 })],
                 shading: section.table.shading && r === 0 ? {
                   type: ShadingType.SOLID,
                   color: 'E0E0E0'
@@ -404,7 +404,7 @@ export class WordTemplateEngine {
 
     // Generate and save
     const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${data.fileName || 'document'}.docx`);
+    saveAs(blob, (data.fileName || 'document') + '.docx');
   }
 
   public saveTemplate(template: WordTemplate): void {

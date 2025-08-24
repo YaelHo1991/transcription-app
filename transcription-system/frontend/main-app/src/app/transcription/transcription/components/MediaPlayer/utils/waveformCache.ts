@@ -76,7 +76,7 @@ export class WaveformCache {
     // For blob URLs, include size in the key since the same blob URL 
     // might be reused for different files
     if (url.startsWith('blob:') && fileSize) {
-      return `${url}_${fileSize}`;
+      return url + '_${fileSize}';
     }
     return url;
   }
@@ -123,7 +123,7 @@ export class WaveformCache {
             return;
           }
 
-          console.log(`WaveformCache: Found cached data for ${key} (age: ${Math.round(age / 1000 / 60)} minutes)`);
+          console.log('WaveformCache: Found cached data for ' + key + ' (age: ' + Math.round(age / 1000 / 60) + ' minutes)');
           resolve(cached.data);
         };
 
@@ -263,7 +263,7 @@ export class WaveformCache {
             deletedCount++;
             cursor.continue();
           } else {
-            console.log(`WaveformCache: Cleaned up ${deletedCount} expired entries`);
+            console.log('WaveformCache: Cleaned up ' + deletedCount + ' expired entries');
             resolve(deletedCount);
           }
         };

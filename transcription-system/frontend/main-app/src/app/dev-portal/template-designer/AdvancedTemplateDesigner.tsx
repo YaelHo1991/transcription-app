@@ -114,7 +114,7 @@ export default function AdvancedTemplateDesigner() {
     const newElement: TemplateElement = {
       id: Date.now().toString(),
       type,
-      value: type === 'text' ? 'טקסט חדש' : `{{${type}}}`,
+      value: type === 'text' ? 'טקסט חדש' : '{{' + type + '}}',
       bold: false,
       underline: false,
       size: activeTab === 'header' ? 12 : activeTab === 'footer' ? 11 : 14,
@@ -442,7 +442,7 @@ export default function AdvancedTemplateDesigner() {
       });
       
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `${templateName}_test.docx`);
+      saveAs(blob, templateName + '_test.docx');
       alert('המסמך נוצר בהצלחה!');
     } catch (error) {
       console.error('Error generating document:', error);
@@ -474,31 +474,31 @@ export default function AdvancedTemplateDesigner() {
       <div className="designer-header">
         <div className="tabs-container">
           <button 
-            className={`tab ${activeTab === 'header' ? 'active' : ''}`}
+            className={'tab ' + (activeTab === 'header' ? 'active' : '')}
             onClick={() => setActiveTab('header')}
           >
             📑 כותרת עליונה
           </button>
           <button 
-            className={`tab ${activeTab === 'speakers' ? 'active' : ''}`}
+            className={'tab ' + (activeTab === 'speakers' ? 'active' : '')}
             onClick={() => setActiveTab('speakers')}
           >
             📝 שורת דוברים
           </button>
           <button 
-            className={`tab ${activeTab === 'content' ? 'active' : ''}`}
+            className={'tab ' + (activeTab === 'content' ? 'active' : '')}
             onClick={() => setActiveTab('content')}
           >
             💬 הגדרות תוכן
           </button>
           <button 
-            className={`tab ${activeTab === 'footer' ? 'active' : ''}`}
+            className={'tab ' + (activeTab === 'footer' ? 'active' : '')}
             onClick={() => setActiveTab('footer')}
           >
             📄 כותרת תחתונה
           </button>
           <button 
-            className={`tab ${activeTab === 'logo' ? 'active' : ''}`}
+            className={'tab ' + (activeTab === 'logo' ? 'active' : '')}
             onClick={() => setActiveTab('logo')}
           >
             🖼️ העלה לוגו
@@ -595,19 +595,19 @@ export default function AdvancedTemplateDesigner() {
                     )}
                     <div className="element-style-controls">
                       <button 
-                        className={`style-btn ${element.bold ? 'active' : ''}`}
+                        className={'style-btn ' + (element.bold ? 'active' : '')}
                         onClick={() => updateElement('speakers', element.id, { bold: !element.bold })}
                       >
                         B
                       </button>
                       <button 
-                        className={`style-btn ${element.underline ? 'active' : ''}`}
+                        className={'style-btn ' + (element.underline ? 'active' : '')}
                         onClick={() => updateElement('speakers', element.id, { underline: !element.underline })}
                       >
                         U
                       </button>
                       <button 
-                        className={`style-btn ${element.italic ? 'active' : ''}`}
+                        className={'style-btn ' + (element.italic ? 'active' : '')}
                         onClick={() => updateElement('speakers', element.id, { italic: !element.italic })}
                       >
                         I
@@ -753,19 +753,19 @@ export default function AdvancedTemplateDesigner() {
                     )}
                     <div className="element-style-controls">
                       <button 
-                        className={`style-btn ${element.bold ? 'active' : ''}`}
+                        className={'style-btn ' + (element.bold ? 'active' : '')}
                         onClick={() => updateElement('footer', element.id, { bold: !element.bold })}
                       >
                         B
                       </button>
                       <button 
-                        className={`style-btn ${element.underline ? 'active' : ''}`}
+                        className={'style-btn ' + (element.underline ? 'active' : '')}
                         onClick={() => updateElement('footer', element.id, { underline: !element.underline })}
                       >
                         U
                       </button>
                       <button 
-                        className={`style-btn ${element.italic ? 'active' : ''}`}
+                        className={'style-btn ' + (element.italic ? 'active' : '')}
                         onClick={() => updateElement('footer', element.id, { italic: !element.italic })}
                       >
                         I
@@ -836,8 +836,8 @@ export default function AdvancedTemplateDesigner() {
                             fontWeight: el.bold ? 'bold' : 'normal',
                             textDecoration: el.underline ? 'underline' : 'none',
                             fontStyle: el.italic ? 'italic' : 'normal',
-                            fontSize: `${el.size}pt`,
-                            color: `#${el.color}`
+                            fontSize: el.size + 'pt',
+                            color: '#' + el.color
                           }}
                         >
                           {el.type === 'lineBreak' ? <br /> : 
@@ -854,8 +854,8 @@ export default function AdvancedTemplateDesigner() {
                             fontWeight: el.bold ? 'bold' : 'normal',
                             textDecoration: el.underline ? 'underline' : 'none',
                             fontStyle: el.italic ? 'italic' : 'normal',
-                            fontSize: `${el.size}pt`,
-                            color: `#${el.color}`
+                            fontSize: el.size + 'pt',
+                            color: '#' + el.color
                           }}
                         >
                           {el.type === 'lineBreak' ? <br /> : 
@@ -872,8 +872,8 @@ export default function AdvancedTemplateDesigner() {
                             fontWeight: el.bold ? 'bold' : 'normal',
                             textDecoration: el.underline ? 'underline' : 'none',
                             fontStyle: el.italic ? 'italic' : 'normal',
-                            fontSize: `${el.size}pt`,
-                            color: `#${el.color}`
+                            fontSize: el.size + 'pt',
+                            color: '#' + el.color
                           }}
                         >
                           {el.type === 'lineBreak' ? <br /> : 
@@ -895,8 +895,8 @@ export default function AdvancedTemplateDesigner() {
                           fontWeight: el.bold ? 'bold' : 'normal',
                           textDecoration: el.underline ? 'underline' : 'none',
                           fontStyle: el.italic ? 'italic' : 'normal',
-                          fontSize: `${el.size}pt`,
-                          color: `#${el.color}`
+                          fontSize: el.size + 'pt',
+                          color: '#' + el.color
                         }}
                       >
                         {renderElementValue(el)}
@@ -912,8 +912,8 @@ export default function AdvancedTemplateDesigner() {
                           fontWeight: el.bold ? 'bold' : 'normal',
                           textDecoration: el.underline ? 'underline' : 'none',
                           fontStyle: el.italic ? 'italic' : 'normal',
-                          fontSize: `${el.size}pt`,
-                          color: `#${el.color}`,
+                          fontSize: el.size + 'pt',
+                          color: '#' + el.color,
                           display: 'inline'
                         }}
                       >
@@ -932,8 +932,8 @@ export default function AdvancedTemplateDesigner() {
                           fontWeight: el.bold ? 'bold' : 'normal',
                           textDecoration: el.underline ? 'underline' : 'none',
                           fontStyle: el.italic ? 'italic' : 'normal',
-                          fontSize: `${el.size}pt`,
-                          color: `#${el.color}`
+                          fontSize: el.size + 'pt',
+                          color: '#' + el.color
                         }}
                       >
                         {renderElementValue(el)}
@@ -953,8 +953,8 @@ export default function AdvancedTemplateDesigner() {
                             fontWeight: el.bold ? 'bold' : 'normal',
                             textDecoration: el.underline ? 'underline' : 'none',
                             fontStyle: el.italic ? 'italic' : 'normal',
-                            fontSize: `${el.size}pt`,
-                            color: `#${el.color}`
+                            fontSize: el.size + 'pt',
+                            color: '#' + el.color
                           }}
                         >
                           {el.type === 'lineBreak' ? <br /> : 
@@ -971,8 +971,8 @@ export default function AdvancedTemplateDesigner() {
                             fontWeight: el.bold ? 'bold' : 'normal',
                             textDecoration: el.underline ? 'underline' : 'none',
                             fontStyle: el.italic ? 'italic' : 'normal',
-                            fontSize: `${el.size}pt`,
-                            color: `#${el.color}`
+                            fontSize: el.size + 'pt',
+                            color: '#' + el.color
                           }}
                         >
                           {el.type === 'lineBreak' ? <br /> : 
@@ -989,8 +989,8 @@ export default function AdvancedTemplateDesigner() {
                             fontWeight: el.bold ? 'bold' : 'normal',
                             textDecoration: el.underline ? 'underline' : 'none',
                             fontStyle: el.italic ? 'italic' : 'normal',
-                            fontSize: `${el.size}pt`,
-                            color: `#${el.color}`
+                            fontSize: el.size + 'pt',
+                            color: '#' + el.color
                           }}
                         >
                           {el.type === 'lineBreak' ? <br /> : 
@@ -1007,7 +1007,7 @@ export default function AdvancedTemplateDesigner() {
                   <div 
                     className="preview-border-line"
                     style={{
-                      borderBottom: `${template.header.borderLine.thickness}px ${template.header.borderLine.style} #${template.header.borderLine.color}`,
+                      borderBottom: template.header.borderLine.thickness + 'px ${template.header.borderLine.style} #${template.header.borderLine.color}',
                       marginTop: '10px'
                     }}
                   />
@@ -1027,8 +1027,8 @@ export default function AdvancedTemplateDesigner() {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`,
-                        color: `#${el.color}`
+                        fontSize: el.size + 'pt',
+                        color: '#' + el.color
                       }}
                     >
                       {renderElementValue(el)}
@@ -1040,20 +1040,20 @@ export default function AdvancedTemplateDesigner() {
               {/* Content */}
               <div className="preview-content" style={{
                 textAlign: template.body.content.alignment,
-                fontSize: `${template.body.content.fontSize}pt`,
+                fontSize: template.body.content.fontSize + 'pt',
                 lineHeight: template.body.content.lineSpacing
               }}>
                 <div style={{
-                  paddingRight: `${template.body.content.tabPosition}px`,
-                  textIndent: `-${template.body.content.tabPosition}px`
+                  paddingRight: template.body.content.tabPosition + 'px',
+                  textIndent: '-' + template.body.content.tabPosition + 'px'
                 }}>
                   <span style={{
                     fontWeight: template.body.content.speakerBold ? 'bold' : 'normal',
-                    color: `#${template.body.content.speakerColor}`
+                    color: '#' + template.body.content.speakerColor
                   }}>
                     יוסי כהן{template.body.content.speakerSuffix}
                   </span>
-                  <span style={{ marginRight: `${template.body.content.tabPosition - 50}px` }}>
+                  <span style={{ marginRight: template.body.content.tabPosition - 50 + 'px' }}>
                     זו דוגמה לטקסט עם יישור לשני הצדדים והגדרות TAB מותאמות אישית.
                   </span>
                 </div>
@@ -1070,8 +1070,8 @@ export default function AdvancedTemplateDesigner() {
                       fontWeight: el.bold ? 'bold' : 'normal',
                       textDecoration: el.underline ? 'underline' : 'none',
                       fontStyle: el.italic ? 'italic' : 'normal',
-                      fontSize: `${el.size}pt`,
-                      color: `#${el.color}`
+                      fontSize: el.size + 'pt',
+                      color: '#' + el.color
                     }}
                   >
                     {renderElementValue(el)}

@@ -63,7 +63,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
         {projects.map((project) => (
           <div
             key={project.id}
-            className={`project-item ${project.active ? 'active' : ''}`}
+            className={'project-item ' + (project.active ? 'active' : '')}
             data-project-id={project.id}
           >
             <h4 className="project-item-title">{project.name}</h4>
@@ -71,7 +71,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
               <span>{project.mediaCount} קבצים</span>
               <span>{project.duration}</span>
             </div>
-            <span className={`project-type-badge ${project.type}`}>
+            <span className={'project-type-badge ' + project.type}>
               {project.type === 'crm' ? 'CRM' : 'עצמאי'}
             </span>
           </div>

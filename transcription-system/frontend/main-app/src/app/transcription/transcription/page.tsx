@@ -174,7 +174,7 @@ export default function TranscriptionWorkPage() {
   // Debug logging (removed to prevent render loops)
   
   // Use project ID for components instead of mediaId
-  const mediaId = currentMedia ? `0-0-${currentMedia.name}` : '';
+  const mediaId = currentMedia ? '0-0-' + currentMedia.name : '';
   const transcriptionNumber = 2; // Using transcription 2 as default
   
   // Use real data if available, otherwise show empty state
@@ -202,7 +202,7 @@ export default function TranscriptionWorkPage() {
       const mStr = m < 10 ? '0' + m : '' + m;
       const sStr = s < 10 ? '0' + s : '' + s;
       
-      return `${hStr}:${mStr}:${sStr}`;
+      return hStr + ':${mStr}:${sStr}';
     } catch (error) {
       console.error('[formatDuration] Error:', error);
       return '00:00:00';
@@ -288,7 +288,7 @@ export default function TranscriptionWorkPage() {
       };
       
       // Use user-specific session key
-      const sessionKey = `transcriptionSessionState_${currentUserId}`;
+      const sessionKey = 'transcriptionSessionState_' + currentUserId;
       localStorage.setItem(sessionKey, JSON.stringify(sessionData));
       console.log('[Session] Saved session state for user', currentUserId, 'with', mediaCollections.length, 'media collections');
     } catch (error) {
@@ -315,7 +315,7 @@ export default function TranscriptionWorkPage() {
         }
         
         // Use user-specific session key
-        const sessionKey = `transcriptionSessionState_${userId}`;
+        const sessionKey = 'transcriptionSessionState_' + userId;
         const savedSession = localStorage.getItem(sessionKey);
         
         // Also clean up any old non-user-specific session
@@ -443,7 +443,7 @@ export default function TranscriptionWorkPage() {
           const freshDefault = createDefaultTranscription();
           const allTranscriptions = [...cleanTranscriptions, freshDefault];
           
-          console.log(`[Page] Successfully loaded ${transformedTranscriptions.length} transcriptions + 1 default`);
+          console.log('[Page] Successfully loaded ' + transformedTranscriptions.length + ' transcriptions + 1 default');
           console.log('[Page] All transcriptions:', allTranscriptions.map(t => ({ name: t.name, isDefault: t.isDefault, projectId: t.projectId })));
           setTranscriptions(allTranscriptions);
           
@@ -453,7 +453,7 @@ export default function TranscriptionWorkPage() {
             let hasRestoredIndex = false;
             
             if (userId) {
-              const sessionKey = `transcriptionSessionState_${userId}`;
+              const sessionKey = 'transcriptionSessionState_' + userId;
               const savedSession = localStorage.getItem(sessionKey);
               hasRestoredIndex = savedSession && JSON.parse(savedSession).currentTranscriptionIndex !== undefined;
             }
@@ -491,7 +491,7 @@ export default function TranscriptionWorkPage() {
         // Double-check session wasn't just restored
         const userId = getCurrentUserId();
         if (userId) {
-          const sessionKey = `transcriptionSessionState_${userId}`;
+          const sessionKey = 'transcriptionSessionState_' + userId;
           const savedSession = localStorage.getItem(sessionKey);
           if (savedSession) {
             const sessionData = JSON.parse(savedSession);
@@ -572,7 +572,7 @@ export default function TranscriptionWorkPage() {
         type: 'file' as const,
         file,
         name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        size: ((file.size / (1024 * 1024)).toFixed(1)) + ' MB'
       }));
     
     if (newItems.length > 0) {
@@ -606,7 +606,7 @@ export default function TranscriptionWorkPage() {
       // Get folder name from file path if no name provided
       const firstFile = pendingProjectFiles[0] as FileWithPath;
       const pathParts = firstFile.webkitRelativePath?.split('/') || [];
-      const folderName = name || pathParts[0] || `פרויקט ${mediaCollections.length + 1}`;
+      const folderName = name || pathParts[0] || 'פרויקט ' + mediaCollections.length + 1;
       
       const mediaFiles = Array.from(pendingProjectFiles).filter(file => 
         file.type.startsWith('audio/') || file.type.startsWith('video/')
@@ -618,7 +618,7 @@ export default function TranscriptionWorkPage() {
           type: 'file' as const,
           file,
           name: file.name,
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+          size: ((file.size / (1024 * 1024)).toFixed(1)) + ' MB'
         }))
       };
       
@@ -628,7 +628,7 @@ export default function TranscriptionWorkPage() {
       setPendingProjectFiles(null);
     } else if (pendingProjectUrl) {
       // Handle URL project
-      const collectionName = name || `פרויקט ${mediaCollections.length + 1}`;
+      const collectionName = name || 'פרויקט ' + mediaCollections.length + 1;
       const urlParts = pendingProjectUrl.split('/');
       const fileName = urlParts[urlParts.length - 1] || pendingProjectUrl.substring(0, 50);
       
@@ -897,7 +897,7 @@ export default function TranscriptionWorkPage() {
           onLogout={() => {
             // Clear only current user's session data
             if (currentUserId) {
-              const sessionKey = `transcriptionSessionState_${currentUserId}`;
+              const sessionKey = 'transcriptionSessionState_' + currentUserId;
               localStorage.removeItem(sessionKey);
               console.log('[Session] Cleared session for user:', currentUserId);
             }
@@ -921,11 +921,11 @@ export default function TranscriptionWorkPage() {
       
 
       {/* Main Content with max-width container */}
-      <div className={`main-content ${
+      <div className={'main-content ' + (
         headerLocked ? 'header-locked' : ''
-      } ${
+      ) + ' ' + (
         sidebarLocked ? 'sidebar-locked' : ''
-      }`}>
+      )}>
         <div className="content-container">
           <RemarksProvider 
             transcriptionId={currentProjectId || sessionId}
@@ -993,9 +993,9 @@ export default function TranscriptionWorkPage() {
                   // For backend-loaded transcription projects, construct the media URL
                   // The media file is stored in the transcription project folder on the server
                   const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}`
+                    ? (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000')
                     : '';
-                  mediaUrl = `${apiUrl}/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}`;
+                  mediaUrl = apiUrl + '/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}';
                   console.log('Page: Constructed media URL for backend project:', mediaUrl);
                 }
                 
@@ -1108,11 +1108,11 @@ export default function TranscriptionWorkPage() {
                         return;
                       }
                       
-                      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/projects/${transcriptionToDelete.projectId}`, {
+                      const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/projects/${transcriptionToDelete.projectId}', {
                         method: 'DELETE',
                         headers: {
                           'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`
+                          'Authorization': 'Bearer ' + token
                         },
                         credentials: 'include'
                       });
@@ -1197,7 +1197,7 @@ export default function TranscriptionWorkPage() {
                     setCurrentMediaIndex(0);
                     // Clear saved session and mappings for current user
                     if (currentUserId) {
-                      const sessionKey = `transcriptionSessionState_${currentUserId}`;
+                      const sessionKey = 'transcriptionSessionState_' + currentUserId;
                       localStorage.removeItem(sessionKey);
                     }
                     setMediaProjectsMap(new Map());
@@ -1221,17 +1221,17 @@ export default function TranscriptionWorkPage() {
                     const transcriptionToDelete = transcriptions[index];
                     if (transcriptionToDelete?.projectId) {
                       try {
-                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/projects/${transcriptionToDelete.projectId}`, {
+                        const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/projects/${transcriptionToDelete.projectId}', {
                           method: 'DELETE',
                           headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
+                            'Authorization': 'Bearer ' + token
                           },
                           credentials: 'include'
                         });
                         
                         if (!response.ok) {
-                          console.error(`Failed to delete project ${transcriptionToDelete.projectId}`);
+                          console.error('Failed to delete project ' + transcriptionToDelete.projectId);
                         }
                       } catch (error) {
                         console.error('Error deleting project:', error);
@@ -1262,7 +1262,7 @@ export default function TranscriptionWorkPage() {
                     setCurrentMediaIndex(0);
                     // Clear saved session and mappings for current user
                     if (currentUserId) {
-                      const sessionKey = `transcriptionSessionState_${currentUserId}`;
+                      const sessionKey = 'transcriptionSessionState_' + currentUserId;
                       localStorage.removeItem(sessionKey);
                     }
                     setMediaProjectsMap(new Map());
@@ -1276,9 +1276,9 @@ export default function TranscriptionWorkPage() {
           {/* Side Workspace */}
           <div className="side-workspace">
             {/* Speaker Component */}
-            <div className={`speaker-container ${
+            <div className={'speaker-container ' + (
               helperFilesExpanded ? 'compressed' : 'normal'
-            }`}>
+            )}>
               <SimpleSpeaker 
                 ref={speakerComponentRef}
                 theme="transcription" 
@@ -1292,24 +1292,24 @@ export default function TranscriptionWorkPage() {
             </div>
 
             {/* Remarks Component */}
-            <div className={`remarks-container ${
+            <div className={'remarks-container ' + (
               helperFilesExpanded ? 'compressed' : 'normal'
-            }`}>
+            )}>
               <Remarks theme="transcription" />
             </div>
 
             {/* HelperFiles Component */}
-            <div className={`helper-files ${
+            <div className={'helper-files ' + (
               helperFilesExpanded ? 'expanded' : 'collapsed'
-            }`}>
+            )}>
               <HelperFiles 
                 isExpanded={helperFilesExpanded}
                 onToggle={() => setHelperFilesExpanded(!helperFilesExpanded)}
                 projects={mediaCollections.map((coll, idx) => ({
-                  id: `proj-${idx}`,
+                  id: 'proj-' + idx,
                   name: coll.name,
                   mediaItems: coll.mediaItems.map((media, mIdx) => ({
-                    id: `media-${idx}-${mIdx}`,
+                    id: 'media-' + idx + '-' + mIdx,
                     name: media.name
                   }))
                 }))}

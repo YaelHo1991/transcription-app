@@ -104,7 +104,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className={`modal-container small ${getModalClass()}`} ref={modalRef}>
+      <div className={'modal-container small ' + getModalClass()} ref={modalRef}>
         {/* Header */}
         <div className="modal-header">
           <h3 className="modal-title">{title}</h3>
@@ -131,7 +131,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         {/* Footer */}
         <div className="modal-footer">
           <button
-            className={`modal-btn ${getConfirmButtonClass()} ${loading ? 'loading' : ''}`}
+            className={'modal-btn ' + getConfirmButtonClass() + ' ' + (loading ? 'loading' : '')}
             onClick={onConfirm}
             disabled={loading}
           >

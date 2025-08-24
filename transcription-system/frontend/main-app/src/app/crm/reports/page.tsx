@@ -80,7 +80,7 @@ export default function ReportsPage() {
           <div className="mini-chart">
             <div className="chart-bars">
               {[65, 70, 68, 75, 80, 85, 90].map((height, i) => (
-                <div key={i} className="bar" style={{ height: `${height}%` }} />
+                <div key={i} className="bar" style={{ height: height + '%' }} />
               ))}
             </div>
           </div>

@@ -70,7 +70,7 @@ export default function HeaderDesigner({ elements, onElementsChange }: HeaderDes
   const getElementPreview = (element: HeaderElement) => {
     switch (element.type) {
       case 'fileName': return 'קובץ: test_recording.mp3';
-      case 'date': return `תאריך: ${new Date().toLocaleDateString('he-IL')}`;
+      case 'date': return 'תאריך: ' + new Date().toLocaleDateString('he-IL');
       case 'pageNumber': return 'עמוד 1';
       case 'speakers': return 'דוברים: יוסי כהן, שרה לוי';
       case 'duration': return 'משך: 00:45:30';
@@ -163,7 +163,7 @@ export default function HeaderDesigner({ elements, onElementsChange }: HeaderDes
 
                 <div className="style-buttons">
                   <button
-                    className={`style-btn ${element.style.bold ? 'active' : ''}`}
+                    className={'style-btn ' + (element.style.bold ? 'active' : '')}
                     onClick={() => updateElementStyle(element.id, { 
                       bold: !element.style.bold 
                     })}
@@ -171,7 +171,7 @@ export default function HeaderDesigner({ elements, onElementsChange }: HeaderDes
                     <strong>B</strong>
                   </button>
                   <button
-                    className={`style-btn ${element.style.italic ? 'active' : ''}`}
+                    className={'style-btn ' + (element.style.italic ? 'active' : '')}
                     onClick={() => updateElementStyle(element.id, { 
                       italic: !element.style.italic 
                     })}
@@ -179,7 +179,7 @@ export default function HeaderDesigner({ elements, onElementsChange }: HeaderDes
                     <em>I</em>
                   </button>
                   <button
-                    className={`style-btn ${element.style.underline ? 'active' : ''}`}
+                    className={'style-btn ' + (element.style.underline ? 'active' : '')}
                     onClick={() => updateElementStyle(element.id, { 
                       underline: !element.style.underline 
                     })}
@@ -192,7 +192,7 @@ export default function HeaderDesigner({ elements, onElementsChange }: HeaderDes
                   <label>צבע:</label>
                   <input
                     type="color"
-                    value={`#${element.style.color || '000000'}`}
+                    value={'#' + (element.style.color || '000000')}
                     onChange={(e) => updateElementStyle(element.id, { 
                       color: e.target.value.substring(1) 
                     })}

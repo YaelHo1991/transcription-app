@@ -68,7 +68,7 @@ export class ChunkedWaveformProcessor {
       const allPeaks: number[] = [];
       let totalDuration = 0;
       
-      console.log(`Processing ${chunks} chunks of ${this.formatBytes(this.chunkSize)} each`);
+      console.log('Processing ' + chunks + ' chunks of ' + this.formatBytes(this.chunkSize) + ' each');
       
       // Process each chunk
       for (let i = 0; i < chunks; i++) {
@@ -144,12 +144,12 @@ export class ChunkedWaveformProcessor {
   private async fetchChunk(url: string, start: number, end: number): Promise<ArrayBuffer> {
     const response = await fetch(url, {
       headers: {
-        'Range': `bytes=${start}-${end}`
+        'Range': 'bytes=' + start + '-' + end
       }
     });
     
     if (!response.ok && response.status !== 206) {
-      throw new Error(`Failed to fetch chunk: ${response.status}`);
+      throw new Error('Failed to fetch chunk: ' + response.status);
     }
     
     return response.arrayBuffer();
@@ -264,7 +264,7 @@ export class ChunkedWaveformProcessor {
       const usagePercent = (usedMemory / totalMemory) * 100;
       
       if (usagePercent > 80) {
-        console.warn(`High memory usage: ${usagePercent.toFixed(1)}%, forcing garbage collection`);
+        console.warn('High memory usage: ' + usagePercent.toFixed(1) + '%, forcing garbage collection');
         // Force garbage collection if available (Chrome with --enable-precise-memory-info)
         if (global.gc) {
           global.gc();
@@ -287,9 +287,9 @@ export class ChunkedWaveformProcessor {
    * Helper: Format bytes for display
    */
   private formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return ((bytes / 1024).toFixed(1)) + ' KB';
+    return ((bytes / (1024 * 1024)).toFixed(1)) + ' MB';
   }
 
   /**
@@ -319,7 +319,7 @@ export class ChunkedWaveformProcessor {
       const blob = await response.blob();
       const fileSize = blob.size;
       
-      console.log(`Blob size: ${this.formatBytes(fileSize)}`);
+      console.log('Blob size: ' + this.formatBytes(fileSize));
       this.onProgress?.(10);
       
       // If the file is small enough, process it directly
@@ -370,7 +370,7 @@ export class ChunkedWaveformProcessor {
     let totalDuration = 0;
     let sampleRate = 44100;
     
-    console.log(`Processing large blob in ${chunks} chunks of ${this.formatBytes(this.chunkSize)} each`);
+    console.log('Processing large blob in ' + chunks + ' chunks of ' + this.formatBytes(this.chunkSize) + ' each');
     
     // Process each chunk
     for (let i = 0; i < chunks; i++) {
@@ -407,7 +407,7 @@ export class ChunkedWaveformProcessor {
           const bytesPerSecond = this.chunkSize / chunkDuration;
           totalDuration = fileSize / bytesPerSecond;
           sampleRate = audioBuffer.sampleRate;
-          console.log(`Estimated total duration: ${totalDuration.toFixed(2)}s from first chunk`);
+          console.log('Estimated total duration: ' + totalDuration.toFixed(2) + 's from first chunk');
         }
         
         // Extract peaks from this chunk (fewer peaks per chunk)
@@ -416,7 +416,7 @@ export class ChunkedWaveformProcessor {
         
       } catch (chunkError) {
         // Skip chunks that can't be decoded (might be at audio boundaries)
-        console.warn(`Skipping chunk ${i + 1}/${chunks} due to decode error:`, chunkError);
+        console.warn('Skipping chunk ' + i + 1 + '/' + chunks + ' due to decode error:', chunkError);
       }
       
       // Report progress

@@ -29,7 +29,7 @@ export function AuthRequiredModal({
     const system = isCRM ? 'crm' : 'transcription';
     
     // Redirect to login with the appropriate system
-    router.push(`/login?system=${system}`);
+    router.push('/login?system=' + system);
   };
 
   return (

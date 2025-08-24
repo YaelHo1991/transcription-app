@@ -40,7 +40,7 @@ export default function TSessionStatus({
       } else if (minutes === 1) {
         setDisplayText('נשמר לפני דקה');
       } else if (minutes < 10) {
-        setDisplayText(`נשמר לפני ${minutes} דקות`);
+        setDisplayText('נשמר לפני ' + minutes + ' דקות');
       } else {
         // After 10 minutes, show date and time
         const date = lastSaveTime.toLocaleDateString('he-IL', {
@@ -51,7 +51,7 @@ export default function TSessionStatus({
           hour: '2-digit',
           minute: '2-digit'
         });
-        setDisplayText(`נשמר ב-${date} ${time}`);
+        setDisplayText('נשמר ב-' + date + ' ' + time);
       }
     };
     

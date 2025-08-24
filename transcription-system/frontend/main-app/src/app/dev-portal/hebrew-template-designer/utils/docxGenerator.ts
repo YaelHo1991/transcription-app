@@ -235,7 +235,7 @@ export async function generateDocxWithRealHeader(
       new Paragraph({
         children: [
           new TextRun({
-            text: `בלוק נוסף ${i + 1}: `,
+            text: 'בלוק נוסף ' + i + 1 + ': ',
             bold: true,
             color: '000080',
             size: 24,
@@ -317,7 +317,7 @@ export async function generateDocxWithRealHeader(
   
   // Generate and save
   const blob = await Packer.toBlob(doc);
-  const fileName = `hebrew_test_${new Date().getTime()}.docx`;
+  const fileName = 'hebrew_test_' + new Date().getTime() + '.docx';
   
   console.log('Saving DOCX with real header & footer as:', fileName);
   saveAs(blob, fileName);

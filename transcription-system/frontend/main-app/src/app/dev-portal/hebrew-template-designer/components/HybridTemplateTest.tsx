@@ -37,9 +37,9 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
     const result = await processor.loadTemplate(file);
     
     if (result.success) {
-      setTemplateStatus(`✓ תבנית נטענה: ${file.name}`);
+      setTemplateStatus('✓ תבנית נטענה: ' + file.name);
     } else {
-      setTemplateStatus(`❌ שגיאה: ${result.message}`);
+      setTemplateStatus('❌ שגיאה: ' + result.message);
     }
   };
 
@@ -59,12 +59,12 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
       const result = await processor.processTemplate(templateData);
       
       if (result.success) {
-        setTemplateStatus(`✓ ${result.message}`);
+        setTemplateStatus('✓ ' + result.message);
       } else {
-        setTemplateStatus(`❌ שגיאה: ${result.message}`);
+        setTemplateStatus('❌ שגיאה: ' + result.message);
       }
     } catch (error) {
-      setTemplateStatus(`❌ שגיאה: ${error}`);
+      setTemplateStatus('❌ שגיאה: ' + error);
     } finally {
       setIsProcessing(false);
     }
@@ -88,8 +88,7 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
       <div className="template-format-info">
         <h3>פורמט התבנית שלך:</h3>
         <div className="format-example">
-          <pre dir="ltr">{`
-קובץ: {fileName}
+          <pre dir="ltr">{`קובץ: {fileName}
 דוברים: {speakers}
 תאריך: {date}
 משך: {duration}
@@ -100,7 +99,7 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
           `}</pre>
         </div>
         <p className="info-note">
-          💡 השתמש ב-{`{transcriptionContent}`} במקום שבו אתה רוצה את התמלול.
+          💡 השתמש ב-{'{transcriptionContent}'} במקום שבו אתה רוצה את התמלול.
           הטקסט יוכנס עם עיצוב RTL מושלם!
         </p>
       </div>
@@ -129,11 +128,11 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
         </div>
 
         {templateStatus && (
-          <div className={`status-message ${
+          <div className={'status-message ' + (
             templateStatus.includes('✓') ? 'success' : 
             templateStatus.includes('❌') ? 'error' : 
             'info'
-          }`}>
+          )}>
             {templateStatus}
           </div>
         )}
@@ -155,7 +154,7 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
         <h3>איך זה עובד:</h3>
         <ol>
           <li>התבנית שלך מעובדת עם כל ה-placeholders הרגילים</li>
-          <li>במקום {`{transcriptionContent}`} מוכנס הטקסט עם RTL מושלם</li>
+          <li>במקום {'{transcriptionContent}'} מוכנס הטקסט עם RTL מושלם</li>
           <li>התוצאה: מסמך אחד עם העיצוב שלך + טקסט עברי מושלם</li>
         </ol>
       </div>
@@ -197,7 +196,7 @@ export default function HybridTemplateTest({ sampleData }: HybridTemplateTestPro
         .format-example pre {
           margin: 0;
           color: #f0f0f0;
-          font-family: 'Courier New', monospace;
+          font-family: \'Courier New\', monospace;
           font-size: 14px;
         }
 

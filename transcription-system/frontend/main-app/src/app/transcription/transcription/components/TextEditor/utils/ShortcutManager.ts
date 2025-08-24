@@ -66,13 +66,13 @@ export class ShortcutManager {
       const response = await fetch(this.apiUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.token}`,
+          'Authorization': 'Bearer ' + this.token,
           'Content-Type': 'application/json'
         }
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to load shortcuts: ${response.statusText}`);
+        throw new Error('Failed to load shortcuts: ' + response.statusText);
       }
       
       const data: ShortcutAPIResponse = await response.json();
@@ -100,7 +100,7 @@ export class ShortcutManager {
       this.categories = data.categories || [];
       this.lastFetchTime = now;
       
-      console.log(`ShortcutManager: Loaded ${this.shortcuts.size} shortcuts (Cache hit rate: ${(this.cache.getStats().hitRate * 100).toFixed(1)}%)`)
+      console.log('ShortcutManager: Loaded ' + this.shortcuts.size + ' shortcuts (Cache hit rate: ' + (this.cache.getStats().hitRate * 100).toFixed(1) + '%)')
     } catch (error) {
       console.error('ShortcutManager: Error loading shortcuts:', error);
     }
@@ -279,7 +279,7 @@ export class ShortcutManager {
     }
     
     if (this.quota.used >= this.quota.max) {
-      throw new Error(`You've reached your limit of ${this.quota.max} personal shortcuts`);
+      throw new Error('You\'ve reached your limit of ' + this.quota.max + ' personal shortcuts');
     }
     
     // Check if shortcut already exists
@@ -300,7 +300,7 @@ export class ShortcutManager {
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.token}`,
+        'Authorization': 'Bearer ' + this.token,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(request)
@@ -337,10 +337,10 @@ export class ShortcutManager {
       throw new Error('Cannot delete system shortcuts');
     }
     
-    const response = await fetch(`${this.apiUrl}/${encodeURIComponent(shortcut)}`, {
+    const response = await fetch(this.apiUrl + '/${encodeURIComponent(shortcut)}', {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${this.token}`
+        'Authorization': 'Bearer ' + this.token
       }
     });
     

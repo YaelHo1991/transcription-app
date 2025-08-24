@@ -59,7 +59,7 @@ export class BlockManager {
 
   // Generate unique ID
   private generateId(): string {
-    return `block-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    return 'block-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
   }
 
   // Add new block
@@ -240,7 +240,7 @@ export class BlockManager {
   // Get text content
   getText(): string {
     return this.blocks.map(block => {
-      const speaker = block.speaker ? `${block.speaker}: ` : '';
+      const speaker = block.speaker ? block.speaker + ': ' : '';
       return speaker + block.text;
     }).join('\n');
   }

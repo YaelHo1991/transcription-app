@@ -178,7 +178,7 @@ export default function TemplateDesigner() {
             {sections.map(section => (
               <div 
                 key={section.id}
-                className={`section-control ${activeSection === section.id ? 'active' : ''}`}
+                className={'section-control ' + (activeSection === section.id ? 'active' : '')}
                 onClick={() => setActiveSection(section.id)}
               >
                 <h4>{section.type === 'title' ? 'כותרת המסמך' : section.type === 'speakers' ? 'שורת דוברים' : 'גוף הטקסט'}</h4>
@@ -271,19 +271,19 @@ export default function TemplateDesigner() {
         {/* Main Preview Area */}
         <div className="designer-main">
           <div className="page-preview" style={{
-            padding: `${pageSettings.margins.top / 20}px ${pageSettings.margins.right / 20}px ${pageSettings.margins.bottom / 20}px ${pageSettings.margins.left / 20}px`
+            padding: pageSettings.margins.top / 20 + 'px ${pageSettings.margins.right / 20}px ${pageSettings.margins.bottom / 20}px ${pageSettings.margins.left / 20}px'
           }}>
             <div className="page-content" ref={editorRef}>
               {/* Header */}
               <div 
                 className="preview-section header-section"
                 style={{
-                  fontSize: `${sections[0].style?.fontSize || 14}pt`,
+                  fontSize: (sections[0].style?.fontSize || 14) + 'pt',
                   fontFamily: sections[0].style?.fontFamily || 'David',
                   textAlign: (sections[0].style?.alignment || 'center') as any,
                   fontWeight: sections[0].style?.bold ? 'bold' : 'normal',
                   textDecoration: sections[0].style?.underline ? 'underline' : 'none',
-                  marginBottom: `${(sections[0].style?.spaceAfter || 240) / 20}px`
+                  marginBottom: ((sections[0].style?.spaceAfter || 240) / 20) + 'px'
                 }}
               >
                 שם הקובץ: דוגמה_להקלטה.mp3
@@ -293,10 +293,10 @@ export default function TemplateDesigner() {
               <div 
                 className="preview-section speakers-section"
                 style={{
-                  fontSize: `${sections[1].style?.fontSize || 12}pt`,
+                  fontSize: (sections[1].style?.fontSize || 12) + 'pt',
                   fontFamily: sections[1].style?.fontFamily || 'David',
                   textAlign: (sections[1].style?.alignment || 'right') as any,
-                  marginBottom: `${(sections[1].style?.spaceAfter || 360) / 20}px`
+                  marginBottom: ((sections[1].style?.spaceAfter || 360) / 20) + 'px'
                 }}
               >
                 דוברים: יוסי כהן, רונית לוי, זמן הקלטה: 01:23:45 דקות
@@ -313,12 +313,12 @@ export default function TemplateDesigner() {
                     key={index}
                     className="content-paragraph"
                     style={{
-                      fontSize: `${sections[2].style?.fontSize || 12}pt`,
+                      fontSize: (sections[2].style?.fontSize || 12) + 'pt',
                       fontFamily: sections[2].style?.fontFamily || 'David',
                       textAlign: (sections[2].style?.alignment || 'justify') as any,
                       lineHeight: sections[2].style?.lineSpacing || 1.5,
-                      paddingRight: `${(sections[2].style?.hangingIndent || 720) / 20}px`,
-                      textIndent: `-${(sections[2].style?.hangingIndent || 720) / 20}px`,
+                      paddingRight: ((sections[2].style?.hangingIndent || 720) / 20) + 'px',
+                      textIndent: '-' + ((sections[2].style?.hangingIndent || 720) / 20) + 'px',
                       marginBottom: '12pt'
                     }}
                   >

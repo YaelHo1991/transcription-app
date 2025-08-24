@@ -52,7 +52,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
              type === 'pageNumberFull' ? '{{pageNumberFull}}' :
              type === 'lineBreak' ? '\n' :
              type === 'tab' ? '\t' :
-             `{{${type}}}`,
+             '{{' + type + '}}',
       position: 'center',
       line: 'same',
       bold: false,
@@ -133,7 +133,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
         </div>
 
         {/* Main Content */}
-        <div className={`header-content ${!settings.enabled ? 'disabled' : ''}`}>
+        <div className={'header-content ' + (!settings.enabled ? 'disabled' : '')}>
           {/* Border Line Settings */}
           <div className="settings-section">
             <div className="section-title">
@@ -284,7 +284,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                     {/* Style buttons */}
                     <div className="style-group">
                       <button 
-                        className={`style-btn ${element.bold ? 'active' : ''}`}
+                        className={'style-btn ' + (element.bold ? 'active' : '')}
                         onClick={() => updateElement(element.id, { bold: !element.bold })}
                         disabled={!settings.enabled}
                         title="מודגש"
@@ -292,7 +292,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         B
                       </button>
                       <button 
-                        className={`style-btn ${element.underline ? 'active' : ''}`}
+                        className={'style-btn ' + (element.underline ? 'active' : '')}
                         onClick={() => updateElement(element.id, { underline: !element.underline })}
                         disabled={!settings.enabled}
                         title="קו תחתון"
@@ -300,7 +300,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         U
                       </button>
                       <button 
-                        className={`style-btn ${element.italic ? 'active' : ''}`}
+                        className={'style-btn ' + (element.italic ? 'active' : '')}
                         onClick={() => updateElement(element.id, { italic: !element.italic })}
                         disabled={!settings.enabled}
                         title="נטוי"
@@ -358,7 +358,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`
+                        fontSize: el.size + 'pt'
                       }}>
                         {el.type === 'fileName' ? 'דוגמה.docx' : 
                          el.type === 'speakers' ? 'יוסי, רונית' :
@@ -380,7 +380,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`
+                        fontSize: el.size + 'pt'
                       }}>
                         {el.type === 'fileName' ? 'דוגמה.docx' : 
                          el.type === 'speakers' ? 'יוסי, רונית' :
@@ -402,7 +402,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`
+                        fontSize: el.size + 'pt'
                       }}>
                         {el.type === 'fileName' ? 'דוגמה.docx' : 
                          el.type === 'speakers' ? 'יוסי, רונית' :
@@ -428,7 +428,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                       fontWeight: el.bold ? 'bold' : 'normal',
                       textDecoration: el.underline ? 'underline' : 'none',
                       fontStyle: el.italic ? 'italic' : 'normal',
-                      fontSize: `${el.size}pt`
+                      fontSize: el.size + 'pt'
                     }}>
                       {el.type === 'fileName' ? 'דוגמה.docx' : 
                        el.type === 'speakers' ? 'יוסי, רונית' :
@@ -450,7 +450,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                       fontWeight: el.bold ? 'bold' : 'normal',
                       textDecoration: el.underline ? 'underline' : 'none',
                       fontStyle: el.italic ? 'italic' : 'normal',
-                      fontSize: `${el.size}pt`
+                      fontSize: el.size + 'pt'
                     }}>
                       {el.type === 'fileName' ? 'דוגמה.docx' : 
                        el.type === 'speakers' ? 'יוסי, רונית' :
@@ -472,7 +472,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                       fontWeight: el.bold ? 'bold' : 'normal',
                       textDecoration: el.underline ? 'underline' : 'none',
                       fontStyle: el.italic ? 'italic' : 'normal',
-                      fontSize: `${el.size}pt`
+                      fontSize: el.size + 'pt'
                     }}>
                       {el.type === 'fileName' ? 'דוגמה.docx' : 
                        el.type === 'speakers' ? 'יוסי, רונית' :
@@ -498,7 +498,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`
+                        fontSize: el.size + 'pt'
                       }}>
                         {el.type === 'fileName' ? 'דוגמה.docx' : 
                          el.type === 'speakers' ? 'יוסי, רונית' :
@@ -520,7 +520,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`
+                        fontSize: el.size + 'pt'
                       }}>
                         {el.type === 'fileName' ? 'דוגמה.docx' : 
                          el.type === 'speakers' ? 'יוסי, רונית' :
@@ -542,7 +542,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                         fontWeight: el.bold ? 'bold' : 'normal',
                         textDecoration: el.underline ? 'underline' : 'none',
                         fontStyle: el.italic ? 'italic' : 'normal',
-                        fontSize: `${el.size}pt`
+                        fontSize: el.size + 'pt'
                       }}>
                         {el.type === 'fileName' ? 'דוגמה.docx' : 
                          el.type === 'speakers' ? 'יוסי, רונית' :
@@ -565,7 +565,7 @@ export default function HeaderDesigner({ settings, onUpdate }: Props) {
                 <div 
                   className="preview-border"
                   style={{
-                    borderBottom: `${settings.borderLine.thickness}px ${settings.borderLine.style} #${settings.borderLine.color}`
+                    borderBottom: settings.borderLine.thickness + 'px ${settings.borderLine.style} #${settings.borderLine.color}'
                   }}
                 />
               )}

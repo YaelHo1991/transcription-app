@@ -181,7 +181,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
         setPedalStatus({
           type: 'success',
           title: 'דוושה מחוברת',
-          message: `מחובר ל: ${devices[0].productName || 'Unknown Device'}`
+          message: 'מחובר ל: ' + (devices[0].productName || 'Unknown Device')
         });
       }
     } catch (error) {
@@ -292,19 +292,19 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
           {/* Modal Tabs */}
           <div className="settings-modal-tabs">
             <button 
-              className={`settings-tab-btn ${activeTab === 'shortcuts' ? 'active' : ''}`}
+              className={'settings-tab-btn ' + (activeTab === 'shortcuts' ? 'active' : '')}
               onClick={() => setActiveTab('shortcuts')}
             >
               קיצורי מקלדת
             </button>
             <button 
-              className={`settings-tab-btn ${activeTab === 'pedal' ? 'active' : ''}`}
+              className={'settings-tab-btn ' + (activeTab === 'pedal' ? 'active' : '')}
               onClick={() => setActiveTab('pedal')}
             >
               דוושת רגל
             </button>
             <button 
-              className={`settings-tab-btn ${activeTab === 'autodetect' ? 'active' : ''}`}
+              className={'settings-tab-btn ' + (activeTab === 'autodetect' ? 'active' : '')}
               onClick={() => setActiveTab('autodetect')}
             >
               זיהוי אוטומטי
@@ -341,7 +341,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                         <div key={shortcut.action} className="media-shortcut-item">
                           <span className="media-shortcut-label">{shortcut.label}</span>
                           <button 
-                            className={`media-shortcut-key ${editingShortcut === shortcut.action ? 'editing' : ''}`}
+                            className={'media-shortcut-key ' + (editingShortcut === shortcut.action ? 'editing' : '')}
                             onClick={() => handleShortcutEdit(shortcut.action)}
                           >
                             {editingShortcut === shortcut.action ? 'לחץ על מקש...' : shortcut.key}
@@ -357,7 +357,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                         <div key={shortcut.action} className="media-shortcut-item">
                           <span className="media-shortcut-label">{shortcut.label}</span>
                           <button 
-                            className={`media-shortcut-key ${editingShortcut === shortcut.action ? 'editing' : ''}`}
+                            className={'media-shortcut-key ' + (editingShortcut === shortcut.action ? 'editing' : '')}
                             onClick={() => handleShortcutEdit(shortcut.action)}
                           >
                             {editingShortcut === shortcut.action ? 'לחץ על מקש...' : shortcut.key}
@@ -373,7 +373,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                         <div key={shortcut.action} className="media-shortcut-item">
                           <span className="media-shortcut-label">{shortcut.label}</span>
                           <button 
-                            className={`media-shortcut-key ${editingShortcut === shortcut.action ? 'editing' : ''}`}
+                            className={'media-shortcut-key ' + (editingShortcut === shortcut.action ? 'editing' : '')}
                             onClick={() => handleShortcutEdit(shortcut.action)}
                           >
                             {editingShortcut === shortcut.action ? 'לחץ על מקש...' : shortcut.key}
@@ -389,7 +389,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                         <div key={shortcut.action} className="media-shortcut-item">
                           <span className="media-shortcut-label">{shortcut.label}</span>
                           <button 
-                            className={`media-shortcut-key ${editingShortcut === shortcut.action ? 'editing' : ''}`}
+                            className={'media-shortcut-key ' + (editingShortcut === shortcut.action ? 'editing' : '')}
                             onClick={() => handleShortcutEdit(shortcut.action)}
                           >
                             {editingShortcut === shortcut.action ? 'לחץ על מקש...' : shortcut.key}
@@ -405,7 +405,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                         <div key={shortcut.action} className="media-shortcut-item">
                           <span className="media-shortcut-label">{shortcut.label}</span>
                           <button 
-                            className={`media-shortcut-key ${editingShortcut === shortcut.action ? 'editing' : ''}`}
+                            className={'media-shortcut-key ' + (editingShortcut === shortcut.action ? 'editing' : '')}
                             onClick={() => handleShortcutEdit(shortcut.action)}
                           >
                             {editingShortcut === shortcut.action ? 'לחץ על מקש...' : shortcut.key}
@@ -430,7 +430,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                         </label>
                         <span>אפשר חזרה אחורה בעצירה</span>
                       </div>
-                      <div className={`rewind-amount-container ${!rewindOnPause ? 'disabled' : ''}`}>
+                      <div className={'rewind-amount-container ' + (!rewindOnPause ? 'disabled' : '')}>
                         <label>כמות (שניות):</label>
                         <input 
                           type="number" 

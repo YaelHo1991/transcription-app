@@ -177,7 +177,7 @@ export default function EmployeesPage() {
               <button 
                 className="btn-confirm"
                 onClick={() => {
-                  alert(`מחבר עובד עם קוד: ${transcriberCodeInput}`);
+                  alert('מחבר עובד עם קוד: ' + transcriberCodeInput);
                   setShowAddModal(false);
                   setTranscriberCodeInput('');
                 }}

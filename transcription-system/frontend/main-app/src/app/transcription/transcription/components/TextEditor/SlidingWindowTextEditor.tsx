@@ -144,7 +144,7 @@ export default function SlidingWindowTextEditor({
       ref={scrollContainerRef}
       className="text-editor-content sliding-window"
       style={{
-        height: `${containerHeight}px`,
+        height: containerHeight + 'px',
         overflowY: 'auto',
         overflowX: 'hidden',
         direction: 'rtl',
@@ -154,13 +154,13 @@ export default function SlidingWindowTextEditor({
     >
       {/* Virtual scrolling container with full document height */}
       <div style={{ 
-        height: `${totalHeight}px`,
+        height: totalHeight + 'px',
         position: 'relative'
       }}>
         {/* Position the window of blocks at the correct offset */}
         <div style={{
           position: 'absolute',
-          top: `${topSpacerHeight}px`,
+          top: topSpacerHeight + 'px',
           left: 0,
           right: 0
         }}>
@@ -179,7 +179,7 @@ export default function SlidingWindowTextEditor({
         return (
           <div 
             key={block.id} 
-            id={`block-${block.id}`}
+            id={'block-' + block.id}
             className={isSelected ? 'block-selected' : ''}
             onClick={(e) => {
               // Only handle if clicking on the wrapper div, not the TextBlock itself
@@ -221,7 +221,7 @@ export default function SlidingWindowTextEditor({
         {visibleRange.end >= blocks.length && (
           <div style={{
             position: 'absolute',
-            top: `${blocks.length * BLOCK_HEIGHT + 20}px`,
+            top: blocks.length * BLOCK_HEIGHT + 20 + 'px',
             left: 0,
             right: 0,
             textAlign: 'center',

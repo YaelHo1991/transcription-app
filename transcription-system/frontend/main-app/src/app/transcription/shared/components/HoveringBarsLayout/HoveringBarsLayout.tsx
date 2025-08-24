@@ -94,7 +94,7 @@ export default function HoveringBarsLayout({
   }, [handleSidebarMouseLeave, handleHeaderMouseLeave]);
 
   return (
-    <div className={`hovering-bars-layout theme-${theme}`} dir="rtl">
+    <div className={'hovering-bars-layout theme-' + theme} dir="rtl">
       {/* Header Trigger Area */}
       <div 
         className="header-trigger-area"
@@ -104,9 +104,9 @@ export default function HoveringBarsLayout({
 
       {/* Hovering Header */}
       <div 
-        className={`hovering-header ${
+        className={'hovering-header ' + (
           headerLocked || headerHovered ? 'visible' : ''
-        } ${headerLocked ? 'locked' : ''}`}
+        ) + ' ' + (headerLocked ? 'locked' : '')}
         onMouseEnter={handleHeaderMouseEnter}
         onMouseLeave={handleHeaderMouseLeave}
       >
@@ -117,26 +117,26 @@ export default function HoveringBarsLayout({
       </div>
 
       {/* Main Content Area */}
-      <div className={`main-content-wrapper ${
+      <div className={'main-content-wrapper ' + (
         headerLocked ? 'header-locked' : ''
-      } ${
+      ) + ' ' + (
         sidebarLocked ? 'sidebar-locked' : ''
-      }`}>
+      )}>
         {children}
       </div>
 
       {/* Sidebar Trigger Corner - Also triggers header */}
       <div 
-        className={`sidebar-trigger-corner ${headerLocked ? 'header-locked' : ''}`}
+        className={'sidebar-trigger-corner ' + (headerLocked ? 'header-locked' : '')}
         onMouseEnter={handleCornerMouseEnter}
         onMouseLeave={handleCornerMouseLeave}
       />
 
       {/* Hovering Sidebar */}
       <div 
-        className={`hovering-sidebar ${
+        className={'hovering-sidebar ' + (
           sidebarLocked || sidebarHovered ? 'visible' : ''
-        } ${sidebarLocked ? 'locked' : ''} ${headerLocked ? 'header-locked' : ''}`}
+        ) + ' ' + (sidebarLocked ? 'locked' : '') + ' ' + (headerLocked ? 'header-locked' : '')}
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
       >
@@ -145,7 +145,7 @@ export default function HoveringBarsLayout({
             <h3 className="sidebar-title">פרויקטים זמינים</h3>
             <button 
               onClick={handleSidebarLockToggle}
-              className={`lock-btn ${sidebarLocked ? 'locked' : ''}`}
+              className={'lock-btn ' + (sidebarLocked ? 'locked' : '')}
               aria-label={sidebarLocked ? 'Unlock sidebar' : 'Lock sidebar'}
               title={sidebarLocked ? 'בטל נעילה' : 'נעל'}
             >

@@ -70,20 +70,20 @@ export default function ToolbarGroup({
   // Removed auto-close on outside click to allow multiple groups open
 
   return (
-    <div className={`toolbar-group ${expanded ? 'expanded' : ''}`} ref={groupRef}>
+    <div className={'toolbar-group ' + (expanded ? 'expanded' : '')} ref={groupRef}>
       <button
-        className={`toolbar-group-btn ${expanded ? 'active' : ''}`}
+        className={'toolbar-group-btn ' + (expanded ? 'active' : '')}
         onClick={() => setExpanded(!expanded)}
         title={groupTitle}
       >
         <span className="toolbar-icon">{groupIcon}</span>
-        <span className={`expand-indicator ${expanded ? 'rotated' : ''}`}>
+        <span className={'expand-indicator ' + (expanded ? 'rotated' : '')}>
           ‹
         </span>
       </button>
       
       <div 
-        className={`toolbar-group-buttons ${expanded ? 'visible' : ''} ${animating ? 'animating' : ''}`}
+        className={'toolbar-group-buttons ' + (expanded ? 'visible' : '') + ' ' + (animating ? 'animating' : '')}
         ref={buttonsRef}
       >
         {buttons.map((button, index) => {
@@ -96,7 +96,7 @@ export default function ToolbarGroup({
           return (
             <button
               key={index}
-              className={`toolbar-btn ${button.active ? 'active' : ''} ${button.className || ''}`}
+              className={'toolbar-btn ' + (button.active ? 'active' : '') + ' ' + (button.className || '')}
               style={button.style}
               onClick={(e) => {
                 e.preventDefault();

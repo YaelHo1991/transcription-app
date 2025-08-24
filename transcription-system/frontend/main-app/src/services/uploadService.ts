@@ -16,7 +16,7 @@ interface UploadOptions {
 }
 
 class SmartUploadService {
-  private readonly API_URL = process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api';
+  private readonly API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api';
   private readonly CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
   private readonly LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
 
@@ -88,9 +88,9 @@ class SmartUploadService {
     formData.append('fileUrl', url);
     formData.append('projectId', projectId);
 
-    const response = await axios.post(`${this.API_URL}/upload`, formData, {
+    const response = await axios.post('${this.API_URL}/upload`, formData, {
       headers: {
-        'Authorization': `Bearer ${this.getAuthToken()}`
+        'Authorization': 'Bearer ' + this.getAuthToken()
       },
       onUploadProgress: (progressEvent: AxiosProgressEvent) => {
         // Since URL import doesn't have real progress, show fake progress
@@ -117,8 +117,8 @@ class SmartUploadService {
     onComplete?: (fileName: string) => void
   ): Promise<string> {
     const totalChunks = Math.ceil(file.size / this.CHUNK_SIZE);
-    const fileId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const fileName = `${Date.now()}_${file.name}`;
+    const fileId = (Date.now()) + '_${Math.random().toString(36).substr(2, 9)}';
+    const fileName = (Date.now()) + '_${file.name}';
     
     let uploadedChunks = 0;
 
@@ -137,14 +137,14 @@ class SmartUploadService {
         fileId
       }));
 
-      const response = await axios.post(`${this.API_URL}/upload`, formData, {
+      const response = await axios.post(this.API_URL + '/upload', formData, {
         headers: {
-          'Authorization': `Bearer ${this.getAuthToken()}`
+          'Authorization': 'Bearer ' + this.getAuthToken()
         }
       });
 
       if (!response.data.success) {
-        throw new Error(`Chunk ${chunkIndex + 1} upload failed`);
+        throw new Error('Chunk ' + chunkIndex + 1 + ' upload failed');
       }
 
       uploadedChunks++;
@@ -174,9 +174,9 @@ class SmartUploadService {
     formData.append('file', file);
     formData.append('projectId', projectId);
 
-    const response = await axios.post(`${this.API_URL}/upload`, formData, {
+    const response = await axios.post(this.API_URL + '/upload', formData, {
       headers: {
-        'Authorization': `Bearer ${this.getAuthToken()}`
+        'Authorization': 'Bearer ' + this.getAuthToken()
       },
       onUploadProgress: (progressEvent: AxiosProgressEvent) => {
         if (progressEvent.total) {
@@ -227,14 +227,14 @@ class SmartUploadService {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     
     if (!validExtensions.includes(ext)) {
-      return { valid: false, error: `קובץ מסוג ${ext} אינו נתמך` };
+      return { valid: false, error: 'קובץ מסוג ' + ext + ' אינו נתמך' };
     }
     
     // Check file size (max 5GB)
     const maxSize = 5 * 1024 * 1024 * 1024; // 5GB
     if (file.size > maxSize) {
       const sizeInGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
-      return { valid: false, error: `הקובץ גדול מדי: ${sizeInGB}GB (מקסימום 5GB)` };
+      return { valid: false, error: 'הקובץ גדול מדי: ' + sizeInGB + 'GB (מקסימום 5GB)' };
     }
     
     return { valid: true };

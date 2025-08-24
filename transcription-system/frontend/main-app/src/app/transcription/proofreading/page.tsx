@@ -136,7 +136,7 @@ export default function ProofreadingPage() {
 
       {/* Collapsible Header */}
       <div 
-        className={`p-collapsible-header ${showHeader ? 'show' : ''}`}
+        className={'p-collapsible-header ' + (showHeader ? 'show' : '')}
         onMouseEnter={() => {
           if (headerTimeout) clearTimeout(headerTimeout);
           setShowHeader(true);
@@ -188,7 +188,7 @@ export default function ProofreadingPage() {
 
       {/* Sidebar */}
       <div 
-        className={`p-sidebar ${showSidebar ? 'show' : ''}`}
+        className={'p-sidebar ' + (showSidebar ? 'show' : '')}
         onMouseEnter={() => {
           if (sidebarTimeout) clearTimeout(sidebarTimeout);
           setShowSidebar(true);
@@ -234,7 +234,7 @@ export default function ProofreadingPage() {
             {projects.map(project => (
               <div 
                 key={project.id} 
-                className={`project-item ${selectedProject?.id === project.id ? 'selected' : ''}`}
+                className={'project-item ' + (selectedProject?.id === project.id ? 'selected' : '')}
                 onClick={() => setSelectedProject(project)}
               >
                 <div className="project-item-title">{project.title}</div>
@@ -246,7 +246,7 @@ export default function ProofreadingPage() {
                   <div className="progress-bar">
                     <div 
                       className="progress-fill" 
-                      style={{ width: `${project.progress}%` }}
+                      style={{ width: project.progress + '%' }}
                     ></div>
                   </div>
                   <span className="progress-text">{project.progress}%</span>

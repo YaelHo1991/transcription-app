@@ -23,24 +23,24 @@ export default function Navigation() {
         </Link>
         <div className={styles.navLinks}>
           <a 
-            href={`${apiBaseUrl}/dev`}
+            href={apiBaseUrl + '/dev'}
             className={styles.navLink}
             target="_blank"
             rel="noopener noreferrer"
           >
             🔧 לוח פיתוח
           </a>
-          <Link href="/licenses" className={`${styles.navLink} ${isActive('/licenses')}`}>
+          <Link href="/licenses" className={styles.navLink + ' ${isActive(\'/licenses\')}'}>
             📋 מכירת רישיונות
           </Link>
-          <Link href="/crm" className={`${styles.navLink} ${isActive('/crm')}`}>
+          <Link href="/crm" className={styles.navLink + ' ${isActive(\'/crm\')}'}>
             👥 CRM
           </Link>
-          <Link href="/transcription" className={`${styles.navLink} ${isActive('/transcription')}`}>
+          <Link href="/transcription" className={styles.navLink + ' ${isActive(\'/transcription\')}'}>
             🎯 תמלול
           </Link>
           <a 
-            href={`${apiBaseUrl}/api/health`}
+            href={apiBaseUrl + '/api/health'}
             className={styles.navLink}
             target="_blank"
             rel="noopener noreferrer"

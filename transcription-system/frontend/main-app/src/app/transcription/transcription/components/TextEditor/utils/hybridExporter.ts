@@ -19,7 +19,7 @@ export class HybridExporter {
     const RLM = '\u200F'; // Right-to-Left Mark
     
     // Join with comma + RLM to keep comma with previous text in RTL
-    return items.join(`,${RLM} `);
+    return items.join(',' + RLM + ' ');
   }
 
   /**
@@ -201,7 +201,7 @@ export class HybridExporter {
         }
         
         if (speakerName) {
-          return `${speakerName}:\t${text}`;
+          return speakerName + ':\t${text}';
         }
         return text;
       }).join('\n\n');
@@ -222,7 +222,7 @@ export class HybridExporter {
       });
 
       const fileName = customFileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       
       saveAs(output, fileName);
       return true;
@@ -253,7 +253,7 @@ export class HybridExporter {
       const blob = await Packer.toBlob(doc);
       
       const fileName = customFileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       
       saveAs(blob, fileName);
       return true;
@@ -278,7 +278,7 @@ export class HybridExporter {
     const hours = Math.floor(maxTime / 3600);
     const minutes = Math.floor((maxTime % 3600) / 60);
     const seconds = Math.floor(maxTime % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return (hours.toString().padStart(2, '0')) + ':${minutes.toString().padStart(2, \'0\')}:${seconds.toString().padStart(2, \'0\')}';
   }
 
   /**

@@ -37,9 +37,9 @@ export default function MediaControls({
     const seconds = Math.floor(time % 60);
     
     if (hours > 0) {
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      return (hours.toString().padStart(2, '0')) + ':${minutes.toString().padStart(2, \'0\')}:${seconds.toString().padStart(2, \'0\')}';
     }
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return (minutes.toString().padStart(2, '0')) + ':${seconds.toString().padStart(2, \'0\')}';
   };
 
   // Handle time display click for seeking
@@ -169,7 +169,7 @@ export default function MediaControls({
             position: 'absolute',
             right: 0,
             top: 0,
-            width: `${progressPercentage}%`,
+            width: progressPercentage + '%',
             height: '100%',
             backgroundColor: '#26d0ce',
             borderRadius: '4px',

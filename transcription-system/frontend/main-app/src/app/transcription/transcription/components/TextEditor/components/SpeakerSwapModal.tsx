@@ -169,8 +169,8 @@ export default function SpeakerSwapModal({
       ref={modalRef}
       className="speaker-swap-window"
       style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`
+        left: position.x + 'px',
+        top: position.y + 'px'
       }}
     >
         <div 

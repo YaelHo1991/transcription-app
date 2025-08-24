@@ -208,13 +208,13 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
       
       console.warn('========================================');
       console.warn('VIDEO CUBE DRAGGED TO PERFECT POSITION:');
-      console.warn(`Absolute: X=${pos.x}px, Y=${pos.y}px`);
-      console.warn(`From grid top: ${offsetFromGridTop}px`);
-      console.warn(`From main workspace right edge: ${offsetFromMainRight}px`);
+      console.warn('Absolute: X=' + pos.x + 'px, Y=' + pos.y + 'px');
+      console.warn('From grid top: ' + offsetFromGridTop + 'px');
+      console.warn('From main workspace right edge: ' + offsetFromMainRight + 'px');
       console.warn('');
       console.warn('TO SET AS DEFAULT, UPDATE getDefaultPosition():');
-      console.warn(`x = mainRect.right + ${offsetFromMainRight}`);
-      console.warn(`y = gridRect.top + ${offsetFromGridTop}`);
+      console.warn('x = mainRect.right + ' + offsetFromMainRight);
+      console.warn('y = gridRect.top + ' + offsetFromGridTop);
       console.warn('========================================');
     }
   };
@@ -434,7 +434,7 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
   return (
     <div
       ref={containerRef}
-      className={`video-cube active ${isDetached ? 'detached' : 'in-layout'} ${isDragMode ? 'drag-mode' : ''}`}
+      className={'video-cube active ' + (isDetached ? 'detached' : 'in-layout') + ' ' + (isDragMode ? 'drag-mode' : '')}
       style={isDetached ? {
         // Detached mode - absolute positioning
         position: 'fixed',

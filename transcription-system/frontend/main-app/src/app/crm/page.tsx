@@ -138,7 +138,7 @@ export default function CRMPage() {
 
       <div className="management-cubes">
         {visibleCubes.map(cube => (
-          <div key={cube.id} className={`cube-card ${cube.className}`}>
+          <div key={cube.id} className={'cube-card ' + cube.className}>
             <Link href={cube.link} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="cube-header">
                 <div className="cube-icon">{cube.icon}</div>

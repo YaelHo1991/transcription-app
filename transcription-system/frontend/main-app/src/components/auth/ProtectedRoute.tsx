@@ -102,7 +102,7 @@ export function withAuth<P extends object>(
     )
   }
 
-  AuthenticatedComponent.displayName = `withAuth(${Component.displayName || Component.name})`
+  AuthenticatedComponent.displayName = 'withAuth(' + (Component.displayName || Component.name) + ')'
   
   return AuthenticatedComponent
 }
