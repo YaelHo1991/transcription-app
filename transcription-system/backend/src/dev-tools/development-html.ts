@@ -4,6 +4,28 @@ export const developmentHTML = `<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>לוח בקרה למפתחים</title>
+    <script>
+        // Determine the correct frontend URL based on current location
+        function getFrontendUrl() {
+            const hostname = window.location.hostname;
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:3002';
+            } else {
+                // On production, use the main domain (without port 5000)
+                return 'http://' + hostname;
+            }
+        }
+        
+        // Helper to build correct URLs
+        function buildUrl(path) {
+            if (path === '/dev' || path === '/api') {
+                // These stay on backend
+                return path;
+            }
+            // Frontend routes
+            return getFrontendUrl() + path;
+        }
+    </script>
     <style>
         /* Professional Development Page Styling */
         :root {
@@ -308,7 +330,7 @@ export const developmentHTML = `<!DOCTYPE html>
     <!-- Developer Navigation Bar -->
     <nav id="dev-navigation-bar">
         <div class="nav-container">
-            <a href="/dev-portal" class="home-link">
+            <a href="#" onclick="window.location.href=buildUrl('/dev-portal'); return false;" class="home-link">
                 <span style="font-size: 20px; margin-left: 8px;">🏠</span>
                 <span>דף הבית</span>
             </a>
@@ -316,16 +338,16 @@ export const developmentHTML = `<!DOCTYPE html>
                 <a href="/dev" style="background: rgba(255,255,255,0.1); border-radius: 4px;">
                     🔧 לוח פיתוח
                 </a>
-                <a href="/licenses">
+                <a href="#" onclick="window.location.href=buildUrl('/licenses'); return false;">
                     📋 מכירת רישיונות
                 </a>
-                <a href="/crm">
+                <a href="#" onclick="window.location.href=buildUrl('/crm'); return false;">
                     👥 CRM
                 </a>
-                <a href="/transcription">
+                <a href="#" onclick="window.location.href=buildUrl('/transcription'); return false;">
                     🎯 תמלול
                 </a>
-                <a href="/dev-portal/shortcuts-admin">
+                <a href="#" onclick="window.location.href=buildUrl('/dev-portal/shortcuts-admin'); return false;">
                     ⌨️ קיצורים
                 </a>
                 <a href="/api" target="_blank">
@@ -415,7 +437,7 @@ export const developmentHTML = `<!DOCTYPE html>
                     <h4>🚀 פיתוח</h4>
                     <div class="tool-buttons">
                         <button class="tool-btn primary" onclick="refreshPage()">רענן נתונים</button>
-                        <button class="tool-btn success" onclick="window.location.href='/licenses'">הוסף משתמשים</button>
+                        <button class="tool-btn success" onclick="window.location.href=buildUrl('/licenses')">הוסף משתמשים</button>
                         <button class="tool-btn warning" onclick="testConnections()">בדוק חיבורים</button>
                         <button class="tool-btn danger" onclick="showDemoMessage('איפוס מערכת')">איפוס מערכת</button>
                     </div>
@@ -424,7 +446,7 @@ export const developmentHTML = `<!DOCTYPE html>
                 <div class="tool-card">
                     <h4>📝 ניהול קיצורים</h4>
                     <div class="tool-buttons">
-                        <button class="tool-btn primary" onclick="window.location.href='/dev-portal/shortcuts-admin'">ניהול קיצורי מערכת</button>
+                        <button class="tool-btn primary" onclick="window.location.href=buildUrl('/dev-portal/shortcuts-admin')">ניהול קיצורי מערכת</button>
                         <button class="tool-btn success" onclick="showShortcutsStats()">סטטיסטיקות קיצורים</button>
                         <button class="tool-btn warning" onclick="exportSystemShortcuts()">ייצא קיצורי מערכת</button>
                     </div>
