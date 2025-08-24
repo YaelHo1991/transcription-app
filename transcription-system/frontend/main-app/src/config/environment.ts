@@ -4,6 +4,8 @@
  * Works on both localhost and production without code changes
  */
 
+import { getApiUrl as getApiUrlFromUtils } from '@/utils/api';
+
 class EnvironmentConfig {
   private static instance: EnvironmentConfig;
   
@@ -35,42 +37,11 @@ class EnvironmentConfig {
 
   /**
    * Get the API base URL
-   * Auto-detects based on environment
+   * Uses the centralized API utility for consistent URL handling
    */
   getApiUrl(): string {
-    // First check for explicit environment variable
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      return process.env.NEXT_PUBLIC_API_URL;
-    }
-
-    // If we're on the server (SSR), use environment variable or default
-    if (typeof window === 'undefined') {
-      return process.env.API_URL || 'http://localhost:5000';
-    }
-
-    // Client-side detection
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    const port = window.location.port;
-
-    // Development environment
-    if (this.isDevelopment()) {
-      return 'http://localhost:5000';
-    }
-
-    // Production environment
-    // Assumes API is on same domain at /api or on subdomain
-    if (hostname.includes('digitalocean') || hostname.includes('your-domain')) {
-      // If your API is on a subdomain
-      if (process.env.NEXT_PUBLIC_API_SUBDOMAIN) {
-        return protocol + '//api.${hostname}';
-      }
-      // If API is on same domain with /api prefix
-      return protocol + '//${hostname}${port ? \':\' + port : \'\'}/api';
-    }
-
-    // Default fallback
-    return protocol + '//${hostname}:5000';
+    // Use the centralized API utility
+    return getApiUrlFromUtils();
   }
 
   /**
