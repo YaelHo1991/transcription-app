@@ -78,7 +78,8 @@
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Bash(deploy-to-do.bat)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(ssh:*)"
     ],
     "deny": [],
     "additionalDirectories": [

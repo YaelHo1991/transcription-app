@@ -308,27 +308,27 @@ export const developmentHTML = `<!DOCTYPE html>
     <!-- Developer Navigation Bar -->
     <nav id="dev-navigation-bar">
         <div class="nav-container">
-            <a href="http://localhost:3002/dev-portal" class="home-link">
+            <a href="/dev-portal" class="home-link">
                 <span style="font-size: 20px; margin-left: 8px;">🏠</span>
                 <span>דף הבית</span>
             </a>
             <div class="nav-links">
-                <a href="http://localhost:5000/dev" style="background: rgba(255,255,255,0.1); border-radius: 4px;">
+                <a href="/dev" style="background: rgba(255,255,255,0.1); border-radius: 4px;">
                     🔧 לוח פיתוח
                 </a>
-                <a href="http://localhost:3002/licenses">
+                <a href="/licenses">
                     📋 מכירת רישיונות
                 </a>
-                <a href="http://localhost:3002/crm">
+                <a href="/crm">
                     👥 CRM
                 </a>
-                <a href="http://localhost:3002/transcription">
+                <a href="/transcription">
                     🎯 תמלול
                 </a>
-                <a href="http://localhost:3002/dev-portal/shortcuts-admin">
+                <a href="/dev-portal/shortcuts-admin">
                     ⌨️ קיצורים
                 </a>
-                <a href="http://localhost:5000" target="_blank">
+                <a href="/api" target="_blank">
                     🖥️ שרת
                 </a>
             </div>
@@ -415,7 +415,7 @@ export const developmentHTML = `<!DOCTYPE html>
                     <h4>🚀 פיתוח</h4>
                     <div class="tool-buttons">
                         <button class="tool-btn primary" onclick="refreshPage()">רענן נתונים</button>
-                        <button class="tool-btn success" onclick="window.location.href='http://localhost:3004/licenses'">הוסף משתמשים</button>
+                        <button class="tool-btn success" onclick="window.location.href='/licenses'">הוסף משתמשים</button>
                         <button class="tool-btn warning" onclick="testConnections()">בדוק חיבורים</button>
                         <button class="tool-btn danger" onclick="showDemoMessage('איפוס מערכת')">איפוס מערכת</button>
                     </div>
@@ -424,7 +424,7 @@ export const developmentHTML = `<!DOCTYPE html>
                 <div class="tool-card">
                     <h4>📝 ניהול קיצורים</h4>
                     <div class="tool-buttons">
-                        <button class="tool-btn primary" onclick="window.location.href='http://localhost:3002/dev-portal/shortcuts-admin'">ניהול קיצורי מערכת</button>
+                        <button class="tool-btn primary" onclick="window.location.href='/dev-portal/shortcuts-admin'">ניהול קיצורי מערכת</button>
                         <button class="tool-btn success" onclick="showShortcutsStats()">סטטיסטיקות קיצורים</button>
                         <button class="tool-btn warning" onclick="exportSystemShortcuts()">ייצא קיצורי מערכת</button>
                     </div>
@@ -653,7 +653,7 @@ export const developmentHTML = `<!DOCTYPE html>
             const connections = [
                 { name: 'Database', url: '/dev/api/test-connection' },
                 { name: 'Server API', url: '/health' },
-                { name: 'Frontend', url: 'http://localhost:3004' }
+                { name: 'Frontend', url: '/' }
             ];
             
             let results = 'בדיקת חיבורים:\\n\\n';
