@@ -4,33 +4,6 @@ export const developmentHTML = `<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>לוח בקרה למפתחים</title>
-    <script>
-        // Determine the correct frontend URL based on current location
-        function getFrontendUrl() {
-            const hostname = window.location.hostname;
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                return 'http://localhost:3002';
-            } else if (hostname === 'yalitranscription.duckdns.org') {
-                // Use the domain name
-                return 'http://yalitranscription.duckdns.org';
-            } else {
-                // On production IP, use the IP without port 5000
-                return 'http://' + hostname;
-            }
-        }
-        
-        // Helper to navigate to correct URLs
-        function navigateTo(path) {
-            if (path === '/dev' || path === '/api') {
-                // These stay on backend
-                window.location.href = path;
-            } else {
-                // Frontend routes
-                window.location.href = getFrontendUrl() + path;
-            }
-            return false;
-        }
-    </script>
     <style>
         /* Professional Development Page Styling */
         :root {
@@ -735,6 +708,33 @@ export const developmentHTML = `<!DOCTYPE html>
             link.click();
         }
 
+        function navigateTo(path) {
+            // Get the current host
+            const currentHost = window.location.host;
+            const protocol = window.location.protocol;
+            
+            // Determine if we're accessing via domain or IP
+            const isDomain = currentHost.includes('yalitranscription') || currentHost.includes('duckdns');
+            
+            // Frontend routes that should go to the frontend server
+            const frontendRoutes = ['/dev-portal', '/licenses', '/crm', '/transcription', '/dev-portal/shortcuts-admin', '/login'];
+            
+            // If it's a frontend route
+            if (frontendRoutes.some(route => path.startsWith(route))) {
+                if (isDomain) {
+                    // If accessed via domain, just use the path (nginx will route properly)
+                    window.location.href = path;
+                } else {
+                    // If accessed via IP, go to port 3002
+                    const host = currentHost.split(':')[0]; // Remove port if present
+                    window.location.href = protocol + '//' + host + ':3002' + path;
+                }
+            } else {
+                // Backend routes stay on current origin
+                window.location.href = path;
+            }
+        }
+        
         function toggleMode() {
             const message = 'לעבור למצב רגיל?';
             if (confirm(message)) {
