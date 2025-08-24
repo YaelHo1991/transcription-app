@@ -10,20 +10,25 @@ export const developmentHTML = `<!DOCTYPE html>
             const hostname = window.location.hostname;
             if (hostname === 'localhost' || hostname === '127.0.0.1') {
                 return 'http://localhost:3002';
+            } else if (hostname === 'yalitranscription.duckdns.org') {
+                // Use the domain name
+                return 'http://yalitranscription.duckdns.org';
             } else {
-                // On production, use the main domain (without port 5000)
+                // On production IP, use the IP without port 5000
                 return 'http://' + hostname;
             }
         }
         
-        // Helper to build correct URLs
-        function buildUrl(path) {
+        // Helper to navigate to correct URLs
+        function navigateTo(path) {
             if (path === '/dev' || path === '/api') {
                 // These stay on backend
-                return path;
+                window.location.href = path;
+            } else {
+                // Frontend routes
+                window.location.href = getFrontendUrl() + path;
             }
-            // Frontend routes
-            return getFrontendUrl() + path;
+            return false;
         }
     </script>
     <style>
@@ -330,7 +335,7 @@ export const developmentHTML = `<!DOCTYPE html>
     <!-- Developer Navigation Bar -->
     <nav id="dev-navigation-bar">
         <div class="nav-container">
-            <a href="#" onclick="window.location.href=buildUrl('/dev-portal'); return false;" class="home-link">
+            <a href="javascript:void(0)" onclick="navigateTo('/dev-portal')" class="home-link">
                 <span style="font-size: 20px; margin-left: 8px;">🏠</span>
                 <span>דף הבית</span>
             </a>
@@ -338,16 +343,16 @@ export const developmentHTML = `<!DOCTYPE html>
                 <a href="/dev" style="background: rgba(255,255,255,0.1); border-radius: 4px;">
                     🔧 לוח פיתוח
                 </a>
-                <a href="#" onclick="window.location.href=buildUrl('/licenses'); return false;">
+                <a href="javascript:void(0)" onclick="navigateTo('/licenses')">
                     📋 מכירת רישיונות
                 </a>
-                <a href="#" onclick="window.location.href=buildUrl('/crm'); return false;">
+                <a href="javascript:void(0)" onclick="navigateTo('/crm')">
                     👥 CRM
                 </a>
-                <a href="#" onclick="window.location.href=buildUrl('/transcription'); return false;">
+                <a href="javascript:void(0)" onclick="navigateTo('/transcription')">
                     🎯 תמלול
                 </a>
-                <a href="#" onclick="window.location.href=buildUrl('/dev-portal/shortcuts-admin'); return false;">
+                <a href="javascript:void(0)" onclick="navigateTo('/dev-portal/shortcuts-admin')">
                     ⌨️ קיצורים
                 </a>
                 <a href="/api" target="_blank">
@@ -437,7 +442,7 @@ export const developmentHTML = `<!DOCTYPE html>
                     <h4>🚀 פיתוח</h4>
                     <div class="tool-buttons">
                         <button class="tool-btn primary" onclick="refreshPage()">רענן נתונים</button>
-                        <button class="tool-btn success" onclick="window.location.href=buildUrl('/licenses')">הוסף משתמשים</button>
+                        <button class="tool-btn success" onclick="navigateTo('/licenses')">הוסף משתמשים</button>
                         <button class="tool-btn warning" onclick="testConnections()">בדוק חיבורים</button>
                         <button class="tool-btn danger" onclick="showDemoMessage('איפוס מערכת')">איפוס מערכת</button>
                     </div>
@@ -446,7 +451,7 @@ export const developmentHTML = `<!DOCTYPE html>
                 <div class="tool-card">
                     <h4>📝 ניהול קיצורים</h4>
                     <div class="tool-buttons">
-                        <button class="tool-btn primary" onclick="window.location.href=buildUrl('/dev-portal/shortcuts-admin')">ניהול קיצורי מערכת</button>
+                        <button class="tool-btn primary" onclick="navigateTo('/dev-portal/shortcuts-admin')">ניהול קיצורי מערכת</button>
                         <button class="tool-btn success" onclick="showShortcutsStats()">סטטיסטיקות קיצורים</button>
                         <button class="tool-btn warning" onclick="exportSystemShortcuts()">ייצא קיצורי מערכת</button>
                     </div>
