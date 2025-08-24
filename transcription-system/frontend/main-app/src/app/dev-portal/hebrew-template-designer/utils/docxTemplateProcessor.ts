@@ -196,7 +196,7 @@ export class DocxTemplateProcessor {
       });
       
       // Save the file
-      const fileName = (data.fileName.replace(/\.[^/.]+$/, '')) + '_תמלול_${Date.now()}.docx';
+      const fileName = (data.fileName.replace(/\.[^/.]+$/, '')) + '_תמלול_' + Date.now() + '.docx';
       saveAs(output, fileName);
       
       console.log('Template processed successfully');

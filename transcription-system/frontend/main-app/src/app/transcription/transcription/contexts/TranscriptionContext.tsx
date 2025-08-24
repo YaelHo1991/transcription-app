@@ -682,7 +682,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             // Immediately create an initial TXT file with empty content
             console.log(\'📝 Creating initial TXT file for fallback transcription\');
             const initialBlock = {
-              id: 'block-${Date.now()}-0',
+              id: 'block-' + Date.now() + '-0',
               speaker: \'\',
               text: \'\',
               timestamp: undefined

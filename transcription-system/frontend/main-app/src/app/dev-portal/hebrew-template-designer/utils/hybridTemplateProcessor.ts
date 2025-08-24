@@ -74,7 +74,7 @@ export class HybridTemplateProcessor {
       const finalBuffer = await this.insertRTLContent(phase1Buffer, data.blocks);
       
       // Save the final document
-      const fileName = (data.fileName.replace(/\.[^/.]+$/, '')) + '_תמלול_${Date.now()}.docx';
+      const fileName = (data.fileName.replace(/\.[^/.]+$/, '')) + '_תמלול_' + Date.now() + '.docx';
       const blob = new Blob([finalBuffer], { 
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
       });

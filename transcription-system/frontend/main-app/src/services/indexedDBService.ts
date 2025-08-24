@@ -130,7 +130,7 @@ class IndexedDBService {
       const metadataStore = transaction.objectStore('metadata');
 
       const transcriptionData = {
-        id: projectId + '_${Date.now()}',
+        id: projectId + '_' + Date.now(),
         projectId,
         blocks,
         speakers,
@@ -231,7 +231,7 @@ class IndexedDBService {
       const store = transaction.objectStore('backups');
 
       const backupData = {
-        id: projectId + '_v${version}_${Date.now()}',
+        id: projectId + '_v' + version + '_' + Date.now(),
         projectId,
         version,
         data,
