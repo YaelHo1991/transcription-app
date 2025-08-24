@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization')
     
     // Forward the request to our backend
-    const backendResponse = await fetch('http://localhost:5000/api/auth/verify', {
+    const backendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/auth/verify', {
       method: 'GET',
       headers: {
         'Authorization': authHeader || '',

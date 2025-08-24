@@ -801,7 +801,7 @@ export class TemplateProcessor {
       formData.append('fileName', customFileName || `${mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription'}_תמלול`);
 
       // Send to backend for conversion
-      const response = await fetch('http://localhost:5000/api/template/convert-and-export', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/template/convert-and-export', {
         method: 'POST',
         body: formData
       });

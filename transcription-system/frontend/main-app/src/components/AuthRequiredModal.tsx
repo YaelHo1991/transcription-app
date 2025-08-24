@@ -46,17 +46,23 @@ export function AuthRequiredModal({
       zIndex: 9999
     }}>
       <div className="modal-content" style={{
-        background: 'white',
+        background: 'linear-gradient(135deg, #ffffff 0%, #faf8f3 100%)',
         borderRadius: '12px',
         padding: '30px',
         maxWidth: '400px',
         width: '90%',
-        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-        textAlign: 'center'
+        boxShadow: '0 10px 40px rgba(139, 69, 19, 0.2)',
+        textAlign: 'center',
+        border: '1px solid rgba(218, 165, 32, 0.2)'
       }}>
         <div style={{
           fontSize: '48px',
-          marginBottom: '20px'
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, #b8860b 0%, #daa520 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          display: 'inline-block'
         }}>
           🔐
         </div>
@@ -64,15 +70,16 @@ export function AuthRequiredModal({
         <h2 style={{
           fontSize: '24px',
           marginBottom: '15px',
-          color: '#333',
-          fontWeight: '600'
+          color: '#6b4423',
+          fontWeight: '600',
+          textShadow: '1px 1px 2px rgba(139, 69, 19, 0.1)'
         }}>
           נדרשת התחברות מחדש
         </h2>
         
         <p style={{
           fontSize: '16px',
-          color: '#666',
+          color: '#8b6914',
           marginBottom: '25px',
           lineHeight: '1.5'
         }}>
@@ -87,7 +94,7 @@ export function AuthRequiredModal({
           <button
             onClick={handleRelogin}
             style={{
-              background: 'linear-gradient(135deg, #e91e63 0%, #f06292 100%)',
+              background: 'linear-gradient(135deg, #b8860b 0%, #daa520 50%, #ffd700 100%)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -95,14 +102,17 @@ export function AuthRequiredModal({
               fontSize: '16px',
               fontWeight: '600',
               cursor: 'pointer',
-              transition: 'transform 0.2s',
-              boxShadow: '0 2px 8px rgba(233, 30, 99, 0.3)'
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 15px rgba(184, 134, 11, 0.3)',
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(184, 134, 11, 0.4)';
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(184, 134, 11, 0.3)';
             }}
           >
             התחבר מחדש
@@ -111,21 +121,24 @@ export function AuthRequiredModal({
           <button
             onClick={onClose}
             style={{
-              background: '#f0f0f0',
-              color: '#666',
-              border: 'none',
+              background: 'linear-gradient(135deg, #f5f5dc 0%, #ffe4b5 100%)',
+              color: '#6b4423',
+              border: '1px solid #daa520',
               borderRadius: '8px',
               padding: '12px 30px',
               fontSize: '16px',
               fontWeight: '600',
               cursor: 'pointer',
-              transition: 'background 0.2s'
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 10px rgba(139, 69, 19, 0.1)'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.background = '#e0e0e0';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #ffe4b5 0%, #f5f5dc 100%)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.background = '#f0f0f0';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #f5f5dc 0%, #ffe4b5 100%)';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
             המשך ללא שמירה
@@ -134,7 +147,7 @@ export function AuthRequiredModal({
         
         <p style={{
           fontSize: '13px',
-          color: '#999',
+          color: '#a0826d',
           marginTop: '20px',
           fontStyle: 'italic'
         }}>

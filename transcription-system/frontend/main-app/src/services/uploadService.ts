@@ -16,7 +16,7 @@ interface UploadOptions {
 }
 
 class SmartUploadService {
-  private readonly API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  private readonly API_URL = process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api';
   private readonly CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
   private readonly LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
 

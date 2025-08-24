@@ -992,7 +992,7 @@ export default function TranscriptionWorkPage() {
                   // For backend-loaded transcription projects, construct the media URL
                   // The media file is stored in the transcription project folder on the server
                   const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                    ? 'http://localhost:5000' 
+                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}' 
                     : '';
                   mediaUrl = `${apiUrl}/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}`;
                   console.log('Page: Constructed media URL for backend project:', mediaUrl);
@@ -1107,7 +1107,7 @@ export default function TranscriptionWorkPage() {
                         return;
                       }
                       
-                      const response = await fetch(`http://localhost:5000/api/transcription/projects/${transcriptionToDelete.projectId}`, {
+                      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/projects/${transcriptionToDelete.projectId}`, {
                         method: 'DELETE',
                         headers: {
                           'Content-Type': 'application/json',
@@ -1220,7 +1220,7 @@ export default function TranscriptionWorkPage() {
                     const transcriptionToDelete = transcriptions[index];
                     if (transcriptionToDelete?.projectId) {
                       try {
-                        const response = await fetch(`http://localhost:5000/api/transcription/projects/${transcriptionToDelete.projectId}`, {
+                        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/projects/${transcriptionToDelete.projectId}`, {
                           method: 'DELETE',
                           headers: {
                             'Content-Type': 'application/json',

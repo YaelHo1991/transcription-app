@@ -62,7 +62,7 @@ export default function DocumentExportModal({
   const loadDefaultTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/template/export-template');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/template/export-template');
       if (response.ok) {
         const blob = await response.blob();
         const file = new File([blob], 'hebrew-export-template.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });

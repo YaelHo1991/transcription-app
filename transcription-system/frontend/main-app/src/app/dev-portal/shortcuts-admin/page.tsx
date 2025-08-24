@@ -69,7 +69,7 @@ export default function ShortcutsAdminPage() {
     setLoading(true);
     try {
       // First try to load from public API for reading
-      const publicResponse = await fetch('http://localhost:5000/api/transcription/shortcuts/public');
+      const publicResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public');
       
       if (publicResponse.ok) {
         const publicData = await publicResponse.json();
@@ -162,7 +162,7 @@ export default function ShortcutsAdminPage() {
     try {
       if (editingShortcut) {
         // Update existing shortcut - use dev endpoint
-        const response = await fetch(`http://localhost:5000/dev/admin/shortcuts/${editingShortcut.id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/shortcuts/${editingShortcut.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -182,7 +182,7 @@ export default function ShortcutsAdminPage() {
         }
       } else {
         // Add new shortcut - use dev endpoint
-        const response = await fetch('http://localhost:5000/dev/admin/shortcuts', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/shortcuts', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -236,7 +236,7 @@ export default function ShortcutsAdminPage() {
         ));
       } else {
         // Add new category - use dev endpoint
-        const response = await fetch('http://localhost:5000/dev/admin/categories', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/categories', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -429,7 +429,7 @@ export default function ShortcutsAdminPage() {
                           if (confirm('למחוק קיצור זה?')) {
                             try {
                               // Use the shortcut text as identifier for deletion
-                              const response = await fetch(`http://localhost:5000/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}`, {
+                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}`, {
                                 method: 'DELETE',
                                 headers: {
                                   'Content-Type': 'application/json'

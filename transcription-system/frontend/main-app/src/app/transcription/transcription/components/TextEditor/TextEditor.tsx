@@ -179,7 +179,7 @@ export default function TextEditor({
   }, [inputLanguage]);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
-  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager('http://localhost:5000/api/transcription/shortcuts'));
+  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts'));
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
   
@@ -790,7 +790,7 @@ export default function TextEditor({
     const initShortcuts = async () => {
       try {
         // Load shortcuts from public endpoint (no auth required for now)
-        const response = await fetch('http://localhost:5000/api/transcription/shortcuts/public').catch((err) => {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public').catch((err) => {
           console.warn('TextEditor: Shortcuts endpoint not available, using defaults');
           return null;
         });
@@ -2752,7 +2752,7 @@ export default function TextEditor({
           try {
             // Use the project restore endpoint to load version data and make it current
             const response = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/projects/${currentProjectId}/restore/${version.filename}`,
+              `${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}'}/api/projects/${currentProjectId}/restore/${version.filename}`,
               {
                 method: 'POST',
                 headers: {

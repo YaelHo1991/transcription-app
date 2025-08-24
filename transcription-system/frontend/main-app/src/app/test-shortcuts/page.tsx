@@ -19,11 +19,11 @@ export default function TestShortcuts() {
     // Initialize ShortcutManager
     const initManager = async () => {
       try {
-        const manager = new ShortcutManager('http://localhost:5000/api/transcription/shortcuts');
+        const manager = new ShortcutManager(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts');
         managerRef.current = manager;
         
         // Fetch shortcuts directly from public endpoint for testing
-        const response = await fetch('http://localhost:5000/api/transcription/shortcuts/public');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/transcription/shortcuts/public');
         if (response.ok) {
           const data = await response.json();
           console.log('Loaded shortcuts from API:', data.shortcuts.length);

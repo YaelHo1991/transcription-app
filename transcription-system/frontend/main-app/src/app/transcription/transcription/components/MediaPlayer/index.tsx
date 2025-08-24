@@ -742,7 +742,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           
           // First, check if waveform already exists on server
           try {
-            const existingResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+            const existingResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/${fileId}`);
             if (existingResponse.ok) {
               console.log('Using existing server-side waveform');
               const data = await existingResponse.json();
@@ -768,7 +768,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           }
           
           // If not found, trigger generation on server
-          const generateResponse = await fetch('http://localhost:5000/api/waveform/generate', {
+          const generateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/generate', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -796,7 +796,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
               
               try {
-                const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+                const waveformResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/${fileId}`);
                 
                 if (waveformResponse.ok) {
                   const data = await waveformResponse.json();
@@ -830,7 +830,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             }
           } else if (statusData.status === 'completed') {
             // Small files complete immediately
-            const waveformResponse = await fetch(`http://localhost:5000/api/waveform/${fileId}`);
+            const waveformResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/waveform/${fileId}`);
             
             if (waveformResponse.ok) {
               const data = await waveformResponse.json();
