@@ -67,6 +67,18 @@ export const asyncHandler = (fn: Function) => {
 
 // 404 handler for unmatched routes
 export const notFound = (req: Request, res: Response, next: NextFunction) => {
+  // Don't handle frontend routes - let them pass through
+  const frontendRoutes = ['/dev-portal', '/licenses', '/crm', '/transcription', '/login'];
+  if (frontendRoutes.some(route => req.originalUrl.startsWith(route))) {
+    // These should be handled by the frontend, not the backend
+    // Return a redirect or just skip
+    return res.status(404).json({ 
+      success: false, 
+      message: `Frontend route - should be handled by Next.js: ${req.originalUrl}`,
+      redirect: req.originalUrl
+    });
+  }
+  
   const error = new Error(`נתיב לא נמצא - ${req.originalUrl}`) as ApiError;
   error.statusCode = 404;
   next(error);

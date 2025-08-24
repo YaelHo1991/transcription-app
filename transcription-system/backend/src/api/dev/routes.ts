@@ -14,6 +14,14 @@ router.get('/', (req, res) => {
   res.send(developmentHTML);
 });
 
+// Redirect to shortcuts admin - special handling
+router.get('/shortcuts-admin', (req, res) => {
+  // Redirect to the frontend shortcuts admin page
+  const host = req.get('host')?.split(':')[0] || 'localhost';
+  const protocol = req.protocol;
+  res.redirect(`${protocol}://${host}/dev-portal/shortcuts-admin`);
+});
+
 // Mount shortcuts admin routes
 router.use('/admin', shortcutsAdminRoutes);
 
