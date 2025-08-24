@@ -32,7 +32,7 @@ function LoginContent() {
 
     try {
       console.log('Attempting login with:', formData.email);
-      const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/auth/login', {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000') + '/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

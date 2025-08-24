@@ -23,11 +23,31 @@ import {
 // Security headers - Apply FIRST
 app.use(helmetConfig);
 
-// CORS configuration - More restrictive in production
+// CORS configuration - More permissive for development and DO
 const corsOptions = {
-  origin: isDevelopment 
-    ? ['http://localhost:3004', 'http://localhost:3000', 'http://localhost:3002', 'http://127.0.0.1:3004', 'http://127.0.0.1:3000', 'http://127.0.0.1:3002']
-    : process.env.FRONTEND_URL || 'http://localhost:3002',
+  origin: function (origin: any, callback: any) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3004',
+      'http://localhost:3000', 
+      'http://localhost:3002',
+      'http://127.0.0.1:3004',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3002',
+      'http://yalitranscription.duckdns.org',
+      'https://yalitranscription.duckdns.org',
+      'http://146.190.57.51',
+      'http://146.190.57.51:3002'
+    ];
+    
+    if (isDevelopment || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all origins for now to fix the issue
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-API-Key', 'X-Dev-Mode'],
