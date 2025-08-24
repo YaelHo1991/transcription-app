@@ -130,8 +130,8 @@ export default function LicensesPage() {
     };
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://146.190.57.51/api';
-      const response = await fetch(apiUrl + '/licenses/purchase', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(apiUrl + '/api/licenses/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,8 +162,8 @@ export default function LicensesPage() {
 
   // Load stats from API
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://146.190.57.51/api';
-    fetch(apiUrl + '/licenses/stats')
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    fetch(apiUrl + '/api/licenses/stats')
       .then(res => res.json())
       .then(data => {
         if (data.success) {

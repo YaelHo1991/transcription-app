@@ -151,6 +151,8 @@ router.post('/purchase', async (req: Request, res: Response) => {
     
     // Join permissions into string format
     const permissionsString = permissions.sort().join('');
+    console.log(`🔍 Debug - Permissions array:`, permissions);
+    console.log(`🔍 Debug - Permissions string:`, permissionsString);
 
     // Check if user exists
     const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -173,13 +175,25 @@ router.post('/purchase', async (req: Request, res: Response) => {
       userId = result.rows[0].id;
     } else {
       // Create new user
+      console.log(`🔍 Debug - About to INSERT with values:`, {
+        username,
+        email,
+        fullName,
+        permissionsString,
+        personalCompany: personalCompany || null,
+        transcriberCode,
+        plainPassword
+      });
+      
       const result = await db.query(
         `INSERT INTO users 
          (username, password, email, full_name, permissions, personal_company, transcriber_code, plain_password, is_active) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true) 
-         RETURNING id`,
+         RETURNING id, permissions`,
         [username, hashedPassword, email, fullName, permissionsString, personalCompany || null, transcriberCode, plainPassword]
       );
+      
+      console.log(`🔍 Debug - INSERT result:`, result.rows[0]);
       userId = result.rows[0].id;
       isNewUser = true;
     }

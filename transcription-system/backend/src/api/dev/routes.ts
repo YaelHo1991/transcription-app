@@ -60,9 +60,14 @@ router.get('/api/users', async (req: Request, res: Response) => {
         u.username,
         u.full_name,
         u.email,
+        u.permissions,
         u.personal_company,
         u.created_at,
         u.transcriber_code,
+        u.is_admin,
+        u.plain_password,
+        u.last_login,
+        u.is_active,
         COALESCE(
           JSON_AGG(
             JSON_BUILD_OBJECT(
@@ -77,7 +82,8 @@ router.get('/api/users', async (req: Request, res: Response) => {
         ) as licenses
       FROM users u
       LEFT JOIN licenses l ON u.id = l.user_id
-      GROUP BY u.id, u.username, u.full_name, u.email, u.personal_company, u.created_at, u.transcriber_code
+      GROUP BY u.id, u.username, u.full_name, u.email, u.permissions, u.personal_company, 
+               u.created_at, u.transcriber_code, u.is_admin, u.plain_password, u.last_login, u.is_active
       ORDER BY u.created_at DESC
     `);
 
@@ -102,15 +108,15 @@ router.get('/api/users', async (req: Request, res: Response) => {
         username: user.username || user.email.split('@')[0], // Use actual username or email prefix
         email: user.email,
         full_name: user.full_name,
-        permissions: user.licenses.map((l: any) => l.permissions).join(''),
-        is_admin: user.licenses.some((l: any) => l.permissions.includes('A')),
+        permissions: user.permissions || '', // Use permissions from users table
+        is_admin: user.is_admin || false, // Use is_admin from users table
         transcriber_code: user.transcriber_code || null, // Use actual transcriber_code from database
         created_at: user.created_at,
-        last_login: null,
+        last_login: user.last_login,
         personal_company: user.personal_company,
         licenses: user.licenses,
-        plain_password: passwordHint, // Add password hint for dev tools
-        password_hint: passwordHint
+        plain_password: user.plain_password || passwordHint, // Use actual plain_password if exists
+        password_hint: user.plain_password || passwordHint
       };
     });
     
@@ -174,7 +180,7 @@ router.get('/api/stats', async (req: Request, res: Response) => {
 });
 
 // Delete a user (DEV ONLY)
-router.delete('/users/:id', async (req: Request, res: Response) => {
+router.delete('/api/users/:id', async (req: Request, res: Response) => {
   const isDev = process.env.NODE_ENV?.trim() === 'development' || process.env.ENABLE_DEV_TOOLS === 'true';
   if (!isDev) {
     return res.status(403).json({ error: 'Access denied in production' });

@@ -465,6 +465,7 @@ export const developmentHTML = `<!DOCTYPE html>
                 }
                 
                 users.forEach(user => {
+                    console.log('User:', user.username, 'Permissions:', user.permissions, 'Type:', typeof user.permissions);
                     const row = document.createElement('tr');
                     row.innerHTML = \`
                         <td>
@@ -473,7 +474,7 @@ export const developmentHTML = `<!DOCTYPE html>
                         </td>
                         <td>\${user.email || user.username}</td>
                         <td><code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 14px;">\${user.plain_password || user.password_hint || 'Password123!'}</code></td>
-                        <td><code style="color: #b85042; font-weight: bold;">\${user.permissions || 'ללא'}</code></td>
+                        <td><code style="color: #b85042; font-weight: bold;">\${user.permissions && user.permissions.trim() !== '' ? user.permissions : 'ללא הרשאות'}</code></td>
                         <td><code style="color: #2196F3;">\${user.transcriber_code || '-'}</code></td>
                         <td>
                             \${user.username !== 'admin' ? 
