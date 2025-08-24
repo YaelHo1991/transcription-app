@@ -1,6 +1,7 @@
 'use client';
 
 import styles from './dev-portal.module.css';
+import { getApiUrl } from '@/utils/api';
 
 export default function DevPortal() {
   return (
@@ -18,10 +19,10 @@ export default function DevPortal() {
         
         {/* Top Navigation - Dev Tools and Server */}
         <div className={styles.topNavGrid}>
-          <a href={(process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/dev'} className={styles.navLink} target="_blank">
+          <a href={`${getApiUrl()}/dev`} className={styles.navLink} target="_blank">
             ⚙️ כלי פיתוח
           </a>
-          <a href={(process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000')} className={styles.navLink} target="_blank">
+          <a href={getApiUrl()} className={styles.navLink} target="_blank">
             🖥️ Server (Backend)
           </a>
         </div>
