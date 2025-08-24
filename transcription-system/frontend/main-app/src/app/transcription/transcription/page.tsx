@@ -19,6 +19,7 @@ import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
+import LoginPromptModal from '../../../components/LoginPromptModal';
 import { projectService } from '../../../services/projectService';
 import './transcription-theme.css';
 import './transcription-page.css';
@@ -1391,10 +1392,11 @@ export default function TranscriptionWorkPage() {
       />
       
       {/* Authentication Required Modal */}
-      <AuthRequiredModal
+      <LoginPromptModal
         isOpen={showAuthRequiredModal}
         onClose={() => setShowAuthRequiredModal(false)}
-        message="פג תוקף ההתחברות שלך. אנא התחבר מחדש כדי לשמור שינויים בשרת."
+        message="פג תוקף ההתחברות שלך. אנא התחבר מחדש כדי להמשיך."
+        system="transcription"
       />
     </HoveringBarsLayout>
   );

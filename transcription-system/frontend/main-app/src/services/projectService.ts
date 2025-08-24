@@ -325,6 +325,14 @@ class ProjectService {
     try {
       console.log('[Project] Listing all projects');
       
+      // Check if user is authenticated first
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      if (!token) {
+        console.log('[Project] No authentication token found');
+        this.handleAuthError();
+        return [];
+      }
+      
       const response = await fetch(`${API_URL}/api/projects/list`, {
         method: 'GET',
         headers: this.getHeaders()
@@ -348,6 +356,11 @@ class ProjectService {
       return result.projects || [];
     } catch (error) {
       console.error('[Project] Error listing projects:', error);
+      // If it's a network error and no token, likely auth issue
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      if (!token || (error instanceof TypeError && error.message === 'Failed to fetch')) {
+        this.handleAuthError();
+      }
       return [];
     }
   }
