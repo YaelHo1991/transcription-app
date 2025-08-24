@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/dev/stats`, {
+    const response = await fetch(BACKEND_URL + '/api/dev/stats', {
       headers: {
         'Content-Type': 'application/json',
       },

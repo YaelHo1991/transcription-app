@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
 
 export async function DELETE(
   request: Request,
@@ -8,7 +8,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const response = await fetch(`${BACKEND_URL}/api/dev/users/${id}`, {
+    const response = await fetch(BACKEND_URL + '/api/dev/users/${id}', {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
