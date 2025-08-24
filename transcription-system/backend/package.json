@@ -17,6 +17,7 @@
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.1",
     "@types/pg": "^8.15.5",
+    "@xmldom/xmldom": "^0.8.11",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -28,7 +29,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "pizzip": "^3.2.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
