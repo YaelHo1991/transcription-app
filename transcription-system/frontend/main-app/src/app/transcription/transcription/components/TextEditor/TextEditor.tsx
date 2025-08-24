@@ -24,11 +24,11 @@ import { ConfirmationModal } from './components/ConfirmationModal';
 import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
-import backupService from '../../../../../services/backupService';
-import incrementalBackupService from '../../../../../services/incrementalBackupService';
-import indexedDBService from '../../../../../services/indexedDBService';
-import { tSessionService } from '../../../../../services/tSessionService';
-import { projectService } from '../../../../../services/projectService';
+import backupService from '@/services/backupService';
+import incrementalBackupService from '@/services/incrementalBackupService';
+import indexedDBService from '@/services/indexedDBService';
+import { tSessionService } from '@/services/tSessionService';
+import { projectService } from '@/services/projectService';
 import { shouldUseIndexedDB } from '../../../../../config/environment';
 // import TTranscriptionNotification from './components/TTranscriptionNotification'; // Removed - no popup needed
 import { useRemarks } from '../Remarks/RemarksContext';
@@ -2929,7 +2929,7 @@ export default function TextEditor({
         }}
         onConfirm={confirmDeleteTranscription}
         title="מחיקת תמלול"
-        message={`האם אתה בטוח שברצונך למחוק את התמלול?`}
+        message={'האם אתה בטוח שברצונך למחוק את התמלול?'}
         subMessage="פעולה זו אינה ניתנת לביטול"
         confirmText="מחק"
         cancelText="ביטול"

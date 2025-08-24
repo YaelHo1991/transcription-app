@@ -33,7 +33,7 @@ export class TemplateProcessor {
     const RLM = '\u200F'; // Right-to-Left Mark
     
     // Join with comma + RLM to keep comma with previous text in RTL
-    return items.join(`,${RLM} `);
+    return items.join(',' + (RLM) + ' ');
   }
 
   /**
@@ -68,7 +68,7 @@ export class TemplateProcessor {
       
       if (speakerName && text) {
         // Bold speaker name
-        rtf += `\\b ${this.escapeRTF(speakerName)}:\\b0\\tab ${this.escapeRTF(text)}`;
+        rtf += '\\b ' + this.escapeRTF(speakerName) + ':\\b0\\tab ' + this.escapeRTF(text);
       } else if (text) {
         rtf += this.escapeRTF(text);
       }
@@ -109,9 +109,9 @@ export class TemplateProcessor {
       const text = this.processTimestamp(block.text || '', includeTimestamps);
       
       if (speakerName && text) {
-        return `<p dir="rtl"><b>${speakerName}:</b>&nbsp;&nbsp;&nbsp;&nbsp;${text}</p>`;
+        return '<p dir="rtl"><b>' + speakerName + ':</b>&nbsp;&nbsp;&nbsp;&nbsp;' + text + '</p>';
       }
-      return `<p dir="rtl">${text}</p>`;
+      return '<p dir="rtl">' + (text) + '</p>';
     }).join('');
     
     // Copy both RTF and HTML to clipboard
@@ -172,7 +172,7 @@ export class TemplateProcessor {
 2. מקם את הסמן במקום הרצוי
 3. הדבק (Ctrl+V)
 4. העיצוב יישמר - כולל bold, tabs, ו-RTL
-    `);
+    ");
     
     return true;
   }
@@ -243,7 +243,7 @@ export class TemplateProcessor {
       // Save merged document
       merger.save('blob', (mergedBlob: Blob) => {
         const fileName = customFileName || 
-          `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_merged.docx`;
+          (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_merged.docx';
         
         saveAs(mergedBlob, fileName);
       });
@@ -342,7 +342,7 @@ export class TemplateProcessor {
       
       // Save the template version (for now)
       const fileName = customFileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       
       // For testing: Save both files
       saveAs(templateOutput, 'template_' + fileName);
@@ -367,11 +367,11 @@ export class TemplateProcessor {
           });
           
           if (err.name === 'unopened_tag' || err.name === 'unclosed_tag') {
-            alert(`שגיאה בתבנית: תג ${err.properties.xtag} לא נסגר כראוי`);
+            alert('שגיאה בתבנית: תג ' + (err.properties.xtag) + ' לא נסגר כראוי');
           } else if (err.name === 'multi_error') {
             alert('שגיאה בתבנית: ישנן מספר שגיאות בתבנית. בדוק את ה-Console לפרטים.');
           } else {
-            alert(`שגיאה בתבנית: ${err.message || err.name}`);
+            alert('שגיאה בתבנית: ' + (err.message || err.name));
           }
         });
       } else {
@@ -502,7 +502,7 @@ export class TemplateProcessor {
     const hours = Math.floor(maxTime / 3600);
     const minutes = Math.floor((maxTime % 3600) / 60);
     const seconds = Math.floor(maxTime % 60);
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
   }
 
   /**
@@ -531,7 +531,7 @@ export class TemplateProcessor {
   private wrapFileNameForRTL(fileName: string): string {
     const RLE = '\u202B'; // Right-to-Left Embedding
     const PDF = '\u202C'; // Pop Directional Formatting
-    return `${RLE}${fileName}${PDF}`;
+    return RLE + fileName + PDF;
   }
 
   /**
@@ -619,18 +619,18 @@ export class TemplateProcessor {
         const LRM = '\u200E'; // Left-to-right mark for numbers
         
         // Format line number with LTR mark (numbers should be LTR)
-        const formattedLineNum = lineNum ? `${LRM}${lineNumPadded}${RTL_MARK}` : '   ';
+        const formattedLineNum = lineNum ? LRM + lineNumPadded + RTL_MARK : '   ';
         
         // Build the line with proper RTL formatting
         // Keep speaker and colon together, then tab, then text
-        const formattedLine = `${formattedLineNum}\t${RTL_MARK}${speakerName}:${RTL_MARK}\t${RTL_MARK}${text}${RTL_MARK}`;
+        const formattedLine = formattedLineNum + '\t' + RTL_MARK + speakerName + ':' + RTL_MARK + '\t' + RTL_MARK + text + RTL_MARK;
         
         lines.push(formattedLine);
       } else if (text) {
         // Line without speaker
-        const formattedLineNum = lineNum ? `${lineNum}   ` : '   ';
+        const formattedLineNum = lineNum ? (lineNum) + '   ' : '   ';
         const RTL_MARK = '\u200F';
-        lines.push(`${formattedLineNum}\t\t${RTL_MARK}${text}${RTL_MARK}`);
+        lines.push(formattedLineNum + '\t\t' + RTL_MARK + text + RTL_MARK);
       }
     });
     
@@ -708,7 +708,7 @@ export class TemplateProcessor {
       });
 
       const fileName = customFileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_preformatted.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_preformatted.docx';
       
       saveAs(blob, fileName);
       
@@ -798,10 +798,10 @@ export class TemplateProcessor {
       // Create FormData for upload
       const formData = new FormData();
       formData.append('document', blob, 'temp.docx');
-      formData.append('fileName', customFileName || `${mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription'}_תמלול`);
+      formData.append('fileName', customFileName || (mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription') + '_תמלול');
 
       // Send to backend for conversion
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}/api/template/convert-and-export', {
+      const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/template/convert-and-export', {
         method: 'POST',
         body: formData
       });
@@ -814,7 +814,7 @@ export class TemplateProcessor {
       // Download the converted file
       const convertedBlob = await response.blob();
       const fileName = customFileName || 
-        `${mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription'}_תמלול.docx`;
+        (mediaFileName ? mediaFileName.replace(/\.[^/.]+$/, '') : 'transcription') + '_תמלול.docx';
       
       saveAs(convertedBlob, fileName);
       
