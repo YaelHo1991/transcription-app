@@ -165,14 +165,6 @@ export default function AdminDashboard() {
         )}
 
         <div className="admin-cards">
-          <Link href="/transcription/admin/shortcuts" className="admin-card">
-            <div className="card-icon">⌨️</div>
-            <div className="card-title">ניהול קיצורים</div>
-            <div className="card-description">
-              הוספה, עריכה ומחיקה של קיצורי מערכת
-            </div>
-          </Link>
-
           <Link href="/transcription/admin/users" className="admin-card">
             <div className="card-icon">👥</div>
             <div className="card-title">ניהול משתמשים</div>

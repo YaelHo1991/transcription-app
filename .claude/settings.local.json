@@ -106,7 +106,8 @@
       "Bash(start http://localhost:3002/reset-password?token=test-token)",
       "Bash(start https://yalitranscription.duckdns.org/login)",
       "Bash(start https://yalitranscription.duckdns.org/transcription/admin)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)"
     ],
     "deny": [],
     "additionalDirectories": [
