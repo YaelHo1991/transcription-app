@@ -87,7 +87,7 @@ app.get('/health', async (req, res) => {
 
 // Development tools - ONLY in development mode
 if (isDevelopment) {
-  console.log('🔧 Development tools enabled at /dev');
+  // console.log removed for production
   // For dev tools, we need to allow inline scripts and external fonts
   app.use('/dev', (req, res, next) => {
     res.setHeader('Content-Security-Policy', 
@@ -120,7 +120,7 @@ app.use(errorHandler);
 async function startServer() {
   try {
     // Test database connection
-    console.log('🔌 Connecting to database...');
+    // console.log removed for production
     const isConnected = await testConnection();
     
     if (!isConnected) {
@@ -132,7 +132,7 @@ async function startServer() {
       
       // Seed database if in development and needed
       if (isDevelopment) {
-        console.log('🌱 Checking if database needs seeding...');
+        // console.log removed for production
         // The seed function will check if users already exist
         await seedDatabase();
       }
@@ -140,11 +140,7 @@ async function startServer() {
     
     // Start server
     const server = app.listen(PORT, () => {
-      console.log(`
-╔════════════════════════════════════════╗
-║     Transcription System Backend       ║
-╠════════════════════════════════════════╣
-║  Environment: ${process.env.NODE_ENV?.padEnd(24)} ║
+      // console.log removed for production} ║
 ║  Port: ${PORT.toString().padEnd(32)} ║
 ║  Database: ${isConnected ? '✅ Connected'.padEnd(29) : '❌ Disconnected'.padEnd(29)} ║
 ║  Dev Tools: ${isDevelopment ? '✅ Enabled'.padEnd(26) : '❌ Disabled'.padEnd(26)} ║
@@ -152,10 +148,7 @@ async function startServer() {
       `);
       
       if (isDevelopment) {
-        console.log(`
-📋 Development Dashboard: http://localhost:${PORT}/dev
-📡 API Health Check: http://localhost:${PORT}/health
-        `);
+        // console.log removed for production
       }
     });
     
@@ -171,12 +164,12 @@ async function startServer() {
 
 // Handle process termination
 process.on('SIGINT', () => {
-  console.log('\nReceived SIGINT, shutting down gracefully...');
+  // console.log removed for production
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\nReceived SIGTERM, shutting down gracefully...');
+  // console.log removed for production
   process.exit(0);
 });
 

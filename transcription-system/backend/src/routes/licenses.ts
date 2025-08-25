@@ -91,7 +91,7 @@ async function initializeTables() {
         ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true
       `);
       
-      console.log('✅ User table columns updated successfully');
+      // console.log removed for production
     } catch (alterError) {
       // Table might not exist, create it
       await pool.query(`
@@ -126,7 +126,7 @@ async function initializeTables() {
       )
     `);
 
-    console.log('✅ Database tables initialized successfully');
+    // console.log removed for production
   } catch (error) {
     console.error('❌ Error initializing database tables:', error);
   }
@@ -285,20 +285,20 @@ router.post('/purchase', async (req: Request, res: Response) => {
             password: plainPassword,
             permissions: permissions
           });
-          console.log(`📧 Welcome email sent to ${email}`);
+          // console.log removed for production
         } catch (emailError) {
           console.error('Failed to send welcome email:', emailError);
           // Don't fail the registration if email fails
         }
       }
 
-      console.log(`✅ License purchased successfully for user ${email}`);
-      console.log(`   Username: ${username}`);
-      console.log(`   Password: ${plainPassword}`);
-      console.log(`   Permissions: [${permissions.join(', ')}]`);
-      console.log(`   Amount: ₪${totalAmount}`);
+      // console.log removed for production
+      // console.log removed for production
+      // console.log removed for production
+      // console.log removed for production}]`);
+      // console.log removed for production
       if (transcriberCode) {
-        console.log(`   Transcriber Code: ${transcriberCode}`);
+        // console.log removed for production
       }
 
       res.json({

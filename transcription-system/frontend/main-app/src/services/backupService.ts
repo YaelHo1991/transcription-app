@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Development mode flag - set to true to bypass all authentication
-const DEV_MODE = true;
+// Development mode flag - automatically set based on environment
+const DEV_MODE = process.env.NODE_ENV === 'development';
 console.log('BackupService: DEV_MODE is', DEV_MODE);
 
 export interface BackupData {

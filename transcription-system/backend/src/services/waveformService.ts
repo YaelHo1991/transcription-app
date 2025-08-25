@@ -47,7 +47,7 @@ class WaveformService {
       // Check if waveform already exists
       const existing = await this.getWaveform(fileId);
       if (existing) {
-        console.log(`Waveform already exists for file ${fileId}`);
+        // console.log removed for production
         return existing;
       }
 

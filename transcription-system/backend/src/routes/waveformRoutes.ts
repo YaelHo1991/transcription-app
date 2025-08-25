@@ -55,7 +55,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       // Continue processing in background
       waveformPromise
         .then(result => {
-          console.log(`Waveform generated for ${fileId}: ${result.peakCount} peaks`);
+          // console.log removed for production
         })
         .catch(error => {
           console.error(`Waveform generation failed for ${fileId}:`, error);

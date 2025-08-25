@@ -7,7 +7,7 @@ import { db } from '../../db/connection';
  * This bypasses authentication for testing purposes
  */
 export async function testCreateBackup(req: Request, res: Response) {
-  console.log('Test backup endpoint called');
+  // console.log removed for production
   try {
     // Test data that matches what the TextEditor would send
     const testContent: BackupContent = {

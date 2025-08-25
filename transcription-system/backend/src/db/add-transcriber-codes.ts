@@ -2,7 +2,7 @@ import { db } from './connection';
 
 async function addTranscriberCode() {
   try {
-    console.log('🔧 Adding transcriber code system...');
+    // console.log removed for production
     
     // Add transcriber_code column if it doesn't exist
     await db.query(`
@@ -10,7 +10,7 @@ async function addTranscriberCode() {
       ADD COLUMN IF NOT EXISTS transcriber_code VARCHAR(10) UNIQUE
     `);
     
-    console.log('✅ Added transcriber_code column');
+    // console.log removed for production
     
     // Create employee_links table
     await db.query(`
@@ -23,7 +23,7 @@ async function addTranscriberCode() {
       )
     `);
     
-    console.log('✅ Created employee_links table');
+    // console.log removed for production
     
     // Generate codes for existing users with D, E, or F permissions
     const result = await db.query(`
@@ -33,7 +33,7 @@ async function addTranscriberCode() {
       AND transcriber_code IS NULL
     `);
     
-    console.log(`Found ${result.rows.length} users needing codes`);
+    // console.log removed for production
     
     for (const user of result.rows) {
       const code = 'TRN-' + Math.floor(1000 + Math.random() * 9000);
@@ -41,7 +41,7 @@ async function addTranscriberCode() {
         'UPDATE users SET transcriber_code = $1 WHERE id = $2',
         [code, user.id]
       );
-      console.log(`  Generated code ${code} for user ${user.username}`);
+      // console.log removed for production
     }
     
     // Show all users with codes
@@ -52,12 +52,12 @@ async function addTranscriberCode() {
       ORDER BY created_at DESC
     `);
     
-    console.log('\n📋 Users with transcriber codes:');
+    // console.log removed for production
     users.rows.forEach(u => {
-      console.log(`  ${u.username}: ${u.transcriber_code} (permissions: ${u.permissions})`);
+      // console.log removed for production`);
     });
     
-    console.log('\n✅ Transcriber code system setup complete!');
+    // console.log removed for production
     process.exit(0);
   } catch (error) {
     console.error('❌ Error:', error);

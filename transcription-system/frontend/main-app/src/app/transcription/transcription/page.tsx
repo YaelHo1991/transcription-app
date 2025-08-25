@@ -92,6 +92,7 @@ export default function TranscriptionWorkPage() {
   
   // User information
   const [userFullName, setUserFullName] = useState('משתמש');
+  const [userPermissions, setUserPermissions] = useState('DEF');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Get user's full name and ID from localStorage
@@ -103,6 +104,10 @@ export default function TranscriptionWorkPage() {
       const email = localStorage.getItem('userEmail') || '';
       setUserFullName(email.split('@')[0] || 'משתמש');
     }
+    
+    // Get user permissions
+    const permissions = localStorage.getItem('permissions') || 'DEF';
+    setUserPermissions(permissions);
     
     // Get and set current user ID
     const userId = getCurrentUserId();
@@ -893,7 +898,7 @@ export default function TranscriptionWorkPage() {
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
-          permissions="DEF"
+          permissions={userPermissions}
           onLogout={() => {
             // Clear only current user's session data
             if (currentUserId) {

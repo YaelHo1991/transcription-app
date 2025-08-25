@@ -52,7 +52,7 @@ async function initializeTables() {
       // Columns might already exist
     });
 
-    console.log('✅ License tables initialized');
+    // console.log removed for production
   } catch (error) {
     console.error('Error initializing license tables:', error);
   }
@@ -151,8 +151,8 @@ router.post('/purchase', async (req: Request, res: Response) => {
     
     // Join permissions into string format
     const permissionsString = permissions.sort().join('');
-    console.log(`🔍 Debug - Permissions array:`, permissions);
-    console.log(`🔍 Debug - Permissions string:`, permissionsString);
+    // console.log removed for production
+    // console.log removed for production
 
     // Check if user exists
     const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -175,15 +175,7 @@ router.post('/purchase', async (req: Request, res: Response) => {
       userId = result.rows[0].id;
     } else {
       // Create new user
-      console.log(`🔍 Debug - About to INSERT with values:`, {
-        username,
-        email,
-        fullName,
-        permissionsString,
-        personalCompany: personalCompany || null,
-        transcriberCode,
-        plainPassword
-      });
+      // console.log removed for production
       
       const result = await db.query(
         `INSERT INTO users 
@@ -193,7 +185,7 @@ router.post('/purchase', async (req: Request, res: Response) => {
         [username, hashedPassword, email, fullName, permissionsString, personalCompany || null, transcriberCode, plainPassword]
       );
       
-      console.log(`🔍 Debug - INSERT result:`, result.rows[0]);
+      // console.log removed for production
       userId = result.rows[0].id;
       isNewUser = true;
     }
@@ -207,22 +199,22 @@ router.post('/purchase', async (req: Request, res: Response) => {
           password: plainPassword,
           permissions: permissions
         });
-        console.log(`📧 Welcome email sent to ${email}`);
+        // console.log removed for production
       } catch (emailError) {
         console.error('Failed to send welcome email:', emailError);
         // Don't fail the registration if email fails
       }
     }
 
-    console.log(`✅ License purchased successfully for user ${email}`);
-    console.log(`   Username: ${username}`);
+    // console.log removed for production
+    // console.log removed for production
     if (isNewUser) {
-      console.log(`   Password: ${plainPassword}`);
+      // console.log removed for production
     }
-    console.log(`   Permissions: [${permissions.join(', ')}]`);
-    console.log(`   Amount: ₪${totalAmount}`);
+    // console.log removed for production}]`);
+    // console.log removed for production
     if (transcriberCode) {
-      console.log(`   Transcriber Code: ${transcriberCode}`);
+      // console.log removed for production
     }
 
     res.json({

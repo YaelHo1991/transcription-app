@@ -308,7 +308,7 @@ export const developmentHTML = `<!DOCTYPE html>
     <!-- Developer Navigation Bar -->
     <nav id="dev-navigation-bar">
         <div class="nav-container">
-            <a href="javascript:void(0)" onclick="navigateTo('/dev-portal')" class="home-link">
+            <a href="/dev-portal" class="home-link">
                 <span style="font-size: 20px; margin-left: 8px;">🏠</span>
                 <span>דף הבית</span>
             </a>
@@ -316,13 +316,13 @@ export const developmentHTML = `<!DOCTYPE html>
                 <a href="/dev" style="background: rgba(255,255,255,0.1); border-radius: 4px;">
                     🔧 לוח פיתוח
                 </a>
-                <a href="javascript:void(0)" onclick="navigateTo('/licenses')">
+                <a href="/licenses">
                     📋 מכירת רישיונות
                 </a>
-                <a href="javascript:void(0)" onclick="navigateTo('/crm')">
+                <a href="/crm">
                     👥 CRM
                 </a>
-                <a href="javascript:void(0)" onclick="navigateTo('/transcription')">
+                <a href="/transcription/transcription">
                     🎯 תמלול
                 </a>
                 <a href="/dev/shortcuts-admin">
@@ -709,30 +709,8 @@ export const developmentHTML = `<!DOCTYPE html>
         }
 
         function navigateTo(path) {
-            // Get the current host
-            const currentHost = window.location.host;
-            const protocol = window.location.protocol;
-            
-            // Frontend routes that should go to the frontend server
-            const frontendRoutes = ['/dev-portal', '/licenses', '/crm', '/transcription', '/dev-portal/shortcuts-admin', '/login'];
-            
-            // If it's a frontend route
-            if (frontendRoutes.some(route => path.startsWith(route))) {
-                // Always use the base domain/IP (port 80) which nginx will route correctly
-                const baseHost = currentHost.split(':')[0]; // Remove port if present
-                
-                // If we're on port 5000, we need to go through nginx on port 80
-                if (currentHost.includes(':5000')) {
-                    // Use the base IP/domain without port (nginx on port 80)
-                    window.location.href = protocol + '//' + baseHost + path;
-                } else {
-                    // Already on port 80, just use the path
-                    window.location.href = path;
-                }
-            } else {
-                // Backend routes stay on current origin
-                window.location.href = path;
-            }
+            // Simply navigate to the path - nginx will handle routing correctly
+            window.location.href = path;
         }
         
         function toggleMode() {

@@ -108,10 +108,10 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
         await fs.access(projectPath);
         // Delete the project folder and all its contents
         await fs.rm(projectPath, { recursive: true, force: true });
-        console.log(`✅ Deleted project folder: ${projectPath}`);
+        // console.log removed for production
         return res.json({ success: true, message: 'Project folder deleted successfully' });
       } catch (fsError) {
-        console.log(`⚠️ Project folder not found: ${projectPath}`);
+        // console.log removed for production
         return res.status(404).json({ error: 'Project folder not found' });
       }
     }
@@ -135,10 +135,10 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
       await fs.access(projectPath);
       // Delete the project folder and all its contents
       await fs.rm(projectPath, { recursive: true, force: true });
-      console.log(`Deleted project folder: ${projectPath}`);
+      // console.log removed for production
     } catch (fsError) {
       // Folder might not exist, log but don't fail the request
-      console.log(`Project folder not found or already deleted: ${projectPath}`);
+      // console.log removed for production
     }
 
     // Delete from database

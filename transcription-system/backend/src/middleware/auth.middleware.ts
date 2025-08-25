@@ -8,7 +8,9 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     username: string;
+    email?: string;
     permissions: string;
+    is_admin?: boolean;
   };
 }
 
@@ -30,7 +32,8 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     req.user = {
       id: decoded.id,
       username: decoded.username,
-      permissions: decoded.permissions
+      permissions: decoded.permissions,
+      is_admin: decoded.is_admin || false
     };
     next();
   } catch (error) {
@@ -105,6 +108,53 @@ export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction
       success: false,
       message: 'נדרשות הרשאות מנהל',
       userPermissions: req.user.permissions
+    });
+  }
+
+  next();
+};
+
+// Admin flag middleware - checks is_admin column
+export const requireAdminFlag = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'נדרשת הזדהות'
+    });
+  }
+
+  if (!req.user.is_admin) {
+    return res.status(403).json({
+      success: false,
+      message: 'נדרשות הרשאות מנהל מערכת'
+    });
+  }
+
+  next();
+};
+
+// Specific admin users middleware - for extra security (both environments)
+const ADMIN_USER_IDS = [
+  // Production IDs
+  '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי (production)
+  '21c6c05f-cb60-47f3-b5f2-b9ada3631345', // ליאת בן שי (production)
+  // Local development IDs
+  'bfc0ba9a-daae-46e2-acb9-5984d1adef9f', // יעל הורי (local)
+  '6bdc1c02-fa65-4ef0-868b-928ec807b2ba'  // ליאת בן שי (local)
+];
+
+export const requireSpecificAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'נדרשת הזדהות'
+    });
+  }
+
+  if (!ADMIN_USER_IDS.includes(req.user.id)) {
+    return res.status(403).json({
+      success: false,
+      message: 'אין הרשאת גישה'
     });
   }
 

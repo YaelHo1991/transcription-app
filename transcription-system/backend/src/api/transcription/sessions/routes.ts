@@ -246,9 +246,7 @@ function formatBlocksToTxt(
 // Save transcription to session
 router.post('/save', devAuth, async (req: Request, res: Response) => {
   try {
-    console.log('📥 [SAVE] Received request body:', {
-      hasBody: !!req.body,
-      bodyKeys: req.body ? Object.keys(req.body) : [],
+    // console.log removed for production : [],
       mediaId: req.body?.mediaId,
       transcriptionNumber: req.body?.transcriptionNumber,
       transcriptionNumberType: typeof req.body?.transcriptionNumber
@@ -275,13 +273,7 @@ router.post('/save', devAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing transcriptionNumber' });
     }
     
-    console.log('💾 [SAVE] Saving session:', {
-      mediaId,
-      transcriptionNumber,
-      blocksCount: blocks?.length || 0,
-      speakersCount: speakers?.length || 0,
-      firstBlock: blocks?.[0]
-    });
+    // console.log removed for production
 
     // Create session directory structure
     const baseDir = path.join(__dirname, '..', '..', '..', '..', 'user_data', 'user_live', 'sessions');
@@ -298,7 +290,7 @@ router.post('/save', devAuth, async (req: Request, res: Response) => {
     const currentFile = path.join(sessionDir, 'current.txt');
     await fs.writeFile(currentFile, BOM + content, 'utf8');
     
-    console.log('✅ [SAVE] Session saved successfully:', currentFile);
+    // console.log removed for production
     
     // Write metadata
     const metadata = {
@@ -333,7 +325,7 @@ router.get('/t-list/:mediaId', devAuth, async (req: Request, res: Response) => {
   try {
     const { mediaId } = req.params;
     
-    console.log('📋 [T-LIST] Listing transcriptions for media:', mediaId);
+    // console.log removed for production
     
     const baseDir = path.join(__dirname, '..', '..', '..', '..', 'user_data', 'user_live', 'sessions');
     const mediaDir = path.join(baseDir, mediaId);
@@ -379,7 +371,7 @@ router.get('/t-list/:mediaId', devAuth, async (req: Request, res: Response) => {
     // Sort by transcription number
     transcriptions.sort((a, b) => a.transcriptionNumber - b.transcriptionNumber);
     
-    console.log('✅ [T-LIST] Found transcriptions:', transcriptions.length);
+    // console.log removed for production
     
     res.json({
       success: true,
@@ -397,10 +389,7 @@ router.get('/load/:mediaId/:transcriptionNumber', devAuth, async (req: Request, 
   try {
     const { mediaId, transcriptionNumber } = req.params;
     
-    console.log('📂 [LOAD] Loading session:', {
-      mediaId,
-      transcriptionNumber
-    });
+    // console.log removed for production
     
     const baseDir = path.join(__dirname, '..', '..', '..', '..', 'user_data', 'user_live', 'sessions');
     const sessionDir = path.join(baseDir, mediaId, `transcription_${transcriptionNumber}`);
@@ -428,11 +417,7 @@ router.get('/load/:mediaId/:transcriptionNumber', devAuth, async (req: Request, 
     const cleanContent = content.replace(/^\uFEFF/, '').replace(/\uFEFF/g, '');
     const parsed = parseTxtToBlocks(cleanContent);
     
-    console.log('✅ [LOAD] Session loaded:', {
-      blocksCount: parsed.blocks.length,
-      speakersCount: parsed.speakers.length,
-      firstBlock: parsed.blocks[0],
-      contentPreview: cleanContent.substring(0, 100).replace(/\n/g, '\\n')
+    // console.log removed for production.replace(/\n/g, '\\n')
     });
     
     res.json({

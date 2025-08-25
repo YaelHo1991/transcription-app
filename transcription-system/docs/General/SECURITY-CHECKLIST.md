@@ -8,6 +8,12 @@
 - [x] Password hashing with bcrypt
 - [x] Session management with secure cookies
 - [x] Role-based access control (admin/user/transcriber)
+- [x] **Password Reset via Email** (Implemented Aug 25, 2025)
+  - Secure token generation with crypto.randomBytes
+  - 15-minute token expiration
+  - Single-use tokens (auto-invalidate after use)
+  - Email enumeration protection
+  - Rate limiting on forgot password endpoint
 
 ### 2. **Rate Limiting**
 - [x] Login attempts limited to 5 per 15 minutes
@@ -86,13 +92,33 @@ Before deploying to production, ensure:
 - **CSRF Protection**: Token validation on state-changing operations
 - **API Security**: Key-based authentication for sensitive endpoints
 
-## 🔍 Areas for Future Enhancement
+## 🔍 Next Security Priorities
 
+### Stage 2 - Session Security & Audit Logging
+1. **Session Management Enhancement**
+   - [ ] Implement session timeout after inactivity
+   - [ ] Add "Remember Me" functionality with secure tokens
+   - [ ] Implement concurrent session limiting
+   - [ ] Add session invalidation on password change
+
+2. **Audit Logging System**
+   - [ ] Log all login attempts (successful and failed)
+   - [ ] Track password changes and resets
+   - [ ] Record permission changes
+   - [ ] Monitor data access patterns
+   - [ ] Store logs in separate secure database table
+
+3. **Account Security Features**
+   - [ ] Account lockout after multiple failed attempts
+   - [ ] Email notification for suspicious login attempts
+   - [ ] Password strength requirements enforcement
+   - [ ] Password history to prevent reuse
+
+### Stage 3 - Advanced Security
 1. Implement 2FA (Two-Factor Authentication)
-2. Add audit logging for all sensitive operations
-3. Implement IP whitelisting for admin access
-4. Add automated security scanning in CI/CD
-5. Implement data encryption at rest
-6. Add rate limiting per user (not just per IP)
-7. Implement proper CSRF tokens across all forms
-8. Add WebAuthn/FIDO2 support for passwordless authentication
+2. Implement IP whitelisting for admin access
+3. Add automated security scanning in CI/CD
+4. Implement data encryption at rest
+5. Add rate limiting per user (not just per IP)
+6. Implement proper CSRF tokens across all forms
+7. Add WebAuthn/FIDO2 support for passwordless authentication

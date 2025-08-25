@@ -32,27 +32,58 @@ export class HtmlDocumentGenerator {
     const speakerNames = this.extractSpeakerNames(blocks, speakers);
     const duration = options.mediaDuration || this.calculateDuration(blocks);
     
+    // Ensure we have a proper template with defaults
+    const defaultTemplate = {
+      header: { 
+        enabled: true, 
+        elements: [
+          { type: 'fileName', position: 'center', line: 'same', bold: true, size: 14 }
+        ],
+        borderLine: { enabled: true }
+      },
+      body: {
+        speakers: { 
+          enabled: true, 
+          template: 'דוברים: {{speakers}}, משך ההקלטה: {{duration}}'
+        },
+        content: {
+          fontSize: 12,
+          fontFamily: 'David',
+          speakerColor: '000080',
+          speakerBold: true,
+          alignment: 'right',
+          lineSpacing: 1.5,
+          speakerSuffix: ':'
+        }
+      },
+      footer: { enabled: false, elements: [] },
+      page: { orientation: 'portrait' }
+    };
+    
+    // Merge provided template with defaults
+    const actualTemplate = template || defaultTemplate;
+    
     // Get template settings with defaults
-    const fontSize = template?.body?.content?.fontSize || 12;
-    const fontFamily = template?.body?.content?.fontFamily || 'David';
-    const speakerColor = template?.body?.content?.speakerColor || '000080';
-    const speakerBold = template?.body?.content?.speakerBold !== false;
-    const alignment = template?.body?.content?.alignment || 'right';
-    const lineSpacing = template?.body?.content?.lineSpacing || 1.5;
+    const fontSize = actualTemplate?.body?.content?.fontSize || defaultTemplate.body.content.fontSize;
+    const fontFamily = actualTemplate?.body?.content?.fontFamily || defaultTemplate.body.content.fontFamily;
+    const speakerColor = actualTemplate?.body?.content?.speakerColor || defaultTemplate.body.content.speakerColor;
+    const speakerBold = actualTemplate?.body?.content?.speakerBold !== false;
+    const alignment = actualTemplate?.body?.content?.alignment || defaultTemplate.body.content.alignment;
+    const lineSpacing = actualTemplate?.body?.content?.lineSpacing || defaultTemplate.body.content.lineSpacing;
     
     let html = `
       <!DOCTYPE html>
       <html dir="rtl" lang="he">
       <head>
         <meta charset="UTF-8">
-        <title>' + mediaFileName + ' - תמלול</title>
+        <title>${mediaFileName} - תמלול</title>
         <style>
           body {
-            font-family: \'' + fontFamily + '\', \'Arial Hebrew\', \'Arial\', sans-serif;
+            font-family: '${fontFamily}', 'Arial Hebrew', 'Arial', sans-serif;
             direction: rtl;
-            text-align: ' + alignment + ';
-            font-size: ' + fontSize + 'pt;
-            line-height: ' + lineSpacing + ';
+            text-align: ${alignment};
+            font-size: ${fontSize}pt;
+            line-height: ${lineSpacing};
           }
           .header {
             margin-bottom: 20px;
@@ -78,8 +109,8 @@ export class HtmlDocumentGenerator {
             margin: 20px 0;
           }
           .speaker {
-            font-weight: ' + (speakerBold ? 'bold' : 'normal') + ';
-            color: #' + speakerColor + ';
+            font-weight: ${speakerBold ? 'bold' : 'normal'};
+            color: #${speakerColor};
           }
           hr {
             border: none;
@@ -89,10 +120,10 @@ export class HtmlDocumentGenerator {
         </style>
       </head>
       <body>
-    ';
+    `;
 
     // Add header based on template settings
-    if (template?.header?.enabled) {
+    if (actualTemplate?.header?.enabled) {
       html += '<div class="header">';
       
       // Group elements by line
@@ -102,8 +133,8 @@ export class HtmlDocumentGenerator {
         below: []
       };
       
-      if (template.header.elements) {
-        template.header.elements.forEach((element: any) => {
+      if (actualTemplate.header.elements) {
+        actualTemplate.header.elements.forEach((element: any) => {
           const line = element.line || 'same';
           lines[line].push(element);
         });
@@ -153,24 +184,24 @@ export class HtmlDocumentGenerator {
       html += '</div>';
       
       // Add border line if enabled
-      if (template.header.borderLine?.enabled) {
+      if (actualTemplate.header.borderLine?.enabled) {
         html += '<hr/>';
       }
     }
     
     // Add speakers line based on template
-    if (template?.body?.speakers?.enabled) {
-      const speakersTemplate = template.body.speakers.template || 'דוברים: {{speakers}}, משך ההקלטה: {{duration}}';
+    if (actualTemplate?.body?.speakers?.enabled) {
+      const speakersTemplate = actualTemplate.body.speakers.template || 'דוברים: {{speakers}}, משך ההקלטה: {{duration}}';
       const speakersText = speakersTemplate
         .replace('{{speakers}}', this.joinWithRTLCommas(speakerNames) || 'לא צוינו')
         .replace('{{duration}}', duration);
       
-      html += '
+      html += `
         <div class="content">
-          <p><strong>' + speakersText + '</strong></p>
+          <p><strong>${speakersText}</strong></p>
         </div>
         <hr/>
-      ';
+      `;
     }
     
     // Add transcription content
@@ -180,34 +211,34 @@ export class HtmlDocumentGenerator {
       
       const speakerName = speakers.get(block.speaker) || block.speaker || '';
       const processedText = this.processTimestamp(block.text || '', options.includeTimestamps || false);
-      const speakerSuffix = template?.body?.content?.speakerSuffix || ':';
+      const speakerSuffix = actualTemplate?.body?.content?.speakerSuffix || ':';
       
       if (speakerName && processedText) {
-        html += '<p><span class="speaker">' + speakerName + speakerSuffix + '</span> ' + processedText + '</p>';
+        html += `<p><span class="speaker">${speakerName}${speakerSuffix}</span> ${processedText}</p>`;
       } else if (processedText) {
-        html += '<p>' + processedText + '</p>';
+        html += `<p>${processedText}</p>`;
       }
     });
     html += '</div>';
     
     // Add footer based on template
-    if (template?.footer?.enabled && template.footer.elements) {
+    if (actualTemplate?.footer?.enabled && actualTemplate.footer.elements) {
       html += '<div style="text-align: center; margin-top: 40px;">';
       
-      template.footer.elements.forEach((element: any) => {
+      actualTemplate.footer.elements.forEach((element: any) => {
         if (element.type === 'pageNumber') {
           html += '<p>עמוד 1</p>';
         } else if (element.type === 'pageNumberFull') {
           html += '<p>עמוד 1 מתוך 1</p>';
         } else if (element.value) {
-          html += '<p>' + element.value + '</p>';
+          html += `<p>${element.value}</p>`;
         }
       });
       
       html += '</div>';
     }
     
-    html += '
+    html += `
       </body>
       </html>
     `;
@@ -301,10 +332,10 @@ export class HtmlDocumentGenerator {
     if (element.bold) style += 'font-weight: bold; ';
     if (element.italic) style += 'font-style: italic; ';
     if (element.underline) style += 'text-decoration: underline; ';
-    if (element.size) style += 'font-size: ' + element.size + 'pt; ';
-    if (element.color) style += 'color: #' + element.color + '; ';
+    if (element.size) style += `font-size: ${element.size}pt; `;
+    if (element.color) style += `color: #${element.color}; `;
     
-    return '<p style="' + style + '">' + value + '</p>';
+    return `<p style="${style}">${value}</p>`;
   }
   
   /**

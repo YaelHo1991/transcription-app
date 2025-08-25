@@ -67,7 +67,7 @@ router.post('/create', verifyUser, async (req: Request, res: Response) => {
     }
     
     const userId = (req as any).user?.id || 'unknown';
-    console.log('📁 Creating new project for user:', userId, 'media:', mediaFileName);
+    // console.log removed for production
     
     const projectId = await projectService.createProject(mediaFileName, projectName, userId);
     
@@ -90,11 +90,7 @@ router.post('/:projectId/save', verifyUser, async (req: Request, res: Response) 
     const { projectId } = req.params;
     const { blocks, speakers, remarks } = req.body;
     
-    console.log('💾 Saving project ' + projectId + ':', {
-      blocksCount: blocks?.length || 0,
-      speakersCount: speakers?.length || 0,
-      remarksCount: remarks?.length || 0
-    });
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const success = await projectService.saveProject(projectId, {
@@ -125,16 +121,12 @@ router.get('/:projectId/load', verifyUser, async (req: Request, res: Response) =
     const { projectId } = req.params;
     const userId = (req as any).user?.id || 'unknown';
     
-    console.log('📂 Loading project ' + projectId + ' for user ${userId}');
+    // console.log removed for production
     
     const data = await projectService.loadProject(projectId, userId);
     
     if (data) {
-      console.log('✅ Loaded project ' + projectId + ':', {
-        blocksCount: data.blocks?.length || 0,
-        speakersCount: data.speakers?.length || 0,
-        remarksCount: data.remarks?.length || 0
-      });
+      // console.log removed for production
       
       res.json({
         success: true,
@@ -156,7 +148,7 @@ router.post('/:projectId/backup', verifyUser, async (req: Request, res: Response
   try {
     const { projectId } = req.params;
     
-    console.log('📸 Creating backup for project ' + projectId + '');
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const backupFile = await projectService.createBackup(projectId, userId);
@@ -183,7 +175,7 @@ router.post('/:projectId/restore/:backupFile', verifyUser, async (req: Request, 
   try {
     const { projectId, backupFile } = req.params;
     
-    console.log('♻️ Restoring project ' + projectId + ' from backup ${backupFile}');
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const success = await projectService.restoreBackup(projectId, backupFile, userId);
@@ -213,7 +205,7 @@ router.post('/:projectId/restore/:backupFile', verifyUser, async (req: Request, 
 router.get('/list', verifyUser, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id || 'unknown';
-    console.log('📋 Listing projects for user:', userId);
+    // console.log removed for production
     
     const projects = await projectService.listProjects(userId);
     
@@ -235,7 +227,7 @@ router.get('/by-media/:mediaFileName', verifyUser, async (req: Request, res: Res
   try {
     const { mediaFileName } = req.params;
     
-    console.log('🔍 Finding project for media:', mediaFileName);
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const projectId = await projectService.getProjectByMedia(mediaFileName, userId);
@@ -266,7 +258,7 @@ router.get('/:projectId/backups', verifyUser, async (req: Request, res: Response
   try {
     const { projectId } = req.params;
     
-    console.log('📋 Listing backups for project ' + projectId + '');
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const backups = await projectService.listBackups(projectId, userId);
@@ -289,7 +281,7 @@ router.get('/:projectId/backups/:backupFile', verifyUser, async (req: Request, r
   try {
     const { projectId, backupFile } = req.params;
     
-    console.log('📄 Loading backup ' + backupFile + ' for project ${projectId}');
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const content = await projectService.getBackupContent(projectId, backupFile, userId);
@@ -315,7 +307,7 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
   try {
     const { projectId } = req.params;
     
-    console.log('🗑️ Deleting project ' + projectId + '');
+    // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
     const success = await projectService.deleteProject(projectId, userId);
@@ -341,7 +333,7 @@ router.get('/:projectId/media/:filename', verifyUser, async (req: Request, res: 
   try {
     const { projectId, filename } = req.params;
     
-    console.log('🎵 Serving media file: ' + filename + ' from project: ${projectId}');
+    // console.log removed for production
     
     // Get the project folder path with user-specific directory
     const userId = (req as any).user?.id || 'unknown';

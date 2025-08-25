@@ -5,6 +5,7 @@ import licensesRoutes from './licenses/routes';
 import transcriptionRoutes from './transcription/routes';
 import projectRoutes from './projects/routes';
 import adminShortcutsRoutes from './admin/shortcuts/routes';
+import adminRoutes from './admin/routes';
 import templateRoutes from '../routes/templateRoutes';
 import uploadRoutes from '../routes/uploadRoutes';
 import { initWaveformRoutes } from '../routes/waveformRoutes';
@@ -60,6 +61,9 @@ router.use('/projects', projectRoutes);
 
 // Admin endpoints for managing system shortcuts (auth handled in the route)
 router.use('/admin/shortcuts', adminShortcutsRoutes);
+
+// Admin endpoints (for יעל and ליאת only)
+router.use('/admin', adminRoutes);
 
 // Upload endpoints (smart upload with URL import and chunking)
 router.use('/', uploadRoutes);

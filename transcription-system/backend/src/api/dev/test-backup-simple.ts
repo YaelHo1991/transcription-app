@@ -7,7 +7,7 @@ import path from 'path';
  */
 export async function testCreateBackupSimple(req: Request, res: Response) {
   try {
-    console.log('Simple backup test - creating TXT file directly');
+    // console.log removed for production
     
     // Test content
     const backupContent = `=== TRANSCRIPTION BACKUP ===
@@ -74,7 +74,7 @@ Total Speakers: 3`;
     const metadataPath = path.join(backupsDir, 'metadata.json');
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
     
-    console.log('Backup file created at:', filePath);
+    // console.log removed for production
     
     res.json({
       success: true,

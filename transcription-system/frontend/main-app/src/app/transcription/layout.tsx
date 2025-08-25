@@ -5,6 +5,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import './transcription.css';
 
+// Admin user IDs (same as in admin pages)
+const ADMIN_USER_IDS = [
+  '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי
+  '21c6c05f-cb60-47f3-b5f2-b9ada3631345'  // ליאת בן שי
+];
+
 export default function TranscriptionLayout({
   children,
 }: {
@@ -12,6 +18,7 @@ export default function TranscriptionLayout({
 }) {
   const [userFullName, setUserFullName] = useState('');
   const [permissions, setPermissions] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -35,6 +42,36 @@ export default function TranscriptionLayout({
     if (!hasTranscriptionAccess) {
       router.push('/login?system=transcription');
       return;
+    }
+    
+    // Check if current user is admin
+    try {
+      // First try to get userId from localStorage directly
+      let userId = localStorage.getItem('userId');
+      console.log('[Layout] userId from localStorage:', userId);
+      
+      // If not found, try to extract from token
+      if (!userId && token) {
+        console.log('[Layout] Checking token for userId...');
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        console.log('[Layout] Token payload:', payload);
+        userId = payload.userId || payload.id || payload.user_id;
+      }
+      
+      console.log('[Layout] Final User ID:', userId);
+      console.log('[Layout] Admin IDs:', ADMIN_USER_IDS);
+      
+      if (userId) {
+        const adminStatus = ADMIN_USER_IDS.includes(userId);
+        console.log('[Layout] Is Admin:', adminStatus);
+        setIsAdmin(adminStatus);
+      } else {
+        console.log('[Layout] No user ID found');
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error('[Layout] Error checking admin status:', error);
+      setIsAdmin(false);
     }
     
     if (fullName && fullName !== 'null' && fullName !== 'undefined') {
@@ -83,6 +120,11 @@ export default function TranscriptionLayout({
       path: '/transcription/records', 
       label: 'רישומים',
       permission: true // All transcription users can access
+    },
+    { 
+      path: '/transcription/admin', 
+      label: '🔧 ניהול',
+      permission: isAdmin
     }
   ];
 

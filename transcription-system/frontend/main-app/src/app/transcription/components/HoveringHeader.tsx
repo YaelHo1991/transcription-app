@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -12,6 +12,16 @@ interface HoveringHeaderProps {
   onLockToggle?: () => void;
   isLocked?: boolean;
 }
+
+// Admin user IDs (both local and production)
+const ADMIN_USER_IDS = [
+  // Production IDs
+  '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי (production)
+  '21c6c05f-cb60-47f3-b5f2-b9ada3631345', // ליאת בן שי (production)
+  // Local development IDs
+  'bfc0ba9a-daae-46e2-acb9-5984d1adef9f', // יעל הורי (local)
+  '6bdc1c02-fa65-4ef0-868b-928ec807b2ba'  // ליאת בן שי (local)
+];
 
 export default function HoveringHeader({ 
   userFullName, 
@@ -28,7 +38,43 @@ export default function HoveringHeader({
     themeColor 
   });
   const [showHeader, setShowHeader] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
+
+  // Check if current user is admin
+  useEffect(() => {
+    try {
+      // First try to get userId from localStorage directly
+      let userId = localStorage.getItem('userId');
+      console.log('[HoveringHeader] userId from localStorage:', userId);
+      
+      // If not found, try to extract from token
+      if (!userId) {
+        const token = localStorage.getItem('token');
+        console.log('[HoveringHeader] Checking token for userId...');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          console.log('[HoveringHeader] Token payload:', payload);
+          userId = payload.userId || payload.id || payload.user_id;
+        }
+      }
+      
+      console.log('[HoveringHeader] Final User ID:', userId);
+      console.log('[HoveringHeader] Admin IDs:', ADMIN_USER_IDS);
+      
+      if (userId) {
+        const adminStatus = ADMIN_USER_IDS.includes(userId);
+        console.log('[HoveringHeader] Is Admin:', adminStatus);
+        setIsAdmin(adminStatus);
+      } else {
+        console.log('[HoveringHeader] No user ID found');
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error('[HoveringHeader] Error checking admin status:', error);
+      setIsAdmin(false);
+    }
+  }, []);
 
   // Check permissions for each route
   const canAccessTranscription = permissions.includes('D');
@@ -61,6 +107,11 @@ export default function HoveringHeader({
       path: '/transcription/records', 
       label: 'רישומים',
       permission: true
+    },
+    { 
+      path: '/transcription/admin', 
+      label: '🔧 ניהול',
+      permission: isAdmin
     }
   ];
 

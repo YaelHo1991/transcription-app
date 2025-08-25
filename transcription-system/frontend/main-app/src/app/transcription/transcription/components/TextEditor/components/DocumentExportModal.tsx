@@ -62,13 +62,31 @@ export default function DocumentExportModal({
   const loadDefaultTemplate = async () => {
     setTemplateLoading(true);
     try {
-      const response = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/template/export-template');
+      // Use relative URL for production, explicit URL for localhost
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+        ? '' // Use relative URL on production
+        : 'http://localhost:5000'; // Use explicit URL on localhost
+      
+      // Check for session template first
+      const sessionTemplate = localStorage.getItem('sessionTemplate');
+      let templateUrl = `${baseUrl}/api/template/export-template`;
+      
+      if (sessionTemplate) {
+        // Use session template if available
+        templateUrl = `${baseUrl}/api/template/export-template?template=${encodeURIComponent(sessionTemplate)}`;
+      }
+      
+      const response = await fetch(templateUrl);
       if (response.ok) {
         const blob = await response.blob();
-        const file = new File([blob], 'hebrew-export-template.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        const templateName = sessionTemplate || 'hebrew-export-template.docx';
+        const file = new File([blob], templateName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
         const result = await templateProcessor.loadTemplate(file);
         if (result) {
           setHasTemplate(true);
+          if (sessionTemplate) {
+            console.log(`Using session template: ${sessionTemplate}`);
+          }
         }
       }
     } catch (error) {

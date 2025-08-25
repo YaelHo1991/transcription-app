@@ -35,7 +35,7 @@ export async function testConnection(): Promise<boolean> {
     const client = await db.connect();
     const result = await client.query('SELECT NOW()');
     client.release();
-    console.log('✅ Database connected successfully at:', result.rows[0].now);
+    // console.log removed for production
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error);
@@ -138,7 +138,7 @@ export async function initializeDatabase(): Promise<void> {
       // Waveforms table might not exist
     }
 
-    console.log('✅ Database tables initialized successfully');
+    // console.log removed for production
   } catch (error) {
     console.error('❌ Failed to initialize database tables:', error);
     throw error;
@@ -148,5 +148,5 @@ export async function initializeDatabase(): Promise<void> {
 // Graceful shutdown
 export async function closeDatabase(): Promise<void> {
   await db.end();
-  console.log('Database connection pool closed');
+  // console.log removed for production
 }

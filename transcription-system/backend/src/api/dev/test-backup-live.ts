@@ -7,7 +7,7 @@ import path from 'path';
  */
 export async function testCreateBackupLive(req: Request, res: Response) {
   try {
-    console.log('Live backup endpoint called with data');
+    // console.log removed for production
     
     const { blocks, speakers, projectName, transcriptionTitle, mediaFile } = req.body;
     
@@ -82,8 +82,8 @@ export async function testCreateBackupLive(req: Request, res: Response) {
     const BOM = '\uFEFF';
     await fs.writeFile(filePath, BOM + backupContent, 'utf8');
     
-    console.log('Live backup created at:', filePath);
-    console.log('Content preview:', backupContent.substring(0, 200));
+    // console.log removed for production
+    // console.log removed for production);
     
     res.json({
       success: true,
@@ -145,7 +145,7 @@ export async function listLiveBackups(req: Request, res: Response) {
           });
         }
       } catch (err) {
-        console.log('Error reading session:', session, err);
+        // console.log removed for production
       }
     }
     

@@ -25,7 +25,7 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
 
     // Check if this is a URL import
     if (fileUrl && uploadService.isCloudUrl(fileUrl)) {
-      console.log('🌐 Detected cloud URL, importing...');
+      // console.log removed for production
       
       const fileName = await uploadService.importFromUrl({
         url: fileUrl,

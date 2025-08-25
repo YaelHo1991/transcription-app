@@ -6,10 +6,12 @@ import { Request, Response, NextFunction } from 'express';
 // Rate limiting for login attempts
 export const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: 50, // Temporarily increased from 5 to 50 for testing
   message: 'יותר מדי ניסיונות התחברות, נסה שוב מאוחר יותר',
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful logins
+  // Use default key generator which handles IPv6 properly
 });
 
 // General API rate limiting
@@ -19,6 +21,7 @@ export const apiRateLimiter = rateLimit({
   message: 'יותר מדי בקשות, נסה שוב מאוחר יותר',
   standardHeaders: true,
   legacyHeaders: false,
+  // Use default key generator which handles IPv6 properly
 });
 
 // Strict rate limiting for sensitive operations
@@ -28,6 +31,7 @@ export const strictRateLimiter = rateLimit({
   message: 'חריגה ממגבלת הבקשות, נסה שוב מאוחר יותר',
   standardHeaders: true,
   legacyHeaders: false,
+  // Use default key generator which handles IPv6 properly
 });
 
 // Helmet configuration for security headers

@@ -31,7 +31,7 @@ async function initializeTables() {
       // Column might already exist, ignore error
     });
 
-    console.log('✅ Database tables updated successfully');
+    // console.log removed for production
   } catch (error) {
     console.error('❌ Error updating database tables:', error);
   }
@@ -263,7 +263,7 @@ router.post('/purchase-old-disabled', async (req: Request, res: Response) => {
       await client.query('COMMIT');
       client.release();
 
-      console.log(`✅ License purchased successfully for user ${email}, Amount: ₪${totalAmount}, Permissions: [${permissions.join(', ')}]`);
+      // console.log removed for production}]`);
 
       res.json({
         success: true,

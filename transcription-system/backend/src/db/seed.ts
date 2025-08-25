@@ -31,7 +31,7 @@ const initialUsers = [
 ];
 
 async function seedDatabase() {
-  console.log('🌱 Starting database seeding...\n');
+  // console.log removed for production
   
   try {
     // Test connection
@@ -42,13 +42,13 @@ async function seedDatabase() {
     }
 
     // Initialize tables
-    console.log('📋 Initializing database tables...');
+    // console.log removed for production
     await initializeDatabase();
 
     // Check if users already exist
     const existingUsers = await UserModel.getAllUsers();
     if (existingUsers.length > 0) {
-      console.log('ℹ️  Database already has users. Skipping seed.');
+      // console.log removed for production
       // Don't close the pool when called from server.ts
       if (require.main === module) {
         await db.end();
@@ -57,30 +57,30 @@ async function seedDatabase() {
     }
 
     // Create users
-    console.log('\n👥 Creating initial users...');
+    // console.log removed for production
     for (const userData of initialUsers) {
       try {
         const user = await UserModel.create(userData);
-        console.log(`✅ Created user: ${user.username} (${user.permissions})`);
-        console.log(`   Email: ${user.email}`);
-        console.log(`   Password: ${userData.password}`); // Show password for development
-        console.log('');
+        // console.log removed for production`);
+        // console.log removed for production
+        // console.log removed for production // Show password for development
+        // console.log removed for production
       } catch (error: any) {
         if (error.code === '23505') { // Unique constraint violation
-          console.log(`⚠️  User ${userData.username} already exists`);
+          // console.log removed for production
         } else {
           console.error(`❌ Failed to create user ${userData.username}:`, error.message);
         }
       }
     }
 
-    console.log('\n✨ Database seeding completed successfully!');
-    console.log('\n📝 Login credentials for testing:');
-    console.log('================================');
+    // console.log removed for production
+    // console.log removed for production
+    // console.log removed for production
     initialUsers.forEach(user => {
-      console.log(`${user.username}: ${user.password} (${user.permissions})`);
+      // console.log removed for production`);
     });
-    console.log('================================\n');
+    // console.log removed for production
 
   } catch (error) {
     console.error('❌ Seeding failed:', error);

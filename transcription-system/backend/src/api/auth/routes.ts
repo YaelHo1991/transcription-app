@@ -14,7 +14,8 @@ function createToken(user: any) {
     { 
       id: user.id, 
       username: user.username,
-      permissions: user.permissions 
+      permissions: user.permissions,
+      is_admin: user.is_admin || false
     }, 
     JWT_SECRET, 
     { expiresIn: '24h' }

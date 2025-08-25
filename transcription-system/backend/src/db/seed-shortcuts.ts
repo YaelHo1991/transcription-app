@@ -71,7 +71,7 @@ const systemShortcuts: SystemShortcut[] = [
 
 export async function seedShortcuts() {
   try {
-    console.log('🌱 Seeding shortcuts...');
+    // console.log removed for production
     
     // Get category IDs
     const categories = await db.query('SELECT id, name FROM shortcut_categories');
@@ -105,7 +105,7 @@ export async function seedShortcuts() {
       ]);
     }
     
-    console.log(`✅ Seeded ${systemShortcuts.length} system shortcuts`);
+    // console.log removed for production
     
     // Initialize quotas for existing users
     await db.query(`
@@ -115,7 +115,7 @@ export async function seedShortcuts() {
       ON CONFLICT (user_id) DO NOTHING
     `);
     
-    console.log('✅ Initialized user quotas');
+    // console.log removed for production
     
   } catch (error) {
     console.error('❌ Error seeding shortcuts:', error);
@@ -126,7 +126,7 @@ export async function seedShortcuts() {
 // Function to run the migration
 export async function runShortcutsMigration() {
   try {
-    console.log('📋 Running shortcuts migration...');
+    // console.log removed for production
     
     // Read and execute the migration file
     const fs = require('fs');
@@ -135,7 +135,7 @@ export async function runShortcutsMigration() {
     const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
     
     await db.query(migrationSQL);
-    console.log('✅ Migration completed successfully');
+    // console.log removed for production
     
     // Seed initial data
     await seedShortcuts();

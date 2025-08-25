@@ -88,7 +88,7 @@ class UploadService {
   async importFromUrl(options: UrlImportOptions): Promise<string> {
     const { url, projectId, userId } = options;
     
-    console.log('📥 Starting URL import from:', url);
+    // console.log removed for production
     
     try {
       // Get direct download URL
@@ -167,7 +167,7 @@ class UploadService {
           const progress = Math.round((downloadedBytes / totalBytes) * 100);
           // Could emit progress event here if needed
           if (progress % 10 === 0) {
-            console.log('📊 Download progress: ' + progress + '%');
+            // console.log removed for production
           }
         }
       });
@@ -177,8 +177,8 @@ class UploadService {
       // Move from temp to final location
       fs.renameSync(tempFilePath, finalFilePath);
       
-      console.log('✅ File imported successfully:', finalFileName);
-      console.log('📁 File size:', (downloadedBytes / (1024 * 1024)).toFixed(2), 'MB');
+      // console.log removed for production
+      // console.log removed for production).toFixed(2), 'MB');
       
       return finalFileName;
       
@@ -197,7 +197,7 @@ class UploadService {
   ): Promise<{ complete: boolean; fileName?: string }> {
     const { fileName, chunkIndex, totalChunks, fileId } = metadata;
     
-    console.log('📦 Receiving chunk ${chunkIndex + 1}/' + totalChunks + ' for file: ${fileName}');
+    // console.log removed for production
     
     // Initialize storage for this file if needed
     if (!this.chunkStorage.has(fileId)) {
@@ -213,7 +213,7 @@ class UploadService {
     
     if (receivedChunks === totalChunks) {
       // All chunks received, combine them
-      console.log('🔧 All chunks received, combining file...');
+      // console.log removed for production
       
       const completeBuffer = Buffer.concat(chunks);
       const finalFilePath = path.join(this.uploadsDir, fileName);
@@ -224,8 +224,8 @@ class UploadService {
       // Clean up chunk storage
       this.chunkStorage.delete(fileId);
       
-      console.log('✅ File assembled successfully:', fileName);
-      console.log('📁 Final size:', (completeBuffer.length / (1024 * 1024)).toFixed(2), 'MB');
+      // console.log removed for production
+      // console.log removed for production).toFixed(2), 'MB');
       
       return { complete: true, fileName };
     }
@@ -248,14 +248,14 @@ class UploadService {
       
       if (now - stats.mtimeMs > maxAge) {
         fs.unlinkSync(filePath);
-        console.log('🗑️ Cleaned up old temp file:', file);
+        // console.log removed for production
       }
     });
     
     // Clean chunk storage (in memory)
     // In production, you might want to persist this to Redis or a database
     if (this.chunkStorage.size > 100) {
-      console.log('⚠️ Warning: Many incomplete uploads in memory. Consider cleanup.');
+      // console.log removed for production
     }
   }
 
