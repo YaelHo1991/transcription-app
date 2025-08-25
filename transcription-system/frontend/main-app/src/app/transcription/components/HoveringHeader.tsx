@@ -44,18 +44,32 @@ export default function HoveringHeader({
   // Check if current user is admin
   useEffect(() => {
     try {
-      // First try to get userId from localStorage directly
-      let userId = localStorage.getItem('userId');
-      console.log('[HoveringHeader] userId from localStorage:', userId);
+      // Check if we're in test mode and have an admin token
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      const adminToken = localStorage.getItem('admin_token');
       
-      // If not found, try to extract from token
-      if (!userId) {
-        const token = localStorage.getItem('token');
-        console.log('[HoveringHeader] Checking token for userId...');
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          console.log('[HoveringHeader] Token payload:', payload);
-          userId = payload.userId || payload.id || payload.user_id;
+      let userId = null;
+      
+      if (isTestSession && adminToken) {
+        // In test mode, check the admin token
+        console.log('[HoveringHeader] Test mode detected, checking admin token');
+        const adminPayload = JSON.parse(atob(adminToken.split('.')[1]));
+        userId = adminPayload.userId || adminPayload.id || adminPayload.user_id;
+        console.log('[HoveringHeader] Admin user ID from saved token:', userId);
+      } else {
+        // Normal mode - check current token or localStorage
+        userId = localStorage.getItem('userId');
+        console.log('[HoveringHeader] userId from localStorage:', userId);
+        
+        // If not found, try to extract from token
+        if (!userId) {
+          const token = localStorage.getItem('token');
+          console.log('[HoveringHeader] Checking token for userId...');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            console.log('[HoveringHeader] Token payload:', payload);
+            userId = payload.userId || payload.id || payload.user_id;
+          }
         }
       }
       

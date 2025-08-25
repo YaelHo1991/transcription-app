@@ -140,7 +140,9 @@ async function startServer() {
     
     // Start server
     const server = app.listen(PORT, () => {
-      // console.log removed for production} ║
+      console.log(`
+╔════════════════════════════════════════╗
+║  🚀 Server Started Successfully        ║
 ║  Port: ${PORT.toString().padEnd(32)} ║
 ║  Database: ${isConnected ? '✅ Connected'.padEnd(29) : '❌ Disconnected'.padEnd(29)} ║
 ║  Dev Tools: ${isDevelopment ? '✅ Enabled'.padEnd(26) : '❌ Disabled'.padEnd(26)} ║

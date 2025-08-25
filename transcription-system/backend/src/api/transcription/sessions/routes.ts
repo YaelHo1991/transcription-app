@@ -246,7 +246,9 @@ function formatBlocksToTxt(
 // Save transcription to session
 router.post('/save', devAuth, async (req: Request, res: Response) => {
   try {
-    // console.log removed for production : [],
+    console.log('[Sessions] Saving transcription:', {
+      blocks: req.body?.blocks?.length || 0,
+      speakers: req.body?.speakers || [],
       mediaId: req.body?.mediaId,
       transcriptionNumber: req.body?.transcriptionNumber,
       transcriptionNumberType: typeof req.body?.transcriptionNumber
@@ -417,7 +419,9 @@ router.get('/load/:mediaId/:transcriptionNumber', devAuth, async (req: Request, 
     const cleanContent = content.replace(/^\uFEFF/, '').replace(/\uFEFF/g, '');
     const parsed = parseTxtToBlocks(cleanContent);
     
-    // console.log removed for production.replace(/\n/g, '\\n')
+    console.log('[Sessions] Parsed TXT blocks:', {
+      blocksCount: parsed.blocks?.length || 0,
+      firstBlock: parsed.blocks?.[0]?.text?.substring(0, 100)?.replace(/\n/g, '\\n')
     });
     
     res.json({

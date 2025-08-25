@@ -22,6 +22,7 @@ interface User {
   transcriber_code: string;
   created_at: string;
   last_login: string;
+  password?: string;
 }
 
 export default function UsersManagement() {
@@ -29,6 +30,8 @@ export default function UsersManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [updatingAdmin, setUpdatingAdmin] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAccess();
@@ -36,7 +39,15 @@ export default function UsersManagement() {
 
   const checkAdminAccess = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Check for admin token first (in case we're in test mode)
+      let token = localStorage.getItem('admin_token');
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      
+      // If no admin token or not in test session, use regular token
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
       if (!token) {
         router.push('/login');
         return;
@@ -62,7 +73,13 @@ export default function UsersManagement() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Use admin token if in test session, otherwise regular token
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
         ? 'http://localhost:5000' 
         : '';
@@ -83,13 +100,130 @@ export default function UsersManagement() {
 
   const getPermissionBadges = (permissions: string) => {
     const badges = [];
-    if (permissions.includes('A')) badges.push('CRM-A');
-    if (permissions.includes('B')) badges.push('CRM-B');
-    if (permissions.includes('C')) badges.push('CRM-C');
-    if (permissions.includes('D')) badges.push('תמלול-D');
-    if (permissions.includes('E')) badges.push('תמלול-E');
-    if (permissions.includes('F')) badges.push('תמלול-F');
+    if (permissions.includes('A')) badges.push('A');
+    if (permissions.includes('B')) badges.push('B');
+    if (permissions.includes('C')) badges.push('C');
+    if (permissions.includes('D')) badges.push('D');
+    if (permissions.includes('E')) badges.push('E');
+    if (permissions.includes('F')) badges.push('F');
     return badges;
+  };
+
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAdminStatus = async (userId: string, currentIsAdmin: boolean) => {
+    setUpdatingAdmin(userId);
+    try {
+      // Use admin token if in test session, otherwise regular token
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '';
+      
+      const response = await fetch(`${baseUrl}/api/admin/user/${userId}/admin`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ is_admin: !currentIsAdmin })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === userId ? { ...user, is_admin: !currentIsAdmin } : user
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Failed to toggle admin status:', error);
+    } finally {
+      setUpdatingAdmin(null);
+    }
+  };
+
+  const loginAsUser = async (user: User) => {
+    try {
+      // Use admin token if in test session, otherwise regular token
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '';
+      
+      // Generate a token for the target user
+      const response = await fetch(`${baseUrl}/api/admin/impersonate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          userId: user.id,
+          email: user.email 
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Open test login URL in new tab with token as query param
+        const frontendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+          ? 'http://localhost:3002'
+          : 'https://yalitranscription.duckdns.org';
+        
+        // Create a temporary form to POST the token to the new window
+        const form = document.createElement('form');
+        form.method = 'GET';
+        form.target = '_blank';
+        form.action = `${frontendUrl}/test-login`;
+        
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'token';
+        tokenInput.value = data.token;
+        form.appendChild(tokenInput);
+        
+        const userInput = document.createElement('input');
+        userInput.type = 'hidden';
+        userInput.name = 'user';
+        userInput.value = JSON.stringify({
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          permissions: user.permissions,
+          is_admin: user.is_admin
+        });
+        form.appendChild(userInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+      }
+    } catch (error) {
+      console.error('Failed to login as user:', error);
+    }
   };
 
   if (isLoading) {
@@ -144,11 +278,13 @@ export default function UsersManagement() {
               <tr>
                 <th>שם מלא</th>
                 <th>אימייל</th>
+                <th>סיסמה</th>
                 <th>הרשאות</th>
                 <th>קוד מתמלל</th>
                 <th>מנהל</th>
                 <th>נרשם</th>
                 <th>כניסה אחרונה</th>
+                <th>פעולות</th>
               </tr>
             </thead>
             <tbody>
@@ -156,6 +292,21 @@ export default function UsersManagement() {
                 <tr key={user.id}>
                   <td className="user-name">{user.full_name || '-'}</td>
                   <td>{user.email}</td>
+                  <td>
+                    <div className="password-cell">
+                      {visiblePasswords.has(user.id) ? (
+                        <span className="password-text">{user.password || 'לא זמין'}</span>
+                      ) : (
+                        <span className="password-hidden">••••••••</span>
+                      )}
+                      <button 
+                        className="password-toggle"
+                        onClick={() => togglePasswordVisibility(user.id)}
+                      >
+                        {visiblePasswords.has(user.id) ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                  </td>
                   <td>
                     <div className="permissions">
                       {getPermissionBadges(user.permissions).map(badge => (
@@ -181,6 +332,25 @@ export default function UsersManagement() {
                       ? new Date(user.last_login).toLocaleDateString('he-IL')
                       : '-'
                     }
+                  </td>
+                  <td>
+                    <div className="actions-cell">
+                      <button 
+                        className={`admin-toggle-btn ${user.is_admin ? 'is-admin' : ''}`}
+                        onClick={() => toggleAdminStatus(user.id, user.is_admin)}
+                        disabled={updatingAdmin === user.id || ADMIN_USER_IDS.includes(user.id)}
+                        title={ADMIN_USER_IDS.includes(user.id) ? 'לא ניתן לשנות מנהל ראשי' : ''}
+                      >
+                        {updatingAdmin === user.id ? '...' : (user.is_admin ? 'הסר מנהל' : 'הפוך למנהל')}
+                      </button>
+                      <button 
+                        className="login-as-btn"
+                        onClick={() => loginAsUser(user)}
+                        title="כניסה כמשתמש זה בחלון חדש"
+                      >
+                        🔑 כניסה
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -325,7 +495,7 @@ export default function UsersManagement() {
         .users-table {
           width: 100%;
           border-collapse: collapse;
-          min-width: 900px;
+          min-width: 1200px;
         }
 
         .users-table th {
@@ -361,9 +531,9 @@ export default function UsersManagement() {
         .permission-badge {
           background: #e0a96d;
           color: white;
-          padding: 3px 8px;
-          border-radius: 12px;
-          font-size: 11px;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 10px;
           font-weight: 600;
         }
 
@@ -384,6 +554,94 @@ export default function UsersManagement() {
           border-radius: 15px;
           font-size: 12px;
           font-weight: 600;
+        }
+
+        .password-cell {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .password-text {
+          font-family: monospace;
+          font-size: 13px;
+          color: #5a4a3a;
+        }
+
+        .password-hidden {
+          color: #999;
+          font-size: 14px;
+        }
+
+        .password-toggle {
+          background: transparent;
+          border: 1px solid #e0a96d;
+          border-radius: 6px;
+          padding: 2px 8px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.2s ease;
+        }
+
+        .password-toggle:hover {
+          background: #fef8f2;
+          transform: scale(1.1);
+        }
+
+        .admin-toggle-btn {
+          background: white;
+          color: #5a4a3a;
+          border: 2px solid #e0a96d;
+          padding: 6px 12px;
+          border-radius: 15px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .admin-toggle-btn:hover:not(:disabled) {
+          background: #e0a96d;
+          color: white;
+          transform: translateY(-1px);
+        }
+
+        .admin-toggle-btn.is-admin {
+          background: #e0a96d;
+          color: white;
+        }
+
+        .admin-toggle-btn.is-admin:hover:not(:disabled) {
+          background: #c7915b;
+        }
+
+        .admin-toggle-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .actions-cell {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .login-as-btn {
+          background: linear-gradient(135deg, #c7a788 0%, #b8956f 100%);
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 15px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .login-as-btn:hover {
+          background: linear-gradient(135deg, #b8956f 0%, #a68560 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(199, 167, 136, 0.4);
         }
 
         .summary-stats {

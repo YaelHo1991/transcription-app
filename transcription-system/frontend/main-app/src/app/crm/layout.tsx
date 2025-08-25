@@ -34,8 +34,29 @@ export default function CRMLayout({
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login?system=crm');
+    // Check if this is a test session
+    const isTestSession = localStorage.getItem('is_test_session') === 'true';
+    const adminToken = localStorage.getItem('admin_token');
+    
+    if (isTestSession && adminToken) {
+      // If it's a test session and we have an admin session saved
+      // Restore admin session
+      const adminUser = localStorage.getItem('admin_user');
+      localStorage.setItem('token', adminToken);
+      localStorage.setItem('user', adminUser || '');
+      
+      // Clear test session flag and admin backup
+      localStorage.removeItem('is_test_session');
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      
+      // Redirect to admin
+      router.push('/transcription/admin');
+    } else {
+      // Regular logout - clear everything
+      localStorage.clear();
+      router.push('/login?system=crm');
+    }
   };
 
   return (

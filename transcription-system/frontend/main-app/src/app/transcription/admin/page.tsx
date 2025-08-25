@@ -37,7 +37,15 @@ export default function AdminDashboard() {
 
   const checkAdminAccess = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Check for admin token first (in case we're in test mode)
+      let token = localStorage.getItem('admin_token');
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      
+      // If no admin token or not in test session, use regular token
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
       if (!token) {
         router.push('/login');
         return;
@@ -50,6 +58,7 @@ export default function AdminDashboard() {
       console.log('[Admin] Checking access for user:', userId);
       console.log('[Admin] Admin IDs:', ADMIN_USER_IDS);
       console.log('[Admin] Is admin?', ADMIN_USER_IDS.includes(userId));
+      console.log('[Admin] Is test session?', isTestSession);
       
       // Check if user is in admin list
       if (!ADMIN_USER_IDS.includes(userId)) {
@@ -70,7 +79,13 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Use admin token if in test session, otherwise regular token
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
         ? 'http://localhost:5000' 
         : '';

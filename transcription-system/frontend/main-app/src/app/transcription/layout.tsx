@@ -7,8 +7,12 @@ import './transcription.css';
 
 // Admin user IDs (same as in admin pages)
 const ADMIN_USER_IDS = [
-  '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי
-  '21c6c05f-cb60-47f3-b5f2-b9ada3631345'  // ליאת בן שי
+  // Production IDs
+  '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי (production)
+  '21c6c05f-cb60-47f3-b5f2-b9ada3631345', // ליאת בן שי (production)
+  // Local development IDs
+  'bfc0ba9a-daae-46e2-acb9-5984d1adef9f', // יעל הורי (local)
+  '6bdc1c02-fa65-4ef0-868b-928ec807b2ba'  // ליאת בן שי (local)
 ];
 
 export default function TranscriptionLayout({
@@ -46,24 +50,45 @@ export default function TranscriptionLayout({
     
     // Check if current user is admin
     try {
-      // First try to get userId from localStorage directly
-      let userId = localStorage.getItem('userId');
-      console.log('[Layout] userId from localStorage:', userId);
+      // Check if we're in test mode and have an admin token
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      const adminToken = localStorage.getItem('admin_token');
       
-      // If not found, try to extract from token
-      if (!userId && token) {
-        console.log('[Layout] Checking token for userId...');
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('[Layout] Token payload:', payload);
-        userId = payload.userId || payload.id || payload.user_id;
+      let userId = null;
+      
+      if (isTestSession && adminToken) {
+        // In test mode, check the admin token
+        console.log('[Layout] Test mode detected, checking admin token');
+        const adminPayload = JSON.parse(atob(adminToken.split('.')[1]));
+        userId = adminPayload.userId || adminPayload.id || adminPayload.user_id;
+        console.log('[Layout] Admin user ID from saved token:', userId);
+      } else {
+        // Normal mode - check current token
+        userId = localStorage.getItem('userId');
+        console.log('[Layout] userId from localStorage:', userId);
+        
+        // If not found, try to extract from token
+        if (!userId && token) {
+          console.log('[Layout] Checking token for userId...');
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          console.log('[Layout] Token payload:', payload);
+          userId = payload.userId || payload.id || payload.user_id;
+        }
       }
       
       console.log('[Layout] Final User ID:', userId);
       console.log('[Layout] Admin IDs:', ADMIN_USER_IDS);
+      console.log('[Layout] User ID type:', typeof userId);
+      console.log('[Layout] Full name:', fullName);
+      console.log('[Layout] Token exists:', !!token);
       
       if (userId) {
         const adminStatus = ADMIN_USER_IDS.includes(userId);
         console.log('[Layout] Is Admin:', adminStatus);
+        console.log('[Layout] Checking each admin ID:');
+        ADMIN_USER_IDS.forEach(adminId => {
+          console.log(`  ${adminId} === ${userId}?`, adminId === userId);
+        });
         setIsAdmin(adminStatus);
       } else {
         console.log('[Layout] No user ID found');
@@ -85,8 +110,29 @@ export default function TranscriptionLayout({
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login?system=transcription');
+    // Check if this is a test session
+    const isTestSession = localStorage.getItem('is_test_session') === 'true';
+    const adminToken = localStorage.getItem('admin_token');
+    
+    if (isTestSession && adminToken) {
+      // If it's a test session and we have an admin session saved
+      // Restore admin session
+      const adminUser = localStorage.getItem('admin_user');
+      localStorage.setItem('token', adminToken);
+      localStorage.setItem('user', adminUser || '');
+      
+      // Clear test session flag and admin backup
+      localStorage.removeItem('is_test_session');
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      
+      // Redirect to admin
+      router.push('/transcription/admin');
+    } else {
+      // Regular logout - clear everything
+      localStorage.clear();
+      router.push('/login?system=transcription');
+    }
   };
 
   // Check permissions for each route
@@ -123,7 +169,7 @@ export default function TranscriptionLayout({
     },
     { 
       path: '/transcription/admin', 
-      label: '🔧 ניהול',
+      label: 'ניהול',
       permission: isAdmin
     }
   ];

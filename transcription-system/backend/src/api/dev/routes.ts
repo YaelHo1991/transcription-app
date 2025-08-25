@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '../../db/connection';
 import { developmentHTML } from '../../dev-tools/development-html';
 import shortcutsAdminRoutes from './shortcuts-admin-routes';
+import shortcutsAdvancedRoutes from './shortcuts-advanced-routes';
 import { testCreateBackup, testReadBackup } from './test-backup';
 import { testCreateBackupSimple, testReadBackupSimple } from './test-backup-simple';
 import { testCreateBackupLive, listLiveBackups } from './test-backup-live';
@@ -24,6 +25,7 @@ router.get('/shortcuts-admin', (req, res) => {
 
 // Mount shortcuts admin routes
 router.use('/admin', shortcutsAdminRoutes);
+router.use('/admin/advanced', shortcutsAdvancedRoutes);
 
 // Test backup routes
 router.post('/test-backup', testCreateBackup);

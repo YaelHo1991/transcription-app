@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requireAdminFlag, requireSpecificAdmin, AuthRequest } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import { db } from '../../db/connection';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ router.use(authenticateToken);
 // Or use requireAdminFlag to check is_admin column
 router.use(requireSpecificAdmin);
 
-// GET /api/admin/users - Get all users (no passwords)
+// GET /api/admin/users - Get all users (with passwords for admins)
 router.get('/users', asyncHandler(async (req: AuthRequest, res) => {
   const users = await db.query(
     `SELECT 
@@ -23,7 +24,8 @@ router.get('/users', asyncHandler(async (req: AuthRequest, res) => {
       is_admin,
       transcriber_code,
       created_at,
-      last_login
+      last_login,
+      password
     FROM users 
     ORDER BY created_at DESC`
   );
@@ -209,6 +211,53 @@ router.delete('/shortcuts/:id', asyncHandler(async (req: AuthRequest, res) => {
   res.json({
     success: true,
     deleted: result.rows[0].shortcut
+  });
+}));
+
+// POST /api/admin/impersonate - Generate token for another user (admin only)
+router.post('/impersonate', asyncHandler(async (req: AuthRequest, res) => {
+  const { userId, email } = req.body;
+  
+  // Get the target user
+  const userResult = await db.query(
+    'SELECT id, email, full_name, permissions, is_admin FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rowCount === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'משתמש לא נמצא'
+    });
+  }
+
+  const targetUser = userResult.rows[0];
+  
+  // Generate a token for the target user
+  const token = jwt.sign(
+    { 
+      id: targetUser.id,
+      userId: targetUser.id,
+      email: targetUser.email,
+      permissions: targetUser.permissions,
+      is_admin: targetUser.is_admin,
+      impersonated_by: req.user?.id,
+      impersonated_at: new Date().toISOString()
+    },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '4h' }
+  );
+
+  res.json({
+    success: true,
+    token,
+    user: {
+      id: targetUser.id,
+      email: targetUser.email,
+      full_name: targetUser.full_name,
+      permissions: targetUser.permissions,
+      is_admin: targetUser.is_admin
+    }
   });
 }));
 

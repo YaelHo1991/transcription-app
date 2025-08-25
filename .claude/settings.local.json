@@ -107,7 +107,13 @@
       "Bash(start https://yalitranscription.duckdns.org/login)",
       "Bash(start https://yalitranscription.duckdns.org/transcription/admin)",
       "Bash(rg:*)",
-      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)"
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Bash(start https://yalitranscription.duckdns.org/transcription/admin/users)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f transcription-system/backend/migrations/011_add_category_transformations.sql)",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f migrations/011_add_category_transformations.sql)",
+      "Bash(start http://localhost:3002/dev-portal/shortcuts-admin)",
+      "Bash(start https://yalitranscription.duckdns.org/dev-portal/shortcuts-admin)"
     ],
     "deny": [],
     "additionalDirectories": [

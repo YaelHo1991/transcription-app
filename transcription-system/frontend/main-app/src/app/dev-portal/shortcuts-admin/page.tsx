@@ -132,6 +132,16 @@ export default function ShortcutsAdminPage() {
   });
 
   // Load data on mount
+  // Helper function to get correct API URL for dev endpoints
+  const getDevApiUrl = (endpoint: string) => {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      // In production, nginx proxies /api to backend port 5000
+      return `/api${endpoint}`;
+    }
+    // In localhost, use direct URL
+    return `${getApiUrl()}${endpoint}`;
+  };
+
   useEffect(() => {
     console.log('useEffect - loading data');
     loadData();
@@ -141,7 +151,7 @@ export default function ShortcutsAdminPage() {
   // Load transformations
   const loadTransformations = async () => {
     try {
-      const response = await fetch(`${getApiUrl()}/dev/admin/advanced/transformations`);
+      const response = await fetch(getDevApiUrl('/dev/admin/advanced/transformations'));
       if (response.ok) {
         const data = await response.json();
         // Map backend data to our frontend format
@@ -281,7 +291,7 @@ export default function ShortcutsAdminPage() {
       
       if (editingShortcut) {
         // Update existing shortcut - use dev endpoint
-        const response = await fetch(`${getApiUrl()}/dev/admin/shortcuts/${editingShortcut.id}`, {
+        const response = await fetch(getDevApiUrl(`/dev/admin/shortcuts/${editingShortcut.id}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -295,7 +305,7 @@ export default function ShortcutsAdminPage() {
         if (response.ok) {
           // If we have multiple categories, also update via advanced endpoint
           if (submitData.categories.length > 1) {
-            await fetch(`${getApiUrl()}/dev/admin/advanced/shortcuts/${editingShortcut.id}/categories`, {
+            await fetch(getDevApiUrl(`/dev/admin/advanced/shortcuts/${editingShortcut.id}/categories`), {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json'
@@ -314,7 +324,7 @@ export default function ShortcutsAdminPage() {
         }
       } else {
         // Add new shortcut - use dev endpoint
-        const response = await fetch(`${getApiUrl()}/dev/admin/shortcuts`, {
+        const response = await fetch(getDevApiUrl('/dev/admin/shortcuts'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -332,7 +342,7 @@ export default function ShortcutsAdminPage() {
           
           // If we have multiple categories, also update via advanced endpoint
           if (submitData.categories.length > 1 && newShortcut.id) {
-            await fetch(`${getApiUrl()}/dev/admin/advanced/shortcuts/${newShortcut.id}/categories`, {
+            await fetch(getDevApiUrl(`/dev/admin/advanced/shortcuts/${newShortcut.id}/categories`), {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json'
@@ -387,7 +397,7 @@ export default function ShortcutsAdminPage() {
         ));
       } else {
         // Add new category - use dev endpoint
-        const response = await fetch(`${getApiUrl()}/dev/admin/categories`, {
+        const response = await fetch(getDevApiUrl('/dev/admin/categories'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -829,7 +839,7 @@ export default function ShortcutsAdminPage() {
                           
                           // Update in database
                           try {
-                            const response = await fetch(`${getApiUrl()}/dev/admin/shortcuts/${shortcut.id}`, {
+                            const response = await fetch(getDevApiUrl(`/dev/admin/shortcuts/${shortcut.id}`), {
                               method: 'PUT',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
@@ -884,7 +894,7 @@ export default function ShortcutsAdminPage() {
                           if (confirm('למחוק קיצור זה?')) {
                             try {
                               // Use the shortcut text as identifier for deletion
-                              const response = await fetch(`${getApiUrl()}/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}`, {
+                              const response = await fetch(getDevApiUrl(`/dev/admin/shortcuts/${encodeURIComponent(shortcut.shortcut)}`), {
                                 method: 'DELETE',
                                 headers: {
                                   'Content-Type': 'application/json'
@@ -1101,7 +1111,7 @@ export default function ShortcutsAdminPage() {
                     try {
                       if (editingTransformation) {
                         // Update existing transformation
-                        const response = await fetch(`${getApiUrl()}/dev/admin/advanced/transformations/${editingTransformation.id}`, {
+                        const response = await fetch(getDevApiUrl(`/dev/admin/advanced/transformations/${editingTransformation.id}`), {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(transformationForm)
@@ -1136,7 +1146,7 @@ export default function ShortcutsAdminPage() {
                           is_active: transformationForm.is_active
                         };
                         
-                        const response = await fetch(`${getApiUrl()}/dev/admin/advanced/transformations`, {
+                        const response = await fetch(getDevApiUrl('/dev/admin/advanced/transformations'), {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(backendData)
@@ -1539,7 +1549,10 @@ export default function ShortcutsAdminPage() {
                           onClick={async () => {
                             if (confirm('למחוק חוק המרה זה?')) {
                               try {
-                                const response = await fetch(`${getApiUrl()}/dev/admin/advanced/transformations/${trans.id}`, {
+                                const devUrl = window.location.hostname === 'localhost' 
+                                  ? `${getApiUrl()}/dev/admin/advanced/transformations/${trans.id}`
+                                  : `/dev/admin/advanced/transformations/${trans.id}`;
+                                const response = await fetch(devUrl, {
                                   method: 'DELETE'
                                 });
                                 
@@ -1638,7 +1651,7 @@ export default function ShortcutsAdminPage() {
                     try {
                       if (editingException) {
                         // Update existing exception
-                        const response = await fetch(`${getApiUrl()}/dev/admin/advanced/exceptions/${editingException.id}`, {
+                        const response = await fetch(getDevApiUrl(`/dev/admin/advanced/exceptions/${editingException.id}`), {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(exceptionForm)
@@ -1652,7 +1665,7 @@ export default function ShortcutsAdminPage() {
                         }
                       } else {
                         // Add new exception
-                        const response = await fetch(`${getApiUrl()}/dev/admin/advanced/exceptions`, {
+                        const response = await fetch(getDevApiUrl('/dev/admin/advanced/exceptions'), {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(exceptionForm)
@@ -1781,7 +1794,7 @@ export default function ShortcutsAdminPage() {
                             onClick={async () => {
                               if (confirm('למחוק חריג זה?')) {
                                 try {
-                                  const response = await fetch(`${getApiUrl()}/dev/admin/advanced/exceptions/${exc.id}`, {
+                                  const response = await fetch(getDevApiUrl(`/dev/admin/advanced/exceptions/${exc.id}`), {
                                     method: 'DELETE'
                                   });
                                   
