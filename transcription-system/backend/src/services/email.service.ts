@@ -256,10 +256,203 @@ class EmailService {
     fullName: string;
     resetToken: string;
   }): Promise<boolean> {
-    // Implementation for password reset email
-    // Similar structure to welcome email
-    console.log('Password reset email functionality not yet implemented');
-    return true;
+    const { to, fullName, resetToken } = params;
+
+    // Create reset URL (works for both localhost and production)
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://yalitranscription.duckdns.org' 
+      : 'http://localhost:3002';
+    const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="he">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            direction: rtl;
+            text-align: right;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+          }
+          .header {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            padding: 30px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+          }
+          .content {
+            background: white;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+          }
+          .reset-info {
+            background: #f8d7da;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-right: 4px solid #dc3545;
+          }
+          .button {
+            display: inline-block;
+            padding: 15px 35px;
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white !important;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 25px 0;
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+          }
+          .button:hover {
+            background: linear-gradient(135deg, #c82333, #a02029);
+          }
+          .warning {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-right: 4px solid #ffc107;
+            color: #856404;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+          }
+          .security-note {
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-right: 4px solid #17a2b8;
+            color: #0c5460;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔐 איפוס סיסמה למערכת התמלול</h1>
+          </div>
+          <div class="content">
+            <h2>שלום ${fullName},</h2>
+            <p>קיבלנו בקשה לאיפוס הסיסמה עבור חשבונך במערכת התמלול.</p>
+            
+            <div class="reset-info">
+              <h3>🔄 פרטי בקשת האיפוס:</h3>
+              <p><strong>אימייל:</strong> ${to}</p>
+              <p><strong>זמן הבקשה:</strong> ${new Date().toLocaleString('he-IL')}</p>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="${resetUrl}" class="button">
+                🔓 איפוס הסיסמה
+              </a>
+            </div>
+
+            <div class="warning">
+              <h3>⏰ חשוב לדעת:</h3>
+              <ul>
+                <li>הקישור תקף למשך <strong>15 דקות בלבד</strong></li>
+                <li>ניתן להשתמש בקישור פעם אחת בלבד</li>
+                <li>לאחר איפוס הסיסמה, הקישור יפוג אוטומטית</li>
+              </ul>
+            </div>
+
+            <div class="security-note">
+              <h3>🛡️ הערת אבטחה:</h3>
+              <p>אם לא ביקשת לאפס את הסיסמה, אנא התעלם מאימייל זה. הסיסמה שלך תישאר ללא שינוי.</p>
+            </div>
+
+            <div class="footer">
+              <p>בברכה,<br>צוות מערכת התמלול</p>
+              <p style="font-size: 12px; color: #999;">
+                אימייל זה נשלח באופן אוטומטי. אנא אל תשיבו לאימייל זה.
+              </p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const textContent = `
+איפוס סיסמה למערכת התמלול
+
+שלום ${fullName},
+
+קיבלנו בקשה לאיפוס הסיסמה עבור חשבונך במערכת התמלול.
+
+פרטי בקשת האיפוס:
+===================
+אימייל: ${to}
+זמן הבקשה: ${new Date().toLocaleString('he-IL')}
+
+לחץ על הקישור הבא כדי לאפס את הסיסמה:
+${resetUrl}
+
+חשוב לדעת:
+-----------
+• הקישור תקף למשך 15 דקות בלבד
+• ניתן להשתמש בקישור פעם אחת בלבד
+• לאחר איפוס הסיסמה, הקישור יפוג אוטומטית
+
+הערת אבטחה:
+-----------
+אם לא ביקשת לאפס את הסיסמה, אנא התעלם מאימייל זה. הסיסמה שלך תישאר ללא שינוי.
+
+בברכה,
+צוות מערכת התמלול
+    `;
+
+    // If transporter is not configured, log to console
+    if (!this.transporter) {
+      console.log('📧 Password reset email would be sent to:', to);
+      console.log('📧 Reset URL:', resetUrl);
+      console.log('📧 Email content:');
+      console.log('================================');
+      console.log(textContent);
+      console.log('================================');
+      return true; // Return true to not block the process
+    }
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: `"מערכת התמלול - איפוס סיסמה" <${process.env.GMAIL_USER}>`,
+        to: to,
+        subject: 'איפוס סיסמה למערכת התמלול - קישור לאיפוס',
+        text: textContent,
+        html: htmlContent
+      });
+
+      console.log('✅ Password reset email sent successfully to:', to);
+      console.log('📧 Message ID:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to send password reset email:', error);
+      // Log to console as fallback
+      console.log('📧 Password reset email content (failed to send):');
+      console.log('================================');
+      console.log(textContent);
+      console.log('Reset URL:', resetUrl);
+      console.log('================================');
+      return false;
+    }
   }
 }
 

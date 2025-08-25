@@ -1,5 +1,6 @@
 import { db } from '../db/connection';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export interface User {
   id: string;
@@ -10,6 +11,8 @@ export interface User {
   personal_company?: string;
   business_company?: string;
   transcriber_code?: string;
+  reset_token?: string | null;
+  reset_token_expires?: Date | null;
   created_at: Date;
   last_login: Date | null;
   is_active: boolean;
@@ -184,6 +187,65 @@ export class UserModel {
       return parseInt(result.rows[0].count) > 0;
     } catch (error) {
       console.error('Error checking email:', error);
+      throw error;
+    }
+  }
+
+  // Generate secure reset token
+  static generateResetToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  // Set password reset token
+  static async setResetToken(email: string, token: string, expiresAt: Date): Promise<boolean> {
+    try {
+      const result = await db.query(
+        'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3 AND is_active = true',
+        [token, expiresAt, email]
+      );
+      return result.rowCount && result.rowCount > 0;
+    } catch (error) {
+      console.error('Error setting reset token:', error);
+      throw error;
+    }
+  }
+
+  // Find user by reset token
+  static async findByResetToken(token: string): Promise<User | null> {
+    try {
+      const result = await db.query(
+        'SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires > NOW() AND is_active = true',
+        [token]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by reset token:', error);
+      throw error;
+    }
+  }
+
+  // Reset password and clear token
+  static async resetPassword(token: string, hashedPassword: string): Promise<boolean> {
+    try {
+      const result = await db.query(
+        'UPDATE users SET password = $1, reset_token = NULL, reset_token_expires = NULL WHERE reset_token = $2 AND reset_token_expires > NOW() AND is_active = true',
+        [hashedPassword, token]
+      );
+      return result.rowCount && result.rowCount > 0;
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    }
+  }
+
+  // Clear expired reset tokens (cleanup method)
+  static async clearExpiredResetTokens(): Promise<void> {
+    try {
+      await db.query(
+        'UPDATE users SET reset_token = NULL, reset_token_expires = NULL WHERE reset_token_expires < NOW()'
+      );
+    } catch (error) {
+      console.error('Error clearing expired reset tokens:', error);
       throw error;
     }
   }

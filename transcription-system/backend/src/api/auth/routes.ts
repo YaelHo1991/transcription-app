@@ -2,6 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { loginRateLimiter } from '../../middleware/security.middleware';
 import { UserModel } from '../../models/user.model';
+import { emailService } from '../../services/email.service';
 
 const router = Router();
 
@@ -218,6 +219,166 @@ router.get('/me', async (req, res) => {
     }
 
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה בשרת'
+    });
+  }
+});
+
+// POST /api/auth/forgot-password - Request password reset
+router.post('/forgot-password', loginRateLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'נדרש כתובת אימייל'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'כתובת אימייל לא תקינה'
+      });
+    }
+
+    // Find user by email
+    const user = await UserModel.findByEmail(email);
+    
+    if (!user) {
+      // Always return success to prevent email enumeration
+      return res.json({
+        success: true,
+        message: 'אם כתובת האימייל קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה'
+      });
+    }
+
+    // Generate reset token and expiration (15 minutes)
+    const resetToken = UserModel.generateResetToken();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Save token to database
+    await UserModel.setResetToken(email, resetToken, expiresAt);
+
+    // Send reset email
+    await emailService.sendPasswordResetEmail({
+      to: email,
+      fullName: user.username,
+      resetToken
+    });
+
+    res.json({
+      success: true,
+      message: 'אם כתובת האימייל קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה בשרת'
+    });
+  }
+});
+
+// GET /api/auth/verify-reset-token - Verify reset token validity
+router.get('/verify-reset-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'נדרש טוקן'
+      });
+    }
+
+    // Find user by token
+    const user = await UserModel.findByResetToken(token);
+    
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'טוקן לא תקין או פג תוקף'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'טוקן תקין',
+      email: user.email // Show email for confirmation
+    });
+
+  } catch (error) {
+    console.error('Verify reset token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה בשרת'
+    });
+  }
+});
+
+// POST /api/auth/reset-password - Reset password with token
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'נדרשים כל השדות'
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'הסיסמאות אינן תואמות'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'הסיסמה חייבת להיות באורך 6 תווים לפחות'
+      });
+    }
+
+    // Find user by token to ensure it's valid
+    const user = await UserModel.findByResetToken(token);
+    
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'טוכן לא תקין או פג תוקף'
+      });
+    }
+
+    // Hash the new password
+    const hashedPassword = await UserModel.hashPassword(password);
+
+    // Reset password and clear token
+    const success = await UserModel.resetPassword(token, hashedPassword);
+    
+    if (!success) {
+      return res.status(400).json({
+        success: false,
+        message: 'שגיאה באיפוס הסיסמה'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'הסיסמה שונתה בהצלחה'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({
       success: false,
       message: 'שגיאה בשרת'

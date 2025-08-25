@@ -103,10 +103,18 @@ export async function initializeDatabase(): Promise<void> {
       )
     `);
 
+    // Add password reset fields if they don't exist
+    await db.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255) UNIQUE,
+      ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP;
+    `);
+
     // Create indexes for better performance
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL;
     `);
     
     // Create other indexes only if tables exist

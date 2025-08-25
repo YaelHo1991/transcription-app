@@ -17,6 +17,10 @@ function LoginContent() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   
   // Determine system-specific styling
   const isCRM = system === 'crm';
@@ -81,6 +85,47 @@ function LoginContent() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!forgotPasswordEmail) {
+      setForgotPasswordMessage('אנא הזן כתובת אימייל');
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    setForgotPasswordMessage('');
+
+    try {
+      const response = await fetch(buildApiUrl('/api/auth/forgot-password'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setForgotPasswordMessage('אם כתובת האימייל קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה');
+        // Clear the email field after success
+        setTimeout(() => {
+          setShowForgotPassword(false);
+          setForgotPasswordEmail('');
+          setForgotPasswordMessage('');
+        }, 3000);
+      } else {
+        setForgotPasswordMessage(data.message || 'שגיאה בשליחת האימייל');
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      setForgotPasswordMessage('שגיאה בחיבור לשרת');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
   return (
     <>
       <div 
@@ -124,7 +169,20 @@ function LoginContent() {
             </div>
             
             <div className="form-group">
-              <label htmlFor="password">סיסמה</label>
+              <div className="password-header">
+                <label htmlFor="password">סיסמה</label>
+                <button
+                  type="button"
+                  className="forgot-password-link"
+                  onClick={() => {
+                    setShowForgotPassword(true);
+                    setForgotPasswordEmail(formData.email);
+                  }}
+                  style={{ color: themeColor }}
+                >
+                  שכחת סיסמה?
+                </button>
+              </div>
               <input
                 type="password"
                 id="password"
@@ -163,6 +221,63 @@ function LoginContent() {
             )}
           </div>
         </div>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <div className="modal-backdrop" onClick={() => setShowForgotPassword(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>איפוס סיסמה</h2>
+                <button 
+                  className="close-button"
+                  onClick={() => setShowForgotPassword(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <form onSubmit={handleForgotPassword} className="modal-form">
+                <p>הזן את כתובת האימייל שלך ונשלח אליך קישור לאיפוס הסיסמה.</p>
+                
+                <div className="form-group">
+                  <label htmlFor="forgot-email">כתובת אימייל</label>
+                  <input
+                    type="email"
+                    id="forgot-email"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    required
+                    placeholder="הזן את כתובת האימייל שלך"
+                    dir="ltr"
+                  />
+                </div>
+
+                {forgotPasswordMessage && (
+                  <div className={`message ${forgotPasswordMessage.includes('שגיאה') ? 'error' : 'success'}`}>
+                    {forgotPasswordMessage}
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="cancel-button"
+                    onClick={() => setShowForgotPassword(false)}
+                  >
+                    ביטול
+                  </button>
+                  <button
+                    type="submit"
+                    className="submit-button"
+                    style={{ background: themeColor }}
+                    disabled={forgotPasswordLoading}
+                  >
+                    {forgotPasswordLoading ? 'שולח...' : 'שלח קישור'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
