@@ -48,6 +48,57 @@ export class ShortcutManager {
   }
   
   /**
+   * Load public system shortcuts without authentication
+   * This is used to load system shortcuts for all users
+   */
+  async loadPublicShortcuts(): Promise<void> {
+    try {
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' 
+        ? '' // Use same origin in production
+        : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000');
+      
+      const response = await fetch(baseUrl + '/api/transcription/shortcuts/public', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load public shortcuts: ' + response.statusText);
+      }
+      
+      const data: ShortcutAPIResponse = await response.json();
+      
+      // Clear and rebuild shortcuts map with system shortcuts only
+      this.shortcuts.clear();
+      const cacheData: Array<[string, any]> = [];
+      
+      data.shortcuts.forEach(([shortcut, shortcutData]) => {
+        this.shortcuts.set(shortcut, shortcutData);
+        // Prepare cache data
+        cacheData.push([shortcut, {
+          expansion: shortcutData.expansion,
+          category: shortcutData.category,
+          description: shortcutData.description,
+          source: shortcutData.source
+        }]);
+      });
+      
+      // Bulk load into cache for optimal performance
+      this.cache.bulkLoad(cacheData);
+      
+      // Update categories (quota will be updated when user logs in)
+      this.categories = data.categories || [];
+      this.lastFetchTime = Date.now();
+      
+      console.log('ShortcutManager: Loaded ' + this.shortcuts.size + ' public shortcuts')
+    } catch (error) {
+      console.error('ShortcutManager: Error loading public shortcuts:', error);
+    }
+  }
+  
+  /**
    * Load shortcuts from the API
    */
   async loadShortcuts(forceRefresh: boolean = false): Promise<void> {
@@ -77,10 +128,24 @@ export class ShortcutManager {
       
       const data: ShortcutAPIResponse = await response.json();
       
-      // Clear and rebuild shortcuts map
+      // Keep existing system shortcuts and add/update with user shortcuts
+      // First, remove old user shortcuts
+      const systemShortcuts = new Map<string, ShortcutData>();
+      this.shortcuts.forEach((data, shortcut) => {
+        if (data.source === 'system') {
+          systemShortcuts.set(shortcut, data);
+        }
+      });
+      
+      // Clear and rebuild with system shortcuts first
       this.shortcuts.clear();
+      systemShortcuts.forEach((data, shortcut) => {
+        this.shortcuts.set(shortcut, data);
+      });
+      
       const cacheData: Array<[string, any]> = [];
       
+      // Add all shortcuts from the API (system + user)
       data.shortcuts.forEach(([shortcut, shortcutData]) => {
         this.shortcuts.set(shortcut, shortcutData);
         // Prepare cache data

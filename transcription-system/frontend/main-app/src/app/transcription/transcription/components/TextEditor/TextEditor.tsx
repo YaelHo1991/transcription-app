@@ -183,27 +183,43 @@ export default function TextEditor({
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
   
-  // Initialize ShortcutManager with authentication
+  // Initialize ShortcutManager - load public shortcuts first, then user shortcuts if authenticated
   useEffect(() => {
     const initShortcuts = async () => {
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-      const userId = localStorage.getItem('userId');
+      if (!shortcutManagerRef.current) return;
       
-      if (token && userId && shortcutManagerRef.current) {
-        try {
-          console.log('[ShortcutManager] Initializing with userId:', userId);
-          await shortcutManagerRef.current.initialize(userId, token);
-          console.log('[ShortcutManager] Initialized successfully');
-          
-          // After initialization, update the loadedShortcuts state
-          const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
-          console.log('[ShortcutManager] Loaded', shortcutsMap.size, 'shortcuts after auth');
-          setLoadedShortcuts(new Map(shortcutsMap));
-        } catch (error) {
-          console.error('[ShortcutManager] Failed to initialize:', error);
+      try {
+        // First, always load public system shortcuts (no auth required)
+        console.log('[ShortcutManager] Loading public system shortcuts...');
+        await shortcutManagerRef.current.loadPublicShortcuts();
+        
+        // Update state with system shortcuts
+        const systemShortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+        console.log('[ShortcutManager] Loaded', systemShortcutsMap.size, 'system shortcuts');
+        setLoadedShortcuts(new Map(systemShortcutsMap));
+        
+        // Then, if user is authenticated, load their personal shortcuts
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const userId = localStorage.getItem('userId');
+        
+        if (token && userId) {
+          try {
+            console.log('[ShortcutManager] Loading user shortcuts for userId:', userId);
+            await shortcutManagerRef.current.initialize(userId, token);
+            
+            // Update state with combined shortcuts (system + user)
+            const allShortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+            console.log('[ShortcutManager] Total shortcuts after user load:', allShortcutsMap.size);
+            setLoadedShortcuts(new Map(allShortcutsMap));
+          } catch (error) {
+            console.error('[ShortcutManager] Failed to load user shortcuts:', error);
+            // Keep system shortcuts even if user shortcuts fail
+          }
+        } else {
+          console.log('[ShortcutManager] No authentication - using system shortcuts only');
         }
-      } else {
-        console.warn('[ShortcutManager] Missing authentication credentials - token:', !!token, 'userId:', !!userId);
+      } catch (error) {
+        console.error('[ShortcutManager] Failed to load shortcuts:', error);
       }
     };
     
