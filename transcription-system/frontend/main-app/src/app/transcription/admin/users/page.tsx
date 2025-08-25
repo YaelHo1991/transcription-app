@@ -43,8 +43,9 @@ export default function UsersManagement() {
       }
 
       const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.userId || payload.id;
       
-      if (!ADMIN_USER_IDS.includes(payload.userId)) {
+      if (!ADMIN_USER_IDS.includes(userId)) {
         router.push('/transcription');
         return;
       }

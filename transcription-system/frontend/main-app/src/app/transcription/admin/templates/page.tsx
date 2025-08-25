@@ -24,18 +24,35 @@ export default function TemplatesManagementPage() {
     ? '' // Use relative URL on production
     : 'http://localhost:5000'; // Use explicit URL on localhost
 
-  // Hardcoded admin user IDs
+  // Hardcoded admin user IDs (both local and production)
   const ADMIN_USER_IDS = [
-    '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי
-    '21c6c05f-cb60-47f3-b5f2-b9ada3631345'  // ליאת בן שי
+    // Production IDs
+    '3134f67b-db84-4d58-801e-6b2f5da0f6a3', // יעל הורי (production)
+    '21c6c05f-cb60-47f3-b5f2-b9ada3631345', // ליאת בן שי (production)
+    // Local development IDs
+    'bfc0ba9a-daae-46e2-acb9-5984d1adef9f', // יעל הורי (local)
+    '6bdc1c02-fa65-4ef0-868b-928ec807b2ba'  // ליאת בן שי (local)
   ];
 
   useEffect(() => {
     // Check authentication and admin access
     const token = localStorage.getItem('token');
-    const userId = localStorage.getItem('userId');
     
-    if (!token || !userId || !ADMIN_USER_IDS.includes(userId)) {
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.userId || payload.id;
+      
+      if (!ADMIN_USER_IDS.includes(userId)) {
+        router.push('/transcription');
+        return;
+      }
+    } catch (error) {
+      console.error('Admin access check failed:', error);
       router.push('/transcription');
       return;
     }
