@@ -88,7 +88,9 @@
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
-      "Bash(start http://localhost:3002/transcription/transcription)"
+      "Bash(start http://localhost:3002/transcription/transcription)",
+      "Bash(scp:*)",
+      "Bash(start http://localhost:3002/login)"
     ],
     "deny": [],
     "additionalDirectories": [

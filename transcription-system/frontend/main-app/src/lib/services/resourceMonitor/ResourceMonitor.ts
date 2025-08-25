@@ -260,7 +260,9 @@ export class ResourceMonitor {
     }
 
     // Fallback: Estimate based on device
-    const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile = typeof navigator !== 'undefined' 
+      ? /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      : false;
     const estimatedTotal = isMobile ? 2 * 1024 * 1024 * 1024 : 4 * 1024 * 1024 * 1024; // 2GB mobile, 4GB desktop
     
     // Conservative estimate: assume 50% used
@@ -275,7 +277,7 @@ export class ResourceMonitor {
    * Private: Get CPU information
    */
   private getCPUInfo(): { cores: number; usage: number } {
-    const cores = navigator.hardwareConcurrency || 4;
+    const cores = typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4;
     
     // Estimate CPU usage (this is a rough approximation)
     // In production, you might want to use a more sophisticated method
@@ -302,7 +304,7 @@ export class ResourceMonitor {
    */
   private async getStorageInfo(): Promise<{ available: number; total: number } | null> {
     // Try Storage API
-    if ('storage' in navigator && 'estimate' in navigator.storage) {
+    if (typeof navigator !== 'undefined' && 'storage' in navigator && 'estimate' in navigator.storage) {
       try {
         const estimate = await navigator.storage.estimate();
         if (estimate.quota && estimate.usage !== undefined) {
