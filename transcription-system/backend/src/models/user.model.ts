@@ -54,6 +54,11 @@ export class UserModel {
     }
   }
 
+  // Hash password
+  static async hashPassword(password: string): Promise<string> {
+    return await bcrypt.hash(password, 10);
+  }
+
   // Find user by ID
   static async findById(id: string): Promise<User | null> {
     try {
