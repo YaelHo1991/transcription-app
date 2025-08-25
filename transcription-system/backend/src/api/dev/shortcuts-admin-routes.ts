@@ -8,7 +8,7 @@ const router = Router();
  * These are for development only
  */
 
-// Get all system shortcuts
+// Get all system shortcuts (only base shortcuts for admin, not auto-generated variations)
 router.get('/shortcuts', async (req: Request, res: Response) => {
   try {
     const shortcuts = await db.query(`
@@ -23,6 +23,7 @@ router.get('/shortcuts', async (req: Request, res: Response) => {
         s.updated_at
       FROM system_shortcuts s
       LEFT JOIN shortcut_categories c ON s.category_id = c.id
+      WHERE s.is_auto_generated = false OR s.is_auto_generated IS NULL
       ORDER BY c.display_order, s.shortcut
     `);
 
@@ -32,7 +33,7 @@ router.get('/shortcuts', async (req: Request, res: Response) => {
         name,
         description,
         is_active,
-        (SELECT COUNT(*) FROM system_shortcuts WHERE category_id = sc.id) as shortcut_count
+        (SELECT COUNT(*) FROM system_shortcuts WHERE category_id = sc.id AND (is_auto_generated = false OR is_auto_generated IS NULL)) as shortcut_count
       FROM shortcut_categories sc
       ORDER BY display_order
     `);
@@ -52,19 +53,26 @@ router.post('/shortcuts', async (req: Request, res: Response) => {
   try {
     const { shortcut, expansion, category, description, is_active = true } = req.body;
 
-    // Get category ID
-    const categoryResult = await db.query(
-      'SELECT id FROM shortcut_categories WHERE name = $1',
-      [category]
-    );
+    // Get category ID if category is provided
+    let categoryId = null;
+    if (category && category !== '') {
+      const categoryResult = await db.query(
+        'SELECT id FROM shortcut_categories WHERE name = $1',
+        [category]
+      );
 
-    if (categoryResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid category' });
+      if (categoryResult.rows.length === 0) {
+        // If category doesn't exist, create it or use default
+        const defaultCategoryResult = await db.query(
+          "SELECT id FROM shortcut_categories WHERE name = 'common' LIMIT 1"
+        );
+        categoryId = defaultCategoryResult.rows[0]?.id || null;
+      } else {
+        categoryId = categoryResult.rows[0].id;
+      }
     }
 
-    const categoryId = categoryResult.rows[0].id;
-
-    // Insert
+    // Insert main shortcut - category_id can be NULL
     const result = await db.query(`
       INSERT INTO system_shortcuts (shortcut, expansion, category_id, description, is_active, language)
       VALUES ($1, $2, $3, $4, $5, 'he')
@@ -77,7 +85,15 @@ router.post('/shortcuts', async (req: Request, res: Response) => {
       RETURNING id
     `, [shortcut, expansion, categoryId, description, is_active]);
 
-    res.json({ success: true, id: result.rows[0].id });
+    const shortcutId = result.rows[0].id;
+
+    // No longer creating auto-generated variations
+    // The frontend ShortcutManager now handles prefixes and punctuation functionally
+    
+    res.json({ 
+      success: true, 
+      id: shortcutId
+    });
   } catch (error) {
     console.error('Error adding shortcut:', error);
     res.status(500).json({ error: 'Failed to add shortcut' });

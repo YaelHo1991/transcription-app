@@ -179,28 +179,91 @@ export class ShortcutManager {
     const beforeCursor = text.substring(0, cursorPosition);
     const afterCursor = text.substring(cursorPosition);
     
-    // First, try cache lookup for fast matching
-    const cacheMatch = this.cache.findMatch(beforeCursor);
-    if (cacheMatch) {
-      const startPos = cursorPosition - cacheMatch.shortcut.length;
-      const newText = text.substring(0, startPos) + cacheMatch.expansion + afterCursor;
-      const newCursorPos = startPos + cacheMatch.expansion.length;
-      
-      return {
-        text: newText,
-        cursorPosition: newCursorPos,
-        expanded: true,
-        expandedShortcut: cacheMatch.shortcut,
-        expandedTo: cacheMatch.expansion
-      };
+    // Define punctuation marks that can appear after shortcuts
+    const punctuationMarks = [',', '.', '!', '?', ':', ';', ')', ']', '}', '"', "'", '-', '/', '\\', '|'];
+    
+    // Check if the text before cursor ends with punctuation
+    let trailingPunctuation = '';
+    let textWithoutPunctuation = beforeCursor;
+    
+    for (const punct of punctuationMarks) {
+      if (beforeCursor.endsWith(punct)) {
+        trailingPunctuation = punct;
+        textWithoutPunctuation = beforeCursor.slice(0, -1);
+        break;
+      }
     }
+    
+    // Skip cache for now - it's not handling prefixes correctly
+    // TODO: Update cache to handle prefix transformations
+    // const cacheMatch = this.cache.findMatch(textWithoutPunctuation);
+    // if (cacheMatch) {
+    //   const startPos = cursorPosition - cacheMatch.shortcut.length - trailingPunctuation.length;
+    //   const expansionWithPunct = cacheMatch.expansion + trailingPunctuation;
+    //   const newText = text.substring(0, startPos) + expansionWithPunct + afterCursor;
+    //   const newCursorPos = startPos + expansionWithPunct.length;
+      
+    //   return {
+    //     text: newText,
+    //     cursorPosition: newCursorPos,
+    //     expanded: true,
+    //     expandedShortcut: cacheMatch.shortcut + trailingPunctuation,
+    //     expandedTo: expansionWithPunct
+    //   };
+    // }
     
     // Fall back to full search for special cases (Hebrew variations, etc.)
     // Sort shortcuts by length (longest first) for proper matching
     const sortedShortcuts = Array.from(this.shortcuts.keys())
       .sort((a, b) => b.length - a.length);
     
-    // Check each shortcut (including variations)
+    // Debug: Log what we're checking
+    if (textWithoutPunctuation.includes('פייסבוק')) {
+      console.log('[ShortcutManager] Checking text:', textWithoutPunctuation);
+      console.log('[ShortcutManager] Available shortcuts:', sortedShortcuts.filter(s => s.includes('פייסבוק')));
+    }
+    
+    // FIRST: Check with Hebrew prefixes to catch prefixed versions before base shortcuts
+    for (const prefix of this.hebrewPrefixes) {
+      for (const shortcut of sortedShortcuts) {
+        const prefixedShortcut = prefix + shortcut;
+        if (textWithoutPunctuation.endsWith(prefixedShortcut)) {
+          const shortcutData = this.shortcuts.get(shortcut);
+          if (!shortcutData) continue;
+          
+          let expansion = shortcutData.expansion;
+          
+          // Special handling for English words with prefix
+          if (shortcutData.category === this.englishWordsCategory) {
+            // For English words, add "- " after the prefix
+            // Example: ופייסבוק -> ו- Facebook
+            console.log('[ShortcutManager] English word with prefix:', prefix, shortcut, '→', prefix + '- ' + expansion);
+            expansion = prefix + '- ' + expansion;
+          } else if (prefix === 'ה' && expansion.startsWith('ה')) {
+            // Keep single ה for Hebrew words starting with ה
+            expansion = expansion;
+          } else {
+            expansion = prefix + expansion;
+          }
+          
+          // Add punctuation back if present
+          const expansionWithPunct = expansion + trailingPunctuation;
+          const startPos = cursorPosition - prefixedShortcut.length - trailingPunctuation.length;
+          const newText = text.substring(0, startPos) + expansionWithPunct + afterCursor;
+          const newCursorPos = startPos + expansionWithPunct.length;
+          
+          return {
+            text: newText,
+            cursorPosition: newCursorPos,
+            expanded: true,
+            expandedShortcut: prefixedShortcut + trailingPunctuation,
+            expandedTo: expansionWithPunct
+          };
+        }
+      }
+    }
+    
+    // THEN: Check each shortcut (including variations)
     for (const shortcut of sortedShortcuts) {
       const shortcutData = this.shortcuts.get(shortcut);
       if (!shortcutData) continue;
@@ -245,8 +308,8 @@ export class ShortcutManager {
         }
       }
       
-      // Regular shortcut check
-      if (beforeCursor.endsWith(shortcut)) {
+      // Regular shortcut check (with or without punctuation)
+      if (textWithoutPunctuation.endsWith(shortcut)) {
         let expansion = shortcutData.expansion;
         
         // Special handling for English words
@@ -255,59 +318,19 @@ export class ShortcutManager {
           expansion = expansion; // Keep as is
         }
         
-        const startPos = cursorPosition - shortcut.length;
-        const newText = text.substring(0, startPos) + expansion + afterCursor;
-        const newCursorPos = startPos + expansion.length;
+        // Add punctuation back if present
+        const expansionWithPunct = expansion + trailingPunctuation;
+        const startPos = cursorPosition - shortcut.length - trailingPunctuation.length;
+        const newText = text.substring(0, startPos) + expansionWithPunct + afterCursor;
+        const newCursorPos = startPos + expansionWithPunct.length;
         
         return {
           text: newText,
           cursorPosition: newCursorPos,
           expanded: true,
-          expandedShortcut: shortcut,
-          expandedTo: expansion
+          expandedShortcut: shortcut + trailingPunctuation,
+          expandedTo: expansionWithPunct
         };
-      }
-    }
-    
-    // Check with Hebrew prefixes
-    for (const prefix of this.hebrewPrefixes) {
-      for (const shortcut of sortedShortcuts) {
-        const prefixedShortcut = prefix + shortcut;
-        if (beforeCursor.endsWith(prefixedShortcut)) {
-          const shortcutData = this.shortcuts.get(shortcut);
-          if (!shortcutData) continue;
-          
-          let expansion = shortcutData.expansion;
-          
-          // Special handling for English words with prefix
-          if (shortcutData.category === this.englishWordsCategory) {
-            // For English words, add "- " after the prefix
-            // Example: ווואטסאפ -> ו-WhatsApp
-            if (prefix === 'ו' && shortcut.startsWith('וו')) {
-              // Special case: ווואטסאפ -> ו-WhatsApp
-              expansion = prefix + '- ' + expansion;
-            } else {
-              expansion = prefix + expansion;
-            }
-          } else if (prefix === 'ה' && expansion.startsWith('ה')) {
-            // Keep single ה for Hebrew words starting with ה
-            expansion = expansion;
-          } else {
-            expansion = prefix + expansion;
-          }
-          
-          const startPos = cursorPosition - prefixedShortcut.length;
-          const newText = text.substring(0, startPos) + expansion + afterCursor;
-          const newCursorPos = startPos + expansion.length;
-          
-          return {
-            text: newText,
-            cursorPosition: newCursorPos,
-            expanded: true,
-            expandedShortcut: prefixedShortcut,
-            expandedTo: expansion
-          };
-        }
       }
     }
     

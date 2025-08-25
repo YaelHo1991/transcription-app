@@ -16,7 +16,7 @@ export class ShortcutService {
    */
   async getUserShortcuts(userId: string): Promise<ShortcutsResponse> {
     try {
-      // Get system shortcuts with categories
+      // Get system shortcuts with categories - ONLY BASE SHORTCUTS, NOT AUTO-GENERATED
       const systemShortcutsQuery = await db.query(`
         SELECT 
           s.shortcut,
@@ -29,6 +29,7 @@ export class ShortcutService {
         FROM system_shortcuts s
         LEFT JOIN shortcut_categories c ON s.category_id = c.id
         WHERE s.is_active = true
+        AND (s.is_auto_generated = false OR s.is_auto_generated IS NULL)
         ORDER BY s.priority DESC, s.shortcut
       `);
 
@@ -333,6 +334,7 @@ export class ShortcutService {
         FROM system_shortcuts s
         LEFT JOIN shortcut_categories c ON s.category_id = c.id
         WHERE s.is_active = true
+        AND (s.is_auto_generated = false OR s.is_auto_generated IS NULL)
         ORDER BY c.display_order, s.priority DESC, s.shortcut
       `);
 
