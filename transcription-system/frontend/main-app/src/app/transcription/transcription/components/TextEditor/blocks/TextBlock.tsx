@@ -1043,7 +1043,8 @@ const TextBlock = React.memo(function TextBlock({
     }
 
     // SPACE in empty text - Navigate to next block
-    if (e.key === ' ' && !text.trim()) {
+    // Skip this during Shift+Enter processing to prevent interference
+    if (e.key === ' ' && !text.trim() && !isProcessingShiftEnter.current) {
       e.preventDefault();
       onNavigate('next', 'text');
       return;
@@ -1463,7 +1464,8 @@ const TextBlock = React.memo(function TextBlock({
     }
     
     // Check for list formatting when space is pressed
-    if (value.length > localText.length && value[cursorPos - 1] === ' ') {
+    // Skip during Shift+Enter processing to prevent cursor jumping
+    if (value.length > localText.length && value[cursorPos - 1] === ' ' && !isProcessingShiftEnter.current) {
       const listResult = handleListFormatting(value, cursorPos);
       if (listResult.formatted) {
         value = listResult.newText;
@@ -1487,7 +1489,8 @@ const TextBlock = React.memo(function TextBlock({
     }
     
     // Check for shortcuts processing (on space)
-    if (onProcessShortcuts && localText.length < value.length && cursorPos > 0 && value[cursorPos - 1] === ' ') {
+    // Skip during Shift+Enter processing to prevent cursor jumping
+    if (onProcessShortcuts && localText.length < value.length && cursorPos > 0 && value[cursorPos - 1] === ' ' && !isProcessingShiftEnter.current) {
       // Process the text BEFORE the space
       const textBeforeSpace = value.substring(0, cursorPos - 1);
       const result = onProcessShortcuts(textBeforeSpace, textBeforeSpace.length);
