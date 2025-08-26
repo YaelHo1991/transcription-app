@@ -180,7 +180,8 @@ export class ShortcutManager {
     const afterCursor = text.substring(cursorPosition);
     
     // Define punctuation marks that can appear after shortcuts
-    const punctuationMarks = [',', '.', '!', '?', ':', ';', ')', ']', '}', '"', "'", '-', '/', '\\', '|'];
+    // Note: Removed '/' from the list as it's often part of shortcuts (like נ/, ע/, etc.)
+    const punctuationMarks = [',', '.', '!', '?', ':', ';', ')', ']', '}', '"', "'", '-', '\\', '|'];
     
     // Check if the text before cursor ends with punctuation
     let trailingPunctuation = '';
