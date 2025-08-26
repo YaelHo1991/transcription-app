@@ -133,7 +133,8 @@
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Bash(start https://yalitranscription.duckdns.org/transcription/transcription)",
-      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)"
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Bash(./scripts/deploy-to-do.bat)"
     ],
     "deny": [],
     "additionalDirectories": [

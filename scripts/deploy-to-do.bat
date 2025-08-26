@@ -10,7 +10,7 @@ echo.
 echo Step 1: Connecting to Digital Ocean droplet...
 echo ----------------------------------------
 
-ssh %DROPLET_USER%@%DROPLET_IP% "cd /root/transcription-system && git pull origin main && cd backend && npm install && npm run build && cd ../frontend/main-app && npm install && npm run build && pm2 restart all && pm2 save && echo 'Deployment complete!' && pm2 status"
+ssh %DROPLET_USER%@%DROPLET_IP% "cd /root/transcription-app && git pull origin main && cd transcription-system/backend && npm install && npm run build && cd ../frontend/main-app && npm install && npm run build && pm2 restart all && pm2 save && echo 'Deployment complete!' && pm2 status"
 
 echo.
 echo ========================================

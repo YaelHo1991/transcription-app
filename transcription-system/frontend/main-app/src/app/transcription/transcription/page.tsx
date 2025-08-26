@@ -200,10 +200,10 @@ export default function TranscriptionWorkPage() {
     return name;
   };
 
-  // Use real data if available, otherwise show empty state
-  const collectionName = currentCollection?.name || '';
-  const mediaName = cleanMediaName(currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת'));
-  const mediaSize = currentMedia?.size || (hasMedia ? '' : '0 MB');
+  // Show empty state - upload functionality disabled
+  const collectionName = '';
+  const mediaName = '';
+  const mediaSize = '';
   
   // Format duration as HH:MM:SS - with safe handling
   const formatDuration = (seconds: number): string => {
@@ -323,67 +323,14 @@ export default function TranscriptionWorkPage() {
     }
   }, []); // Run only once on mount
 
-  // Load saved transcriptions from backend
+  // Disable loading saved transcriptions - upload functionality will be redesigned
   useEffect(() => {
-    // Only run on client side after a delay
-    if (typeof window !== 'undefined' && !isRestoringSession) {
-      const timer = setTimeout(async () => {
-        try {
-          console.log('[Page] Loading saved transcriptions from backend...');
-          const transcriptionsList = await projectService.listProjects();
-          
-          const transformedTranscriptions = transcriptionsList && transcriptionsList.length > 0
-            ? transcriptionsList.map(proj => ({
-                name: proj.projectName || 'תמלול ללא שם',
-                mediaItems: [{
-                  type: 'file' as const,
-                  name: proj.mediaFile || 'מדיה לא ידועה',
-                  size: '0 MB'
-                }],
-                projectId: proj.projectId,
-                isDefault: false
-              }))
-            : [];
-          
-          // Remove any existing corrupted default transcriptions and add a fresh one
-          const cleanTranscriptions = transformedTranscriptions.filter(t => !t.isDefault);
-          const freshDefault = createDefaultTranscription();
-          const allTranscriptions = [...cleanTranscriptions, freshDefault];
-          
-          console.log('[Page] Successfully loaded ' + transformedTranscriptions.length + ' transcriptions + 1 default');
-          console.log('[Page] All transcriptions:', allTranscriptions.map(t => ({ name: t.name, isDefault: t.isDefault, projectId: t.projectId })));
-          setTranscriptions(allTranscriptions);
-          
-          if (allTranscriptions.length > 0) {
-            // Only set default index if we don't already have a restored index from session
-            const userId = getCurrentUserId();
-            let hasRestoredIndex = false;
-            
-            if (userId) {
-              const sessionKey = 'transcriptionSessionState_' + userId;
-              const savedSession = localStorage.getItem(sessionKey);
-              hasRestoredIndex = savedSession && JSON.parse(savedSession).currentTranscriptionIndex !== undefined;
-            }
-            
-            if (!hasRestoredIndex) {
-              // Find the first non-default transcription, or fall back to 0
-              const firstNonDefaultIndex = allTranscriptions.findIndex(t => !t.isDefault);
-              const targetIndex = firstNonDefaultIndex >= 0 ? firstNonDefaultIndex : 0;
-              
-              console.log('[Page] Setting current transcription index to:', targetIndex, 'for transcription:', allTranscriptions[targetIndex]?.name);
-              setCurrentTranscriptionIndex(targetIndex);
-            } else {
-              console.log('[Page] Keeping restored transcription index:', currentTranscriptionIndex);
-            }
-          }
-        } catch (error) {
-          console.error('[Page] Error loading transcriptions:', error);
-        }
-      }, 3000); // 3 second delay to ensure page is fully loaded
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isRestoringSession]);
+    console.log('[Page] Transcription loading disabled - upload functionality will be redesigned');
+    // Only set an empty default transcription for now
+    const defaultTranscription = createDefaultTranscription();
+    setTranscriptions([defaultTranscription]);
+    setCurrentTranscriptionIndex(0);
+  }, []);
 
   // Disable loading existing projects - upload functionality will be redesigned
   useEffect(() => {
@@ -782,41 +729,7 @@ export default function TranscriptionWorkPage() {
               document.dispatchEvent(event);
             }}>
             <MediaPlayer 
-              initialMedia={currentMedia ? (() => {
-                // Check if we have a file or URL
-                let mediaUrl = '';
-                if (currentMedia.type === 'url' && currentMedia.url) {
-                  mediaUrl = currentMedia.url;
-                } else if (currentMedia.file) {
-                  mediaUrl = URL.createObjectURL(currentMedia.file);
-                } else if (currentMedia.name && currentCollection?.transcriptionProjectId) {
-                  // For backend-loaded transcription projects, construct the media URL
-                  // The media file is stored in the transcription project folder on the server
-                  const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                    ? (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000')
-                    : '';
-                  mediaUrl = apiUrl + '/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}';
-                  console.log('Page: Constructed media URL for backend project:', mediaUrl);
-                }
-                
-                // Only return media if we have a valid URL
-                if (mediaUrl) {
-                  console.log('Page: Creating media object', {
-                    url: mediaUrl,
-                    name: currentMedia.name,
-                    type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
-                  });
-                  return {
-                    url: mediaUrl,
-                    name: currentMedia.name,
-                    type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
-                  };
-                }
-                
-                // No valid media source, return undefined
-                console.log('Page: No media file or URL available for:', currentMedia.name);
-                return undefined;
-              })() : undefined}
+              initialMedia={undefined}
               onTimeUpdate={(time) => {
                 // TEMPORARILY DISABLED - this causes playback issues
                 // TextEditor gets time updates via mediaTimeUpdate events instead
@@ -829,10 +742,10 @@ export default function TranscriptionWorkPage() {
               onDurationChange={(duration) => {
                 setActualMediaDuration(duration);
               }}
-              currentProject={hasCollections ? currentCollectionIndex + 1 : 0}
-              totalProjects={mediaCollections.length}
-              currentMedia={hasMedia ? currentMediaIndex + 1 : 0}
-              totalMedia={currentCollection?.mediaItems.length || 0}
+              currentProject={0}
+              totalProjects={0}
+              currentMedia={0}
+              totalMedia={0}
               mediaName={mediaName}
               mediaDuration={mediaDuration}
               mediaSize={mediaSize}
@@ -851,24 +764,7 @@ export default function TranscriptionWorkPage() {
                 mediaPlayerRef={mediaPlayerRef}
                 marks={[]}
                 currentTime={currentTime}
-                mediaFileName={(() => {
-                  // If there are transcriptions loaded, use the transcription's media name
-                  if (transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
-                    const currentTranscription = transcriptions[currentTranscriptionIndex];
-                    if (currentTranscription.mediaItems && currentTranscription.mediaItems[0]) {
-                      return currentTranscription.mediaItems[0].name || '';
-                    }
-                  }
-                  
-                  // If we have a current media file loaded (new media, not from transcription)
-                  // Only show if there are actual projects with media
-                  if (hasCollections && currentMedia?.name) {
-                    return currentMedia.name;
-                  }
-                  
-                  // No media or transcription
-                  return '';
-                })()}
+                mediaFileName={''}
                 mediaDuration={mediaDuration}
                 projectName={collectionName}
                 speakerComponentRef={speakerComponentRef}
