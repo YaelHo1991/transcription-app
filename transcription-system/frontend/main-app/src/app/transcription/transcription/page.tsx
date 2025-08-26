@@ -174,9 +174,35 @@ export default function TranscriptionWorkPage() {
   const mediaId = currentMedia ? '0-0-' + currentMedia.name : '';
   const transcriptionNumber = 2; // Using transcription 2 as default
   
+  // Clean media name from URL parameters
+  const cleanMediaName = (name: string): string => {
+    if (!name) return name;
+    
+    // If it looks like a YouTube URL or has parameters
+    if (name.includes('watch?v=') || name.includes('?') || name.includes('&')) {
+      // Try to extract video ID from YouTube URL
+      const videoIdMatch = name.match(/v=([^&]+)/);
+      if (videoIdMatch) {
+        return `YouTube: ${videoIdMatch[1]}`;
+      }
+      // For other URLs, just take the part before the first parameter
+      return name.split('?')[0].split('/').pop() || name;
+    }
+    
+    // For regular file names, remove extension if very long
+    if (name.length > 30 && name.includes('.')) {
+      const parts = name.split('.');
+      const extension = parts.pop();
+      const baseName = parts.join('.');
+      return baseName.substring(0, 25) + '...' + extension;
+    }
+    
+    return name;
+  };
+
   // Use real data if available, otherwise show empty state
   const collectionName = currentCollection?.name || '';
-  const mediaName = currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת');
+  const mediaName = cleanMediaName(currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת'));
   const mediaSize = currentMedia?.size || (hasMedia ? '' : '0 MB');
   
   // Format duration as HH:MM:SS - with safe handling
