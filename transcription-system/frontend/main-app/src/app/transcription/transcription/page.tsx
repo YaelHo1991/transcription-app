@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
@@ -89,6 +90,9 @@ const getCurrentUserId = (): string | null => {
 export default function TranscriptionWorkPage() {
   // Main transcription page component
   const router = useRouter();
+  
+  // Check if we should use three-column layout
+  const isThreeColumn = useResponsiveLayout();
   
   // User information
   const [userFullName, setUserFullName] = useState('משתמש');
@@ -937,7 +941,14 @@ export default function TranscriptionWorkPage() {
             initialRemarks={projectRemarks}
           >
           <RemarksEventListener />
-          <div className="workspace-grid">
+          <div className={`workspace-grid ${isThreeColumn ? 'three-column' : ''}`}>
+          
+          {/* Remarks Column (only in three-column layout) */}
+          {isThreeColumn && (
+            <div className="remarks-column">
+              <Remarks theme="transcription" />
+            </div>
+          )}
           {/* Main Workspace */}
           <div className="main-workspace">
             {/* Hidden file inputs */}
@@ -1296,12 +1307,14 @@ export default function TranscriptionWorkPage() {
               />
             </div>
 
-            {/* Remarks Component */}
-            <div className={'remarks-container ' + (
-              helperFilesExpanded ? 'compressed' : 'normal'
-            )}>
-              <Remarks theme="transcription" />
-            </div>
+            {/* Remarks Component (only in two-column layout) */}
+            {!isThreeColumn && (
+              <div className={'remarks-container ' + (
+                helperFilesExpanded ? 'compressed' : 'normal'
+              )}>
+                <Remarks theme="transcription" />
+              </div>
+            )}
 
             {/* HelperFiles Component */}
             <div className={'helper-files ' + (

@@ -927,3 +927,160 @@
     margin-right: 290px;
   }
 }
+
+/* ===== THREE-COLUMN LAYOUT START ===== */
+/* All three-column layout styles - can be removed to rollback */
+/* ROLLBACK: Delete everything between THREE-COLUMN LAYOUT START and END to revert */
+
+/* Three-column grid layout */
+.workspace-grid.three-column {
+  display: grid;
+  grid-template-columns: 350px 1fr 350px; /* Equal width for Remarks and Speakers+Helper */
+  gap: 20px;
+  height: 100%;
+  width: 100%;
+  align-items: start; /* Ensure proper vertical alignment */
+  justify-items: stretch; /* Ensure columns stretch to fill their space */
+}
+
+/* Override content-container padding when in three-column mode */
+.content-container:has(.workspace-grid.three-column) {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* Keep consistent padding across all screen sizes in three-column mode */
+@media (min-width: 1400px) {
+  .content-container:has(.workspace-grid.three-column) {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+@media (min-width: 1800px) {
+  .content-container:has(.workspace-grid.three-column) {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+@media (min-width: 2200px) {
+  .content-container:has(.workspace-grid.three-column) {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+/* Responsive column widths based on viewport */
+@media (min-width: 1920px) {
+  .workspace-grid.three-column {
+    grid-template-columns: 380px 1fr 380px; /* Equal widths */
+    gap: 25px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .workspace-grid.three-column {
+    grid-template-columns: 420px 1fr 420px; /* Equal widths */
+    gap: 30px;
+  }
+}
+
+/* Remarks left column container */
+.three-column .remarks-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 250px;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Main workspace stays the same structure but adjusts to available space */
+.three-column .main-workspace {
+  min-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+
+/* Side workspace for speakers and helper files */
+.three-column .side-workspace {
+  min-width: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Helper Files 50/50 split in three-column mode when expanded */
+.three-column .speaker-container.compressed {
+  flex: 1; /* 50% instead of 30% */
+  min-height: 200px;
+}
+
+.three-column .helper-files.expanded {
+  flex: 1; /* 50% instead of 70% */
+  min-height: 200px;
+}
+
+/* Remarks container in three-column mode */
+.three-column .remarks-container {
+  flex: 1;
+  min-height: 200px;
+  height: 100%;
+}
+
+/* Hide remarks from right side in three-column mode */
+.three-column .side-workspace .remarks-container {
+  display: none;
+}
+
+/* Adjust media player spacing in three-column */
+@media (min-width: 1600px) {
+  .three-column .main-workspace {
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .three-column .main-workspace {
+    gap: 25px;
+  }
+}
+
+/* When sidebar is locked in three-column mode */
+.main-content.sidebar-locked .workspace-grid.three-column {
+  grid-template-columns: 320px 1fr 320px; /* Equal widths when sidebar locked */
+}
+
+@media (min-width: 1920px) {
+  .main-content.sidebar-locked .workspace-grid.three-column {
+    grid-template-columns: 350px 1fr 350px; /* Equal widths */
+  }
+}
+
+@media (min-width: 2560px) {
+  .main-content.sidebar-locked .workspace-grid.three-column {
+    grid-template-columns: 380px 1fr 380px; /* Equal widths */
+  }
+}
+
+/* Smooth transition between layouts */
+.workspace-grid {
+  transition: grid-template-columns 0.3s ease, gap 0.3s ease;
+}
+
+.remarks-container,
+.speaker-container,
+.helper-files {
+  transition: flex 0.3s ease, min-height 0.3s ease;
+}
+
+/* ===== THREE-COLUMN LAYOUT END ===== */
