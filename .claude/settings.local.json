@@ -113,7 +113,9 @@
       "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f transcription-system/backend/migrations/011_add_category_transformations.sql)",
       "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f migrations/011_add_category_transformations.sql)",
       "Bash(start http://localhost:3002/dev-portal/shortcuts-admin)",
-      "Bash(start https://yalitranscription.duckdns.org/dev-portal/shortcuts-admin)"
+      "Bash(start https://yalitranscription.duckdns.org/dev-portal/shortcuts-admin)",
+      "Bash(start C:UsersayelhDocumentsProjectsTranscriptionmodal-theme-preview.html)",
+      "Bash(start \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\modal-theme-preview.html\")"
     ],
     "deny": [],
     "additionalDirectories": [

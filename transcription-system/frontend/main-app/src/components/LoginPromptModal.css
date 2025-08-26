@@ -43,7 +43,7 @@
 }
 
 .login-prompt-header {
-  background: linear-gradient(135deg, #b85042, #e0a96d);
+  /* Background gradient is now set dynamically via inline styles */
   padding: 40px 30px;
   text-align: center;
   color: white;
@@ -110,27 +110,22 @@
 }
 
 .login-prompt-btn-primary {
-  background: linear-gradient(135deg, #b85042, #e0a96d);
+  /* Background gradient and shadow are now set dynamically via inline styles */
   color: white;
-  box-shadow: 0 4px 15px rgba(184, 80, 66, 0.3);
 }
 
 .login-prompt-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(184, 80, 66, 0.4);
+  /* Hover effects are handled via inline styles */
 }
 
 .login-prompt-btn-secondary {
   background: white;
-  color: #b85042;
-  border: 2px solid #e0a96d;
-  box-shadow: 0 2px 10px rgba(224, 169, 109, 0.2);
+  /* Color and border are now set dynamically via inline styles */
+  border: 2px solid;
 }
 
 .login-prompt-btn-secondary:hover {
-  background: linear-gradient(135deg, #faf8f5, #f5e6d3);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(224, 169, 109, 0.3);
+  /* Hover effects are handled via inline styles */
 }
 
 .login-prompt-btn-text {

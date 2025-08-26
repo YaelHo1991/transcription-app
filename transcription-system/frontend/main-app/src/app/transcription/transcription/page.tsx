@@ -908,7 +908,7 @@ export default function TranscriptionWorkPage() {
             }
             router.push('/login');
           }}
-          themeColor="pink"
+          themeColor="teal"
         />
       }
       sidebarContent={<TranscriptionSidebar />}
@@ -1402,6 +1402,7 @@ export default function TranscriptionWorkPage() {
         onClose={() => setShowAuthRequiredModal(false)}
         message="פג תוקף ההתחברות שלך. אנא התחבר מחדש כדי להמשיך."
         system="transcription"
+        themeColor="teal"
       />
     </HoveringBarsLayout>
   );

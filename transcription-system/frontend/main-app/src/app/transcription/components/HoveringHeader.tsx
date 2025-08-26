@@ -138,6 +138,8 @@ export default function HoveringHeader({
         return 'linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%)';
       case 'pink':
         return 'linear-gradient(135deg, #e91e63 0%, #f06292 100%)';
+      case 'teal':
+        return 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)';
       default:
         return 'linear-gradient(135deg, #e0a96d 0%, #f4c2a1 100%)';
     }
