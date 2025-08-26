@@ -281,43 +281,10 @@ export default function TranscriptionWorkPage() {
 
   // Save session state to localStorage with user-specific key
   const saveSessionState = useCallback(() => {
-    // Save even if we have media collections without backend IDs (local files)
-    if (mediaCollections.length === 0 && mediaProjectsMap.size === 0) return;
-    if (!currentUserId) {
-      console.warn('[Session] Cannot save session without user ID');
-      return;
-    }
-    
-    try {
-      const sessionData = {
-        userId: currentUserId, // Add user ID to session data
-        mediaCollections: mediaCollections.map(c => ({
-          name: c.name,
-          transcriptionProjectId: c.transcriptionProjectId,
-          mediaItems: c.mediaItems.map(m => ({
-            type: m.type,
-            name: m.name,
-            size: m.size,
-            url: m.url, // Save URL for URL-based media
-            // Note: We can't save File objects directly, will need to re-select files
-          }))
-        })),
-        mediaProjectsMap: Object.fromEntries(mediaProjectsMap), // Convert Map to object for JSON
-        currentCollectionIndex,
-        currentMediaIndex,
-        currentTranscriptionIndex,  // Save current transcription index
-        currentProjectId: currentCollection?.transcriptionProjectId || currentProjectId,  // Save current transcription project ID
-        timestamp: Date.now()
-      };
-      
-      // Use user-specific session key
-      const sessionKey = 'transcriptionSessionState_' + currentUserId;
-      localStorage.setItem(sessionKey, JSON.stringify(sessionData));
-      console.log('[Session] Saved session state for user', currentUserId, 'with', mediaCollections.length, 'media collections');
-    } catch (error) {
-      console.error('[Session] Failed to save session state:', error);
-    }
-  }, [mediaCollections, currentCollectionIndex, currentMediaIndex, currentTranscriptionIndex, currentCollection, currentProjectId, mediaProjectsMap, currentUserId]);
+    // Session saving is disabled - no data will be stored
+    console.log('[Session] Session saving disabled - upload functionality will be redesigned');
+    return;
+  }, []);
 
   // Save session whenever media collections or indices change
   useEffect(() => {
@@ -327,115 +294,32 @@ export default function TranscriptionWorkPage() {
     }
   }, [mediaCollections, currentCollectionIndex, currentMediaIndex, currentTranscriptionIndex, mediaProjectsMap, saveSessionState, isRestoringSession]);
 
-  // Restore session state on mount
+  // Disable session restoration - clear any old session data on mount
   useEffect(() => {
-    const restoreSession = async () => {
+    const clearOldSessionData = () => {
       try {
         const userId = getCurrentUserId();
-        if (!userId) {
-          console.log('[Session] No user ID available, skipping session restore');
-          return;
-        }
-        
-        // Use user-specific session key
-        const sessionKey = 'transcriptionSessionState_' + userId;
-        const savedSession = localStorage.getItem(sessionKey);
-        
-        // Also clean up any old non-user-specific session
-        const oldSession = localStorage.getItem('transcriptionSessionState');
-        if (oldSession) {
-          console.log('[Session] Removing old non-user-specific session');
-          localStorage.removeItem('transcriptionSessionState');
-        }
-        
-        if (!savedSession) return;
-        
-        const sessionData = JSON.parse(savedSession);
-        
-        // Validate session belongs to current user
-        if (sessionData.userId && sessionData.userId !== userId) {
-          console.warn('[Session] Session user ID mismatch, ignoring saved state');
-          localStorage.removeItem(sessionKey);
-          return;
-        }
-        
-        // Check if session is not too old (24 hours)
-        if (Date.now() - sessionData.timestamp > 24 * 60 * 60 * 1000) {
-          localStorage.removeItem(sessionKey);
-          return;
-        }
-        
-        setIsRestoringSession(true);
-        
-        // Restore media-project mappings if available
-        if (sessionData.mediaProjectsMap) {
-          const restoredMap = new Map(Object.entries(sessionData.mediaProjectsMap));
-          setMediaProjectsMap(restoredMap);
-          console.log('[Session] Restored media-project mappings:', restoredMap.size, 'entries');
-        }
-        
-        // Only restore backend-linked media collections (with transcriptionProjectId)
-        // File-based media cannot be restored due to browser security restrictions
-        const restoredCollections: MediaCollection[] = [];
-        
-        // Handle both old format (projects) and new format (mediaCollections)
-        const savedCollections = sessionData.mediaCollections || sessionData.projects || [];
-        
-        for (const savedCollection of savedCollections) {
-          const projectId = savedCollection.transcriptionProjectId || savedCollection.projectId;
-          if (projectId) {
-            // This is a backend-linked collection, we can fully restore it
-            restoredCollections.push({
-              name: savedCollection.name,
-              transcriptionProjectId: projectId,
-              mediaItems: savedCollection.mediaItems
-            });
-          }
-          // Skip file-based media as they can't be properly restored
-        }
-        
-        if (restoredCollections.length > 0) {
-          console.log('[Session] Restored', restoredCollections.length, 'media collections from saved session');
-          setMediaCollections(restoredCollections);
-          const collectionIndex = sessionData.currentCollectionIndex ?? sessionData.currentProjectIndex ?? 0;
-          setCurrentCollectionIndex(Math.min(collectionIndex, restoredCollections.length - 1));
-          setCurrentMediaIndex(sessionData.currentMediaIndex || 0);
+        if (userId) {
+          const sessionKey = 'transcriptionSessionState_' + userId;
+          const oldSessionKey = 'transcriptionSessionState';
           
-          // Restore transcription index
-          if (sessionData.currentTranscriptionIndex !== undefined) {
-            setCurrentTranscriptionIndex(sessionData.currentTranscriptionIndex);
-            console.log('[Session] Restored transcription index:', sessionData.currentTranscriptionIndex);
-          }
-          
-          // Load project data if we have a saved project ID
-          // This will load transcription blocks, speakers, and remarks from the server
-          if (sessionData.currentProjectId) {
-            console.log('[Session] Loading project data for:', sessionData.currentProjectId);
-            await loadProjectData(sessionData.currentProjectId);
-          } else {
-            // Fallback: Load transcription project data if it's a backend-linked collection
-            const collectionIndex = sessionData.currentCollectionIndex ?? sessionData.currentProjectIndex ?? 0;
-            const currentColl = restoredCollections[Math.min(collectionIndex, restoredCollections.length - 1)];
-            if (currentColl?.transcriptionProjectId) {
-              console.log('[Session] Loading transcription project data for current collection:', currentColl.transcriptionProjectId);
-              await loadProjectData(currentColl.transcriptionProjectId);
-            }
-          }
-        } else {
-          // Show a message that files need to be re-loaded
-          console.log('[Session] No restorable projects found (file-based projects need to be re-loaded)');
+          // Clear all old session data
+          localStorage.removeItem(sessionKey);
+          localStorage.removeItem(oldSessionKey);
+          console.log('[Session] Session restoration disabled - cleared all old session data');
         }
         
+        // Mark that we're not restoring any session
         setIsRestoringSession(false);
       } catch (error) {
-        console.error('[Session] Failed to restore session:', error);
+        console.error('[Session] Error clearing session data:', error);
         setIsRestoringSession(false);
       }
     };
     
-    // Restore session on mount
+    // Clear session data on mount
     if (typeof window !== 'undefined') {
-      restoreSession();
+      clearOldSessionData();
     }
   }, []); // Run only once on mount
 
@@ -501,81 +385,11 @@ export default function TranscriptionWorkPage() {
     }
   }, [isRestoringSession]);
 
-  // Load existing projects on mount (if no session was restored)
+  // Disable loading existing projects - upload functionality will be redesigned
   useEffect(() => {
-    const loadExistingProjects = async () => {
-      try {
-        // If we already have collections, don't load from backend
-        if (mediaCollections.length > 0) {
-          console.log('[Page] Already have', mediaCollections.length, 'collections, skipping backend load');
-          return;
-        }
-        
-        // Double-check session wasn't just restored
-        const userId = getCurrentUserId();
-        if (userId) {
-          const sessionKey = 'transcriptionSessionState_' + userId;
-          const savedSession = localStorage.getItem(sessionKey);
-          if (savedSession) {
-            const sessionData = JSON.parse(savedSession);
-            const collections = sessionData.mediaCollections || sessionData.projects;
-            if (collections && collections.length > 0) {
-              console.log('[Page] Session has collections, skipping backend load to avoid duplicates');
-              return;
-            }
-          }
-        }
-        
-        console.log('[Page] No existing collections found, loading from backend...');
-        const projectsList = await projectService.listProjects();
-        
-        if (projectsList && projectsList.length > 0) {
-          // Transform backend transcription projects to media collections
-          const transformedCollections: MediaCollection[] = projectsList.map(proj => {
-            try {
-              return {
-                name: proj.projectName || 'פרויקט ללא שם',
-                mediaItems: [{
-                  type: 'file' as const,
-                  name: proj.mediaFile || 'מדיה לא ידועה',
-                  size: '0 MB' // Size not stored in backend
-                }],
-                transcriptionProjectId: proj.projectId
-              };
-            } catch (err) {
-              console.error('[Page] Error transforming transcription project:', proj, err);
-              return null;
-            }
-          }).filter(Boolean) as MediaCollection[];
-          
-          console.log('[Page] Loaded', transformedCollections.length, 'transcription projects as media collections');
-          setMediaCollections(transformedCollections);
-          
-          // If we have collections, set the first one as current
-          if (transformedCollections.length > 0) {
-            setCurrentCollectionIndex(0);
-            setCurrentMediaIndex(0);
-            // Load the first transcription project's data
-            if (transformedCollections[0].transcriptionProjectId) {
-              await loadProjectData(transformedCollections[0].transcriptionProjectId);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('[Page] Error loading projects:', error);
-      }
-    };
-    
-    // Only run on client side after session restoration completes
-    if (typeof window !== 'undefined' && !isRestoringSession) {
-      // Longer delay to ensure session is fully restored
-      const timer = setTimeout(() => {
-        loadExistingProjects();
-      }, 1000); // Increased delay to avoid race conditions
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isRestoringSession, mediaCollections.length, loadProjectData]); // Also depend on collections length
+    // Project loading is disabled - will be handled differently in the future
+    console.log('[Page] Project loading disabled - upload functionality will be redesigned');
+  }, []);
   
   // Removed - upload functionality will be redesigned
   const handleMediaUpload = (files: FileList) => { return; /*
