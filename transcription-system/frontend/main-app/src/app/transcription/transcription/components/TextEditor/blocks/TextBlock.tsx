@@ -1159,53 +1159,53 @@ const TextBlock = React.memo(function TextBlock({
         // Set flag to prevent cursor repositioning by other handlers
         isProcessingShiftEnter.current = true;
         
-        setLocalText(newText);
-        onUpdate(block.id, 'text', newText);
-        
-        // Store the desired cursor position in a ref to preserve it
+        // Store the desired cursor position
         const preservedPos = desiredCursorPos;
         
-        // Use multiple techniques to ensure cursor stays in correct position
-        // First, immediate update
+        // Directly update the textarea value BEFORE React state update
+        // This prevents React re-render from interfering
         if (textRef.current) {
           textRef.current.value = newText;
+          // Auto-resize immediately
+          textRef.current.style.height = 'auto';
+          textRef.current.style.height = textRef.current.scrollHeight + 'px';
+          // Set cursor position
           textRef.current.setSelectionRange(preservedPos, preservedPos);
         }
         
-        // Then requestAnimationFrame for after React update
+        // Then update React state (this will trigger re-render but textarea already has correct value)
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+        
+        // Use requestAnimationFrame to re-apply cursor position after React renders
         requestAnimationFrame(() => {
           if (textRef.current) {
-            // Ensure value is set
-            textRef.current.value = newText;
-            
-            // Set cursor position before resize
+            // Force cursor position again after React update
             textRef.current.setSelectionRange(preservedPos, preservedPos);
-            
-            // Resize the textarea
-            textRef.current.style.height = 'auto';
-            textRef.current.style.height = textRef.current.scrollHeight + 'px';
-            
-            // Re-set cursor position after resize to ensure it stays
-            textRef.current.setSelectionRange(preservedPos, preservedPos);
-            
-            // Focus to ensure cursor is visible
             textRef.current.focus();
             
-            // One more time after a microtask to handle any async updates
+            // Use setTimeout to handle any delayed updates
+            setTimeout(() => {
+              if (textRef.current) {
+                textRef.current.setSelectionRange(preservedPos, preservedPos);
+              }
+            }, 10);
+            
+            // Use Promise for microtask timing
             Promise.resolve().then(() => {
               if (textRef.current) {
                 textRef.current.setSelectionRange(preservedPos, preservedPos);
               }
             });
             
-            // Clear flag after a longer delay (increased for first blocks)
+            // Clear flag after a longer delay
             setTimeout(() => {
               isProcessingShiftEnter.current = false;
-              // Final cursor position check
+              // Final cursor position enforcement
               if (textRef.current && textRef.current.selectionStart !== preservedPos) {
                 textRef.current.setSelectionRange(preservedPos, preservedPos);
               }
-            }, 500);
+            }, 750); // Increased to 750ms for slower first blocks
           }
         });
       }
@@ -1707,7 +1707,8 @@ const TextBlock = React.memo(function TextBlock({
   
   // Auto-resize textarea on mount and when text changes
   useEffect(() => {
-    if (textRef.current) {
+    // Skip auto-resize during Shift+Enter processing to prevent cursor jump
+    if (textRef.current && !isProcessingShiftEnter.current) {
       textRef.current.style.height = 'auto';
       textRef.current.style.height = textRef.current.scrollHeight + 'px';
     }
