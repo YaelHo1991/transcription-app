@@ -418,23 +418,23 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       });
       
       const response = await axios.post(
-        (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save\',
+        (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save',
         {
           mediaId,
           transcriptionNumber: transcription.number,
           blocks,
           speakers,
-          projectName: \'Current Project\',
+          projectName: 'Current Project',
           transcriptionTitle: transcription.name,
           mediaFile: initialMediaName
         }
       );
       
       if (response.data.success) {
-        console.log(\'✅ Session saved successfully to:\', response.data.path);
+        console.log('✅ Session saved successfully to:', response.data.path);
       }
     } catch (error) {
-      console.error(\'Error saving session:\', error);
+      console.error('Error saving session:', error);
     }
   }, [state, initialMediaName]);
   
@@ -450,7 +450,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       }
       
       const response = await axios.get(
-        (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/load/' + mediaId + '/' + transcriptionNumber + '\'
+        (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/load/' + mediaId + '/' + transcriptionNumber
       );
       
       if (response.data.success) {
@@ -461,7 +461,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       
       return { blocks: [], speakers: [] };
     } catch (error) {
-      console.error(\'Error loading session:\', error);
+      console.error('Error loading session:', error);
       return { blocks: [], speakers: [] };
     }
   }, []);
@@ -560,11 +560,11 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       try {
         // First, check if there are existing sessions for this media
         const response = await axios.get(
-          (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/list/' + initialMediaId + '\'
+          (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/list/' + initialMediaId
         );
         
         if (response.data.success && response.data.transcriptions && response.data.transcriptions.length > 0) {
-          console.log(\'🔍 Found existing sessions for media:\', response.data.transcriptions);
+          console.log('🔍 Found existing sessions for media:', response.data.transcriptions);
           
           // Show notification about existing work but always create new transcription
           if ((window as any).showExistingWorkNotification) {
@@ -575,7 +575,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
           }
           
           // Always create a new transcription (as requested by user)
-          console.log(\'🆕 Creating new transcription despite existing work (user preference)\');
+          console.log('🆕 Creating new transcription despite existing work (user preference)');
           const existingTranscriptions = response.data.transcriptions;
           const nextNumber = Math.max(...existingTranscriptions.map((t: any) => t.number)) + 1;
           
@@ -599,13 +599,13 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             
             try {
               await axios.post(
-                (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save\',
+                (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save',
                 {
                   mediaId: initialMediaId,
                   transcriptionNumber: nextNumber,
                   blocks: [initialBlock],
                   speakers: [],
-                  projectName: \'Current Project\',
+                  projectName: 'Current Project',
                   transcriptionTitle: 'תמלול ${nextNumber}`,
                   mediaFile: initialMediaName
                 }
@@ -641,50 +641,50 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
               
               try {
                 await axios.post(
-                  (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save\',
+                  (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save',
                   {
                     mediaId: initialMediaId,
                     transcriptionNumber: 1,
                     blocks: [initialBlock],
                     speakers: [],
-                    projectName: \'Current Project\',
-                    transcriptionTitle: \'תמלול ראשי\',
+                    projectName: 'Current Project',
+                    transcriptionTitle: 'תמלול ראשי',
                     mediaFile: initialMediaName
                   }
                 );
-                console.log(\'✅ Initial TXT file created successfully\');
+                console.log('✅ Initial TXT file created successfully');
               } catch (error) {
-                console.error(\'❌ Error creating initial TXT file:\', error);
+                console.error('❌ Error creating initial TXT file:', error);
               }
             } else {
-              console.error(\'❌ Failed to create default transcription:\', result.error);
+              console.error('❌ Failed to create default transcription:', result.error);
             }
           } else {
-            console.log(\'📦 Found existing transcriptions:\', existingTranscriptions.length);
+            console.log('📦 Found existing transcriptions:', existingTranscriptions.length);
           }
         }
       } catch (error) {
-        console.error(\'Error checking for existing sessions:\', error);
+        console.error('Error checking for existing sessions:', error);
         // Fallback: create default transcription
-        console.log(\'🔄 Fallback: Creating default transcription due to error\');
+        console.log('🔄 Fallback: Creating default transcription due to error');
         const existingTranscriptions = getTranscriptionsForMedia(initialMediaId);
         
         if (existingTranscriptions.length === 0) {
           const result = createTranscription({
             mediaId: initialMediaId,
-            name: \'תמלול ראשי\',
-            content: \'\'
+            name: 'תמלול ראשי',
+            content: ''
           });
           
           if (result.success) {
-            console.log(\'✅ Fallback transcription created with ID:\', result.transcriptionId);
+            console.log('✅ Fallback transcription created with ID:', result.transcriptionId);
             
             // Immediately create an initial TXT file with empty content
-            console.log(\'📝 Creating initial TXT file for fallback transcription\');
+            console.log('📝 Creating initial TXT file for fallback transcription');
             const initialBlock = {
               id: 'block-' + Date.now() + '-0',
-              speaker: \'\',
-              text: \'\',
+              speaker: '',
+              text: '',
               timestamp: undefined
             };
             

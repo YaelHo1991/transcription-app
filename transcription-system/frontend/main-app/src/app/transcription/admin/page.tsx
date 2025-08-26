@@ -211,6 +211,14 @@ export default function AdminDashboard() {
               העלאה וניהול של תבניות Word לייצוא
             </div>
           </Link>
+
+          <Link href="/transcription/admin/development" className="admin-card">
+            <div className="card-icon">🚀</div>
+            <div className="card-title">Development Hub</div>
+            <div className="card-description">
+              ניהול משימות פיתוח ורעיונות לשיפור המערכת
+            </div>
+          </Link>
         </div>
         </div>
       </div>

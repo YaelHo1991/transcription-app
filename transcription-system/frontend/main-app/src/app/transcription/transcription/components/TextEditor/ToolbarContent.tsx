@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import ToolbarGroup from './components/ToolbarGroup';
-import TranscriptionManagementDropdown from './components/TranscriptionManagementDropdown';
 
 interface ToolbarContentProps {
   // File management

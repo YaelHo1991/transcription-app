@@ -258,7 +258,12 @@ export class ShortcutManager {
             cursorPosition: newCursorPos,
             expanded: true,
             expandedShortcut: prefixedShortcut + trailingPunctuation,
-            expandedTo: expansionWithPunct
+            expandedTo: expansionWithPunct,
+            // Undo metadata
+            processed: true,
+            originalText: text,
+            expansionStart: startPos,
+            expansionEnd: startPos + expansionWithPunct.length
           };
         }
       }
@@ -284,7 +289,12 @@ export class ShortcutManager {
             cursorPosition: newCursorPos,
             expanded: true,
             expandedShortcut: shortcutWithHe,
-            expandedTo: expansionWithHe
+            expandedTo: expansionWithHe,
+            // Undo metadata
+            processed: true,
+            originalText: text,
+            expansionStart: startPos,
+            expansionEnd: startPos + expansionWithHe.length
           };
         }
         
@@ -303,7 +313,12 @@ export class ShortcutManager {
               cursorPosition: newCursorPos,
               expanded: true,
               expandedShortcut: prefixedWithHe,
-              expandedTo: expansionWithHe
+              expandedTo: expansionWithHe,
+              // Undo metadata
+              processed: true,
+              originalText: text,
+              expansionStart: startPos,
+              expansionEnd: startPos + expansionWithHe.length
             };
           }
         }
@@ -330,7 +345,12 @@ export class ShortcutManager {
           cursorPosition: newCursorPos,
           expanded: true,
           expandedShortcut: shortcut + trailingPunctuation,
-          expandedTo: expansionWithPunct
+          expandedTo: expansionWithPunct,
+          // Undo metadata
+          processed: true,
+          originalText: text,
+          expansionStart: startPos,
+          expansionEnd: startPos + expansionWithPunct.length
         };
       }
     }

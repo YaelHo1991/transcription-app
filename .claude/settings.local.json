@@ -115,12 +115,29 @@
       "Bash(start http://localhost:3002/dev-portal/shortcuts-admin)",
       "Bash(start https://yalitranscription.duckdns.org/dev-portal/shortcuts-admin)",
       "Bash(start C:UsersayelhDocumentsProjectsTranscriptionmodal-theme-preview.html)",
-      "Bash(start \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\modal-theme-preview.html\")"
+      "Bash(start \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\modal-theme-preview.html\")",
+      "Bash(rsync:*)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Bash(start http://localhost:3002/transcription/admin/development)",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\backend\\migrations\\014_create_development_hub_tables.sql\")",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\backend\\migrations\\015_enhance_development_hub.sql\")",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f migrations/015_enhance_development_hub.sql)",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql\" -h localhost -p 5432 -U transcription_user -d transcription_system -f \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\backend\\migrations\\015_enhance_development_hub.sql\")",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)"
     ],
     "deny": [],
     "additionalDirectories": [
       "C:\\mnt\\c\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend",
-      "C:\\c\\Users\\ayelh\\Documents\\Projects"
+      "C:\\c\\Users\\ayelh\\Documents\\Projects",
+      "C:\\Users\\ayelh\\Documents\\Projects"
     ]
   }
 }

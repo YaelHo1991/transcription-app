@@ -15,11 +15,6 @@ interface ProjectNavigatorProps {
   onNextProject?: () => void;
   onPreviousMedia?: () => void;
   onNextMedia?: () => void;
-  onAddProject?: () => void;
-  onAddMedia?: () => void;
-  onRemoveMedia?: () => void;
-  onProjectDrop?: (files: FileList) => void;
-  onMediaDrop?: (files: FileList) => void;
 }
 
 export default function ProjectNavigator({
@@ -33,15 +28,8 @@ export default function ProjectNavigator({
   onPreviousProject,
   onNextProject,
   onPreviousMedia,
-  onNextMedia,
-  onAddProject,
-  onAddMedia,
-  onRemoveMedia,
-  onProjectDrop,
-  onMediaDrop
+  onNextMedia
 }: ProjectNavigatorProps) {
-  const [projectDragActive, setProjectDragActive] = useState(false);
-  const [mediaDragActive, setMediaDragActive] = useState(false);
   
   // Detect if text contains Hebrew characters
   const isHebrew = (text: string) => {
@@ -51,52 +39,9 @@ export default function ProjectNavigator({
   
   const scrollDirection = isHebrew(mediaName) ? 'rtl' : 'ltr';
 
-  const handleProjectDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setProjectDragActive(true);
-    } else if (e.type === "dragleave") {
-      setProjectDragActive(false);
-    }
-  };
-
-  const handleProjectDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setProjectDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onProjectDrop?.(e.dataTransfer.files);
-    }
-  };
-
-  const handleMediaDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setMediaDragActive(true);
-    } else if (e.type === "dragleave") {
-      setMediaDragActive(false);
-    }
-  };
-
-  const handleMediaDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMediaDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onMediaDrop?.(e.dataTransfer.files);
-    }
-  };
 
   return (
-    <div 
-      className="t-project-navigator"
-      onDragEnter={handleMediaDrag}
-      onDragLeave={handleMediaDrag}
-      onDragOver={handleMediaDrag}
-      onDrop={handleMediaDrop}
-    >
+    <div className="t-project-navigator">
       {/* Project Section */}
       <div className="t-nav-section t-project-section">
         <button className="t-nav-btn" onClick={onPreviousProject} disabled={currentProject <= 1}>
@@ -108,9 +53,6 @@ export default function ProjectNavigator({
         </div>
         <button className="t-nav-btn" onClick={onNextProject} disabled={currentProject >= totalProjects}>
           ←
-        </button>
-        <button className="t-add-btn-small" onClick={onAddProject} title="פרויקט חדש">
-          +
         </button>
       </div>
 
@@ -128,14 +70,6 @@ export default function ProjectNavigator({
         <button className="t-nav-btn" onClick={onNextMedia} disabled={currentMedia >= totalMedia}>
           ←
         </button>
-        <button className="t-add-btn-small" onClick={onAddMedia} title="מדיה חדשה">
-          +
-        </button>
-        {totalMedia > 0 && (
-          <button className="t-remove-btn-small" onClick={onRemoveMedia} title="הסר מדיה">
-            ×
-          </button>
-        )}
       </div>
 
       <div className="t-nav-divider"></div>

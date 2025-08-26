@@ -31,9 +31,39 @@ interface MediaPlayerProps {
   onTimeUpdate?: (time: number) => void;
   onTimestampCopy?: (timestamp: string) => void;
   onDurationChange?: (duration: number) => void;
+  // ProjectNavigator props
+  currentProject?: number;
+  totalProjects?: number;
+  currentMedia?: number;
+  totalMedia?: number;
+  mediaName?: string;
+  mediaDuration?: string;
+  mediaSize?: string;
+  projectName?: string;
+  onPreviousProject?: () => void;
+  onNextProject?: () => void;
+  onPreviousMedia?: () => void;
+  onNextMedia?: () => void;
 }
 
-export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCopy, onDurationChange }: MediaPlayerProps) {
+export default function MediaPlayer({ 
+  initialMedia, 
+  onTimeUpdate, 
+  onTimestampCopy, 
+  onDurationChange,
+  currentProject = 1,
+  totalProjects = 1,
+  currentMedia = 1,
+  totalMedia = 1,
+  mediaName = '',
+  mediaDuration = '00:00:00',
+  mediaSize = '0 MB',
+  projectName = '',
+  onPreviousProject,
+  onNextProject,
+  onPreviousMedia,
+  onNextMedia
+}: MediaPlayerProps) {
   // Refs - component references
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -69,6 +99,7 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
   const previousVolumeRef = useRef(100); // Store volume before muting
   
   // Collapsible sections
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [slidersCollapsed, setSlidersCollapsed] = useState(false);
   
@@ -1471,6 +1502,69 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
           <audio ref={audioRef} id="audioPlayer" preload="auto" />
           {showVideo && <video ref={videoRef} style={{ display: 'none' }} />}
         
+        {/* Navigation Section - Project and Media Navigation */}
+        <div className={'section-wrapper navigation-wrapper ' + (navigationCollapsed ? 'collapsed' : '')} id="navigationWrapper">
+          {/* Collapse/Expand Toggle */}
+          <button 
+            className="collapse-toggle" 
+            id="navigationToggle" 
+            title="הסתר/הצג ניווט"
+            onClick={() => setNavigationCollapsed(!navigationCollapsed)}
+          >
+            <span className="collapse-icon">{navigationCollapsed ? '▼' : '▲'}</span>
+          </button>
+          
+          {/* Navigation Content */}
+          <div className={'section-content navigation-content ' + (navigationCollapsed ? 'hidden' : '')}>
+            <div className="t-project-navigator">
+              {/* Project Section - 35% width */}
+              <div className="t-nav-section t-project-section-new">
+                <button className="t-nav-btn" onClick={onPreviousProject} disabled={currentProject <= 1}>
+                  →
+                </button>
+                <div className="t-nav-info-new">
+                  <div className="t-nav-name-wrapper">
+                    <div className={'t-nav-name ' + (projectName && projectName.length > 15 ? 'scroll-rtl' : '')}>
+                      {projectName || 'ללא פרויקט'}
+                    </div>
+                  </div>
+                  <div className="t-nav-counter">
+                    <span>{currentProject} / {totalProjects}</span>
+                  </div>
+                </div>
+                <button className="t-nav-btn" onClick={onNextProject} disabled={currentProject >= totalProjects}>
+                  ←
+                </button>
+              </div>
+
+              <div className="t-nav-divider"></div>
+
+              {/* Media Section - 65% width */}
+              <div className="t-nav-section t-media-section-new">
+                <button className="t-nav-btn" onClick={onPreviousMedia} disabled={currentMedia <= 1}>
+                  →
+                </button>
+                <div className="t-nav-info-new">
+                  <div className="t-nav-name-wrapper">
+                    <div className={'t-nav-name ' + (mediaName && mediaName.length > 25 ? 'scroll-rtl' : '')}>
+                      {mediaName || 'ללא מדיה'}
+                    </div>
+                  </div>
+                  <div className="t-nav-details">
+                    <span className="t-nav-counter">{currentMedia} / {totalMedia}</span>
+                    <span className="t-nav-separator">•</span>
+                    <span className="t-media-duration">{mediaDuration}</span>
+                    <span className="t-nav-separator">•</span>
+                    <span className="t-media-size">{mediaSize}</span>
+                  </div>
+                </div>
+                <button className="t-nav-btn" onClick={onNextMedia} disabled={currentMedia >= totalMedia}>
+                  ←
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
         
         {/* Controls Section Wrapper */}
         <div className={'section-wrapper controls-wrapper ' + (controlsCollapsed ? 'collapsed' : '')} id="controlsWrapper">
@@ -1513,6 +1607,16 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
               <button className="control-btn" id="forward5Btn" title="קדימה 5 שניות" onClick={() => handleForward(5)}>
                 ⬅️
                 <span className="skip-amount">5</span>
+              </button>
+              
+              {/* Settings Button */}
+              <button 
+                className="control-btn settings-in-controls" 
+                id="settingsBtn" 
+                title="הגדרות"
+                onClick={() => setShowSettings(true)}
+              >
+                ⚙️
               </button>
             </div>
           </div>
@@ -1840,16 +1944,6 @@ export default function MediaPlayer({ initialMedia, onTimeUpdate, onTimestampCop
             🎬 שחזר
           </button>
         )}
-        
-          {/* Settings Button */}
-          <button 
-            className="settings-btn" 
-            id="settingsBtn" 
-            title="הגדרות"
-            onClick={() => setShowSettings(true)}
-          >
-            ⚙️
-          </button>
         </div>
         
         {/* Video Cube - part of layout when video is shown */}

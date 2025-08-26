@@ -47,6 +47,11 @@ export interface ProcessTextResult {
   expanded: boolean;
   expandedShortcut?: string;
   expandedTo?: string;
+  // For undo functionality
+  processed?: boolean;
+  originalText?: string;
+  expansionStart?: number;
+  expansionEnd?: number;
 }
 
 export interface ShortcutAPIResponse {

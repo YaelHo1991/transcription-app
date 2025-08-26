@@ -1,0 +1,25 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-redeclare": "error",
+    "no-duplicate-imports": "error",
+    "no-dupe-keys": "error",
+    "no-dupe-class-members": "error",
+    "no-dupe-args": "error",
+    "no-import-assign": "error",
+    "no-func-assign": "error",
+    "no-shadow": "warn",
+    "no-shadow-restricted-names": "error",
+    "@typescript-eslint/no-duplicate-enum-values": "error",
+    "@typescript-eslint/no-redeclare": ["error", { "ignoreDeclarationMerge": true }]
+  },
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "@typescript-eslint/no-shadow": ["warn"],
+        "no-shadow": "off"
+      }
+    }
+  ]
+}

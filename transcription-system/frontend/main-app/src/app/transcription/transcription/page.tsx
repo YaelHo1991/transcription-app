@@ -7,10 +7,6 @@ import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
 import WorkspaceHeader from './components/WorkspaceHeader/WorkspaceHeader';
-import ProjectNavigator from './components/ProjectNavigator/ProjectNavigator';
-import UrlModal from './components/UrlModal/UrlModal';
-import UploadOptionsModal from './components/UploadOptionsModal/UploadOptionsModal';
-import ProjectNameModal from './components/ProjectNameModal/ProjectNameModal';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayer from './components/MediaPlayer';
 import TextEditor from './components/TextEditor';
@@ -133,12 +129,6 @@ export default function TranscriptionWorkPage() {
   const [helperFilesExpanded, setHelperFilesExpanded] = useState(false);
   const [headerLocked, setHeaderLocked] = useState(false);
   const [sidebarLocked, setSidebarLocked] = useState(false);
-  const [showUrlModal, setShowUrlModal] = useState(false);
-  const [showUploadOptions, setShowUploadOptions] = useState<'project' | 'media' | null>(null);
-  const [urlModalType, setUrlModalType] = useState<'project' | 'media'>('media');
-  const [showProjectNameModal, setShowProjectNameModal] = useState(false);
-  const [pendingProjectFiles, setPendingProjectFiles] = useState<FileList | null>(null);
-  const [pendingProjectUrl, setPendingProjectUrl] = useState<string | null>(null);
   
   // MediaPlayer and TextEditor synchronization
   const [currentTime, setCurrentTime] = useState(0);
@@ -164,8 +154,6 @@ export default function TranscriptionWorkPage() {
   // Authentication required modal
   const [showAuthRequiredModal, setShowAuthRequiredModal] = useState(false);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const projectFolderRef = useRef<HTMLInputElement>(null);
   const speakerComponentRef = useRef<SimpleSpeakerHandle>(null);
   
   // Transcription Project management (backend projects with transcription data)
@@ -563,7 +551,8 @@ export default function TranscriptionWorkPage() {
     }
   }, [isRestoringSession, mediaCollections.length, loadProjectData]); // Also depend on collections length
   
-  const handleMediaUpload = (files: FileList) => {
+  // Removed - upload functionality will be redesigned
+  const handleMediaUpload = (files: FileList) => { return; /*
     // Create media collection if none exists (frontend container for media files)
     // Note: This will trigger transcription project creation in the backend later
     if (mediaCollections.length === 0) {
@@ -601,16 +590,18 @@ export default function TranscriptionWorkPage() {
         setCurrentMediaIndex(0);
       }
     }
-  };
+  */};
   
-  const handleProjectUpload = (files: FileList) => {
+  // Removed - upload functionality will be redesigned
+  const handleProjectUpload = (files: FileList) => { return; /*
     // Handle folder upload - creates a new media collection
     // Store files and show name modal
     setPendingProjectFiles(files);
-    setShowProjectNameModal(true);
-  };
+    // Modal removed - functionality will be redesigned
+  */};
   
-  const handleProjectNameSubmit = (name: string | null) => {
+  // Removed - upload functionality will be redesigned
+  const handleProjectNameSubmit = (name: string | null) => { return; /*
     if (pendingProjectFiles) {
       // Get folder name from file path if no name provided
       const firstFile = pendingProjectFiles[0] as FileWithPath;
@@ -657,20 +648,11 @@ export default function TranscriptionWorkPage() {
       setPendingProjectUrl(null);
     }
     
-    setShowProjectNameModal(false);
-  };
+    // Modal removed - functionality will be redesigned
+  */};
   
-  const handleAddMedia = () => {
-    // Show options modal for media
-    setShowUploadOptions('media');
-  };
-  
-  const handleAddProject = () => {
-    // Show options modal for project
-    setShowUploadOptions('project');
-  };
-
-  const handleRemoveMedia = () => {
+  // Removed - upload functionality will be redesigned
+  const handleRemoveMedia = () => { return; /*
     if (!currentCollection || !currentMedia) return;
     
     console.log('[Media] Removing media:', currentMedia.name);
@@ -716,16 +698,17 @@ export default function TranscriptionWorkPage() {
     }
     
     console.log('[Media] Media removed successfully');
-  };
+  */};
   
-  const handleUrlSubmit = (url: string) => {
+  // Removed - upload functionality will be redesigned
+  const handleUrlSubmit = (url: string) => { return; /*
     const urlParts = url.split('/');
     const name = urlParts[urlParts.length - 1] || url.substring(0, 50);
     
     if (urlModalType === 'project') {
       // Store URL and show name modal
       setPendingProjectUrl(url);
-      setShowProjectNameModal(true);
+      // Modal removed - functionality will be redesigned
     } else {
       // Add media to current project
       if (mediaCollections.length === 0) {
@@ -759,7 +742,7 @@ export default function TranscriptionWorkPage() {
         setCurrentMediaIndex(0);
       }
     }
-  };
+  */};
   
   const handlePreviousProject = () => {
     if (currentCollectionIndex > 0) {
@@ -951,47 +934,8 @@ export default function TranscriptionWorkPage() {
           )}
           {/* Main Workspace */}
           <div className="main-workspace">
-            {/* Hidden file inputs */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*,video/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={(e) => e.target.files && handleMediaUpload(e.target.files)}
-            />
-            <input
-              ref={projectFolderRef}
-              type="file"
-              accept="audio/*,video/*"
-              multiple
-              webkitdirectory=""
-              directory=""
-              style={{ display: 'none' }}
-              onChange={(e) => e.target.files && handleProjectUpload(e.target.files)}
-            />
             
-            {/* Project Navigator */}
-            <ProjectNavigator 
-              currentProject={hasCollections ? currentCollectionIndex + 1 : 0}
-              totalProjects={mediaCollections.length}
-              currentMedia={hasMedia ? currentMediaIndex + 1 : 0}
-              totalMedia={currentCollection?.mediaItems.length || 0}
-              mediaName={mediaName}
-              mediaDuration={mediaDuration}
-              mediaSize={mediaSize}
-              onPreviousProject={handlePreviousProject}
-              onNextProject={handleNextProject}
-              onPreviousMedia={handlePreviousMedia}
-              onNextMedia={handleNextMedia}
-              onAddProject={handleAddProject}
-              onAddMedia={handleAddMedia}
-              onRemoveMedia={handleRemoveMedia}
-              onProjectDrop={handleProjectUpload}
-              onMediaDrop={handleMediaUpload}
-            />
-
-            {/* MediaPlayer Component */}
+            {/* MediaPlayer Component - Now includes integrated navigation */}
             <div onClick={() => {
               // Clear block selection when clicking on media player
               const event = new CustomEvent('clearBlockSelection');
@@ -1045,6 +989,18 @@ export default function TranscriptionWorkPage() {
               onDurationChange={(duration) => {
                 setActualMediaDuration(duration);
               }}
+              currentProject={hasCollections ? currentCollectionIndex + 1 : 0}
+              totalProjects={mediaCollections.length}
+              currentMedia={hasMedia ? currentMediaIndex + 1 : 0}
+              totalMedia={currentCollection?.mediaItems.length || 0}
+              mediaName={mediaName}
+              mediaDuration={mediaDuration}
+              mediaSize={mediaSize}
+              projectName={collectionName}
+              onPreviousProject={handlePreviousProject}
+              onNextProject={handleNextProject}
+              onPreviousMedia={handlePreviousMedia}
+              onNextMedia={handleNextMedia}
             />
             </div>
             
@@ -1339,44 +1295,6 @@ export default function TranscriptionWorkPage() {
         </div>
       </div>
       
-      {/* Upload Options Modal */}
-      <UploadOptionsModal
-        isOpen={!!showUploadOptions}
-        onClose={() => setShowUploadOptions(null)}
-        type={showUploadOptions || 'media'}
-        onFileUpload={() => {
-          if (showUploadOptions === 'project') {
-            projectFolderRef.current?.click();
-          } else {
-            fileInputRef.current?.click();
-          }
-        }}
-        onLinkUpload={() => {
-          setUrlModalType(showUploadOptions || 'media');
-          setShowUrlModal(true);
-        }}
-      />
-      
-      {/* URL Modal */}
-      <UrlModal
-        isOpen={showUrlModal}
-        onClose={() => setShowUrlModal(false)}
-        onSubmit={handleUrlSubmit}
-        title={urlModalType === 'project' ? 'הכנס קישור לפרויקט' : 'הכנס קישור למדיה'}
-      />
-      
-      {/* Project Name Modal */}
-      <ProjectNameModal
-        isOpen={showProjectNameModal}
-        onClose={() => {
-          setShowProjectNameModal(false);
-          setPendingProjectFiles(null);
-          setPendingProjectUrl(null);
-        }}
-        onSubmit={handleProjectNameSubmit}
-        defaultName={(pendingProjectFiles?.[0] as FileWithPath)?.webkitRelativePath?.split('/')[0] || ''}
-        showWarning={!!pendingProjectFiles}
-      />
       
       {/* Authentication Error Modal */}
       <ConfirmationModal

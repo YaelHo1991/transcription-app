@@ -35,8 +35,14 @@
   caret-shape: block; /* Block cursor for Hebrew */
   /* Keep RTL direction for the whole field */
   direction: rtl !important;
-  text-align: right !important;
+  /* Don't override text-align for textarea - let justify work from main .block-text rule */
+  /* text-align: right !important; - REMOVED */
   unicode-bidi: plaintext !important; /* CRITICAL: Makes it work like speaker field */
+}
+
+/* Keep right alignment only for speaker input */
+.text-block input[dir="rtl"] {
+  text-align: right !important;
 }
 
 .text-block textarea[dir="ltr"],
@@ -88,7 +94,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 2px 12px;
-  margin-bottom: 8px; /* Add spacing between blocks */
+  margin-bottom: 2px; /* Reduced from 8px to 2px for tighter spacing between blocks */
   background-color: transparent;
   border-radius: 4px;
   transition: all 0.2s ease;
@@ -134,7 +140,7 @@
   outline: none;
   border: none;
   transition: all 0.2s ease;
-  line-height: 1.5;
+  line-height: 1.8; /* Increased from 1.5 to 1.8 to match text area */
   position: relative;
   z-index: 2;
 }
@@ -148,7 +154,7 @@
   pointer-events: none;
   direction: rtl;
   text-align: right;
-  line-height: 1.5;
+  line-height: 1.8; /* Increased from 1.5 to 1.8 to match other elements */
   padding: 0;
   font-weight: 500;
   opacity: 0.6;
@@ -183,7 +189,7 @@
   user-select: none;
   align-self: flex-start;
   flex-shrink: 0;
-  line-height: 1.5;
+  line-height: 1.8; /* Increased from 1.5 to 1.8 to match other elements */
   padding-top: 4px;
 }
 
@@ -193,7 +199,7 @@
   padding: 4px 4px;
   outline: none;
   min-height: 22px;
-  line-height: 1.5;
+  line-height: 1.8; /* Increased from 1.5 to 1.8 for better line spacing */
   border-radius: 3px;
   border: none;
   transition: all 0.2s ease;
@@ -202,23 +208,31 @@
   overflow-y: hidden;
   resize: none;
   background: transparent;
-  /* ABSOLUTELY FORCE RTL - no exceptions */
+  /* RTL direction */
   direction: rtl !important;
-  text-align: right !important;
-  /* Use plaintext for proper bidirectional text handling */
-  /* This allows mixed Hebrew-English text to display correctly like in speaker field */
-  unicode-bidi: plaintext !important;
-  /* Full text justification like Word */
+  /* Full justification for Hebrew text */
+  text-align: justify !important;
+  text-align-last: right !important; /* Last line stays right-aligned */
   text-justify: inter-word !important;
-  word-spacing: normal;
+  /* Remove unicode-bidi: plaintext as it interferes with justification */
+  /* unicode-bidi: plaintext !important; - REMOVED */
+  /* Use embed instead for better justification support */
+  unicode-bidi: embed !important;
+  /* Better word spacing for justified text */
+  word-spacing: 0.1em;
   letter-spacing: normal;
+  /* Force justification to work */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -moz-hyphens: auto;
 }
 
 /* Dynamic cursor colors set via inline styles */
 .block-text[data-language="hebrew"] {
   caret-color: #e91e63 !important;
   direction: rtl !important;
-  text-align: right !important;
+  /* Don't override text-align here - let justify work */
+  /* text-align: right !important; - REMOVED */
 }
 
 .block-text[data-language="english"] {
@@ -237,6 +251,7 @@
 .block-speaker.rtl-mode:focus {
   caret-color: #0891b2;
   caret-shape: block;
+  /* Don't override text-align for text areas */
 }
 
 /* LTR cursor styling */
@@ -306,7 +321,7 @@
 .text-block {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.8; /* Increased from 1.5 to 1.8 for consistent line height */
 }
 
 .block-speaker,
