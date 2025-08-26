@@ -88,6 +88,22 @@ const TextBlock = React.memo(function TextBlock({
   const lastNavigatedTimestamp = useRef<string | null>(null);
   const isProcessingShiftEnter = useRef(false);
   
+  // Undo history for shortcuts
+  interface UndoHistoryItem {
+    text: string;
+    cursorPosition: number;
+    isShortcutExpansion: boolean;
+    timestamp: number;
+    expandedShortcut?: string;
+  }
+  const [undoHistory, setUndoHistory] = useState<UndoHistoryItem[]>([]);
+  const lastShortcutExpansion = useRef<{
+    originalText: string;
+    expandedShortcut: string;
+    expansionStart: number;
+    expansionEnd: number;
+  } | null>(null);
+  
   // Removed debouncing as it was causing cursor jump issues
   // The React.memo optimization is sufficient for performance
   
@@ -713,15 +729,91 @@ const TextBlock = React.memo(function TextBlock({
   // Handle text keydown
   const handleTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     console.log('Key pressed in text area:', e.key);
+    const textarea = e.currentTarget;
+    
+    // Handle Ctrl+Z for undo shortcut expansion BEFORE checking special keys
+    // Check both 'z' and 'ז' (Hebrew zayin) and also check e.code for KeyZ
+    if (e.ctrlKey && (e.key === 'z' || e.key === 'Z' || e.key === 'ז' || e.code === 'KeyZ') && !e.shiftKey) {
+      console.log('========== Ctrl+Z PRESSED ==========');
+      console.log('Key:', e.key, ', Code:', e.code);
+      console.log('Undo history length:', undoHistory.length);
+      console.log('Current text:', textarea.value);
+      
+      // Check if we have undo history and the last change was a shortcut expansion
+      if (undoHistory.length > 0) {
+        const lastUndo = undoHistory[undoHistory.length - 1];
+        console.log('Last undo item:', {
+          text: lastUndo.text,
+          cursorPosition: lastUndo.cursorPosition,
+          isShortcutExpansion: lastUndo.isShortcutExpansion,
+          timestamp: lastUndo.timestamp,
+          expandedShortcut: lastUndo.expandedShortcut,
+          timeSinceExpansion: Date.now() - lastUndo.timestamp
+        });
+        
+        // Only undo if the last change was recent (within 30 seconds) and was a shortcut expansion
+        if (lastUndo.isShortcutExpansion && Date.now() - lastUndo.timestamp < 30000) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('UNDOING shortcut expansion!');
+          console.log('Restoring text to:', lastUndo.text);
+          
+          // Restore the previous text
+          setLocalText(lastUndo.text);
+          onUpdate(block.id, 'text', lastUndo.text);
+          
+          // Remove this item from undo history
+          setUndoHistory(prev => {
+            console.log('Removing last item from undo history');
+            return prev.slice(0, -1);
+          });
+          
+          // Clear last expansion reference
+          lastShortcutExpansion.current = null;
+          
+          // Restore cursor position
+          setTimeout(() => {
+            if (textRef.current) {
+              textRef.current.value = lastUndo.text;
+              textRef.current.setSelectionRange(lastUndo.cursorPosition, lastUndo.cursorPosition);
+              textRef.current.focus();
+              
+              console.log('Cursor restored to position:', lastUndo.cursorPosition);
+              
+              // Auto-resize
+              textRef.current.style.height = 'auto';
+              textRef.current.style.height = textRef.current.scrollHeight + 'px';
+            }
+          }, 0);
+          
+          console.log('========== UNDO COMPLETE ==========');
+          return;
+        } else {
+          console.log('Not undoing because:');
+          if (!lastUndo.isShortcutExpansion) {
+            console.log('- Last undo item is not a shortcut expansion');
+          }
+          if (Date.now() - lastUndo.timestamp >= 30000) {
+            console.log('- Too much time has passed (>30 seconds)');
+          }
+        }
+      } else {
+        console.log('No undo history available');
+      }
+      console.log('========== END Ctrl+Z ==========');
+    }
     
     // Check if this is a special key that should bubble up to MediaPlayer
+    // BUT exclude Ctrl+Z from special keys (regardless of keyboard language)
+    const isCtrlZ = e.ctrlKey && (e.key === 'z' || e.key === 'Z' || e.key === 'ז' || e.code === 'KeyZ');
     const isSpecialKey = 
       // F-keys
       (e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2) ||
       // Numpad keys
       (e.code && e.code.startsWith('Numpad')) ||
-      // Combinations with Ctrl/Alt/Meta (but not Shift alone)
-      (e.ctrlKey || e.altKey || e.metaKey);
+      // Combinations with Ctrl/Alt/Meta (but not Shift alone and not Ctrl+Z)
+      ((e.ctrlKey || e.altKey || e.metaKey) && !isCtrlZ);
     
     if (isSpecialKey) {
       console.log('Special key detected, allowing propagation:', e.key, e.code);
@@ -729,7 +821,7 @@ const TextBlock = React.memo(function TextBlock({
       return;
     }
     
-    const textarea = e.currentTarget;
+    // textarea is already defined at the top of the function
     const text = textarea.value;
     
     // Handle arrow key navigation to skip timestamps
@@ -1073,10 +1165,20 @@ const TextBlock = React.memo(function TextBlock({
         // Store the desired cursor position in a ref to preserve it
         const preservedPos = desiredCursorPos;
         
-        // Use requestAnimationFrame for more reliable positioning
+        // Use multiple techniques to ensure cursor stays in correct position
+        // First, immediate update
+        if (textRef.current) {
+          textRef.current.value = newText;
+          textRef.current.setSelectionRange(preservedPos, preservedPos);
+        }
+        
+        // Then requestAnimationFrame for after React update
         requestAnimationFrame(() => {
           if (textRef.current) {
-            // Set cursor position
+            // Ensure value is set
+            textRef.current.value = newText;
+            
+            // Set cursor position before resize
             textRef.current.setSelectionRange(preservedPos, preservedPos);
             
             // Resize the textarea
@@ -1089,10 +1191,21 @@ const TextBlock = React.memo(function TextBlock({
             // Focus to ensure cursor is visible
             textRef.current.focus();
             
-            // Clear flag after a short delay
+            // One more time after a microtask to handle any async updates
+            Promise.resolve().then(() => {
+              if (textRef.current) {
+                textRef.current.setSelectionRange(preservedPos, preservedPos);
+              }
+            });
+            
+            // Clear flag after a longer delay (increased for first blocks)
             setTimeout(() => {
               isProcessingShiftEnter.current = false;
-            }, 100);
+              // Final cursor position check
+              if (textRef.current && textRef.current.selectionStart !== preservedPos) {
+                textRef.current.setSelectionRange(preservedPos, preservedPos);
+              }
+            }, 500);
           }
         });
       }
@@ -1283,6 +1396,14 @@ const TextBlock = React.memo(function TextBlock({
     let value = e.target.value;
     let cursorPos = e.target.selectionStart;
     
+    // Skip auto-corrections and other processing during Shift+Enter
+    // to prevent cursor jumping in first blocks
+    if (isProcessingShiftEnter.current) {
+      setLocalText(value);
+      onUpdate(block.id, 'text', value);
+      return;
+    }
+    
     // Apply auto-corrections if enabled
     if (autoCorrectEngine) {
       const originalValue = value;
@@ -1372,6 +1493,41 @@ const TextBlock = React.memo(function TextBlock({
       const result = onProcessShortcuts(textBeforeSpace, textBeforeSpace.length);
       
       if (result && result.expanded) {
+        console.log('Shortcut expanded! Saving undo history');
+        console.log('Original text before expansion:', textBeforeSpace);
+        console.log('Expanded shortcut:', result.expandedShortcut);
+        console.log('Current value:', value);
+        
+        // Save undo information - store the text WITH the shortcut BEFORE expansion
+        // We want to restore to the state just before the shortcut was expanded
+        const undoItem: UndoHistoryItem = {
+          text: value,  // The original text with the shortcut and space (before expansion)
+          cursorPosition: cursorPos,  // Cursor position where it was (after the space)
+          isShortcutExpansion: true,
+          timestamp: Date.now(),
+          expandedShortcut: result.expandedShortcut
+        };
+        
+        console.log('Saving undo item with text:', undoItem.text);
+        console.log('Cursor position:', undoItem.cursorPosition);
+        
+        // Keep only last 10 undo items
+        setUndoHistory(prev => {
+          const newHistory = [...prev.slice(-9), undoItem];
+          console.log('New undo history length:', newHistory.length);
+          return newHistory;
+        });
+        
+        // Save expansion metadata for undo
+        if (result.processed && result.originalText) {
+          lastShortcutExpansion.current = {
+            originalText: result.originalText,
+            expandedShortcut: result.expandedShortcut || '',
+            expansionStart: result.expansionStart || 0,
+            expansionEnd: result.expansionEnd || 0
+          };
+        }
+        
         // Add the space after the expansion
         value = result.text + ' ' + value.substring(cursorPos);
         
