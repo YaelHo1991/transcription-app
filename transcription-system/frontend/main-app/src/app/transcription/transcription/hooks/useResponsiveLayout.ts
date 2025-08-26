@@ -31,8 +31,8 @@ export const useResponsiveLayout = () => {
       // Check viewport width (actual browser window width)
       const viewportWidth = window.innerWidth;
       
-      // Breakpoint at 1600px for three-column layout (reduced to 1200px for testing)
-      const shouldUseThreeColumn = viewportWidth >= 1200;
+      // Breakpoint at 1600px for three-column layout
+      const shouldUseThreeColumn = viewportWidth >= 1600;
       
       setIsThreeColumn(shouldUseThreeColumn);
       
