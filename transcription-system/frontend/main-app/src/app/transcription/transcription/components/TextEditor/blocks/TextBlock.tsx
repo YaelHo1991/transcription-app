@@ -87,6 +87,7 @@ const TextBlock = React.memo(function TextBlock({
   const wasFullySelected = useRef(false);
   const lastNavigatedTimestamp = useRef<string | null>(null);
   const isProcessingShiftEnter = useRef(false);
+  const shiftEnterStartTime = useRef<number>(0);
   
   // Undo history for shortcuts
   interface UndoHistoryItem {
@@ -460,6 +461,22 @@ const TextBlock = React.memo(function TextBlock({
     return { formatted: false, newText: text, newCursorPos: cursorPos };
   };
 
+  // Helper to safely clear Shift+Enter flag
+  const clearShiftEnterFlag = () => {
+    // Only clear if minimum time has passed (1 second for first blocks, 500ms for others)
+    const minTime = (block.id === 'block-0' || block.id === 'block-1' || block.id === 'block-2') ? 1000 : 500;
+    const elapsed = Date.now() - shiftEnterStartTime.current;
+    
+    if (elapsed >= minTime) {
+      isProcessingShiftEnter.current = false;
+    } else {
+      // Try again after remaining time
+      setTimeout(() => {
+        isProcessingShiftEnter.current = false;
+      }, minTime - elapsed);
+    }
+  };
+  
   // Show inline tooltip
   const displayTooltip = (message: string) => {
     setTooltipMessage(message);
@@ -1053,18 +1070,23 @@ const TextBlock = React.memo(function TextBlock({
     // TAB - Navigate to next block's speaker
     if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
+      clearShiftEnterFlag(); // Clear flag when navigating
       onNavigate('next', 'text');
     }
 
     // SHIFT+TAB - Navigate back to speaker
     if (e.key === 'Tab' && e.shiftKey) {
       e.preventDefault();
+      clearShiftEnterFlag(); // Clear flag when navigating
       onNavigate('speaker', 'text');
     }
 
     // ENTER - Create new block and maintain language (Word-like)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      
+      // Clear the Shift+Enter processing flag since user is creating a new block
+      clearShiftEnterFlag();
       
       // Apply AutoCorrect validations before creating new block
       if (autoCorrectEngine) {
@@ -1159,6 +1181,7 @@ const TextBlock = React.memo(function TextBlock({
         
         // Set flag to prevent cursor repositioning by other handlers
         isProcessingShiftEnter.current = true;
+        shiftEnterStartTime.current = Date.now();
         
         // Store the desired cursor position
         const preservedPos = desiredCursorPos;
@@ -1166,12 +1189,24 @@ const TextBlock = React.memo(function TextBlock({
         // Directly update the textarea value BEFORE React state update
         // This prevents React re-render from interfering
         if (textRef.current) {
+          // Store current direction settings
+          const currentDir = textRef.current.dir;
+          const currentStyle = textRef.current.style.direction;
+          
           textRef.current.value = newText;
           // Auto-resize immediately
           textRef.current.style.height = 'auto';
           textRef.current.style.height = textRef.current.scrollHeight + 'px';
+          
+          // Ensure RTL direction is maintained
+          textRef.current.dir = 'rtl';
+          textRef.current.style.direction = 'rtl';
+          
           // Set cursor position
           textRef.current.setSelectionRange(preservedPos, preservedPos);
+          
+          // Force focus to ensure cursor is visible and active
+          textRef.current.focus();
         }
         
         // Then update React state (this will trigger re-render but textarea already has correct value)
@@ -1199,14 +1234,9 @@ const TextBlock = React.memo(function TextBlock({
               }
             });
             
-            // Clear flag after a longer delay
-            setTimeout(() => {
-              isProcessingShiftEnter.current = false;
-              // Final cursor position enforcement
-              if (textRef.current && textRef.current.selectionStart !== preservedPos) {
-                textRef.current.setSelectionRange(preservedPos, preservedPos);
-              }
-            }, 750); // Increased to 750ms for slower first blocks
+            // Don't clear flag based on timeout anymore
+            // We'll clear it when user completes typing or navigates away
+            // This prevents the cursor from going crazy after the timeout
           }
         });
       }
@@ -1260,6 +1290,12 @@ const TextBlock = React.memo(function TextBlock({
       // Otherwise let normal delete work within text
     }
 
+    // Skip arrow navigation during Shift+Enter processing to prevent cursor jumping
+    if (isProcessingShiftEnter.current && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      // Allow default cursor movement but don't trigger navigation
+      return;
+    }
+    
     // Arrow navigation - UP/DOWN for blocks (only at edges), LEFT/RIGHT for fields (RTL aware)
     if (e.key === 'ArrowUp') {
       // Only navigate between blocks if we're truly at the first line
@@ -1397,11 +1433,19 @@ const TextBlock = React.memo(function TextBlock({
     let value = e.target.value;
     let cursorPos = e.target.selectionStart;
     
-    // Skip auto-corrections and other processing during Shift+Enter
-    // to prevent cursor jumping in first blocks
+    // Skip ALL processing during Shift+Enter to prevent cursor jumping
+    // This includes auto-corrections, English handling, list formatting, shortcuts
     if (isProcessingShiftEnter.current) {
       setLocalText(value);
       onUpdate(block.id, 'text', value);
+      
+      // Maintain cursor position during the processing window
+      const currentPos = e.target.selectionStart;
+      setTimeout(() => {
+        if (textRef.current && isProcessingShiftEnter.current) {
+          textRef.current.setSelectionRange(currentPos, currentPos);
+        }
+      }, 0);
       return;
     }
     
@@ -1425,7 +1469,8 @@ const TextBlock = React.memo(function TextBlock({
     
     // Handle English text to keep it on the right side in RTL mode
     // We need to wrap continuous English sequences with RLM marks
-    if (value.length > localText.length) {
+    // Skip during Shift+Enter processing to prevent cursor issues
+    if (value.length > localText.length && !isProcessingShiftEnter.current) {
       // User is typing - check if they typed an English letter
       const typedChar = value[cursorPos - 1];
       if (/[A-Za-z]/.test(typedChar)) {
@@ -1994,6 +2039,8 @@ const TextBlock = React.memo(function TextBlock({
   const handleTextBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
     // Reset selection tracking when losing focus
     wasFullySelected.current = false;
+    // Clear Shift+Enter processing flag when losing focus
+    clearShiftEnterFlag();
   };
 
   // Handle click on block for navigation mode and multi-select
