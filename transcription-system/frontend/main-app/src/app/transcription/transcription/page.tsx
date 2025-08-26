@@ -1051,4 +1051,3 @@ export default function TranscriptionWorkPage() {
 
 // Force dynamic rendering to prevent caching issues
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;

@@ -6,27 +6,31 @@
   color: #201e20;
 }
 
-/* Override HoveringBarsLayout gradients for blue theme */
+/* Override HoveringBarsLayout gradients for blue theme - MORE LIGHT BLUES */
 .theme-proofreading .hovering-header {
   background: linear-gradient(135deg, 
     #0f3c7c 0%,      /* Dark blue */
-    #1a4d8d 20%,     /* Medium dark blue */
-    #1476d1 60%,     /* Light blue - more area */
-    #0f5ea6 80%,     /* Medium blue */
-    #1a4d8d 100%     /* Back to medium dark */
+    #1a5d9d 15%,     /* Slightly lighter */
+    #2196f3 35%,     /* Bright blue - earlier and more prominent */
+    #03a9f4 50%,     /* Sky blue - center */
+    #2196f3 65%,     /* Bright blue again */
+    #1976d2 85%,     /* Medium blue */
+    #1a5d9d 100%     /* Back to medium */
   ) !important;
-  border-bottom: 1px solid rgba(20, 118, 209, 0.3);
+  border-bottom: 1px solid rgba(33, 150, 243, 0.3);
 }
 
 .theme-proofreading .hovering-sidebar {
   background: linear-gradient(135deg, 
-    #1a4d8d 0%,      /* Start with medium dark to connect with header */
-    #1476d1 40%,     /* Light blue - large area */
-    #2196f3 60%,     /* Material blue */
-    #0f5ea6 80%,     /* Medium blue */
+    #1a5d9d 0%,      /* Start with medium */
+    #2196f3 25%,     /* Bright blue - earlier */
+    #03a9f4 45%,     /* Sky blue - large area */
+    #00bcd4 60%,     /* Cyan blue */
+    #2196f3 75%,     /* Back to bright blue */
+    #1565c0 90%,     /* Deeper blue */
     #0f3c7c 100%     /* End with dark blue */
   ) !important;
-  border-left: 1px solid rgba(20, 118, 209, 0.3);
+  border-left: 1px solid rgba(33, 150, 243, 0.3);
 }
 
 /* Blue theme active navigation */
