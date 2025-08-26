@@ -52,13 +52,8 @@ declare module 'react' {
   }
 }
 
-// Helper function to create default transcription
-const createDefaultTranscription = () => ({
-  name: 'אין תמלול',
-  mediaItems: [], // Always empty - no media
-  projectId: null, // Always null - not a real project
-  isDefault: true // Always true - marks it as undeletable
-});
+// Default transcription disabled - upload functionality will be redesigned
+const createDefaultTranscription = () => null;
 
 // Helper function to get current user ID from token or localStorage
 const getCurrentUserId = (): string | null => {
@@ -141,9 +136,9 @@ export default function TranscriptionWorkPage() {
   const [actualMediaDuration, setActualMediaDuration] = useState<number>(0);
   const [isRestoringSession, setIsRestoringSession] = useState(false);
   
-  // Transcription management (saved transcriptions from backend)
-  const [transcriptions, setTranscriptions] = useState<any[]>(() => [createDefaultTranscription()]);
-  const [currentTranscriptionIndex, setCurrentTranscriptionIndex] = useState(0);
+  // Transcription management disabled - upload functionality will be redesigned
+  const [transcriptions, setTranscriptions] = useState<any[]>([]);
+  const [currentTranscriptionIndex, setCurrentTranscriptionIndex] = useState(-1);
   
   // Modal states for styled alerts
   const [showAuthErrorModal, setShowAuthErrorModal] = useState(false);
@@ -326,10 +321,9 @@ export default function TranscriptionWorkPage() {
   // Disable loading saved transcriptions - upload functionality will be redesigned
   useEffect(() => {
     console.log('[Page] Transcription loading disabled - upload functionality will be redesigned');
-    // Only set an empty default transcription for now
-    const defaultTranscription = createDefaultTranscription();
-    setTranscriptions([defaultTranscription]);
-    setCurrentTranscriptionIndex(0);
+    // No transcriptions will be loaded
+    setTranscriptions([]);
+    setCurrentTranscriptionIndex(-1);
   }, []);
 
   // Disable loading existing projects - upload functionality will be redesigned
@@ -634,29 +628,11 @@ export default function TranscriptionWorkPage() {
     }
   }, [mediaProjectsMap, currentCollectionIndex]);
   
-  // Handle project creation/loading when media changes
+  // Disable project creation/loading - upload functionality will be redesigned
   useEffect(() => {
-    const handleMediaChange = async () => {
-      if (!currentMedia || !currentMedia.name) {
-        console.log('[Project] No media selected, clearing project ID');
-        setCurrentProjectId('');
-        return;
-      }
-      
-      // Get or create project for any media type
-      const projectId = await getOrCreateProject(currentMedia.name, collectionName);
-      
-      if (projectId) {
-        setCurrentProjectId(projectId);
-        // Load the project data
-        await loadProjectData(projectId);
-      } else {
-        console.warn('[Project] Working without server persistence for:', currentMedia.name);
-      }
-    };
-    
-    handleMediaChange();
-  }, [currentMedia, collectionName, getOrCreateProject, loadProjectData]); // Dependencies updated
+    console.log('[Project] Project loading disabled - upload functionality will be redesigned');
+    setCurrentProjectId('');
+  }, []);
 
   // Memoize callbacks to prevent unnecessary re-renders
   const handleHeaderLockChange = useCallback((locked: boolean) => {
@@ -772,8 +748,8 @@ export default function TranscriptionWorkPage() {
                   console.log('Seek to time:', time);
                 }}
                 enabled={true}
-                transcriptions={transcriptions}
-                currentTranscriptionIndex={currentTranscriptionIndex}
+                transcriptions={[]}
+                currentTranscriptionIndex={-1}
                 onTranscriptionChange={async (index) => {
                   console.log('[Page] Transcription changed to index:', index);
                   setCurrentTranscriptionIndex(index);
@@ -865,10 +841,8 @@ export default function TranscriptionWorkPage() {
                   // Only remove from list if deletion succeeded or project was already deleted (404)
                   const updatedTranscriptions = transcriptions.filter((_, i) => i !== index);
                   
-                  // Ensure there's always at least one default transcription
-                  const finalTranscriptions = updatedTranscriptions.length === 0 
-                    ? [createDefaultTranscription()] 
-                    : updatedTranscriptions;
+                  // No default transcriptions - upload functionality disabled
+                  const finalTranscriptions = updatedTranscriptions;
                   
                   setTranscriptions(finalTranscriptions);
                   
