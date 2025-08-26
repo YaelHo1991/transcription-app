@@ -1,50 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import './proofreading.css';
-
-interface Project {
-  id: string;
-  title: string;
-  client: string;
-  status: string;
-  pages: number;
-  progress: number;
-  updatedAt: string;
-}
+import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
+import HoveringHeader from '../components/HoveringHeader';
+import ProofreadingSidebar from './components/ProofreadingSidebar';
+import './proofreading-theme.css';
+import './proofreading-page.css';
 
 export default function ProofreadingPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [showHeader, setShowHeader] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [headerTimeout, setHeaderTimeout] = useState<number | null>(null);
-  const [sidebarTimeout, setSidebarTimeout] = useState<number | null>(null);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [userFullName, setUserFullName] = useState('');
-  const [permissions, setPermissions] = useState('');
-
+  
+  // User information
+  const [userFullName, setUserFullName] = useState('משתמש');
+  const [userPermissions, setUserPermissions] = useState('DEF');
+  
+  // Get user's full name from localStorage
   useEffect(() => {
-    
-    // Get user data from localStorage
     const fullName = localStorage.getItem('userFullName') || '';
-    const token = localStorage.getItem('token');
-    const userPermissions = localStorage.getItem('permissions') || '';
-    
-    if (!token) {
-      router.push('/login?system=transcription');
-      return;
-    }
-
-    // Check if user has proofreading permission (E)
-    if (!userPermissions.includes('E')) {
-      router.push('/transcription');
-      return;
-    }
-    
     if (fullName && fullName !== 'null' && fullName !== 'undefined') {
       setUserFullName(fullName);
     } else {
@@ -52,316 +25,174 @@ export default function ProofreadingPage() {
       setUserFullName(email.split('@')[0] || 'משתמש');
     }
     
-    setPermissions(userPermissions);
-    loadProjects();
-    
-    // No cleanup needed
-    return () => {};
-  }, [router]);
+    // Get user permissions
+    const permissions = localStorage.getItem('permissions') || 'DEF';
+    setUserPermissions(permissions);
+  }, []);
+  
+  const [headerLocked, setHeaderLocked] = useState(false);
+  const [sidebarLocked, setSidebarLocked] = useState(false);
+  
+  // States for proofreading functionality
+  const [originalText, setOriginalText] = useState('');
+  const [proofreadText, setProofreadText] = useState('');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [followText, setFollowText] = useState(true);
+  
+  // Memoize callbacks
+  const handleHeaderLockChange = useCallback((locked: boolean) => {
+    setHeaderLocked(locked);
+  }, []);
 
-  const loadProjects = () => {
-    // Mock data for proofreading projects
-    const mockProjects: Project[] = [
-      {
-        id: '1',
-        title: 'הרצאה - פיזיקה קוונטית',
-        client: 'האוניברסיטה העברית',
-        status: 'review',
-        pages: 18,
-        progress: 75,
-        updatedAt: 'לפני 2 שעות'
-      },
-      {
-        id: '2',
-        title: 'קבוצת מיקוד - מחקר שוק',
-        client: 'מכון המחקר',
-        status: 'review',
-        pages: 12,
-        progress: 50,
-        updatedAt: 'לפני 5 שעות'
-      },
-      {
-        id: '3',
-        title: 'כנס רפואי בינלאומי',
-        client: 'המרכז הרפואי',
-        status: 'pending',
-        pages: 34,
-        progress: 30,
-        updatedAt: 'אתמול'
-      }
-    ];
-
-    setProjects(mockProjects);
-    setSelectedProject(mockProjects[0]);
-    setLoading(false);
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login?system=transcription');
-  };
-
-  const canAccessTranscription = permissions.includes('D');
-  const canAccessExport = permissions.includes('F');
-
-  if (loading) {
-    return (
-      <div className="proofreading-page">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>טוען נתונים...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSidebarLockChange = useCallback((locked: boolean) => {
+    setSidebarLocked(locked);
+  }, []);
 
   return (
-    <div className="proofreading-page" dir="rtl">
-      {/* Header Reveal Zone */}
-      <div 
-        className="p-header-reveal-zone"
-        onMouseEnter={() => {
-          if (headerTimeout) clearTimeout(headerTimeout);
-          setShowHeader(true);
-          setShowSidebar(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowHeader(false);
-            setShowSidebar(false);
-          }, 1500);
-          setHeaderTimeout(timeout);
-        }}
-      ></div>
-
-      {/* Collapsible Header */}
-      <div 
-        className={'p-collapsible-header ' + (showHeader ? 'show' : '')}
-        onMouseEnter={() => {
-          if (headerTimeout) clearTimeout(headerTimeout);
-          setShowHeader(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowHeader(false);
-          }, 1500);
-          setHeaderTimeout(timeout);
-        }}
-      >
-        <div className="p-nav">
-          <div className="p-nav-content">
-            <div className="p-nav-links">
-            <Link href="/transcription">דף הבית</Link>
-            {canAccessTranscription && (
-              <Link href="/transcription/transcription">תמלול</Link>
-            )}
-            <Link href="/transcription/proofreading" className="active">הגהה</Link>
-            {canAccessExport && (
-              <Link href="/transcription/export">ייצוא</Link>
-            )}
-            <Link href="/transcription/records">רישומים</Link>
-            </div>
-            <div className="p-user-info">
-              <div className="p-user-profile">
-                <span>שלום, {userFullName}</span>
-              </div>
-              <a href="#" onClick={handleLogout} className="p-logout-btn">התנתק</a>
+    <HoveringBarsLayout
+      headerContent={
+        <HoveringHeader 
+          userFullName={userFullName}
+          permissions={userPermissions}
+          onLogout={() => {
+            router.push('/login');
+          }}
+          themeColor="blue"
+        />
+      }
+      sidebarContent={<ProofreadingSidebar />}
+      theme="proofreading"
+      onHeaderLockChange={handleHeaderLockChange}
+      onSidebarLockChange={handleSidebarLockChange}
+    >
+      {/* Workspace Header */}
+      <div className={`pr-workspace-header ${headerLocked ? 'pr-header-locked' : ''}`}>
+        <div className="pr-header-content">
+          <div className="pr-workspace-title">הגהת תמלול</div>
+          <div className="pr-header-divider"></div>
+          <div className="pr-progress-container">
+            <span className="pr-progress-label">התקדמות:</span>
+            <span className="pr-progress-percentage">65%</span>
+            <div className="pr-progress-bar-wrapper">
+              <div className="pr-progress-bar-fill" style={{ width: '65%' }}></div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Sidebar Reveal Zone */}
-      <div 
-        className="p-sidebar-reveal-zone"
-        onMouseEnter={() => {
-          if (sidebarTimeout) clearTimeout(sidebarTimeout);
-          setShowSidebar(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowSidebar(false);
-          }, 1500);
-          setSidebarTimeout(timeout);
-        }}
-      ></div>
-
-      {/* Sidebar */}
-      <div 
-        className={'p-sidebar ' + (showSidebar ? 'show' : '')}
-        onMouseEnter={() => {
-          if (sidebarTimeout) clearTimeout(sidebarTimeout);
-          setShowSidebar(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowSidebar(false);
-          }, 1500);
-          setSidebarTimeout(timeout);
-        }}
-      >
-        <div className="p-sidebar-header">
-          <h3 className="p-sidebar-title">פרויקטים להגהה</h3>
-          <button className="p-sidebar-close" onClick={() => setShowSidebar(false)}>×</button>
-        </div>
-        <div className="p-sidebar-content">
-          {/* Statistics */}
-          <div className="p-sidebar-stats">
-            <div className="p-sidebar-stats-title">סטטיסטיקות הגהה</div>
-            <div className="p-sidebar-stats-grid">
-              <div className="p-sidebar-stat-item">
-                <div className="p-sidebar-stat-number">8</div>
-                <div className="p-sidebar-stat-label">ממתינים להגהה</div>
-              </div>
-              <div className="p-sidebar-stat-item">
-                <div className="p-sidebar-stat-number">3</div>
-                <div className="p-sidebar-stat-label">בעבודה</div>
-              </div>
-              <div className="p-sidebar-stat-item">
-                <div className="p-sidebar-stat-number">15</div>
-                <div className="p-sidebar-stat-label">הושלמו השבוע</div>
-              </div>
-              <div className="p-sidebar-stat-item">
-                <div className="p-sidebar-stat-number">92%</div>
-                <div className="p-sidebar-stat-label">דירוג איכות</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Projects List */}
-          <div className="project-list">
-            <h3 className="project-list-title">פרויקטים זמינים</h3>
-            {projects.map(project => (
-              <div 
-                key={project.id} 
-                className={'project-item ' + (selectedProject?.id === project.id ? 'selected' : '')}
-                onClick={() => setSelectedProject(project)}
-              >
-                <div className="project-item-title">{project.title}</div>
-                <div className="project-item-meta">
-                  <span>{project.client}</span>
-                  <span>{project.pages} עמודים</span>
-                </div>
-                <div className="project-progress">
-                  <div className="progress-bar">
-                    <div 
-                      className="progress-fill" 
-                      style={{ width: project.progress + '%' }}
-                    ></div>
-                  </div>
-                  <span className="progress-text">{project.progress}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Overlay */}
-      <div className="overlay" id="overlay" onClick={() => setShowSidebar(false)}></div>
 
       {/* Main Content */}
-      <div className="p-main-content" id="mainContent">
-        <div className="proofreading-workspace">
-          <div className="p-workspace-header">
-            <div className="workspace-title-section">
-              <div className="project-info">
-                <div className="workspace-title">הגהת תמלול ישיבת בית המשפט</div>
-                <div className="transcription-info">תמלול ראשוני: 24 עמודים | מתמלל: יוסי כהן | תאריך: 17/07/2025</div>
-              </div>
-            </div>
-            <div className="workspace-status">
-              <span className="status-badge">בהגהה</span>
-              <span className="progress-indicator">עמוד 12 מתוך 24</span>
-            </div>
-          </div>
-
-          <div className="proofreading-workspace-grid">
-            {/* Media Player Section */}
-            <div className="media-section">
-              <div className="section-title">
-                <div className="section-icon">🎵</div>
-                נגן מדיה להגהה
-              </div>
-              <div className="media-placeholder">
-                <p>אזור נגן המדיה - לצפייה בלבד במצב הגהה</p>
-              </div>
-            </div>
-
-            {/* Main Proofreading Panel */}
-            <div className="proofreading-panel">
-              <div className="comparison-section">
-                <div className="section-title">
-                  <div className="section-icon">🔍</div>
-                  השוואת טקסטים
+      <div className={`pr-main-content ${headerLocked ? 'header-locked' : ''} ${sidebarLocked ? 'sidebar-locked' : ''}`}>
+        <div className="pr-content-container">
+          <div className="pr-workspace-grid">
+            
+            {/* Main Workspace */}
+            <div className="pr-main-workspace">
+              
+              {/* Media Player */}
+              <div className="pr-media-player-container">
+                <div className="pr-component-header">
+                  <h3>נגן מדיה</h3>
+                  <div className="pr-media-controls">
+                    <button className="pr-control-btn">⏮️</button>
+                    <button className="pr-control-btn">▶️</button>
+                    <button className="pr-control-btn">⏭️</button>
+                    <span className="pr-time-display">00:00:00 / 01:23:45</span>
+                  </div>
                 </div>
-                <div className="text-comparison">
-                  <div className="original-text">
-                    <div className="text-label">תמלול מקורי</div>
-                    <div className="text-content">
-                      טקסט מקורי לדוגמה...
+                <div className="pr-media-waveform">
+                  <div className="pr-waveform-placeholder">
+                    גל קול של המדיה
+                  </div>
+                </div>
+              </div>
+              
+              {/* Text Comparison Editor */}
+              <div className="pr-text-editor-wrapper">
+                <div className="pr-component-header">
+                  <h3>השוואת טקסט</h3>
+                  <div className="pr-editor-controls">
+                    <button className={`pr-toggle-btn ${followText ? 'active' : ''}`} 
+                            onClick={() => setFollowText(!followText)}>
+                      עקוב אחרי טקסט
+                    </button>
+                  </div>
+                </div>
+                <div className="pr-text-comparison">
+                  <div className="pr-original-text">
+                    <div className="pr-text-header">טקסט מקורי</div>
+                    <div className="pr-text-content">
+                      {originalText || 'כאן יופיע הטקסט המקורי מהתמלול'}
                     </div>
                   </div>
-                  <div className="proofread-text">
-                    <div className="text-label">טקסט מוגה</div>
+                  <div className="pr-proofread-text">
+                    <div className="pr-text-header">טקסט מוגה</div>
                     <div 
-                      className="text-content editable-text" 
+                      className="pr-text-content pr-editable"
                       contentEditable
                       suppressContentEditableWarning={true}
-                    />
+                      onInput={(e) => setProofreadText(e.currentTarget.textContent || '')}
+                    >
+                      {proofreadText || 'ערוך כאן את הטקסט המוגה'}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Tools Panel */}
-            <div className="tools-panel">
-              {/* Changes Tracker */}
-              <div className="changes-section">
-                <div className="section-title">
-                  <div className="section-icon">📊</div>
-                  מעקב שינויים
+            {/* Side Workspace */}
+            <div className="pr-side-workspace">
+              
+              {/* Speakers Map */}
+              <div className="pr-speakers-container">
+                <div className="pr-component-header">
+                  <h3>מפת דוברים</h3>
                 </div>
-                <div className="changes-placeholder">
-                  <p>רשימת שינויים</p>
-                </div>
-              </div>
-
-              {/* Quality Control */}
-              <div className="quality-section">
-                <div className="section-title">
-                  <div className="section-icon">⭐</div>
-                  בקרת איכות
-                </div>
-                <div className="quality-score">
-                  <div className="score-number">88%</div>
-                  <div className="score-label">ציון איכות</div>
+                <div className="pr-speakers-list">
+                  <div className="pr-speaker-item">
+                    <span className="pr-speaker-color" style={{ backgroundColor: '#4CAF50' }}></span>
+                    <span className="pr-speaker-name">דובר 1</span>
+                  </div>
+                  <div className="pr-speaker-item">
+                    <span className="pr-speaker-color" style={{ backgroundColor: '#2196F3' }}></span>
+                    <span className="pr-speaker-name">דובר 2</span>
+                  </div>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div className="actions-section">
-                <div className="section-title">
-                  <div className="section-icon">⚡</div>
-                  פעולות
+              
+              {/* Remarks */}
+              <div className="pr-remarks-container">
+                <div className="pr-component-header">
+                  <h3>הערות</h3>
+                  <button className="pr-add-btn">+ הוסף</button>
                 </div>
-                <div className="actions-grid">
-                  <button className="btn btn-primary">שמור הגהה</button>
-                  <button className="btn btn-secondary">הערות למתמלל</button>
-                  <button className="btn btn-success">סיום הגהה</button>
+                <div className="pr-remarks-list">
+                  <div className="pr-remark-item">
+                    <div className="pr-remark-time">00:15:30</div>
+                    <div className="pr-remark-text">בדוק איות של שם המקום</div>
+                  </div>
+                  <div className="pr-remark-item">
+                    <div className="pr-remark-time">00:32:15</div>
+                    <div className="pr-remark-text">קטע לא ברור - נדרשת בדיקה נוספת</div>
+                  </div>
                 </div>
               </div>
+              
+              {/* Helper Pages */}
+              <div className="pr-helper-files">
+                <div className="pr-component-header">
+                  <h3>דפי עזר</h3>
+                  <button className="pr-toggle-btn">▼</button>
+                </div>
+                <div className="pr-helper-content">
+                  <div className="pr-helper-item">מונחים מקצועיים.pdf</div>
+                  <div className="pr-helper-item">הנחיות עיצוב.docx</div>
+                </div>
+              </div>
+              
             </div>
           </div>
         </div>
       </div>
-      
-      <style jsx>{`
-        .proofreading-page {
-          background: white !important;
-          min-height: 100vh !important;
-        }
-      `}</style>
-    </div>
+    </HoveringBarsLayout>
   );
 }

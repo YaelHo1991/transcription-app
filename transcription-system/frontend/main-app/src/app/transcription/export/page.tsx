@@ -1,88 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import './export.css';
+import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
+import HoveringHeader from '../components/HoveringHeader';
+import ExportSidebar from './components/ExportSidebar';
+import './export-theme.css';
+import './export-page.css';
 
-interface ExportFormat {
+interface ExportTemplate {
   id: string;
   name: string;
-  icon: string;
   description: string;
-  extension: string;
-}
-
-interface ExportProject {
-  id: string;
-  title: string;
-  client: string;
-  date: string;
-  pages: number;
-  formats: string[];
+  settings: {
+    includeTimestamps: boolean;
+    includeSpeakers: boolean;
+    includeProjectInfo: boolean;
+    includePageNumbers: boolean;
+    speakerFormat: 'inline' | 'newline' | 'bullet';
+    headerText?: string;
+    footerText?: string;
+  };
 }
 
 export default function ExportPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [showHeader, setShowHeader] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [headerTimeout, setHeaderTimeout] = useState<number | null>(null);
-  const [sidebarTimeout, setSidebarTimeout] = useState<number | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(null);
-  const [projects, setProjects] = useState<ExportProject[]>([]);
-  const [userFullName, setUserFullName] = useState('');
-  const [permissions, setPermissions] = useState('');
-
-  const exportFormats: ExportFormat[] = [
-    {
-      id: 'word',
-      name: 'Word',
-      icon: '📄',
-      description: 'מסמך Word עם עיצוב מלא',
-      extension: '.docx'
-    },
-    {
-      id: 'pdf',
-      name: 'PDF',
-      icon: '📑',
-      description: 'קובץ PDF להדפסה',
-      extension: '.pdf'
-    },
-    {
-      id: 'srt',
-      name: 'כתוביות SRT',
-      icon: '🎬',
-      description: 'קובץ כתוביות לוידאו',
-      extension: '.srt'
-    },
-    {
-      id: 'txt',
-      name: 'טקסט פשוט',
-      icon: '📝',
-      description: 'קובץ טקסט ללא עיצוב',
-      extension: '.txt'
-    }
-  ];
-
+  
+  // User information
+  const [userFullName, setUserFullName] = useState('משתמש');
+  const [userPermissions, setUserPermissions] = useState('DEF');
+  
+  // Get user's full name from localStorage
   useEffect(() => {
-    
-    // Get user data from localStorage
     const fullName = localStorage.getItem('userFullName') || '';
-    const token = localStorage.getItem('token');
-    const userPermissions = localStorage.getItem('permissions') || '';
-    
-    if (!token) {
-      router.push('/login?system=transcription');
-      return;
-    }
-
-    // Check if user has export permission (F)
-    if (!userPermissions.includes('F')) {
-      router.push('/transcription');
-      return;
-    }
-    
     if (fullName && fullName !== 'null' && fullName !== 'undefined') {
       setUserFullName(fullName);
     } else {
@@ -90,308 +40,316 @@ export default function ExportPage() {
       setUserFullName(email.split('@')[0] || 'משתמש');
     }
     
-    setPermissions(userPermissions);
-    loadProjects();
-    
-    // No cleanup needed
-    return () => {};
-  }, [router]);
+    // Get user permissions
+    const permissions = localStorage.getItem('permissions') || 'DEF';
+    setUserPermissions(permissions);
+  }, []);
+  
+  const [headerLocked, setHeaderLocked] = useState(false);
+  const [sidebarLocked, setSidebarLocked] = useState(false);
+  
+  // Export page states
+  const [activeTab, setActiveTab] = useState<'export' | 'templates'>('export');
+  const [selectedTemplate, setSelectedTemplate] = useState<ExportTemplate | null>(null);
+  const [exportSettings, setExportSettings] = useState({
+    includeTimestamps: false,
+    includeSpeakers: true,
+    includeProjectInfo: true,
+    includePageNumbers: true,
+    speakerFormat: 'inline' as 'inline' | 'newline' | 'bullet',
+    headerText: '',
+    footerText: ''
+  });
 
-  const loadProjects = () => {
-    // Mock data for export projects
-    const mockProjects: ExportProject[] = [
-      {
-        id: '1',
-        title: 'סמינר עסקי - אסטרטגיה דיגיטלית',
-        client: 'חברת הייטק',
-        date: '2025-08-10',
-        pages: 25,
-        formats: ['word', 'pdf']
-      },
-      {
-        id: '2',
-        title: 'ראיון אישי - מנכ"ל',
-        client: 'ערוץ החדשות',
-        date: '2025-08-09',
-        pages: 8,
-        formats: ['srt', 'txt']
-      },
-      {
-        id: '3',
-        title: 'הרצאה אקדמית - כלכלה',
-        client: 'אוניברסיטת תל אביב',
-        date: '2025-08-08',
-        pages: 42,
-        formats: ['word', 'pdf', 'txt']
+  // Sample templates
+  const templates: ExportTemplate[] = [
+    {
+      id: '1',
+      name: 'תבנית רשמית',
+      description: 'מסמך רשמי עם כותרות ומספרי עמודים',
+      settings: {
+        includeTimestamps: false,
+        includeSpeakers: true,
+        includeProjectInfo: true,
+        includePageNumbers: true,
+        speakerFormat: 'newline',
+        headerText: 'תמלול רשמי',
+        footerText: 'סודי'
       }
-    ];
+    },
+    {
+      id: '2',
+      name: 'תבנית כתוביות',
+      description: 'פורמט מותאם לכתוביות וידאו',
+      settings: {
+        includeTimestamps: true,
+        includeSpeakers: false,
+        includeProjectInfo: false,
+        includePageNumbers: false,
+        speakerFormat: 'inline',
+        headerText: '',
+        footerText: ''
+      }
+    }
+  ];
+  
+  // Memoize callbacks
+  const handleHeaderLockChange = useCallback((locked: boolean) => {
+    setHeaderLocked(locked);
+  }, []);
 
-    setProjects(mockProjects);
-    setSelectedFormat(exportFormats[0]);
-    setLoading(false);
+  const handleSidebarLockChange = useCallback((locked: boolean) => {
+    setSidebarLocked(locked);
+  }, []);
+
+  const handleTemplateSelect = (template: ExportTemplate) => {
+    setSelectedTemplate(template);
+    setExportSettings(template.settings);
   };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push('/login?system=transcription');
-  };
-
-  const canAccessTranscription = permissions.includes('D');
-  const canAccessProofreading = permissions.includes('E');
-
-  if (loading) {
-    return (
-      <div className="export-page">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>טוען נתונים...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="export-page" dir="rtl">
-      {/* Header Reveal Zone */}
-      <div 
-        className="e-header-reveal-zone"
-        onMouseEnter={() => {
-          if (headerTimeout) clearTimeout(headerTimeout);
-          setShowHeader(true);
-          setShowSidebar(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowHeader(false);
-            setShowSidebar(false);
-          }, 1500);
-          setHeaderTimeout(timeout);
-        }}
-      ></div>
-
-      {/* Collapsible Header */}
-      <div 
-        className={'e-collapsible-header ' + (showHeader ? 'show' : '')}
-        onMouseEnter={() => {
-          if (headerTimeout) clearTimeout(headerTimeout);
-          setShowHeader(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowHeader(false);
-          }, 1500);
-          setHeaderTimeout(timeout);
-        }}
-      >
-        <div className="e-nav">
-          <div className="e-nav-content">
-            <div className="e-nav-links">
-            <Link href="/transcription">דף הבית</Link>
-            {canAccessTranscription && (
-              <Link href="/transcription/transcription">תמלול</Link>
-            )}
-            {canAccessProofreading && (
-              <Link href="/transcription/proofreading">הגהה</Link>
-            )}
-            <Link href="/transcription/export" className="active">ייצוא</Link>
-            <Link href="/transcription/records">רישומים</Link>
-            </div>
-            <div className="e-user-info">
-              <div className="e-user-profile">
-                <span>שלום, {userFullName}</span>
-              </div>
-              <a href="#" onClick={handleLogout} className="e-logout-btn">התנתק</a>
-            </div>
+    <HoveringBarsLayout
+      headerContent={
+        <HoveringHeader 
+          userFullName={userFullName}
+          permissions={userPermissions}
+          onLogout={() => {
+            router.push('/login');
+          }}
+          themeColor="purple"
+        />
+      }
+      sidebarContent={<ExportSidebar />}
+      theme="export"
+      onHeaderLockChange={handleHeaderLockChange}
+      onSidebarLockChange={handleSidebarLockChange}
+    >
+      {/* Workspace Header */}
+      <div className={`ex-workspace-header ${headerLocked ? 'ex-header-locked' : ''}`}>
+        <div className="ex-header-content">
+          <div className="ex-workspace-title">ייצוא תמלול</div>
+          <div className="ex-header-divider"></div>
+          <div className="ex-tabs-container">
+            <button 
+              className={`ex-tab-btn ${activeTab === 'export' ? 'active' : ''}`}
+              onClick={() => setActiveTab('export')}
+            >
+              ייצוא
+            </button>
+            <button 
+              className={`ex-tab-btn ${activeTab === 'templates' ? 'active' : ''}`}
+              onClick={() => setActiveTab('templates')}
+            >
+              תבניות
+            </button>
           </div>
         </div>
       </div>
-
-      {/* Sidebar Reveal Zone */}
-      <div 
-        className="e-sidebar-reveal-zone"
-        onMouseEnter={() => {
-          if (sidebarTimeout) clearTimeout(sidebarTimeout);
-          setShowSidebar(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowSidebar(false);
-          }, 1500);
-          setSidebarTimeout(timeout);
-        }}
-      ></div>
-
-      {/* Sidebar */}
-      <div 
-        className={'e-sidebar ' + (showSidebar ? 'show' : '')}
-        onMouseEnter={() => {
-          if (sidebarTimeout) clearTimeout(sidebarTimeout);
-          setShowSidebar(true);
-        }}
-        onMouseLeave={() => {
-          const timeout = window.setTimeout(() => {
-            setShowSidebar(false);
-          }, 1500);
-          setSidebarTimeout(timeout);
-        }}
-      >
-        <div className="e-sidebar-header">
-          <h3 className="e-sidebar-title">היסטוריית ייצוא</h3>
-          <button className="e-sidebar-close" onClick={() => setShowSidebar(false)}>×</button>
-        </div>
-        <div className="e-sidebar-content">
-          {/* Export Statistics */}
-          <div className="e-sidebar-stats">
-            <div className="e-sidebar-stats-title">סטטיסטיקות ייצוא</div>
-            <div className="e-sidebar-stats-grid">
-              <div className="e-sidebar-stat-item">
-                <div className="e-sidebar-stat-number">47</div>
-                <div className="e-sidebar-stat-label">ייצואים השבוע</div>
-              </div>
-              <div className="e-sidebar-stat-item">
-                <div className="e-sidebar-stat-number">12</div>
-                <div className="e-sidebar-stat-label">ממתינים</div>
-              </div>
-              <div className="e-sidebar-stat-item">
-                <div className="e-sidebar-stat-number">PDF</div>
-                <div className="e-sidebar-stat-label">פורמט נפוץ</div>
-              </div>
-              <div className="e-sidebar-stat-item">
-                <div className="e-sidebar-stat-number">1.2GB</div>
-                <div className="e-sidebar-stat-label">נפח כולל</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Exports */}
-          <div className="export-history">
-            <h3 className="history-title">ייצואים אחרונים</h3>
-            {projects.map(project => (
-              <div key={project.id} className="history-item">
-                <div className="history-item-title">{project.title}</div>
-                <div className="history-item-meta">
-                  <span>{project.client}</span>
-                  <span>{project.date}</span>
-                </div>
-                <div className="history-formats">
-                  {project.formats.map(format => (
-                    <span key={format} className="format-tag">
-                      {exportFormats.find(f => f.id === format)?.extension}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Overlay */}
-      <div className="overlay" id="overlay" onClick={() => setShowSidebar(false)}></div>
 
       {/* Main Content */}
-      <div className="e-main-content" id="mainContent">
-        <div className="export-workspace">
-          <div className="e-workspace-header">
-            <div className="workspace-title-section">
-              <div className="project-info">
-                <div className="workspace-title">ייצוא תמלול ישיבת בית המשפט</div>
-                <div className="document-info">24 עמודים | הוגה על ידי: שרה לוי | מוכן לייצוא</div>
-              </div>
-            </div>
-            <div className="workspace-status">
-              <span className="status-badge">מוכן לייצוא</span>
-              <span className="export-progress">3 פורמטים זמינים</span>
-            </div>
-          </div>
-
-          <div className="export-workspace-grid">
-            {/* Media Section */}
-            <div className="media-section">
-              <div className="section-title">
-                <div className="section-icon">🎵</div>
-                קבצי מדיה מקושרים
-              </div>
-              <div className="media-placeholder">
-                <p>2 קבצי אודיו • משך כולל: 1:10:50</p>
-              </div>
-            </div>
-
-            {/* Export Panel */}
-            <div className="export-panel">
-              <div className="format-selection">
-                <div className="section-title">
-                  <div className="section-icon">📄</div>
-                  בחר פורמט ייצוא
-                </div>
-                <div className="format-grid">
-                  {exportFormats.map(format => (
-                    <div 
-                      key={format.id}
-                      className={'format-card ' + (selectedFormat?.id === format.id ? 'selected' : '')}
-                      onClick={() => setSelectedFormat(format)}
-                    >
-                      <div className="format-icon">{format.icon}</div>
-                      <div className="format-name">{format.name}</div>
-                      <div className="format-description">{format.description}</div>
-                      <div className="format-extension">{format.extension}</div>
+      <div className={`ex-main-content ${headerLocked ? 'header-locked' : ''} ${sidebarLocked ? 'sidebar-locked' : ''}`}>
+        <div className="ex-content-container">
+          
+          {activeTab === 'export' ? (
+            <div className="ex-workspace-grid">
+              
+              {/* Main Export Panel */}
+              <div className="ex-main-workspace">
+                
+                {/* Preview Section */}
+                <div className="ex-preview-container">
+                  <div className="ex-component-header">
+                    <h3>תצוגה מקדימה</h3>
+                    <div className="ex-preview-controls">
+                      <button className="ex-zoom-btn">🔍 הגדל</button>
+                      <button className="ex-zoom-btn">🔍 הקטן</button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="ex-preview-content">
+                    <div className="ex-document-preview">
+                      {exportSettings.includeProjectInfo && (
+                        <div className="ex-preview-header">
+                          <h1>פרויקט: ישיבת דירקטוריון</h1>
+                          <p>תאריך: 17/08/2025 | מתמלל: יוסי כהן</p>
+                        </div>
+                      )}
+                      {exportSettings.headerText && (
+                        <div className="ex-preview-custom-header">{exportSettings.headerText}</div>
+                      )}
+                      <div className="ex-preview-body">
+                        {exportSettings.includeSpeakers && exportSettings.speakerFormat === 'bullet' && (
+                          <ul className="ex-speakers-list">
+                            <li>דובר 1: יו"ר הדירקטוריון</li>
+                            <li>דובר 2: מנכ"ל</li>
+                            <li>דובר 3: סמנכ"ל כספים</li>
+                          </ul>
+                        )}
+                        <div className="ex-preview-text">
+                          {exportSettings.includeTimestamps && <span className="ex-timestamp">[00:00:15]</span>}
+                          {exportSettings.includeSpeakers && exportSettings.speakerFormat === 'inline' && (
+                            <strong>דובר 1: </strong>
+                          )}
+                          {exportSettings.includeSpeakers && exportSettings.speakerFormat === 'newline' && (
+                            <>
+                              <strong>דובר 1:</strong><br/>
+                            </>
+                          )}
+                          טקסט לדוגמה של התמלול המיוצא...
+                        </div>
+                      </div>
+                      {exportSettings.footerText && (
+                        <div className="ex-preview-footer">{exportSettings.footerText}</div>
+                      )}
+                      {exportSettings.includePageNumbers && (
+                        <div className="ex-page-number">עמוד 1</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Template Selector */}
+                <div className="ex-template-selector">
+                  <div className="ex-component-header">
+                    <h3>בחר תבנית</h3>
+                  </div>
+                  <div className="ex-templates-grid">
+                    {templates.map(template => (
+                      <div 
+                        key={template.id}
+                        className={`ex-template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
+                        onClick={() => handleTemplateSelect(template)}
+                      >
+                        <h4>{template.name}</h4>
+                        <p>{template.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Export Settings Panel */}
+              <div className="ex-side-workspace">
+                
+                {/* Export Settings */}
+                <div className="ex-settings-container">
+                  <div className="ex-component-header">
+                    <h3>הגדרות ייצוא</h3>
+                  </div>
+                  <div className="ex-settings-content">
+                    
+                    <div className="ex-setting-group">
+                      <h4>אלמנטים לכלול</h4>
+                      <label className="ex-checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={exportSettings.includeTimestamps}
+                          onChange={(e) => setExportSettings({...exportSettings, includeTimestamps: e.target.checked})}
+                        />
+                        חותמות זמן
+                      </label>
+                      <label className="ex-checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={exportSettings.includeSpeakers}
+                          onChange={(e) => setExportSettings({...exportSettings, includeSpeakers: e.target.checked})}
+                        />
+                        שמות דוברים
+                      </label>
+                      <label className="ex-checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={exportSettings.includeProjectInfo}
+                          onChange={(e) => setExportSettings({...exportSettings, includeProjectInfo: e.target.checked})}
+                        />
+                        פרטי פרויקט
+                      </label>
+                      <label className="ex-checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={exportSettings.includePageNumbers}
+                          onChange={(e) => setExportSettings({...exportSettings, includePageNumbers: e.target.checked})}
+                        />
+                        מספרי עמודים
+                      </label>
+                    </div>
+                    
+                    <div className="ex-setting-group">
+                      <h4>פורמט דוברים</h4>
+                      <select 
+                        className="ex-select"
+                        value={exportSettings.speakerFormat}
+                        onChange={(e) => setExportSettings({...exportSettings, speakerFormat: e.target.value as any})}
+                      >
+                        <option value="inline">באותה שורה</option>
+                        <option value="newline">שורה חדשה</option>
+                        <option value="bullet">רשימה</option>
+                      </select>
+                    </div>
+                    
+                    <div className="ex-setting-group">
+                      <h4>כותרת עליונה</h4>
+                      <input 
+                        type="text" 
+                        className="ex-input"
+                        placeholder="טקסט לכותרת עליונה..."
+                        value={exportSettings.headerText}
+                        onChange={(e) => setExportSettings({...exportSettings, headerText: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div className="ex-setting-group">
+                      <h4>כותרת תחתונה</h4>
+                      <input 
+                        type="text" 
+                        className="ex-input"
+                        placeholder="טקסט לכותרת תחתונה..."
+                        value={exportSettings.footerText}
+                        onChange={(e) => setExportSettings({...exportSettings, footerText: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Export Actions */}
+                <div className="ex-actions-container">
+                  <div className="ex-component-header">
+                    <h3>פעולות</h3>
+                  </div>
+                  <div className="ex-actions-content">
+                    <button className="ex-action-btn ex-primary">
+                      📥 ייצא כ-Word
+                    </button>
+                    <button className="ex-action-btn ex-secondary">
+                      📄 ייצא כ-PDF
+                    </button>
+                    <button className="ex-action-btn ex-tertiary">
+                      📝 ייצא כטקסט
+                    </button>
+                    <button className="ex-action-btn ex-outline">
+                      📧 שלח במייל
+                    </button>
+                  </div>
+                </div>
+                
+              </div>
+            </div>
+          ) : (
+            /* Templates Tab */
+            <div className="ex-templates-workspace">
+              <div className="ex-template-editor">
+                <div className="ex-component-header">
+                  <h3>עורך תבניות</h3>
+                  <button className="ex-new-template-btn">+ תבנית חדשה</button>
+                </div>
+                <div className="ex-template-editor-content">
+                  <p>כאן יופיע עורך התבניות המתקדם</p>
+                  <p>ניתן ליצור ולערוך תבניות מותאמות אישית</p>
                 </div>
               </div>
             </div>
-
-            {/* Tools Panel */}
-            <div className="tools-panel">
-              {/* Export Options */}
-              <div className="export-options">
-                <div className="section-title">
-                  <div className="section-icon">⚙️</div>
-                  אפשרויות ייצוא
-                </div>
-                <div className="options-grid">
-                  <div className="option-item">
-                    <input type="checkbox" id="include-timestamps" />
-                    <label htmlFor="include-timestamps">חותמות זמן</label>
-                  </div>
-                  <div className="option-item">
-                    <input type="checkbox" id="include-speakers" defaultChecked />
-                    <label htmlFor="include-speakers">שמות דוברים</label>
-                  </div>
-                  <div className="option-item">
-                    <input type="checkbox" id="include-notes" />
-                    <label htmlFor="include-notes">הערות</label>
-                  </div>
-                  <div className="option-item">
-                    <input type="checkbox" id="batch-export" />
-                    <label htmlFor="batch-export">קובץ מאוחד</label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="actions-section">
-                <div className="section-title">
-                  <div className="section-icon">⚡</div>
-                  פעולות
-                </div>
-                <div className="actions-grid">
-                  <button className="btn btn-primary">ייצא כעת</button>
-                  <button className="btn btn-secondary">תצוגה מקדימה</button>
-                  <button className="btn btn-success">שלח במייל</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
-      
-      <style jsx>{`
-        .export-page {
-          background: white !important;
-          min-height: 100vh !important;
-        }
-      `}</style>
-    </div>
+    </HoveringBarsLayout>
   );
 }
