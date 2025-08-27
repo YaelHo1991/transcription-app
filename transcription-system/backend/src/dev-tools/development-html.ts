@@ -308,7 +308,7 @@ export const developmentHTML = `<!DOCTYPE html>
     <!-- Developer Navigation Bar -->
     <nav id="dev-navigation-bar">
         <div class="nav-container">
-            <a href="/dev-portal" class="home-link">
+            <a href="http://localhost:3002" class="home-link">
                 <span style="font-size: 20px; margin-left: 8px;">🏠</span>
                 <span>דף הבית</span>
             </a>
@@ -316,13 +316,13 @@ export const developmentHTML = `<!DOCTYPE html>
                 <a href="/dev" style="background: rgba(255,255,255,0.1); border-radius: 4px;">
                     🔧 לוח פיתוח
                 </a>
-                <a href="/licenses">
+                <a href="http://localhost:3002/licenses">
                     📋 מכירת רישיונות
                 </a>
-                <a href="/crm">
+                <a href="http://localhost:3002/crm">
                     👥 CRM
                 </a>
-                <a href="/transcription/transcription">
+                <a href="http://localhost:3002/transcription/transcription">
                     🎯 תמלול
                 </a>
                 <a href="/dev/shortcuts-admin">

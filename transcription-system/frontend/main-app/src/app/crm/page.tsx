@@ -43,7 +43,7 @@ export default function CRMPage() {
                           permissions.includes('C');
       
       if (!hasCRMAccess) {
-        router.push('/unauthorized');
+        router.push('/login?system=crm');
         return;
       }
     } catch (error) {

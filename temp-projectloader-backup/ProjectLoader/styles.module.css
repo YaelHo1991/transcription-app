@@ -1,0 +1,367 @@
+/* ProjectLoader Component Styles - Using CSS Modules to prevent conflicts */
+
+/* Upload Button */
+.uploadButton {
+  position: relative;
+  display: inline-block;
+}
+
+.mainButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mainButton:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mainButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plus {
+  font-weight: bold;
+  line-height: 1;
+}
+
+.loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Upload Menu */
+.uploadMenu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: right;
+  direction: rtl;
+}
+
+.menuItem:hover {
+  background: #f3f4f6;
+}
+
+.menuItem .icon {
+  font-size: 18px;
+}
+
+/* Position variants */
+.uploadButton.media-player {
+  margin-left: 16px;
+}
+
+.uploadButton.sidebar {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.uploadButton.sidebar .mainButton {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.uploadButton.main-page {
+  margin: 16px auto;
+}
+
+/* Project Display */
+.projectLoader {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.projectList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.projectItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  direction: rtl;
+}
+
+.projectItem:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.projectItem.active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-color: #667eea;
+}
+
+.projectName {
+  font-weight: 500;
+  flex: 1;
+}
+
+.projectMeta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.mediaCount {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.projectDate {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Media Status Indicator */
+.mediaStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fef3c7;
+  border-radius: 6px;
+  font-size: 13px;
+  direction: rtl;
+}
+
+.mediaStatus.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.mediaStatus.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.statusIcon {
+  font-size: 16px;
+}
+
+.relocateButton {
+  margin-right: auto;
+  padding: 4px 8px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.relocateButton:hover {
+  background: #2563eb;
+}
+
+/* Media Browser */
+.mediaBrowser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.mediaItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  direction: rtl;
+}
+
+.mediaItem:hover {
+  background: #f3f4f6;
+  transform: translateX(-2px);
+}
+
+.mediaItem.active {
+  background: #e0e7ff;
+  border-left: 3px solid #667eea;
+}
+
+.mediaName {
+  flex: 1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mediaSize {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: 8px;
+}
+
+.mediaType {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.mediaType.local {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.mediaType.url {
+  background: #fce7f3;
+  color: #9f1239;
+}
+
+.mediaType.server {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Upload Progress */
+.uploadProgress {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  min-width: 320px;
+  z-index: 9999;
+  direction: rtl;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.progressTitle {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.progressBar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #374151;
+}
+
+.emptyText {
+  font-size: 14px;
+  margin-bottom: 24px;
+}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import UnauthorizedOverlay from '@/components/UnauthorizedOverlay/UnauthorizedOverlay';
 
 interface Client {
   id: string;
@@ -20,6 +21,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -27,9 +29,28 @@ export default function ClientsPage() {
   }, []);
 
   const checkAuth = () => {
+    const token = localStorage.getItem('token');
     const permissions = localStorage.getItem('permissions') || '';
+    
+    console.log('[CRM Clients] Auth check:', {
+      hasToken: !!token,
+      permissions,
+      hasPermissionA: permissions.includes('A')
+    });
+    
+    // If no token, redirect to login
+    if (!token) {
+      router.push('/login?system=crm');
+      return;
+    }
+    
+    // Check specific permission
     if (!permissions.includes('A')) {
-      router.push('/crm');
+      console.log('[CRM Clients] User lacks permission A, showing overlay');
+      setHasPermission(false);
+    } else {
+      console.log('[CRM Clients] User has permission A, allowing access');
+      setHasPermission(true);
     }
   };
 
@@ -76,6 +97,12 @@ export default function ClientsPage() {
     client.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  console.log('[CRM Clients] Render state:', {
+    loading,
+    hasPermission,
+    showingOverlay: hasPermission === false
+  });
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -86,7 +113,15 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="page-container">
+    <>
+      {hasPermission === false && (
+        <UnauthorizedOverlay 
+          requiredPermission="A"
+          permissionName="ניהול לקוחות"
+          theme="crm-clients"
+        />
+      )}
+      <div className="page-container">
       <div className="page-header">
         <h1>ניהול לקוחות</h1>
         <p>רשימת כל הלקוחות במערכת</p>
@@ -327,5 +362,6 @@ export default function ClientsPage() {
         }
       `}</style>
     </div>
+    </>
   );
 }

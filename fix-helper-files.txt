@@ -1,0 +1,5 @@
+                  mediaItems: currentProject.mediaFiles.map((media, mIdx) => ({
+                    id: 'media-' + mIdx,
+                    name: media.name
+                  }))
+                }] : []}

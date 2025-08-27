@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import UnauthorizedOverlay from '@/components/UnauthorizedOverlay/UnauthorizedOverlay';
 
 interface Project {
   id: string;
@@ -20,6 +21,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -27,9 +29,20 @@ export default function ProjectsPage() {
   }, []);
 
   const checkAuth = () => {
+    const token = localStorage.getItem('token');
     const permissions = localStorage.getItem('permissions') || '';
+    
+    // If no token, redirect to login
+    if (!token) {
+      router.push('/login?system=crm');
+      return;
+    }
+    
+    // Check specific permission
     if (!permissions.includes('B')) {
-      router.push('/crm');
+      setHasPermission(false);
+    } else {
+      setHasPermission(true);
     }
   };
 
@@ -115,7 +128,15 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="page-container">
+    <>
+      {hasPermission === false && (
+        <UnauthorizedOverlay 
+          requiredPermission="B"
+          permissionName="ניהול עבודות"
+          theme="crm-jobs"
+        />
+      )}
+      <div className="page-container">
       <div className="page-header">
         <h1>ניהול פרויקטים</h1>
         <p>כל הפרויקטים והעבודות במערכת</p>
@@ -505,5 +526,6 @@ export default function ProjectsPage() {
         }
       `}</style>
     </div>
+    </>
   );
 }

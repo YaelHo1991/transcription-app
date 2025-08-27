@@ -23,7 +23,7 @@ function TestLoginContent() {
         const currentUserEmail = localStorage.getItem('userEmail');
         const currentUserFullName = localStorage.getItem('userFullName');
         const currentUserId = localStorage.getItem('userId');
-        const currentPermissions = localStorage.getItem('userPermissions');
+        const currentPermissions = localStorage.getItem('permissions'); // Changed from userPermissions
         
         if (currentToken && currentUser) {
           // Save admin session with all details
@@ -32,7 +32,7 @@ function TestLoginContent() {
           if (currentUserEmail) localStorage.setItem('admin_userEmail', currentUserEmail);
           if (currentUserFullName) localStorage.setItem('admin_userFullName', currentUserFullName);
           if (currentUserId) localStorage.setItem('admin_userId', currentUserId);
-          if (currentPermissions) localStorage.setItem('admin_userPermissions', currentPermissions);
+          if (currentPermissions) localStorage.setItem('admin_permissions', currentPermissions); // Changed to admin_permissions
         }
         
         // Clear current session
@@ -41,7 +41,7 @@ function TestLoginContent() {
         localStorage.removeItem('userEmail');
         localStorage.removeItem('userFullName');
         localStorage.removeItem('userId');
-        localStorage.removeItem('userPermissions');
+        localStorage.removeItem('permissions'); // Changed from userPermissions
         localStorage.removeItem('currentUser');
         
         // Save test user as the active session
@@ -50,7 +50,7 @@ function TestLoginContent() {
         localStorage.setItem('userEmail', user.email || '');
         localStorage.setItem('userFullName', user.full_name || user.email || '');
         localStorage.setItem('userId', user.id || '');
-        localStorage.setItem('userPermissions', user.permissions || '');
+        localStorage.setItem('permissions', user.permissions || ''); // Changed from userPermissions to permissions
         localStorage.setItem('is_test_session', 'true');
         
         // Redirect based on permissions

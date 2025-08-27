@@ -17,6 +17,7 @@ import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import LoginPromptModal from '../../../components/LoginPromptModal';
+import UnauthorizedOverlay from '../../../components/UnauthorizedOverlay/UnauthorizedOverlay';
 import { projectService } from '../../../services/projectService';
 import './transcription-theme.css';
 import './transcription-page.css';
@@ -89,6 +90,7 @@ export default function TranscriptionWorkPage() {
   const [userFullName, setUserFullName] = useState('משתמש');
   const [userPermissions, setUserPermissions] = useState('DEF');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
   // Get user's full name and ID from localStorage
   useEffect(() => {
@@ -101,8 +103,31 @@ export default function TranscriptionWorkPage() {
     }
     
     // Get user permissions
-    const permissions = localStorage.getItem('permissions') || 'DEF';
-    setUserPermissions(permissions);
+    const token = localStorage.getItem('token');
+    const permissions = localStorage.getItem('permissions') || '';
+    
+    console.log('[Transcription] Auth check:', {
+      hasToken: !!token,
+      permissions,
+      hasPermissionD: permissions.includes('D')
+    });
+    
+    // If no token, redirect to login
+    if (!token) {
+      router.push('/login?system=transcription');
+      return;
+    }
+    
+    setUserPermissions(permissions || 'DEF'); // Only set DEF for display if empty
+    
+    // Check if user has transcription permission
+    if (!permissions || !permissions.includes('D')) {
+      console.log('[Transcription] User lacks permission D, showing overlay');
+      setHasPermission(false);
+    } else {
+      console.log('[Transcription] User has permission D, allowing access');
+      setHasPermission(true);
+    }
     
     // Get and set current user ID
     const userId = getCurrentUserId();
@@ -643,8 +668,21 @@ export default function TranscriptionWorkPage() {
     setSidebarLocked(locked);
   }, []);
 
+  console.log('[Transcription] Render state:', {
+    hasPermission,
+    showingOverlay: hasPermission === false
+  });
+
   return (
-    <HoveringBarsLayout
+    <>
+      {hasPermission === false && (
+        <UnauthorizedOverlay 
+          requiredPermission="D"
+          permissionName="תמלול"
+          theme="transcription"
+        />
+      )}
+      <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
@@ -1046,6 +1084,7 @@ export default function TranscriptionWorkPage() {
         themeColor="teal"
       />
     </HoveringBarsLayout>
+    </>
   );
 }
 

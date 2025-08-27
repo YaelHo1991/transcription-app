@@ -1,0 +1,154 @@
+.notification-modal {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 100000;
+  animation: slideInRight 0.3s ease;
+  direction: rtl;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.notification-message {
+  flex: 1;
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.notification-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+/* Type-specific styles */
+.notification-success {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  border-left: 4px solid #10b981;
+  color: white;
+}
+
+.notification-success .notification-message {
+  color: white;
+}
+
+.notification-error {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c2c7 100%);
+  border-left: 4px solid #dc3545;
+}
+
+.notification-error .notification-message {
+  color: #721c24;
+}
+
+.notification-warning {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%);
+  border-left: 4px solid #ffc107;
+}
+
+.notification-warning .notification-message {
+  color: #856404;
+}
+
+.notification-info {
+  background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+  border-left: 4px solid #17a2b8;
+}
+
+.notification-info .notification-message {
+  color: #0c5460;
+}
+
+/* Dark theme support */
+.theme-transcription .notification-modal {
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.theme-transcription .notification-message {
+  color: white;
+}
+
+.theme-transcription .notification-close {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.theme-transcription .notification-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.theme-transcription .notification-success {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  border-left-color: #10b981;
+}
+
+.theme-transcription .notification-success .notification-message {
+  color: white;
+}
+
+.theme-transcription .notification-error {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.2) 0%, rgba(220, 53, 69, 0.3) 100%);
+  border-left-color: #dc3545;
+}
+
+.theme-transcription .notification-warning {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.3) 100%);
+  border-left-color: #ffc107;
+}
+
+.theme-transcription .notification-info {
+  background: linear-gradient(135deg, rgba(23, 162, 184, 0.2) 0%, rgba(23, 162, 184, 0.3) 100%);
+  border-left-color: #17a2b8;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .notification-modal {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+  }
+}

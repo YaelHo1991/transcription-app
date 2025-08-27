@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import ProofreadingSidebar from './components/ProofreadingSidebar';
+import UnauthorizedOverlay from '../../../components/UnauthorizedOverlay/UnauthorizedOverlay';
 import './proofreading-theme.css';
 import './proofreading-page.css';
 
@@ -14,6 +15,7 @@ export default function ProofreadingPage() {
   // User information
   const [userFullName, setUserFullName] = useState('משתמש');
   const [userPermissions, setUserPermissions] = useState('DEF');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
   // Get user's full name from localStorage
   useEffect(() => {
@@ -26,8 +28,23 @@ export default function ProofreadingPage() {
     }
     
     // Get user permissions
-    const permissions = localStorage.getItem('permissions') || 'DEF';
-    setUserPermissions(permissions);
+    const token = localStorage.getItem('token');
+    const permissions = localStorage.getItem('permissions') || '';
+    
+    // If no token, redirect to login
+    if (!token) {
+      router.push('/login?system=transcription');
+      return;
+    }
+    
+    setUserPermissions(permissions || 'DEF'); // Only set DEF for display if empty
+    
+    // Check if user has proofreading permission
+    if (!permissions || !permissions.includes('E')) {
+      setHasPermission(false);
+    } else {
+      setHasPermission(true);
+    }
   }, []);
   
   const [headerLocked, setHeaderLocked] = useState(false);
@@ -49,7 +66,15 @@ export default function ProofreadingPage() {
   }, []);
 
   return (
-    <HoveringBarsLayout
+    <>
+      {hasPermission === false && (
+        <UnauthorizedOverlay 
+          requiredPermission="E"
+          permissionName="הגהה"
+          theme="proofreading"
+        />
+      )}
+      <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
@@ -194,5 +219,6 @@ export default function ProofreadingPage() {
         </div>
       </div>
     </HoveringBarsLayout>
+    </>
   );
 }

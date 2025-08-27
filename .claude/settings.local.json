@@ -134,7 +134,21 @@
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
       "Bash(start https://yalitranscription.duckdns.org/transcription/transcription)",
       "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
-      "Bash(./scripts/deploy-to-do.bat)"
+      "Bash(./scripts/deploy-to-do.bat)",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f migrations/016_create_storage_quota_tables.sql)",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql\" -h localhost -p 5432 -U transcription_user -d transcription_system -f \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\backend\\migrations\\016_create_storage_quota_tables.sql\")",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -f \"transcription-system/backend/migrations/016_create_storage_quota_tables.sql\")",
+      "Bash(where psql)",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe\" -h localhost -p 5432 -U transcription_user -d transcription_system -f \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\backend\\migrations\\016_create_storage_quota_tables.sql\")",
+      "Read(/C:\\Users\\ayelh\\Pictures\\Screenshots/**)",
+      "Bash(PGPASSWORD=transcription_pass psql -h localhost -p 5432 -U transcription_user -d transcription_system -c \"\\dt\")",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe\" -h localhost -p 5432 -U transcription_user -d transcription_system -c \"\\dt\")",
+      "Bash(copy \"temp-projectloader-backup\\ProjectLoader\\*\" \"transcription-system\\frontend\\main-app\\src\\app\\transcription\\shared\\components\\ProjectLoader\"\")",
+      "Bash(start http://localhost:5000/dev)",
+      "Bash(start http://localhost:3002/crm)",
+      "Bash(start http://localhost:3002/licenses)",
+      "Bash(start C:UsersayelhDocumentsProjectsTranscriptionunauthorized-overlay-preview.html)",
+      "Bash(start \"C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\unauthorized-overlay-preview.html\")"
     ],
     "deny": [],
     "additionalDirectories": [

@@ -1,0 +1,206 @@
+/* Unauthorized Overlay Base Styles */
+.unauthorized-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.unauthorized-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  border: 3px solid;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.unauthorized-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.unauthorized-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.unauthorized-message {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.unauthorized-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.unauthorized-btn {
+  padding: 12px 30px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  color: white;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 2px solid;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Theme: Transcription - Teal */
+.theme-transcription .unauthorized-modal {
+  border-color: #00897b;
+}
+
+.theme-transcription .unauthorized-icon {
+  color: #00897b;
+}
+
+.theme-transcription .btn-primary {
+  background: linear-gradient(135deg, #00695c, #00897b);
+}
+
+.theme-transcription .btn-secondary {
+  color: #00897b;
+  border-color: #00897b;
+}
+
+/* Theme: Proofreading - Blue */
+.theme-proofreading .unauthorized-modal {
+  border-color: #2196f3;
+}
+
+.theme-proofreading .unauthorized-icon {
+  color: #2196f3;
+}
+
+.theme-proofreading .btn-primary {
+  background: linear-gradient(135deg, #1976d2, #2196f3);
+}
+
+.theme-proofreading .btn-secondary {
+  color: #2196f3;
+  border-color: #2196f3;
+}
+
+/* Theme: Export - Purple */
+.theme-export .unauthorized-modal {
+  border-color: #8b14d1;
+}
+
+.theme-export .unauthorized-icon {
+  color: #8b14d1;
+}
+
+.theme-export .btn-primary {
+  background: linear-gradient(135deg, #7c0fa6, #8b14d1);
+}
+
+.theme-export .btn-secondary {
+  color: #8b14d1;
+  border-color: #8b14d1;
+}
+
+/* Theme: CRM Jobs - Brown */
+.theme-crm-jobs .unauthorized-modal {
+  border-color: #8b6f47;
+}
+
+.theme-crm-jobs .unauthorized-icon {
+  color: #8b6f47;
+}
+
+.theme-crm-jobs .btn-primary {
+  background: linear-gradient(135deg, #6d4c41, #8b6f47);
+}
+
+.theme-crm-jobs .btn-secondary {
+  color: #8b6f47;
+  border-color: #8b6f47;
+}
+
+/* Theme: CRM Clients - Red */
+.theme-crm-clients .unauthorized-modal {
+  border-color: #b85042;
+}
+
+.theme-crm-clients .unauthorized-icon {
+  color: #b85042;
+}
+
+.theme-crm-clients .btn-primary {
+  background: linear-gradient(135deg, #a0382c, #b85042);
+}
+
+.theme-crm-clients .btn-secondary {
+  color: #b85042;
+  border-color: #b85042;
+}
+
+/* Theme: CRM Employees - Green (Sage) */
+.theme-crm-employees .unauthorized-modal {
+  border-color: #a7beae;
+}
+
+.theme-crm-employees .unauthorized-icon {
+  color: #7a9882;
+}
+
+.theme-crm-employees .btn-primary {
+  background: linear-gradient(135deg, #90a898, #a7beae);
+}
+
+.theme-crm-employees .btn-secondary {
+  color: #7a9882;
+  border-color: #a7beae;
+}

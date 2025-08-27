@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(cp:*)",
+      "Bash(git init:*)",
+      "Bash(cat:*)",
+      "Bash(sed:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(NODE_ENV=development electron .)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\ayelh\\Documents\\Projects",
+      "C:\\c\\Users\\ayelh\\Documents\\Projects"
+    ]
+  }
+}

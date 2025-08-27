@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import ExportSidebar from './components/ExportSidebar';
+import UnauthorizedOverlay from '../../../components/UnauthorizedOverlay/UnauthorizedOverlay';
 import './export-theme.css';
 import './export-page.css';
 
@@ -29,6 +30,7 @@ export default function ExportPage() {
   // User information
   const [userFullName, setUserFullName] = useState('משתמש');
   const [userPermissions, setUserPermissions] = useState('DEF');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
   // Get user's full name from localStorage
   useEffect(() => {
@@ -41,8 +43,23 @@ export default function ExportPage() {
     }
     
     // Get user permissions
-    const permissions = localStorage.getItem('permissions') || 'DEF';
-    setUserPermissions(permissions);
+    const token = localStorage.getItem('token');
+    const permissions = localStorage.getItem('permissions') || '';
+    
+    // If no token, redirect to login
+    if (!token) {
+      router.push('/login?system=transcription');
+      return;
+    }
+    
+    setUserPermissions(permissions || 'DEF'); // Only set DEF for display if empty
+    
+    // Check if user has export permission
+    if (!permissions || !permissions.includes('F')) {
+      setHasPermission(false);
+    } else {
+      setHasPermission(true);
+    }
   }, []);
   
   const [headerLocked, setHeaderLocked] = useState(false);
@@ -108,7 +125,15 @@ export default function ExportPage() {
   };
 
   return (
-    <HoveringBarsLayout
+    <>
+      {hasPermission === false && (
+        <UnauthorizedOverlay 
+          requiredPermission="F"
+          permissionName="ייצוא"
+          theme="export"
+        />
+      )}
+      <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
@@ -351,5 +376,6 @@ export default function ExportPage() {
         </div>
       </div>
     </HoveringBarsLayout>
+    </>
   );
 }

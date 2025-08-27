@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import UnauthorizedOverlay from '@/components/UnauthorizedOverlay/UnauthorizedOverlay';
 
 interface Employee {
   id: string;
@@ -25,6 +26,7 @@ export default function EmployeesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showAddModal, setShowAddModal] = useState(false);
   const [transcriberCodeInput, setTranscriberCodeInput] = useState('');
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -32,13 +34,35 @@ export default function EmployeesPage() {
   }, []);
 
   const checkAuth = () => {
+    const token = localStorage.getItem('token');
     const permissions = localStorage.getItem('permissions') || '';
+    
+    console.log('[CRM Employees] Auth check:', {
+      hasToken: !!token,
+      permissions,
+      hasPermissionC: permissions.includes('C'),
+      permissionsArray: permissions.split(''),
+      checkResult: !permissions.includes('C')
+    });
+    
+    // If no token, redirect to login
+    if (!token) {
+      router.push('/login?system=crm');
+      return;
+    }
+    
+    // Check specific permission
     if (!permissions.includes('C')) {
-      router.push('/crm');
+      console.log('[CRM Employees] Setting hasPermission to FALSE');
+      setHasPermission(false);
+    } else {
+      console.log('[CRM Employees] Setting hasPermission to TRUE');
+      setHasPermission(true);
     }
   };
 
   const loadEmployees = async () => {
+    console.log('[CRM Employees] Loading employees...');
     // Get real transcriber codes from system
     const actualEmployees = [
       {
@@ -100,6 +124,7 @@ export default function EmployeesPage() {
     ];
     
     setEmployees(actualEmployees);
+    console.log('[CRM Employees] Finished loading employees');
     setLoading(false);
   };
 
@@ -121,6 +146,13 @@ export default function EmployeesPage() {
     }
   };
 
+  console.log('[CRM Employees] Render state:', {
+    loading,
+    hasPermission,
+    showingOverlay: hasPermission === false,
+    hasPermissionType: typeof hasPermission
+  });
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -131,7 +163,15 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="page-container">
+    <>
+      {hasPermission === false && (
+        <UnauthorizedOverlay 
+          requiredPermission="C"
+          permissionName="ניהול עובדים"
+          theme="crm-employees"
+        />
+      )}
+      <div className="page-container">
       <div className="page-header">
         <h1>ניהול מתמללים ועובדים</h1>
         <p>צוות העובדים והמתמללים שלך</p>
@@ -709,5 +749,6 @@ export default function EmployeesPage() {
         }
       `}</style>
     </div>
+    </>
   );
 }

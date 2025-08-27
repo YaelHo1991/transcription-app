@@ -161,7 +161,14 @@ router.post('/purchase', async (req: Request, res: Response) => {
     let isNewUser = false;
     
     if (existingUser.rows.length > 0) {
-      // Update existing user with new permissions
+      // Get existing permissions and combine with new ones
+      const existingPermissions = existingUser.rows[0].permissions || '';
+      const existingPermArray = existingPermissions.split('');
+      
+      // Combine existing and new permissions, remove duplicates, and sort
+      const combinedPermissions = [...new Set([...existingPermArray, ...permissions])].sort().join('');
+      
+      // Update existing user with combined permissions
       const result = await db.query(
         `UPDATE users 
          SET full_name = $1, 
@@ -170,7 +177,7 @@ router.post('/purchase', async (req: Request, res: Response) => {
              transcriber_code = COALESCE(transcriber_code, $4)
          WHERE email = $5 
          RETURNING id, transcriber_code`,
-        [fullName, personalCompany || null, permissionsString, transcriberCode, email]
+        [fullName, personalCompany || null, combinedPermissions, transcriberCode, email]
       );
       userId = result.rows[0].id;
     } else {

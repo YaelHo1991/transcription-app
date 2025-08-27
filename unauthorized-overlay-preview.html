@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unauthorized Overlay Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .preview-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .preview-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+        
+        .preview-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .preview-label {
+            padding: 10px;
+            background: #333;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .preview-frame {
+            position: relative;
+            height: 300px;
+            background: #fff;
+        }
+        
+        /* Fake page content */
+        .fake-page {
+            position: absolute;
+            inset: 0;
+            padding: 20vassword;
+            background: white;
+        }
+        
+        .fake-header {
+            height: 60px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        
+        .fake-sidebar {
+            width: 200px;
+            height: 200px;
+            border-radius: 4px;
+            position: absolute;
+            left: 20px;
+            top: 90px;
+        }
+        
+        .fake-content {
+            margin-left: 240px;
+            margin-top: 70px;
+        }
+        
+        .fake-content-line {
+            height: 10px;
+            background: #e0e0e0;
+            margin: 5px 20px 5px 0;
+            border-radius: 2px;
+        }
+        
+        /* Unauthorized Overlay */
+        .unauthorized-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+        }
+        
+        .unauthorized-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border: 3px solid;
+        }
+        
+        .unauthorized-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .unauthorized-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .unauthorized-message {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .unauthorized-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .unauthorized-btn {
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Theme: Transcription - Teal */
+        .theme-transcription .fake-header {
+            background: linear-gradient(135deg, #004d40, #00695c, #00897b);
+        }
+        .theme-transcription .fake-sidebar {
+            background: linear-gradient(135deg, #00695c, #00897b, #00695c);
+        }
+        .theme-transcription .unauthorized-modal {
+            border-color: #00897b;
+        }
+        .theme-transcription .unauthorized-icon {
+            color: #00897b;
+        }
+        .theme-transcription .btn-primary {
+            background: linear-gradient(135deg, #00695c, #00897b);
+        }
+        .theme-transcription .btn-secondary {
+            color: #00897b;
+            border-color: #00897b;
+        }
+        
+        /* Theme: Proofreading - Blue */
+        .theme-proofreading .fake-header {
+            background: linear-gradient(135deg, #0f3c7c, #2196f3, #03a9f4, #2196f3, #1976d2);
+        }
+        .theme-proofreading .fake-sidebar {
+            background: linear-gradient(135deg, #1a5d9d, #2196f3, #03a9f4, #00bcd4, #2196f3);
+        }
+        .theme-proofreading .unauthorized-modal {
+            border-color: #2196f3;
+        }
+        .theme-proofreading .unauthorized-icon {
+            color: #2196f3;
+        }
+        .theme-proofreading .btn-primary {
+            background: linear-gradient(135deg, #1976d2, #2196f3);
+        }
+        .theme-proofreading .btn-secondary {
+            color: #2196f3;
+            border-color: #2196f3;
+        }
+        
+        /* Theme: Export - Purple */
+        .theme-export .fake-header {
+            background: linear-gradient(135deg, #4c0f7c, #5d1a8d, #8b14d1, #7c0fa6, #5d1a8d);
+        }
+        .theme-export .fake-sidebar {
+            background: linear-gradient(135deg, #5d1a8d, #8b14d1, #9c27b0, #7c0fa6, #4c0f7c);
+        }
+        .theme-export .unauthorized-modal {
+            border-color: #8b14d1;
+        }
+        .theme-export .unauthorized-icon {
+            color: #8b14d1;
+        }
+        .theme-export .btn-primary {
+            background: linear-gradient(135deg, #7c0fa6, #8b14d1);
+        }
+        .theme-export .btn-secondary {
+            color: #8b14d1;
+            border-color: #8b14d1;
+        }
+        
+        /* Theme: CRM Jobs - Brown */
+        .theme-crm-jobs .fake-header {
+            background: linear-gradient(135deg, #5d4037, #6d4c41, #8b6f47, #795548);
+        }
+        .theme-crm-jobs .fake-sidebar {
+            background: linear-gradient(135deg, #6d4c41, #8b6f47, #a1887f, #8d6e63);
+        }
+        .theme-crm-jobs .unauthorized-modal {
+            border-color: #8b6f47;
+        }
+        .theme-crm-jobs .unauthorized-icon {
+            color: #8b6f47;
+        }
+        .theme-crm-jobs .btn-primary {
+            background: linear-gradient(135deg, #6d4c41, #8b6f47);
+        }
+        .theme-crm-jobs .btn-secondary {
+            color: #8b6f47;
+            border-color: #8b6f47;
+        }
+        
+        /* Theme: CRM Clients - Red */
+        .theme-crm-clients .fake-header {
+            background: linear-gradient(135deg, #8b3226, #a0382c, #b85042, #c0534a);
+        }
+        .theme-crm-clients .fake-sidebar {
+            background: linear-gradient(135deg, #a0382c, #b85042, #d05d52, #c0534a);
+        }
+        .theme-crm-clients .unauthorized-modal {
+            border-color: #b85042;
+        }
+        .theme-crm-clients .unauthorized-icon {
+            color: #b85042;
+        }
+        .theme-crm-clients .btn-primary {
+            background: linear-gradient(135deg, #a0382c, #b85042);
+        }
+        .theme-crm-clients .btn-secondary {
+            color: #b85042;
+            border-color: #b85042;
+        }
+        
+        /* Theme: CRM Employees - Green */
+        .theme-crm-employees .fake-header {
+            background: linear-gradient(135deg, #a7beae, #90a898);
+        }
+        .theme-crm-employees .fake-sidebar {
+            background: linear-gradient(135deg, #90a898, #a7beae, #b5c4ba);
+        }
+        .theme-crm-employees .unauthorized-modal {
+            border-color: #a7beae;
+        }
+        .theme-crm-employees .unauthorized-icon {
+            color: #7a9882;
+        }
+        .theme-crm-employees .btn-primary {
+            background: linear-gradient(135deg, #90a898, #a7beae);
+        }
+        .theme-crm-employees .btn-secondary {
+            color: #7a9882;
+            border-color: #a7beae;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <h1 class="preview-title">דפי גישה לא מורשית - תצוגה מקדימה</h1>
+        
+        <div class="preview-grid">
+            <!-- Transcription Theme -->
+            <div class="preview-card">
+                <div class="preview-label">תמלול - Teal Theme</div>
+                <div class="preview-frame theme-transcription">
+                    <div class="fake-page">
+                        <div class="fake-header"></div>
+                        <div class="fake-sidebar"></div>
+                        <div class="fake-content">
+                            <div class="fake-content-line" style="width: 80%"></div>
+                            <div class="fake-content-line" style="width: 60%"></div>
+                            <div class="fake-content-line" style="width: 70%"></div>
+                            <div class="fake-content-line" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="unauthorized-overlay">
+                        <div class="unauthorized-modal">
+                            <div class="unauthorized-icon">🔒</div>
+                            <h2 class="unauthorized-title">אין הרשאת גישה</h2>
+                            <p class="unauthorized-message">
+                                אין לך הרשאת גישה לדף זה.<br>
+                                נדרשת הרשאת תמלול (D)
+                            </p>
+                            <div class="unauthorized-buttons">
+                                <button class="unauthorized-btn btn-primary">רכישת רישיון</button>
+                                <button class="unauthorized-btn btn-secondary">לדף הראשי</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Proofreading Theme -->
+            <div class="preview-card">
+                <div class="preview-label">הגהה - Blue Theme</div>
+                <div class="preview-frame theme-proofreading">
+                    <div class="fake-page">
+                        <div class="fake-header"></div>
+                        <div class="fake-sidebar"></div>
+                        <div class="fake-content">
+                            <div class="fake-content-line" style="width: 80%"></div>
+                            <div class="fake-content-line" style="width: 60%"></div>
+                            <div class="fake-content-line" style="width: 70%"></div>
+                            <div class="fake-content-line" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="unauthorized-overlay">
+                        <div class="unauthorized-modal">
+                            <div class="unauthorized-icon">🔒</div>
+                            <h2 class="unauthorized-title">אין הרשאת גישה</h2>
+                            <p class="unauthorized-message">
+                                אין לך הרשאת גישה לדף זה.<br>
+                                נדרשת הרשאת הגהה (E)
+                            </p>
+                            <div class="unauthorized-buttons">
+                                <button class="unauthorized-btn btn-primary">רכישת רישיון</button>
+                                <button class="unauthorized-btn btn-secondary">לדף הראשי</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Export Theme -->
+            <div class="preview-card">
+                <div class="preview-label">ייצוא - Purple Theme</div>
+                <div class="preview-frame theme-export">
+                    <div class="fake-page">
+                        <div class="fake-header"></div>
+                        <div class="fake-sidebar"></div>
+                        <div class="fake-content">
+                            <div class="fake-content-line" style="width: 80%"></div>
+                            <div class="fake-content-line" style="width: 60%"></div>
+                            <div class="fake-content-line" style="width: 70%"></div>
+                            <div class="fake-content-line" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="unauthorized-overlay">
+                        <div class="unauthorized-modal">
+                            <div class="unauthorized-icon">🔒</div>
+                            <h2 class="unauthorized-title">אין הרשאת גישה</h2>
+                            <p class="unauthorized-message">
+                                אין לך הרשאת גישה לדף זה.<br>
+                                נדרשת הרשאת ייצוא (F)
+                            </p>
+                            <div class="unauthorized-buttons">
+                                <button class="unauthorized-btn btn-primary">רכישת רישיון</button>
+                                <button class="unauthorized-btn btn-secondary">לדף הראשי</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CRM Jobs Theme -->
+            <div class="preview-card">
+                <div class="preview-label">CRM עבודות - Brown Theme</div>
+                <div class="preview-frame theme-crm-jobs">
+                    <div class="fake-page">
+                        <div class="fake-header"></div>
+                        <div class="fake-sidebar"></div>
+                        <div class="fake-content">
+                            <div class="fake-content-line" style="width: 80%"></div>
+                            <div class="fake-content-line" style="width: 60%"></div>
+                            <div class="fake-content-line" style="width: 70%"></div>
+                            <div class="fake-content-line" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="unauthorized-overlay">
+                        <div class="unauthorized-modal">
+                            <div class="unauthorized-icon">🔒</div>
+                            <h2 class="unauthorized-title">אין הרשאת גישה</h2>
+                            <p class="unauthorized-message">
+                                אין לך הרשאת גישה לדף זה.<br>
+                                נדרשת הרשאת ניהול עבודות (B)
+                            </p>
+                            <div class="unauthorized-buttons">
+                                <button class="unauthorized-btn btn-primary">רכישת רישיון</button>
+                                <button class="unauthorized-btn btn-secondary">לדף הראשי</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CRM Clients Theme -->
+            <div class="preview-card">
+                <div class="preview-label">CRM לקוחות - Red Theme</div>
+                <div class="preview-frame theme-crm-clients">
+                    <div class="fake-page">
+                        <div class="fake-header"></div>
+                        <div class="fake-sidebar"></div>
+                        <div class="fake-content">
+                            <div class="fake-content-line" style="width: 80%"></div>
+                            <div class="fake-content-line" style="width: 60%"></div>
+                            <div class="fake-content-line" style="width: 70%"></div>
+                            <div class="fake-content-line" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="unauthorized-overlay">
+                        <div class="unauthorized-modal">
+                            <div class="unauthorized-icon">🔒</div>
+                            <h2 class="unauthorized-title">אין הרשאת גישה</h2>
+                            <p class="unauthorized-message">
+                                אין לך הרשאת גישה לדף זה.<br>
+                                נדרשת הרשאת ניהול לקוחות (A)
+                            </p>
+                            <div class="unauthorized-buttons">
+                                <button class="unauthorized-btn btn-primary">רכישת רישיון</button>
+                                <button class="unauthorized-btn btn-secondary">לדף הראשי</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CRM Employees Theme -->
+            <div class="preview-card">
+                <div class="preview-label">CRM עובדים - Green Theme</div>
+                <div class="preview-frame theme-crm-employees">
+                    <div class="fake-page">
+                        <div class="fake-header"></div>
+                        <div class="fake-sidebar"></div>
+                        <div class="fake-content">
+                            <div class="fake-content-line" style="width: 80%"></div>
+                            <div class="fake-content-line" style="width: 60%"></div>
+                            <div class="fake-content-line" style="width: 70%"></div>
+                            <div class="fake-content-line" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="unauthorized-overlay">
+                        <div class="unauthorized-modal">
+                            <div class="unauthorized-icon">🔒</div>
+                            <h2 class="unauthorized-title">אין הרשאת גישה</h2>
+                            <p class="unauthorized-message">
+                                אין לך הרשאת גישה לדף זה.<br>
+                                נדרשת הרשאת ניהול עובדים (C)
+                            </p>
+                            <div class="unauthorized-buttons">
+                                <button class="unauthorized-btn btn-primary">רכישת רישיון</button>
+                                <button class="unauthorized-btn btn-secondary">לדף הראשי</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
