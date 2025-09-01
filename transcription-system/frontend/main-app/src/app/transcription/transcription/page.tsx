@@ -17,7 +17,6 @@ import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import LoginPromptModal from '../../../components/LoginPromptModal';
-import UnauthorizedOverlay from '../../../components/UnauthorizedOverlay/UnauthorizedOverlay';
 import { projectService } from '../../../services/projectService';
 import './transcription-theme.css';
 import './transcription-page.css';
@@ -53,8 +52,13 @@ declare module 'react' {
   }
 }
 
-// Default transcription disabled - upload functionality will be redesigned
-const createDefaultTranscription = () => null;
+// Helper function to create default transcription
+const createDefaultTranscription = () => ({
+  name: 'אין תמלול',
+  mediaItems: [], // Always empty - no media
+  projectId: null, // Always null - not a real project
+  isDefault: true // Always true - marks it as undeletable
+});
 
 // Helper function to get current user ID from token or localStorage
 const getCurrentUserId = (): string | null => {
@@ -90,7 +94,6 @@ export default function TranscriptionWorkPage() {
   const [userFullName, setUserFullName] = useState('משתמש');
   const [userPermissions, setUserPermissions] = useState('DEF');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
   // Get user's full name and ID from localStorage
   useEffect(() => {
@@ -103,31 +106,8 @@ export default function TranscriptionWorkPage() {
     }
     
     // Get user permissions
-    const token = localStorage.getItem('token');
-    const permissions = localStorage.getItem('permissions') || '';
-    
-    console.log('[Transcription] Auth check:', {
-      hasToken: !!token,
-      permissions,
-      hasPermissionD: permissions.includes('D')
-    });
-    
-    // If no token, redirect to login
-    if (!token) {
-      router.push('/login?system=transcription');
-      return;
-    }
-    
-    setUserPermissions(permissions || 'DEF'); // Only set DEF for display if empty
-    
-    // Check if user has transcription permission
-    if (!permissions || !permissions.includes('D')) {
-      console.log('[Transcription] User lacks permission D, showing overlay');
-      setHasPermission(false);
-    } else {
-      console.log('[Transcription] User has permission D, allowing access');
-      setHasPermission(true);
-    }
+    const permissions = localStorage.getItem('permissions') || 'DEF';
+    setUserPermissions(permissions);
     
     // Get and set current user ID
     const userId = getCurrentUserId();
@@ -161,9 +141,9 @@ export default function TranscriptionWorkPage() {
   const [actualMediaDuration, setActualMediaDuration] = useState<number>(0);
   const [isRestoringSession, setIsRestoringSession] = useState(false);
   
-  // Transcription management disabled - upload functionality will be redesigned
-  const [transcriptions, setTranscriptions] = useState<any[]>([]);
-  const [currentTranscriptionIndex, setCurrentTranscriptionIndex] = useState(-1);
+  // Transcription management (saved transcriptions from backend)
+  const [transcriptions, setTranscriptions] = useState<any[]>(() => [createDefaultTranscription()]);
+  const [currentTranscriptionIndex, setCurrentTranscriptionIndex] = useState(0);
   
   // Modal states for styled alerts
   const [showAuthErrorModal, setShowAuthErrorModal] = useState(false);
@@ -220,10 +200,10 @@ export default function TranscriptionWorkPage() {
     return name;
   };
 
-  // Show empty state - upload functionality disabled
-  const collectionName = '';
-  const mediaName = '';
-  const mediaSize = '';
+  // Use real data if available, otherwise show empty state
+  const collectionName = currentCollection?.name || '';
+  const mediaName = cleanMediaName(currentMedia?.name || (hasMedia ? '' : 'אין מדיה נטענת'));
+  const mediaSize = currentMedia?.size || (hasMedia ? '' : '0 MB');
   
   // Format duration as HH:MM:SS - with safe handling
   const formatDuration = (seconds: number): string => {
@@ -343,13 +323,67 @@ export default function TranscriptionWorkPage() {
     }
   }, []); // Run only once on mount
 
-  // Disable loading saved transcriptions - upload functionality will be redesigned
+  // Load saved transcriptions from backend
   useEffect(() => {
-    console.log('[Page] Transcription loading disabled - upload functionality will be redesigned');
-    // No transcriptions will be loaded
-    setTranscriptions([]);
-    setCurrentTranscriptionIndex(-1);
-  }, []);
+    // Only run on client side after a delay
+    if (typeof window !== 'undefined' && !isRestoringSession) {
+      const timer = setTimeout(async () => {
+        try {
+          console.log('[Page] Loading saved transcriptions from backend...');
+          const transcriptionsList = await projectService.listProjects();
+          
+          const transformedTranscriptions = transcriptionsList && transcriptionsList.length > 0
+            ? transcriptionsList.map(proj => ({
+                name: proj.projectName || 'תמלול ללא שם',
+                mediaItems: [{
+                  type: 'file' as const,
+                  name: proj.mediaFile || 'מדיה לא ידועה',
+                  size: '0 MB'
+                }],
+                projectId: proj.projectId,
+                isDefault: false
+              }))
+            : [];
+          
+          // Remove any existing corrupted default transcriptions and add a fresh one
+          const cleanTranscriptions = transformedTranscriptions.filter(t => !t.isDefault);
+          const freshDefault = createDefaultTranscription();
+          const allTranscriptions = [...cleanTranscriptions, freshDefault];
+          
+          console.log('[Page] Successfully loaded ' + transformedTranscriptions.length + ' transcriptions + 1 default');
+          console.log('[Page] All transcriptions:', allTranscriptions.map(t => ({ name: t.name, isDefault: t.isDefault, projectId: t.projectId })));
+          setTranscriptions(allTranscriptions);
+          
+          if (allTranscriptions.length > 0) {
+            // Only set default index if we don't already have a restored index from session
+            const userId = getCurrentUserId();
+            let hasRestoredIndex = false;
+            
+            if (userId) {
+              const sessionKey = 'transcriptionSessionState_' + userId;
+              const savedSession = localStorage.getItem(sessionKey);
+              hasRestoredIndex = savedSession && JSON.parse(savedSession).currentTranscriptionIndex !== undefined;
+            }
+            
+            if (!hasRestoredIndex) {
+              // Find the first non-default transcription, or fall back to 0
+              const firstNonDefaultIndex = allTranscriptions.findIndex(t => !t.isDefault);
+              const targetIndex = firstNonDefaultIndex >= 0 ? firstNonDefaultIndex : 0;
+              
+              console.log('[Page] Setting current transcription index to:', targetIndex, 'for transcription:', allTranscriptions[targetIndex]?.name);
+              setCurrentTranscriptionIndex(targetIndex);
+            } else {
+              console.log('[Page] Keeping restored transcription index:', currentTranscriptionIndex);
+            }
+          }
+        } catch (error) {
+          console.error('[Page] Error loading transcriptions:', error);
+        }
+      }, 3000); // 3 second delay to ensure page is fully loaded
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isRestoringSession]);
 
   // Disable loading existing projects - upload functionality will be redesigned
   useEffect(() => {
@@ -653,11 +687,29 @@ export default function TranscriptionWorkPage() {
     }
   }, [mediaProjectsMap, currentCollectionIndex]);
   
-  // Disable project creation/loading - upload functionality will be redesigned
+  // Handle project creation/loading when media changes
   useEffect(() => {
-    console.log('[Project] Project loading disabled - upload functionality will be redesigned');
-    setCurrentProjectId('');
-  }, []);
+    const handleMediaChange = async () => {
+      if (!currentMedia || !currentMedia.name) {
+        console.log('[Project] No media selected, clearing project ID');
+        setCurrentProjectId('');
+        return;
+      }
+      
+      // Get or create project for any media type
+      const projectId = await getOrCreateProject(currentMedia.name, collectionName);
+      
+      if (projectId) {
+        setCurrentProjectId(projectId);
+        // Load the project data
+        await loadProjectData(projectId);
+      } else {
+        console.warn('[Project] Working without server persistence for:', currentMedia.name);
+      }
+    };
+    
+    handleMediaChange();
+  }, [currentMedia, collectionName, getOrCreateProject, loadProjectData]); // Dependencies updated
 
   // Memoize callbacks to prevent unnecessary re-renders
   const handleHeaderLockChange = useCallback((locked: boolean) => {
@@ -668,21 +720,8 @@ export default function TranscriptionWorkPage() {
     setSidebarLocked(locked);
   }, []);
 
-  console.log('[Transcription] Render state:', {
-    hasPermission,
-    showingOverlay: hasPermission === false
-  });
-
   return (
-    <>
-      {hasPermission === false && (
-        <UnauthorizedOverlay 
-          requiredPermission="D"
-          permissionName="תמלול"
-          theme="transcription"
-        />
-      )}
-      <HoveringBarsLayout
+    <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
@@ -743,7 +782,41 @@ export default function TranscriptionWorkPage() {
               document.dispatchEvent(event);
             }}>
             <MediaPlayer 
-              initialMedia={undefined}
+              initialMedia={currentMedia ? (() => {
+                // Check if we have a file or URL
+                let mediaUrl = '';
+                if (currentMedia.type === 'url' && currentMedia.url) {
+                  mediaUrl = currentMedia.url;
+                } else if (currentMedia.file) {
+                  mediaUrl = URL.createObjectURL(currentMedia.file);
+                } else if (currentMedia.name && currentCollection?.transcriptionProjectId) {
+                  // For backend-loaded transcription projects, construct the media URL
+                  // The media file is stored in the transcription project folder on the server
+                  const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+                    ? (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000')
+                    : '';
+                  mediaUrl = apiUrl + '/api/projects/${currentCollection.transcriptionProjectId}/media/${encodeURIComponent(currentMedia.name)}';
+                  console.log('Page: Constructed media URL for backend project:', mediaUrl);
+                }
+                
+                // Only return media if we have a valid URL
+                if (mediaUrl) {
+                  console.log('Page: Creating media object', {
+                    url: mediaUrl,
+                    name: currentMedia.name,
+                    type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
+                  });
+                  return {
+                    url: mediaUrl,
+                    name: currentMedia.name,
+                    type: currentMedia.name.match(/\.(mp4|webm|ogg|ogv)$/i) ? 'video' : 'audio'
+                  };
+                }
+                
+                // No valid media source, return undefined
+                console.log('Page: No media file or URL available for:', currentMedia.name);
+                return undefined;
+              })() : undefined}
               onTimeUpdate={(time) => {
                 // TEMPORARILY DISABLED - this causes playback issues
                 // TextEditor gets time updates via mediaTimeUpdate events instead
@@ -756,10 +829,10 @@ export default function TranscriptionWorkPage() {
               onDurationChange={(duration) => {
                 setActualMediaDuration(duration);
               }}
-              currentProject={0}
-              totalProjects={0}
-              currentMedia={0}
-              totalMedia={0}
+              currentProject={hasCollections ? currentCollectionIndex + 1 : 0}
+              totalProjects={mediaCollections.length}
+              currentMedia={hasMedia ? currentMediaIndex + 1 : 0}
+              totalMedia={currentCollection?.mediaItems.length || 0}
               mediaName={mediaName}
               mediaDuration={mediaDuration}
               mediaSize={mediaSize}
@@ -778,7 +851,24 @@ export default function TranscriptionWorkPage() {
                 mediaPlayerRef={mediaPlayerRef}
                 marks={[]}
                 currentTime={currentTime}
-                mediaFileName={''}
+                mediaFileName={(() => {
+                  // If there are transcriptions loaded, use the transcription's media name
+                  if (transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
+                    const currentTranscription = transcriptions[currentTranscriptionIndex];
+                    if (currentTranscription.mediaItems && currentTranscription.mediaItems[0]) {
+                      return currentTranscription.mediaItems[0].name || '';
+                    }
+                  }
+                  
+                  // If we have a current media file loaded (new media, not from transcription)
+                  // Only show if there are actual projects with media
+                  if (hasCollections && currentMedia?.name) {
+                    return currentMedia.name;
+                  }
+                  
+                  // No media or transcription
+                  return '';
+                })()}
                 mediaDuration={mediaDuration}
                 projectName={collectionName}
                 speakerComponentRef={speakerComponentRef}
@@ -786,8 +876,8 @@ export default function TranscriptionWorkPage() {
                   console.log('Seek to time:', time);
                 }}
                 enabled={true}
-                transcriptions={[]}
-                currentTranscriptionIndex={-1}
+                transcriptions={transcriptions}
+                currentTranscriptionIndex={currentTranscriptionIndex}
                 onTranscriptionChange={async (index) => {
                   console.log('[Page] Transcription changed to index:', index);
                   setCurrentTranscriptionIndex(index);
@@ -879,8 +969,10 @@ export default function TranscriptionWorkPage() {
                   // Only remove from list if deletion succeeded or project was already deleted (404)
                   const updatedTranscriptions = transcriptions.filter((_, i) => i !== index);
                   
-                  // No default transcriptions - upload functionality disabled
-                  const finalTranscriptions = updatedTranscriptions;
+                  // Ensure there's always at least one default transcription
+                  const finalTranscriptions = updatedTranscriptions.length === 0 
+                    ? [createDefaultTranscription()] 
+                    : updatedTranscriptions;
                   
                   setTranscriptions(finalTranscriptions);
                   
@@ -1084,9 +1176,5 @@ export default function TranscriptionWorkPage() {
         themeColor="teal"
       />
     </HoveringBarsLayout>
-    </>
   );
 }
-
-// Force dynamic rendering to prevent caching issues
-export const dynamic = 'force-dynamic';

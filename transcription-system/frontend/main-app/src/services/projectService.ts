@@ -59,7 +59,7 @@ class ProjectService {
    * Get auth headers with token
    */
   private getHeaders(): HeadersInit {
-    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+    const token = localStorage.getItem('token');
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'X-Dev-Mode': 'true'
@@ -129,7 +129,7 @@ class ProjectService {
         remarksCount: data.remarks?.length || 0
       });
       
-      const response = await fetch(API_URL + '/api/projects/${projectId}/save', {
+      const response = await fetch(API_URL + `/api/projects/${projectId}/save`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(data)
@@ -207,7 +207,7 @@ class ProjectService {
     try {
       console.log('[Project] Loading project:', projectId);
       
-      const response = await fetch(API_URL + '/api/projects/${projectId}/load', {
+      const response = await fetch(API_URL + `/api/projects/${projectId}/load`, {
         headers: this.getHeaders()
       });
       
@@ -245,7 +245,7 @@ class ProjectService {
   async getProjectByMedia(mediaFileName: string): Promise<string | null> {
     try {
       const response = await fetch(
-        API_URL + '/api/projects/by-media/${encodeURIComponent(mediaFileName)}',
+        API_URL + `/api/projects/by-media/${encodeURIComponent(mediaFileName)}`,
         {
           headers: this.getHeaders()
         }
@@ -270,7 +270,7 @@ class ProjectService {
     try {
       console.log('[Project] Creating backup for:', projectId);
       
-      const response = await fetch(API_URL + '/api/projects/${projectId}/backup', {
+      const response = await fetch(API_URL + `/api/projects/${projectId}/backup`, {
         method: 'POST',
         headers: this.getHeaders()
       });
@@ -297,7 +297,7 @@ class ProjectService {
       console.log('[Project] Restoring backup:', projectId, backupFile);
       
       const response = await fetch(
-        API_URL + '/api/projects/${projectId}/restore/${backupFile}',
+        API_URL + `/api/projects/${projectId}/restore/${backupFile}`,
         {
           method: 'POST',
           headers: this.getHeaders()
@@ -326,7 +326,7 @@ class ProjectService {
       console.log('[Project] Listing all projects');
       
       // Check if user is authenticated first
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       if (!token) {
         console.log('[Project] No authentication token found');
         this.handleAuthError();
@@ -357,7 +357,7 @@ class ProjectService {
     } catch (error) {
       console.error('[Project] Error listing projects:', error);
       // If it's a network error and no token, likely auth issue
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const token = localStorage.getItem('token');
       if (!token || (error instanceof TypeError && error.message === 'Failed to fetch')) {
         this.handleAuthError();
       }
@@ -370,7 +370,7 @@ class ProjectService {
    */
   async listBackups(projectId: string): Promise<any[]> {
     try {
-      const response = await fetch(API_URL + '/api/projects/${projectId}/backups', {
+      const response = await fetch(API_URL + `/api/projects/${projectId}/backups`, {
         headers: this.getHeaders()
       });
       
@@ -416,7 +416,7 @@ class ProjectService {
     try {
       console.log('[Project] Deleting project:', projectId);
       
-      const response = await fetch(API_URL + '/api/projects/${projectId}', {
+      const response = await fetch(API_URL + `/api/projects/${projectId}`, {
         method: 'DELETE',
         headers: this.getHeaders()
       });
