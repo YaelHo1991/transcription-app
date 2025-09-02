@@ -36,6 +36,7 @@ export default function VersionHistoryModal({
   const [versions, setVersions] = useState<BackupVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<BackupVersion | null>(null);
   const [versionContent, setVersionContent] = useState<string>('');
+  const [versionData, setVersionData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [comparing, setComparing] = useState(false);
@@ -49,25 +50,31 @@ export default function VersionHistoryModal({
   useEffect(() => {
     if (isOpen && mediaId && transcriptionNumber) {
       loadVersions();
+    } else if (!isOpen) {
+      // Clear data when modal closes
+      setVersionData(null);
+      setVersionContent('');
+      setSelectedVersion(null);
     }
   }, [isOpen, mediaId, transcriptionNumber]);
 
   const loadVersions = async () => {
-    if (!mediaId) {
-      console.log('[VersionHistory] No mediaId/projectId provided');
+    if (!transcriptionId || !mediaId) {
+      console.log('[VersionHistory] No projectId/mediaId provided');
       return;
     }
     
-    console.log('[VersionHistory] Loading versions for project:', mediaId);
+    console.log('[VersionHistory] Loading versions for project:', transcriptionId, 'media:', mediaId);
     setLoading(true);
     try {
-      // Load backups from project service
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      // Load backups from media-specific endpoint
       const response = await fetch(
-        (getApiUrl()) + '/api/projects/${mediaId}/backups',
+        `http://localhost:5000/api/projects/${transcriptionId}/media/${mediaId}/backups`,
         {
           headers: {
             'Content-Type': 'application/json',
-            'X-Dev-Mode': 'true'
+            'Authorization': `Bearer ${token}`
           }
         }
       );
@@ -78,15 +85,16 @@ export default function VersionHistoryModal({
       
       if (data.success && data.backups) {
         // Convert backup format to version format
-        const versions = data.backups.map((backup: any, index: number) => ({
+        const versions = data.backups.map((backup: any) => ({
           id: backup.file,
           filename: backup.file,
-          version: data.backups.length - index,
+          version: backup.version,
           created: backup.timestamp,
           size: backup.size || 2000,
-          blocks_count: backup.blocks?.length || 0,
-          speakers_count: backup.speakers?.length || 0,
-          words_count: 0
+          blocks_count: backup.blocks || 0,
+          speakers_count: backup.speakers || 0,
+          words_count: backup.remarks || 0,
+          timestamp: backup.timestamp
         }));
         setVersions(versions);
       } else if (!data.success || data.backups?.length === 0) {
@@ -145,58 +153,49 @@ export default function VersionHistoryModal({
   };
 
   const loadVersionContent = async (version: BackupVersion) => {
-    if (!mediaId) return; // mediaId is now projectId
+    if (!transcriptionId || !mediaId) return;
     
     setLoading(true);
     try {
-      // Load backup content from project service
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      // Load backup content from media-specific endpoint
       const response = await fetch(
-        (getApiUrl()) + '/api/projects/${mediaId}/backups/${version.filename}',
+        `http://localhost:5000/api/projects/${transcriptionId}/media/${mediaId}/backups/${version.filename}`,
         {
           headers: {
             'Content-Type': 'application/json',
-            'X-Dev-Mode': 'true'
+            'Authorization': `Bearer ${token}`
           }
         }
       );
       
       if (response.ok) {
         const data = await response.json();
+        setVersionData(data);
         
         // Format content for preview
-        let content = '=== תצוגה מקדימה ===\n\n';
-        
-        if (data.speakers && data.speakers.length > 0) {
-          content += '=== דוברים ===\n';
-          data.speakers.forEach((s: any) => {
-            content += s.code + ': ${s.name}\n';
-          });
-          content += '\n';
-        }
+        let content = '';
         
         if (data.blocks && data.blocks.length > 0) {
-          content += '=== תמלול ===\n';
           data.blocks.forEach((block: any) => {
-            const timestamp = block.timestamp || '';
-            const speaker = block.speaker ? '[' + block.speaker + ']' : '';
-            const prefix = timestamp || speaker ? timestamp + ' ${speaker}: ' : '';
-            content += prefix + '${block.text || \'\'}\n';
+            const speakerName = block.speaker || '';
+            if (speakerName) {
+              content += `${speakerName}: ${block.text || ''}\n`;
+            } else {
+              content += `${block.text || ''}\n`;
+            }
           });
-          content += '\n';
         }
-        
-        content += '=== מידע ===\n';
-        content += 'בלוקים: ' + (data.blocks?.length || 0) + '\n';
-        content += 'דוברים: ' + (data.speakers?.length || 0) + '\n';
-        content += 'מילים: ' + (data.metadata?.totalWords || 0);
         
         setVersionContent(content);
       } else {
         setVersionContent('שגיאה בטעינת התוכן');
+        setVersionData(null);
       }
     } catch (error) {
       console.error('Failed to load version content:', error);
       setVersionContent('Failed to load content');
+      setVersionData(null);
     } finally {
       setLoading(false);
     }
@@ -292,7 +291,10 @@ export default function VersionHistoryModal({
     <div className="version-history-modal-overlay" onClick={onClose}>
       <div className="version-history-modal" onClick={e => e.stopPropagation()}>
         <div className="version-history-header">
-          <h2>היסטוריית גרסאות</h2>
+          <h2>
+            היסטוריית גרסאות
+            {mediaName && <span style={{ fontSize: '16px', fontWeight: 'normal', marginRight: '10px' }}>({mediaName})</span>}
+          </h2>
           <button className="close-button" onClick={onClose}>✕</button>
         </div>
 
@@ -346,8 +348,8 @@ export default function VersionHistoryModal({
             <div className="preview-header">
               <h3>
                 תצוגה מקדימה
-                {mediaName && (
-                  <span className="preview-title-media"> - {mediaName}</span>
+                {versionData?.metadata?.originalName && (
+                  <span className="preview-title-media"> - {versionData.metadata.originalName}</span>
                 )}
               </h3>
               {selectedVersion && (
@@ -386,13 +388,17 @@ export default function VersionHistoryModal({
                     <div className="sidebar-section">
                       <h4>👥 דוברים</h4>
                       <div className="speakers-list">
-                        {versionContent && versionContent.includes('דוברים:') ? 
-                          <div className="info-item">
-                            <span className="info-value">
-                              {versionContent.match(/דוברים: (\d+)/)?.[1] || '0'} דוברים
-                            </span>
-                          </div>
-                        : <span className="info-value">אין מידע</span>}
+                        {versionData?.speakers && versionData.speakers.length > 0 ? (
+                          versionData.speakers.map((speaker: any, idx: number) => (
+                            <div key={idx} className="info-item">
+                              <span className="info-value">
+                                {speaker.code}: {speaker.name}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="info-value">אין דוברים</span>
+                        )}
                       </div>
                     </div>
                     
@@ -408,11 +414,15 @@ export default function VersionHistoryModal({
                       </div>
                     </div>
                     
-                    {versionContent && versionContent.includes('הערות:') && (
+                    {versionData?.remarks && versionData.remarks.length > 0 && (
                       <div className="sidebar-section">
                         <h4>💬 הערות</h4>
                         <div className="remarks-preview">
-                          {versionContent.match(/הערות: (\d+)/)?.[1] || '0'} הערות
+                          {versionData.remarks.map((remark: any, idx: number) => (
+                            <div key={idx} className="info-item">
+                              <span className="info-value">{remark.text}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -422,28 +432,27 @@ export default function VersionHistoryModal({
                     <div className="preview-document">
                       {versionContent ? (
                         versionContent.split('\n').map((line, index) => {
-                          // Skip metadata lines for main view
-                          if (line.startsWith('===') || line.includes('דוברים:') || line.includes('בלוקים:') || line.includes('הערות:')) {
-                            return null;
-                          }
+                          if (!line.trim()) return null;
                           
                           // Parse speaker and text
-                          const speakerMatch = line.match(/^(\[.*?\]):\s*(.*)/);
-                          if (speakerMatch) {
+                          const colonIndex = line.indexOf(':');
+                          if (colonIndex !== -1) {
+                            const speaker = line.substring(0, colonIndex).trim();
+                            const text = line.substring(colonIndex + 1).trim();
                             return (
                               <div key={index} className="preview-block">
-                                <span className="preview-speaker">{speakerMatch[1]}</span>
-                                <span className="preview-text">{speakerMatch[2]}</span>
+                                <span className="preview-speaker">{speaker}:</span>
+                                <span className="preview-text"> {text}</span>
                               </div>
                             );
                           }
                           
-                          // Regular text
-                          return line.trim() ? (
+                          // Regular text without speaker
+                          return (
                             <div key={index} className="preview-line">
                               {line}
                             </div>
-                          ) : null;
+                          );
                         })
                       ) : (
                         <div className="preview-empty">אין תוכן להצגה</div>

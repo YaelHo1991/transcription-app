@@ -149,6 +149,202 @@ router.post('/:projectId/restore/:backupFile', verifyUser, async (req: Request, 
 });
 
 /**
+ * Create a backup for specific media in a project
+ */
+router.post('/:projectId/media/:mediaId/backup', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId } = req.params;
+    const backupData = req.body;
+    const userId = (req as any).user?.id || 'dev-anonymous';
+    
+    // Create backup directory in the media folder
+    const backupDir = path.join(
+      process.cwd(), 
+      'user_data', 
+      'users', 
+      userId, 
+      'projects',
+      projectId,
+      'media',
+      mediaId,
+      'backups'
+    );
+    
+    await fs_promises.mkdir(backupDir, { recursive: true });
+    
+    // Get list of existing backups to determine version number
+    const existingBackups = await fs_promises.readdir(backupDir).catch(() => []);
+    const backupFiles = existingBackups.filter(f => f.startsWith('backup_v'));
+    
+    // Keep only last 50 versions
+    if (backupFiles.length >= 50) {
+      // Sort by version number and delete oldest
+      backupFiles.sort((a, b) => {
+        const versionA = parseInt(a.match(/backup_v(\d+)/)?.[1] || '0');
+        const versionB = parseInt(b.match(/backup_v(\d+)/)?.[1] || '0');
+        return versionA - versionB;
+      });
+      
+      // Delete oldest versions to keep only 49 (we'll add a new one)
+      const toDelete = backupFiles.slice(0, backupFiles.length - 49);
+      for (const file of toDelete) {
+        await fs_promises.unlink(path.join(backupDir, file)).catch(() => {});
+      }
+    }
+    
+    // Determine next version number
+    const latestVersion = backupFiles.reduce((max, file) => {
+      const version = parseInt(file.match(/backup_v(\d+)/)?.[1] || '0');
+      return Math.max(max, version);
+    }, 0);
+    
+    const newVersion = latestVersion + 1;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFileName = `backup_v${newVersion}_${timestamp}.json`;
+    const backupPath = path.join(backupDir, backupFileName);
+    
+    // Add version to backup data
+    const versionedData = {
+      ...backupData,
+      metadata: {
+        ...backupData.metadata,
+        version: newVersion,
+        backupDate: new Date().toISOString(),
+        fileName: backupFileName
+      }
+    };
+    
+    // Write backup file
+    await fs_promises.writeFile(backupPath, JSON.stringify(versionedData, null, 2));
+    
+    res.json({
+      success: true,
+      version: newVersion,
+      fileName: backupFileName,
+      message: `Backup version ${newVersion} created for media ${mediaId}`
+    });
+    
+  } catch (error: any) {
+    console.error('Error creating media backup:', error);
+    res.status(500).json({ error: error.message || 'Failed to create media backup' });
+  }
+});
+
+/**
+ * List backups for specific media in a project
+ */
+router.get('/:projectId/media/:mediaId/backups', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId } = req.params;
+    const userId = (req as any).user?.id || 'dev-anonymous';
+    
+    const backupDir = path.join(
+      process.cwd(), 
+      'user_data', 
+      'users', 
+      userId, 
+      'projects',
+      projectId,
+      'media',
+      mediaId,
+      'backups'
+    );
+    
+    // Check if backup directory exists
+    try {
+      await fs_promises.access(backupDir);
+    } catch {
+      return res.json({ success: true, backups: [] });
+    }
+    
+    // Read backup files
+    const files = await fs_promises.readdir(backupDir);
+    const backupFiles = files.filter(f => f.startsWith('backup_v') && f.endsWith('.json'));
+    
+    // Get details for each backup
+    const backups = await Promise.all(backupFiles.map(async (file) => {
+      const filePath = path.join(backupDir, file);
+      const stats = await fs_promises.stat(filePath);
+      const version = parseInt(file.match(/backup_v(\d+)/)?.[1] || '0');
+      
+      // Read file to get metadata
+      try {
+        const content = await fs_promises.readFile(filePath, 'utf-8');
+        const data = JSON.parse(content);
+        
+        return {
+          file,
+          version,
+          timestamp: stats.mtime.toISOString(),
+          size: stats.size,
+          blocks: data.blocks?.length || 0,
+          speakers: data.speakers?.length || 0,
+          remarks: data.remarks?.length || 0
+        };
+      } catch {
+        return {
+          file,
+          version,
+          timestamp: stats.mtime.toISOString(),
+          size: stats.size
+        };
+      }
+    }));
+    
+    // Sort by version descending (newest first)
+    backups.sort((a, b) => b.version - a.version);
+    
+    res.json({
+      success: true,
+      backups
+    });
+    
+  } catch (error: any) {
+    console.error('Error listing media backups:', error);
+    res.status(500).json({ error: error.message || 'Failed to list media backups' });
+  }
+});
+
+/**
+ * Get specific backup content for media
+ */
+router.get('/:projectId/media/:mediaId/backups/:backupFile', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId, backupFile } = req.params;
+    const userId = (req as any).user?.id || 'dev-anonymous';
+    
+    const backupPath = path.join(
+      process.cwd(), 
+      'user_data', 
+      'users', 
+      userId, 
+      'projects',
+      projectId,
+      'media',
+      mediaId,
+      'backups',
+      backupFile
+    );
+    
+    // Check if file exists
+    await fs_promises.access(backupPath);
+    
+    // Read and parse backup content
+    const content = await fs_promises.readFile(backupPath, 'utf-8');
+    const data = JSON.parse(content);
+    
+    res.json({
+      success: true,
+      ...data
+    });
+    
+  } catch (error: any) {
+    console.error('Error loading media backup:', error);
+    res.status(500).json({ error: error.message || 'Failed to load media backup' });
+  }
+});
+
+/**
  * Create project from folder with multiple media files
  */
 router.post('/create-from-folder', verifyUser, upload.array('files'), async (req: Request, res: Response) => {

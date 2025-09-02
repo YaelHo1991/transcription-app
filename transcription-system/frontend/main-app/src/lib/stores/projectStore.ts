@@ -98,8 +98,8 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           return;
         }
         
-        if (lastLoadTime && (now - lastLoadTime) < 5000) {
-          console.log('[ProjectStore] Recently loaded, skipping (throttled, wait 5s between loads)');
+        if (lastLoadTime && (now - lastLoadTime) < 2000) {
+          console.log('[ProjectStore] Recently loaded, skipping (throttled)');
           return;
         }
         
@@ -192,25 +192,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
       },
 
       // Set current project
-      setCurrentProject: async (project) => {
-        const { currentProject, currentMediaId } = get();
-        
-        // Trigger auto-save before switching projects
-        if (currentProject && currentMediaId && currentProject.projectId !== project?.projectId) {
-          console.log('[ProjectStore] Triggering auto-save before project switch');
-          const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
-            detail: { 
-              projectId: currentProject.projectId, 
-              mediaId: currentMediaId,
-              reason: 'project-switch'
-            }
-          });
-          document.dispatchEvent(saveEvent);
-          
-          // Wait a bit for save to complete
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
+      setCurrentProject: (project) => {
         set({ currentProject: project });
       },
 
@@ -340,26 +322,10 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
 
       // Navigate between media files
       navigateMedia: async (direction) => {
-        const { currentProject, currentMediaId } = get();
+        const { currentProject } = get();
         if (!currentProject || !currentProject.mediaFiles.length) {
           console.warn('[ProjectStore] No project or media files available for navigation');
           return;
-        }
-        
-        // Trigger auto-save before navigating
-        if (currentMediaId && currentProject.projectId) {
-          console.log('[ProjectStore] Triggering auto-save before navigation');
-          const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
-            detail: { 
-              projectId: currentProject.projectId, 
-              mediaId: currentMediaId,
-              reason: 'media-navigation'
-            }
-          });
-          document.dispatchEvent(saveEvent);
-          
-          // Wait a bit for save to complete
-          await new Promise(resolve => setTimeout(resolve, 100));
         }
         
         const currentIndex = currentProject.currentMediaIndex;

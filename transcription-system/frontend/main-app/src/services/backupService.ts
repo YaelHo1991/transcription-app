@@ -10,12 +10,31 @@ export interface BackupData {
     text: string;
     speaker?: string;
     timestamp?: string;
+    startTime?: number;
+    endTime?: number;
   }>;
   speakers: Array<{
+    id: string;
     code: string;
     name: string;
     description?: string;
+    color?: string;
+    count?: number;
   }>;
+  remarks?: Array<{
+    id: string;
+    text: string;
+    blockId: string;
+    timestamp: string;
+  }>;
+  metadata?: {
+    mediaId: string;
+    fileName: string;
+    originalName: string;
+    version?: number;
+    savedAt?: string;
+    autoSave?: boolean;
+  };
 }
 
 export interface BackupStatus {
@@ -43,7 +62,8 @@ class BackupService {
   private lastSaveTime: number = Date.now();
   private hasChanges: boolean = false;
   private isBackingUp: boolean = false;
-  private currentTranscriptionId: string | null = null;
+  private currentProjectId: string | null = null;
+  private currentMediaId: string | null = null;
   private statusListeners: Set<(status: BackupStatus) => void> = new Set();
   private currentVersion: number = 0;
   private lastError: string | null = null;
@@ -58,13 +78,15 @@ class BackupService {
   }
 
   /**
-   * Initialize auto-save for a transcription
+   * Initialize auto-save for a project/media
    */
   initAutoSave(
-    transcriptionId: string,
+    projectId: string,
+    mediaId: string,
     intervalMs: number = 60000 // 1 minute default
   ): void {
-    this.currentTranscriptionId = transcriptionId;
+    this.currentProjectId = projectId;
+    this.currentMediaId = mediaId;
     
     // Clear existing interval
     if (this.autoSaveInterval) {
@@ -76,7 +98,7 @@ class BackupService {
       this.checkAndSave();
     }, intervalMs);
 
-    console.log('Auto-save initialized for transcription ' + transcriptionId + ' every ' + intervalMs/1000 + 's');
+    console.log('Auto-save initialized for project ' + projectId + ' media ' + mediaId + ' every ' + intervalMs/1000 + 's');
   }
 
   /**
@@ -87,7 +109,8 @@ class BackupService {
       clearInterval(this.autoSaveInterval);
       this.autoSaveInterval = null;
     }
-    this.currentTranscriptionId = null;
+    this.currentProjectId = null;
+    this.currentMediaId = null;
     console.log('Auto-save stopped');
   }
 
@@ -103,25 +126,14 @@ class BackupService {
    * Check if backup is needed and perform it
    */
   private async checkAndSave(): Promise<void> {
-    // Always check DEV_MODE first
-    if (DEV_MODE) {
-      console.log('DEV MODE: Skipping auto-save check');
-      if (this.hasChanges) {
-        this.hasChanges = false;
-        this.lastSaveTime = Date.now();
-        this.currentVersion++;
-        this.notifyStatusListeners();
-      }
-      return;
-    }
-    
-    if (!this.hasChanges || this.isBackingUp || !this.currentTranscriptionId) {
+    // Skip if no changes or already backing up
+    if (!this.hasChanges || this.isBackingUp || !this.currentProjectId || !this.currentMediaId) {
       return;
     }
 
     const timeSinceLastSave = Date.now() - this.lastSaveTime;
     
-    // Only save if enough time has passed and there are changes
+    // Only save if enough time has passed (60 seconds) and there are changes
     if (timeSinceLastSave >= 60000 && this.hasChanges) {
       // Get the latest data from the editor
       const backupData = this.getBackupDataCallback?.();
@@ -135,8 +147,8 @@ class BackupService {
    * Force an immediate backup
    */
   async forceBackup(data: BackupData): Promise<void> {
-    if (!this.currentTranscriptionId) {
-      throw new Error('No transcription ID set');
+    if (!this.currentProjectId || !this.currentMediaId) {
+      throw new Error('No project or media ID set');
     }
     await this.createBackup(data);
   }
@@ -145,7 +157,7 @@ class BackupService {
    * Create a backup
    */
   private async createBackup(data: BackupData): Promise<void> {
-    if (this.isBackingUp || !this.currentTranscriptionId) {
+    if (this.isBackingUp || !this.currentProjectId || !this.currentMediaId) {
       return;
     }
 
@@ -153,43 +165,29 @@ class BackupService {
     this.lastError = null;
     this.notifyStatusListeners();
 
-    // In dev mode, always simulate backup
-    if (DEV_MODE) {
-      console.log('DEV MODE: Simulating backup for', this.currentTranscriptionId);
-      setTimeout(() => {
-        this.lastSaveTime = Date.now();
-        this.hasChanges = false;
-        this.currentVersion = this.currentVersion + 1;
-        this.isBackingUp = false;
-        this.notifyStatusListeners();
-        console.log('DEV MODE backup simulated: v' + this.currentVersion);
-      }, 500);
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
       
-      // For development without token, simulate backup
-      if (!token) {
-        console.log('No token: Simulating backup for', this.currentTranscriptionId);
-        setTimeout(() => {
-          this.lastSaveTime = Date.now();
-          this.hasChanges = false;
-          this.currentVersion = this.currentVersion + 1;
-          this.isBackingUp = false;
-          this.notifyStatusListeners();
-          console.log('No token backup simulated: v' + this.currentVersion);
-        }, 500);
-        return;
-      }
+      // Add metadata to the backup data
+      const backupPayload = {
+        ...data,
+        metadata: {
+          ...data.metadata,
+          mediaId: this.currentMediaId,
+          version: this.currentVersion + 1,
+          savedAt: new Date().toISOString(),
+          autoSave: true
+        }
+      };
       
+      // Use project backup endpoint
       const response = await axios.post(
-        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/trigger/${this.currentTranscriptionId}',
-        data,
+        `http://localhost:5000/api/projects/${this.currentProjectId}/media/${this.currentMediaId}/backup`,
+        backupPayload,
         {
           headers: {
-            Authorization: 'Bearer ' + token
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -197,12 +195,20 @@ class BackupService {
       if (response.data.success) {
         this.lastSaveTime = Date.now();
         this.hasChanges = false;
-        this.currentVersion = response.data.version;
-        console.log('Backup created: v' + response.data.version);
+        this.currentVersion = response.data.version || this.currentVersion + 1;
+        console.log('Backup created: v' + this.currentVersion + ' for media ' + this.currentMediaId);
       }
     } catch (error: any) {
       console.error('Backup failed:', error);
       this.lastError = error.response?.data?.error || 'Backup failed';
+      
+      // In development, still mark as saved to prevent constant retries
+      if (process.env.NODE_ENV === 'development') {
+        this.lastSaveTime = Date.now();
+        this.hasChanges = false;
+        this.currentVersion++;
+        console.log('Dev mode: Marked as saved despite error');
+      }
     } finally {
       this.isBackingUp = false;
       this.notifyStatusListeners();

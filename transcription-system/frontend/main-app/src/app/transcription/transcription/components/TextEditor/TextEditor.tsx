@@ -1228,26 +1228,44 @@ export default function TextEditor({
   
   // Initialize auto-save
   useEffect(() => {
-    if (autoSaveEnabled && currentTranscriptionId) {
-      backupService.initAutoSave(currentTranscriptionId, 60000); // 1 minute
+    if (autoSaveEnabled && currentProjectId && currentMediaId) {
+      backupService.initAutoSave(currentProjectId, currentMediaId, 60000); // 1 minute
       
-      // Set up data callback for backup service
+      // Set up data callback for backup service with complete data
       backupService.setDataCallback(() => {
         const blocks = blockManagerRef.current.getBlocks();
         const speakers = speakerManagerRef.current.getAllSpeakers();
+        const remarks = remarksContext?.state.remarks || [];
         
         return {
           blocks: blocks.map(block => ({
             id: block.id,
             text: block.text,
             speaker: block.speaker,
-            timestamp: block.speakerTime ? formatTime(block.speakerTime) : undefined
+            timestamp: block.speakerTime ? formatTime(block.speakerTime) : undefined,
+            startTime: block.startTime,
+            endTime: block.endTime
           })),
           speakers: speakers.map(speaker => ({
+            id: speaker.id,
             code: speaker.code,
             name: speaker.name,
-            description: speaker.description
-          }))
+            description: speaker.description,
+            color: speaker.color,
+            count: speaker.count
+          })),
+          remarks: remarks.map(remark => ({
+            id: remark.id,
+            text: remark.text,
+            blockId: remark.blockId,
+            timestamp: remark.timestamp
+          })),
+          metadata: {
+            mediaId: currentMediaId,
+            fileName: mediaName || '',
+            originalName: mediaName || '',
+            savedAt: new Date().toISOString()
+          }
         };
       });
     }
@@ -1256,7 +1274,7 @@ export default function TextEditor({
     return () => {
       backupService.stopAutoSave();
     };
-  }, [autoSaveEnabled, currentTranscriptionId]);
+  }, [autoSaveEnabled, currentProjectId, currentMediaId, mediaName, remarksContext]);
 
   // Use the media sync hook for synchronization - DISABLED
   const {
@@ -1438,9 +1456,11 @@ export default function TextEditor({
       }, 100);
     }
     
-    // Update backup service with new transcription ID
+    // Update backup service with project and media IDs
     backupService.stopAutoSave();
-    backupService.initAutoSave(transcription.id, 60000);
+    if (currentProjectId && currentMediaId) {
+      backupService.initAutoSave(currentProjectId, currentMediaId, 60000);
+    }
   }, []);
 
   // Handle transcription change from switcher
@@ -1452,9 +1472,11 @@ export default function TextEditor({
     // 3. Update blocks and speakers
     // 4. Update backup service with new transcription ID
     
-    // For now, just update the current transcription ID
+    // For now, just update the backup service with project/media IDs
     backupService.stopAutoSave();
-    backupService.initAutoSave(transcription.id, 60000);
+    if (currentProjectId && currentMediaId) {
+      backupService.initAutoSave(currentProjectId, currentMediaId, 60000);
+    }
     
     // Update media file name (mock data for now)
     const mockMediaFiles = {
@@ -3422,7 +3444,7 @@ export default function TextEditor({
           }
         }}
         transcriptionId={currentProjectId}
-        mediaId={currentProjectId}
+        mediaId={currentMediaId}
         transcriptionNumber={tCurrentTranscriptionNumber}
       />
       

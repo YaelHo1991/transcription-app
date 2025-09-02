@@ -1523,7 +1523,7 @@ export default function MediaPlayer({
                   →
                 </button>
                 <div className="t-nav-info-new">
-                  <div className="t-nav-name-wrapper">
+                  <div className={'t-nav-name-wrapper ' + (projectName && projectName.length > 15 ? 'scrolling' : '')}>
                     <div className={'t-nav-name ' + (projectName && projectName.length > 15 ? 'scroll-rtl' : '')}>
                       {projectName || 'ללא פרויקט'}
                     </div>
@@ -1545,7 +1545,7 @@ export default function MediaPlayer({
                   →
                 </button>
                 <div className="t-nav-info-new">
-                  <div className="t-nav-name-wrapper">
+                  <div className={'t-nav-name-wrapper ' + (mediaName && mediaName.length > 25 ? 'scrolling' : '')}>
                     <div className={'t-nav-name ' + (mediaName && mediaName.length > 25 ? 'scroll-rtl' : '')}>
                       {mediaName || 'ללא מדיה'}
                     </div>

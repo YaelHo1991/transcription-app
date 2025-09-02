@@ -2423,6 +2423,8 @@
 .navigation-wrapper {
   margin-bottom: 15px;
   position: relative;
+  padding: 0 10px;  /* Add horizontal padding to ensure content stays inside */
+  box-sizing: border-box;
 }
 
 .navigation-wrapper .section-content {
@@ -2475,12 +2477,16 @@
     #1a5d5d 100%     /* Back to medium dark */
   );
   border-radius: 10px;
-  padding: 8px 12px;  /* Standard padding */
+  padding: 8px 16px;  /* Increased horizontal padding */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(10px);
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: space-between;  /* Ensure proper spacing */
+  overflow: visible;  /* Allow proper display but contain with box-sizing */
+  position: relative;
+  box-sizing: border-box;
   transition: all 0.3s ease;
   width: 100%;
   box-sizing: border-box;
@@ -2514,18 +2520,22 @@
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(32, 201, 151, 0.5);
   color: #17a2b8;
-  padding: 2px 4px;
+  padding: 2px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;  /* Slightly smaller */
   font-weight: bold;
   transition: all 0.3s ease;
-  min-width: 22px;
-  height: 22px;
+  min-width: 20px;
+  width: 20px;  /* Slightly smaller */
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  flex-shrink: 0;  /* Prevent shrinking */
+  flex-grow: 0;  /* Prevent growing */
+  position: relative;  /* Keep button positioned properly */
+  z-index: 1;  /* Ensure arrows are above other content */
 }
 
 .t-nav-btn:hover:not(:disabled) {
@@ -2657,8 +2667,11 @@
   align-items: center;
   justify-content: center;  /* Center content */
   gap: 6px;
-  flex: 0 0 35%;  /* 35% width for projects */
-  padding: 0 2px;
+  flex: 0 1 30%;  /* Allow shrinking if needed */
+  padding: 0 4px;  /* Minimal padding */
+  position: relative;  /* Ensure proper containment */
+  box-sizing: border-box;  /* Include padding in width calculation */
+  overflow: hidden;  /* Hide any overflow */
 }
 
 .t-media-section-new {
@@ -2666,8 +2679,12 @@
   align-items: center;
   justify-content: center;  /* Center content */
   gap: 6px;
-  flex: 0 0 60%;  /* Reduced to 60% to give more space */
-  padding: 0 2px;
+  flex: 0 1 65%;  /* Slightly reduce width and allow shrinking */
+  padding: 0 4px;  /* Minimal padding */
+  max-width: 65%;  /* Reduced max width */
+  position: relative;  /* Ensure proper containment */
+  box-sizing: border-box;  /* Include padding in width calculation */
+  overflow: hidden;  /* Hide any overflow */
 }
 
 .t-nav-info-new {
@@ -2675,18 +2692,28 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;  /* Allow flexible sizing */
+  max-width: calc(100% - 60px);  /* Account for both arrow buttons (22px * 2 + margins) */
   overflow: hidden;
   align-items: center;  /* Center align content */
+  margin: 0 4px;  /* Small margin from buttons */
 }
 
 .t-nav-name-wrapper {
   width: 100%;
+  max-width: 100%;
   overflow: hidden;
   position: relative;
   height: 20px;  /* Increased height to prevent cutoff */
   display: flex;
   align-items: center;
+  justify-content: center;  /* Center short names */
+}
+
+/* Apply mask to scrolling names via additional class */
+.t-nav-name-wrapper.scrolling {
+  mask-image: linear-gradient(to left, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, transparent 0%, black 10%, black 90%, transparent 100%);
 }
 
 .t-nav-name {
@@ -2696,12 +2723,13 @@
   white-space: nowrap;
   display: inline-block;
   line-height: 20px;  /* Match wrapper height */
-  padding: 0 30px 0 0;  /* Padding for scroll effect */
 }
 
-/* Scrolling animation - RTL direction for both */
+/* Scrolling animation - RTL direction for long names */
 .t-nav-name.scroll-rtl {
-  animation: scroll-nav-rtl 15s linear infinite;
+  position: absolute;  /* Only absolute when scrolling */
+  padding: 0 50px;  /* Padding for smooth scroll */
+  animation: scroll-nav-rtl 20s linear infinite;  /* Slower for better readability */
 }
 
 @keyframes scroll-nav-rtl {
@@ -2711,6 +2739,14 @@
   100% {
     transform: translateX(-100%);
   }
+}
+
+/* For non-scrolling short names - default display */
+.t-nav-name:not(.scroll-rtl) {
+  position: relative;
+  padding: 0;
+  text-align: center;
+  width: 100%;
 }
 
 .t-nav-name-wrapper:hover .t-nav-name {
@@ -2732,6 +2768,8 @@
   align-items: center;
   white-space: nowrap;
   line-height: 14px;
+  justify-content: center;
+  flex-wrap: nowrap;  /* Prevent wrapping */
 }
 
 .t-nav-separator {
