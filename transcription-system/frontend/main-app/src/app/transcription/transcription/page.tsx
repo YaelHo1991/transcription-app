@@ -1151,6 +1151,9 @@ export default function TranscriptionWorkPage() {
                 onSpeakersChange={(speakers) => {
                   // Optional: handle speaker changes if needed
                   console.log('Speakers changed:', speakers);
+                  // Mark changes for auto-backup
+                  const backupService = require('@/services/backupService').default;
+                  backupService.markChanges();
                 }}
               />
             </div>

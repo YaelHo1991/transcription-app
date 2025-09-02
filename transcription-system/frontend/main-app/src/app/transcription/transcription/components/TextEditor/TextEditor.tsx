@@ -1230,12 +1230,16 @@ export default function TextEditor({
   // Initialize auto-save
   useEffect(() => {
     if (autoSaveEnabled && currentProjectId && currentMediaId) {
+      console.log('[AutoSave] Initializing for project:', currentProjectId, 'media:', currentMediaId);
       backupService.initAutoSave(currentProjectId, currentMediaId, 60000); // 1 minute
       
       // Set up data callback for backup service with complete data
       backupService.setDataCallback(() => {
+        console.log('[Backup] Creating backup for media:', currentMediaId, 'with mediaName:', mediaName);
         const blocks = blockManagerRef.current.getBlocks();
-        const speakers = speakerManagerRef.current.getAllSpeakers();
+        // Get speakers from SimpleSpeaker component which has the actual names
+        const speakers = speakerComponentRef?.current?.getAllSpeakers() || speakerManagerRef.current.getAllSpeakers();
+        console.log('[Backup] Saving speakers:', speakers.length, 'speakers:', speakers.map(s => s.name));
         const remarks = remarksContext?.state.remarks || [];
         
         return {
@@ -1257,9 +1261,28 @@ export default function TextEditor({
           })),
           remarks: remarks.map(remark => ({
             id: remark.id,
-            text: remark.text,
+            type: remark.type,
+            content: remark.content || remark.text,
+            text: remark.text || remark.content,
             blockId: remark.blockId,
-            timestamp: remark.timestamp
+            timestamp: remark.timestamp,
+            status: remark.status,
+            createdAt: remark.createdAt,
+            updatedAt: remark.updatedAt,
+            position: remark.position,
+            color: remark.color,
+            // Additional properties for specific remark types
+            ...(remark.type === 'UNCERTAINTY' && {
+              confidence: remark.confidence,
+              originalText: remark.originalText,
+              correctedText: remark.correctedText
+            }),
+            ...(remark.type === 'SPELLING' && {
+              term: remark.term,
+              occurrences: remark.occurrences,
+              suggestions: remark.suggestions,
+              standardized: remark.standardized
+            })
           })),
           metadata: {
             mediaId: currentMediaId,
@@ -1269,13 +1292,21 @@ export default function TextEditor({
           }
         };
       });
+    } else if (!autoSaveEnabled || !currentProjectId || !currentMediaId) {
+      console.log('[AutoSave] Stopping - conditions not met:', {
+        autoSaveEnabled,
+        hasProjectId: !!currentProjectId,
+        hasMediaId: !!currentMediaId
+      });
+      backupService.stopAutoSave();
     }
     
-    // Cleanup auto-save on unmount
+    // Cleanup auto-save on unmount or when dependencies change
     return () => {
+      console.log('[AutoSave] Cleanup - stopping auto-save');
       backupService.stopAutoSave();
     };
-  }, [autoSaveEnabled, currentProjectId, currentMediaId, mediaName, remarksContext]);
+  }, [autoSaveEnabled, currentProjectId, currentMediaId, mediaName, remarksContext, speakerComponentRef]);
 
   // Use the media sync hook for synchronization - DISABLED
   const {
@@ -1916,7 +1947,10 @@ export default function TextEditor({
         id: block.id,
         speaker: block.speaker || '',
         text: block.text || '',
-        speakerTime: block.speakerTime !== undefined ? block.speakerTime : (block.timestamp ? parseFloat(block.timestamp) : undefined),
+        // Handle both direct speakerTime (as number) and timestamp (as formatted string)
+        speakerTime: block.speakerTime !== undefined 
+          ? (typeof block.speakerTime === 'number' ? block.speakerTime : parseTime(block.speakerTime))
+          : (block.timestamp ? parseTime(block.timestamp) : undefined),
         timestamp: block.timestamp,
         duration: block.duration,
         isEdited: block.isEdited
@@ -3376,7 +3410,10 @@ export default function TextEditor({
                   id: block.id,
                   speaker: block.speaker || '',
                   text: block.text || '',
-                  speakerTime: block.speakerTime !== undefined ? block.speakerTime : (block.timestamp ? parseFloat(block.timestamp) : undefined)
+                  // Handle both direct speakerTime (as number) and timestamp (as formatted string)
+                  speakerTime: block.speakerTime !== undefined 
+                    ? (typeof block.speakerTime === 'number' ? block.speakerTime : parseTime(block.speakerTime))
+                    : (block.timestamp ? parseTime(block.timestamp) : undefined)
                 }));
                 
                 // Update blockManagerRef AND state like in loadProjectData
@@ -3424,11 +3461,27 @@ export default function TextEditor({
                   data.remarks.forEach((remarkData: any) => {
                     remarksContext.addRemark({
                       blockId: remarkData.blockId,
-                      text: remarkData.text,
+                      text: remarkData.text || remarkData.content,
+                      content: remarkData.content || remarkData.text,
                       type: remarkData.type,
                       status: remarkData.status,
                       timestamp: remarkData.timestamp,
-                      position: remarkData.position
+                      position: remarkData.position,
+                      createdAt: remarkData.createdAt,
+                      updatedAt: remarkData.updatedAt,
+                      color: remarkData.color,
+                      // Type-specific properties
+                      ...(remarkData.type === 'UNCERTAINTY' && {
+                        confidence: remarkData.confidence,
+                        originalText: remarkData.originalText,
+                        correctedText: remarkData.correctedText
+                      }),
+                      ...(remarkData.type === 'SPELLING' && {
+                        term: remarkData.term,
+                        occurrences: remarkData.occurrences,
+                        suggestions: remarkData.suggestions,
+                        standardized: remarkData.standardized
+                      })
                     });
                   });
                 }
@@ -3598,4 +3651,22 @@ function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
   return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0') + '.' + ms.toString().padStart(2, '0');
+}
+
+// Helper function to parse time from formatted string back to seconds
+function parseTime(timeString: string): number | undefined {
+  if (!timeString) return undefined;
+  
+  // Handle format: "MM:SS.MS" or "MM:SS"
+  const parts = timeString.split(':');
+  if (parts.length !== 2) return undefined;
+  
+  const mins = parseInt(parts[0], 10);
+  const secParts = parts[1].split('.');
+  const secs = parseInt(secParts[0], 10);
+  const ms = secParts.length > 1 ? parseInt(secParts[1], 10) : 0;
+  
+  if (isNaN(mins) || isNaN(secs)) return undefined;
+  
+  return mins * 60 + secs + (ms / 100);
 }

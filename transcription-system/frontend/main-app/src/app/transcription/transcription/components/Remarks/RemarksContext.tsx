@@ -303,6 +303,13 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
   const addRemark = (remark: Omit<Remark, 'id' | 'createdAt' | 'updatedAt'>) => {
     const timestamp = typeof window !== 'undefined' ? Date.now() : 0;
     const randomStr = typeof window !== 'undefined' ? Math.random().toString(36).substring(2, 11) : 'default';
+    
+    // Mark changes for auto-backup
+    if (typeof window !== 'undefined') {
+      const backupService = require('@/services/backupService').default;
+      backupService.markChanges();
+    }
+    
     const newRemark: Remark = {
       ...remark,
       id: 'remark-' + timestamp + '-' + randomStr,
@@ -324,6 +331,12 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
    */
   const updateRemark = (id: string, updates: Partial<Remark>) => {
     dispatch({ type: RemarkAction.UPDATE, payload: { id, updates } });
+    
+    // Mark changes for auto-backup
+    if (typeof window !== 'undefined') {
+      const backupService = require('@/services/backupService').default;
+      backupService.markChanges();
+    }
 
     // Dispatch custom event
     const event = new CustomEvent(RemarkEvent.UPDATE, {
@@ -337,6 +350,12 @@ export function RemarksProvider({ children, transcriptionId, initialRemarks }: R
    */
   const deleteRemark = (id: string) => {
     dispatch({ type: RemarkAction.DELETE, payload: id });
+    
+    // Mark changes for auto-backup
+    if (typeof window !== 'undefined') {
+      const backupService = require('@/services/backupService').default;
+      backupService.markChanges();
+    }
 
     // Dispatch custom event
     const event = new CustomEvent(RemarkEvent.DELETE, {
