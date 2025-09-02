@@ -63,8 +63,13 @@ app.use(express.urlencoded(requestSizeLimit.urlencoded));
 // Security middleware - Apply AFTER body parsing
 app.use(sqlInjectionProtection);
 
-// Rate limiting - Apply to all routes
-app.use('/api/', apiRateLimiter);
+// Rate limiting - Apply to all routes (skip in development)
+const isDev = process.env.NODE_ENV?.trim() === 'development' || process.env.ENABLE_DEV_TOOLS === 'true';
+if (!isDev) {
+  app.use('/api/', apiRateLimiter);
+} else {
+  console.log('⚠️  Rate limiting disabled in development mode');
+}
 
 // Import routes and middleware
 import devToolsRouter from './api/dev/routes';

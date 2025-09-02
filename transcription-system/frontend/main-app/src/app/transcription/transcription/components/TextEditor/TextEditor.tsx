@@ -66,6 +66,7 @@ export default function TextEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [editorRefreshKey, setEditorRefreshKey] = useState(0); // Force re-render after version restore
   
   // Project store
   const { saveMediaData } = useProjectStore();
@@ -3176,7 +3177,7 @@ export default function TextEditor({
           </div>
           
           {/* Blocks Container */}
-          <div className="blocks-container">
+          <div className="blocks-container" key={editorRefreshKey}>
             {console.log('[TextEditor] Rendering blocks:', { 
               blockCount: blocks.length, 
               virtualizationEnabled,
@@ -3188,6 +3189,7 @@ export default function TextEditor({
               </div>
             ) : virtualizationEnabled ? (
               <SlidingWindowTextEditor
+                key={editorRefreshKey}
                 blocks={blocks}
                 activeBlockId={activeBlockId}
                 activeArea={activeArea}
@@ -3435,6 +3437,17 @@ export default function TextEditor({
                 tLastSavedContent.current = JSON.stringify(data.blocks);
                 setTHasChanges(false);
                 setTLastSaveTime(new Date());
+                
+                // Force refresh of the editor to show restored content immediately
+                setActiveBlockId(null);
+                setEditorRefreshKey(prev => prev + 1); // Force complete re-render
+                setTimeout(() => {
+                  // Set focus to first block after a brief delay
+                  if (restoredBlocks.length > 0) {
+                    setActiveBlockId(restoredBlocks[0].id);
+                    setActiveArea('text');
+                  }
+                }, 100);
                 
                 console.log('[T-Session] Successfully restored to version ' + version.version);
               }
