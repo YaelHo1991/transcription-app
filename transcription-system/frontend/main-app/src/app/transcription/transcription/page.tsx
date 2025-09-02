@@ -6,6 +6,7 @@ import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
+import ProjectManagementModal from './components/ProjectManagementModal/ProjectManagementModal';
 import WorkspaceHeader from './components/WorkspaceHeader/WorkspaceHeader';
 import HelperFiles from './components/HelperFiles/HelperFiles';
 import MediaPlayer from './components/MediaPlayer';
@@ -169,6 +170,10 @@ export default function TranscriptionWorkPage() {
   
   // Authentication required modal
   const [showAuthRequiredModal, setShowAuthRequiredModal] = useState(false);
+  
+  // Project Management Modal state
+  const [showManagementModal, setShowManagementModal] = useState(false);
+  const [managementModalTab, setManagementModalTab] = useState<'projects' | 'transcriptions' | 'duration' | 'progress'>('projects');
   
   const speakerComponentRef = useRef<SimpleSpeakerHandle>(null);
   
@@ -687,6 +692,56 @@ export default function TranscriptionWorkPage() {
     setSidebarLocked(locked);
   }, []);
 
+  // Handler for opening management modal from sidebar
+  const handleOpenManagementModal = useCallback((tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => {
+    setManagementModalTab(tab);
+    setShowManagementModal(true);
+  }, []);
+
+  // Handler for project deletion
+  const handleProjectDelete = async (projectId: string, deleteTranscriptions: boolean) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
+      });
+      
+      if (response.ok) {
+        // Reload projects through the store
+        const { loadProjects } = useProjectStore.getState();
+        await loadProjects();
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+    }
+  };
+
+  // Handler for media deletion
+  const handleMediaDelete = async (projectId: string, mediaId: string, deleteTranscriptions: boolean) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
+      });
+      
+      if (response.ok) {
+        // Reload projects through the store
+        const { loadProjects } = useProjectStore.getState();
+        await loadProjects();
+      }
+    } catch (error) {
+      console.error('Failed to delete media:', error);
+    }
+  };
+
   return (
     <HoveringBarsLayout
       headerContent={
@@ -705,7 +760,13 @@ export default function TranscriptionWorkPage() {
           themeColor="teal"
         />
       }
-      sidebarContent={<TranscriptionSidebar />}
+      sidebarContent={
+        <TranscriptionSidebar 
+          onOpenManagementModal={handleOpenManagementModal}
+          onProjectDelete={handleProjectDelete}
+          onMediaDelete={handleMediaDelete}
+        />
+      }
       theme="transcription"
       onHeaderLockChange={handleHeaderLockChange}
       onSidebarLockChange={handleSidebarLockChange}
@@ -1229,6 +1290,16 @@ export default function TranscriptionWorkPage() {
         message="פג תוקף ההתחברות שלך. אנא התחבר מחדש כדי להמשיך."
         system="transcription"
         themeColor="teal"
+      />
+
+      {/* Project Management Modal - Rendered at page level for proper overlay */}
+      <ProjectManagementModal
+        isOpen={showManagementModal}
+        onClose={() => setShowManagementModal(false)}
+        activeTab={managementModalTab}
+        projects={projects}
+        onProjectDelete={handleProjectDelete}
+        onMediaDelete={handleMediaDelete}
       />
     </HoveringBarsLayout>
   );

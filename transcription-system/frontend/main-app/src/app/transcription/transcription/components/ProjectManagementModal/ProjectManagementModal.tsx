@@ -3,14 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import './ProjectManagementModal.css';
 
+interface MediaInfo {
+  mediaId: string;
+  name: string;
+  size: number; // Size in bytes
+  duration: number; // Duration in seconds
+  mimeType?: string;
+}
+
 interface Project {
   projectId: string;
   displayName: string;
   totalMedia: number;
-  size?: number; // Size in bytes
+  size?: number; // Total size in bytes
   createdAt: string;
   lastModified: string;
   mediaFiles: string[];
+  mediaInfo?: MediaInfo[]; // Detailed info for each media file
 }
 
 interface ArchivedTranscription {
@@ -85,12 +94,10 @@ export default function ProjectManagementModal({
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    // Always return HH:MM:SS format
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleDeleteClick = (type: 'project' | 'media', id: string, mediaId?: string) => {
@@ -147,9 +154,27 @@ export default function ProjectManagementModal({
   };
 
   const calculateTotalDuration = () => {
-    // This will be calculated from actual media metadata
-    // For now returning placeholder
-    return 0;
+    // Calculate total duration from all media files
+    let totalSeconds = 0;
+    projects.forEach(project => {
+      if (project.mediaInfo) {
+        project.mediaInfo.forEach(media => {
+          totalSeconds += media.duration || 0;
+        });
+      }
+    });
+    return totalSeconds;
+  };
+  
+  const calculateProjectSize = (project: Project) => {
+    if (project.mediaInfo) {
+      return project.mediaInfo.reduce((total, media) => total + (media.size || 0), 0);
+    }
+    return project.size || 0;
+  };
+  
+  const calculateTotalSize = () => {
+    return projects.reduce((total, project) => total + calculateProjectSize(project), 0);
   };
 
   if (!isOpen) return null;
@@ -193,64 +218,106 @@ export default function ProjectManagementModal({
           {/* Projects Tab */}
           {currentTab === 'projects' && (
             <div className="projects-tab">
-              <div className="projects-list-management">
-                {projects.map(project => (
-                  <div 
-                    key={project.projectId} 
-                    className={`project-management-item ${selectedProject === project.projectId ? 'selected' : ''}`}
-                    onClick={() => setSelectedProject(project.projectId)}
-                  >
-                    <div className="project-info">
-                      <h3>{project.displayName}</h3>
-                      <div className="project-meta">
-                        <span>📁 {project.totalMedia} קבצים</span>
-                        <span>💾 {formatSize(project.size || 0)}</span>
-                        <span>📅 {new Date(project.lastModified).toLocaleDateString('he-IL')}</span>
+              <div className="projects-stats-bar">
+                <span>סה"כ פרויקטים: {projects.length}</span>
+                <span>נפח כולל: {formatSize(calculateTotalSize())}</span>
+                <span>משך כולל: {formatDuration(calculateTotalDuration())}</span>
+              </div>
+              <div className="projects-grid">
+                {projects.map(project => {
+                  const projectSize = calculateProjectSize(project);
+                  return (
+                    <div 
+                      key={project.projectId} 
+                      className={`project-grid-item ${selectedProject === project.projectId ? 'selected' : ''}`}
+                      onClick={() => setSelectedProject(selectedProject === project.projectId ? null : project.projectId)}
+                    >
+                      <div className="project-icon">📁</div>
+                      <div className="project-name">{project.displayName}</div>
+                      <div className="project-stats">
+                        <span>{project.totalMedia} קבצים</span>
+                        <span>{formatSize(projectSize)}</span>
                       </div>
-                    </div>
-                    
-                    <div className="project-actions">
-                      <button 
-                        className="delete-project-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick('project', project.projectId);
-                        }}
-                      >
-                        🗑️ מחק פרויקט
-                      </button>
-                      <button 
-                        className="delete-media-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick('project', project.projectId);
-                        }}
-                      >
-                        🎵 מחק מדיה בלבד
-                      </button>
-                    </div>
+                      <div className="project-date">
+                        {new Date(project.lastModified).toLocaleDateString('he-IL')}
+                      </div>
+                      
+                      <div className="project-hover-actions">
+                        <button 
+                          className="delete-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick('project', project.projectId);
+                          }}
+                          title="מחק פרויקט"
+                        >
+                          🗑️
+                        </button>
+                      </div>
 
-                    {selectedProject === project.projectId && (
-                      <div className="media-files-list">
-                        <h4>קבצי מדיה:</h4>
-                        {project.mediaFiles.map((mediaId, index) => (
-                          <div key={mediaId} className="media-file-item">
-                            <span>מדיה {index + 1}</span>
-                            <button 
-                              className="delete-media-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteClick('media', project.projectId, mediaId);
-                              }}
-                            >
-                              🗑️
-                            </button>
+                      {selectedProject === project.projectId && (
+                        <>
+                          <div className="media-details-overlay" onClick={() => setSelectedProject(null)} />
+                          <div className="media-details-panel">
+                            <button className="close-panel-btn" onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProject(null);
+                            }}>×</button>
+                            <h4>קבצי מדיה - {project.displayName}</h4>
+                            <div className="media-list-detailed">
+                            {project.mediaInfo && project.mediaInfo.length > 0 ? (
+                              project.mediaInfo.map((media) => (
+                                <div key={media.mediaId} className="media-detail-item">
+                                  <div className="media-icon">🎵</div>
+                                  <div className="media-info">
+                                    <div className="media-name">{media.name}</div>
+                                    <div className="media-meta">
+                                      <span>{formatSize(media.size)}</span>
+                                      <span>{formatDuration(media.duration)}</span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    className="delete-media-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteClick('media', project.projectId, media.mediaId);
+                                    }}
+                                    title="מחק מדיה"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              ))
+                            ) : (
+                              project.mediaFiles.map((mediaId, index) => (
+                                <div key={mediaId} className="media-detail-item">
+                                  <div className="media-icon">🎵</div>
+                                  <div className="media-info">
+                                    <div className="media-name">קובץ {index + 1}</div>
+                                    <div className="media-meta">
+                                      <span className="media-id">{mediaId}</span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    className="delete-media-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteClick('media', project.projectId, mediaId);
+                                    }}
+                                    title="מחק מדיה"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              ))
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                        </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -314,22 +381,45 @@ export default function ProjectManagementModal({
               <h3>משך כולל של קבצי מדיה</h3>
               <div className="total-duration">
                 <span className="duration-value">{formatDuration(calculateTotalDuration())}</span>
+                <div className="duration-breakdown">
+                  <span>סה"כ פרויקטים: {projects.length}</span>
+                  <span>סה"כ קבצים: {projects.reduce((sum, p) => sum + p.totalMedia, 0)}</span>
+                </div>
               </div>
               
               <div className="projects-duration-list">
-                {projects.map(project => (
-                  <div key={project.projectId} className="project-duration-item">
-                    <h4>{project.displayName}</h4>
-                    <div className="media-duration-list">
-                      {project.mediaFiles.map((mediaId, index) => (
-                        <div key={mediaId} className="media-duration-item">
-                          <span>מדיה {index + 1}</span>
-                          <span className="duration">00:00</span>
-                        </div>
-                      ))}
+                {projects.map(project => {
+                  const projectDuration = project.mediaInfo 
+                    ? project.mediaInfo.reduce((sum, media) => sum + (media.duration || 0), 0)
+                    : 0;
+                  return (
+                    <div key={project.projectId} className="project-duration-item">
+                      <div className="project-duration-header">
+                        <h4>{project.displayName}</h4>
+                        <span className="project-total-duration">{formatDuration(projectDuration)}</span>
+                      </div>
+                      <div className="media-duration-list">
+                        {project.mediaInfo && project.mediaInfo.length > 0 ? (
+                          project.mediaInfo.map((media) => (
+                            <div key={media.mediaId} className="media-duration-item">
+                              <div className="media-icon-small">🎵</div>
+                              <span className="media-name">{media.name}</span>
+                              <span className="duration">{formatDuration(media.duration)}</span>
+                            </div>
+                          ))
+                        ) : (
+                          project.mediaFiles.map((mediaId, index) => (
+                            <div key={mediaId} className="media-duration-item">
+                              <div className="media-icon-small">🎵</div>
+                              <span className="media-name">קובץ {index + 1}</span>
+                              <span className="duration">00:00:00</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

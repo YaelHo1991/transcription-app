@@ -3,19 +3,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import useProjectStore from '@/lib/stores/projectStore';
 import { NotificationModal, useNotification } from '@/components/NotificationModal/NotificationModal';
-import ProjectManagementModal from '../ProjectManagementModal/ProjectManagementModal';
 import './TranscriptionSidebar.css';
 
-interface TranscriptionSidebarProps {
-  // Add props as needed
+export interface TranscriptionSidebarProps {
+  onOpenManagementModal?: (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => void;
+  onProjectDelete?: (projectId: string, deleteTranscriptions: boolean) => Promise<void>;
+  onMediaDelete?: (projectId: string, mediaId: string, deleteTranscriptions: boolean) => Promise<void>;
 }
 
 export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   console.log('[TranscriptionSidebar] Component function called');
   
   const [isMounted, setIsMounted] = useState(false);
-  const [showManagementModal, setShowManagementModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'projects' | 'transcriptions' | 'duration' | 'progress'>('projects');
   
   const { 
     projects,
@@ -80,11 +79,16 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   };
   
   const handleStatClick = (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => {
-    setActiveTab(tab);
-    setShowManagementModal(true);
+    if (props.onOpenManagementModal) {
+      props.onOpenManagementModal(tab);
+    }
   };
   
   const handleProjectDelete = async (projectId: string, deleteTranscriptions: boolean) => {
+    if (props.onProjectDelete) {
+      return props.onProjectDelete(projectId, deleteTranscriptions);
+    }
+    // Default implementation if no handler provided
     try {
       const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
         method: 'DELETE',
@@ -108,6 +112,10 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   };
   
   const handleMediaDelete = async (projectId: string, mediaId: string, deleteTranscriptions: boolean) => {
+    if (props.onMediaDelete) {
+      return props.onMediaDelete(projectId, mediaId, deleteTranscriptions);
+    }
+    // Default implementation if no handler provided
     try {
       const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}`, {
         method: 'DELETE',
@@ -218,16 +226,6 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   
   return (
     <>
-      {/* Project Management Modal */}
-      <ProjectManagementModal
-        isOpen={showManagementModal}
-        onClose={() => setShowManagementModal(false)}
-        activeTab={activeTab}
-        projects={projects}
-        onProjectDelete={handleProjectDelete}
-        onMediaDelete={handleMediaDelete}
-      />
-      
       <div className="transcription-sidebar-content">
         {/* Upload button at top of sidebar */}
       <div className="sidebar-upload-section">
