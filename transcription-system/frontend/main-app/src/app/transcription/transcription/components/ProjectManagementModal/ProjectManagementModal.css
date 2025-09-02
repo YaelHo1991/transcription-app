@@ -1,0 +1,482 @@
+/* Project Management Modal Styles */
+
+.project-management-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.project-management-modal {
+  background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 1200px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+  color: white;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Modal Header */
+.modal-header {
+  padding: 20px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-button:hover {
+  transform: scale(1.1);
+}
+
+/* Tabs */
+.modal-tabs {
+  display: flex;
+  padding: 0 30px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tab {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 15px 25px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  margin-right: 10px;
+}
+
+.tab:hover {
+  color: white;
+}
+
+.tab.active {
+  color: white;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: white;
+}
+
+/* Content Area */
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px;
+}
+
+/* Projects Tab */
+.projects-tab h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.projects-list-management {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.project-management-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.project-management-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-5px);
+}
+
+.project-management-item.selected {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: white;
+}
+
+.project-info h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+}
+
+.project-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 15px;
+}
+
+.project-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.delete-project-btn,
+.delete-media-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(220, 38, 38, 0.2);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.delete-project-btn:hover,
+.delete-media-btn:hover {
+  background: rgba(220, 38, 38, 0.4);
+  transform: translateY(-2px);
+}
+
+.media-files-list {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.media-files-list h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+.media-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+/* Transcriptions Tab */
+.transcriptions-tab h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.archived-transcriptions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.no-archived {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 40px;
+  font-size: 18px;
+}
+
+.archived-transcription-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.transcription-info h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+.transcription-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 15px;
+}
+
+.transcription-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.preview-btn,
+.export-word-btn,
+.export-json-btn,
+.delete-transcription-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.preview-btn:hover,
+.export-word-btn:hover,
+.export-json-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.delete-transcription-btn {
+  background: rgba(220, 38, 38, 0.2);
+}
+
+.delete-transcription-btn:hover {
+  background: rgba(220, 38, 38, 0.4);
+}
+
+/* Duration Tab */
+.duration-tab h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.total-duration {
+  text-align: center;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.duration-value {
+  font-size: 48px;
+  font-weight: bold;
+}
+
+.projects-duration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.project-duration-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.project-duration-item h4 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+}
+
+.media-duration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media-duration-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.duration {
+  font-weight: 600;
+}
+
+/* Progress Tab */
+.progress-tab {
+  text-align: center;
+  padding: 60px;
+}
+
+.progress-tab h3 {
+  margin-bottom: 20px;
+}
+
+.placeholder-message {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+}
+
+/* Confirmation Dialog */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.confirm-dialog {
+  background: #134e4a;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.confirm-dialog h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  text-align: center;
+}
+
+.confirm-dialog p {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.delete-options {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.delete-options label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.delete-options input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.archive-note {
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.confirm-btn,
+.cancel-btn {
+  padding: 10px 30px;
+  border-radius: 6px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.confirm-btn {
+  background: #dc2626;
+  color: white;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-2px);
+}
+
+.cancel-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.confirm-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Scrollbar Styling */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}

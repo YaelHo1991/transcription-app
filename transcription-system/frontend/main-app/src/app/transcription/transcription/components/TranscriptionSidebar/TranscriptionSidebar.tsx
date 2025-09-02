@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import useProjectStore from '@/lib/stores/projectStore';
 import { NotificationModal, useNotification } from '@/components/NotificationModal/NotificationModal';
+import ProjectManagementModal from '../ProjectManagementModal/ProjectManagementModal';
 import './TranscriptionSidebar.css';
 
 interface TranscriptionSidebarProps {
@@ -13,6 +14,8 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   console.log('[TranscriptionSidebar] Component function called');
   
   const [isMounted, setIsMounted] = useState(false);
+  const [showManagementModal, setShowManagementModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'projects' | 'transcriptions' | 'duration' | 'progress'>('projects');
   
   const { 
     projects,
@@ -64,6 +67,67 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     setTimeout(() => {
       folderInputRef.current?.click();
     }, 500);
+  };
+  
+  // Helper functions for statistics
+  const getTotalTranscriptions = () => {
+    return projects.reduce((total, project) => total + (project.totalMedia || 0), 0);
+  };
+  
+  const getTotalDuration = () => {
+    // For now return placeholder - will be calculated from media metadata
+    return '00:00';
+  };
+  
+  const handleStatClick = (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => {
+    setActiveTab(tab);
+    setShowManagementModal(true);
+  };
+  
+  const handleProjectDelete = async (projectId: string, deleteTranscriptions: boolean) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
+      });
+      
+      if (response.ok) {
+        showNotification('הפרויקט נמחק בהצלחה', 'success');
+        await loadProjects();
+      } else {
+        showNotification('שגיאה במחיקת הפרויקט', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      showNotification('שגיאה במחיקת הפרויקט', 'error');
+    }
+  };
+  
+  const handleMediaDelete = async (projectId: string, mediaId: string, deleteTranscriptions: boolean) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
+      });
+      
+      if (response.ok) {
+        showNotification('קובץ המדיה נמחק בהצלחה', 'success');
+        await loadProjects();
+      } else {
+        showNotification('שגיאה במחיקת קובץ המדיה', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete media:', error);
+      showNotification('שגיאה במחיקת קובץ המדיה', 'error');
+    }
   };
   
   const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +218,16 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   
   return (
     <>
+      {/* Project Management Modal */}
+      <ProjectManagementModal
+        isOpen={showManagementModal}
+        onClose={() => setShowManagementModal(false)}
+        activeTab={activeTab}
+        projects={projects}
+        onProjectDelete={handleProjectDelete}
+        onMediaDelete={handleMediaDelete}
+      />
+      
       <div className="transcription-sidebar-content">
         {/* Upload button at top of sidebar */}
       <div className="sidebar-upload-section">
@@ -169,23 +243,23 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       </div>
       
       <div className="sidebar-stats">
-        <h3 className="sidebar-stats-title">סטטיסטיקות (v2)</h3>
+        <h3 className="sidebar-stats-title">סטטיסטיקות</h3>
         <div className="sidebar-stats-grid">
-          <div className="sidebar-stat-item">
-            <div className="sidebar-stat-number">12</div>
+          <div className="sidebar-stat-item clickable" onClick={() => handleStatClick('projects')}>
+            <div className="sidebar-stat-number">{projects.length}</div>
             <div className="sidebar-stat-label">פרויקטים</div>
           </div>
-          <div className="sidebar-stat-item">
-            <div className="sidebar-stat-number">48</div>
-            <div className="sidebar-stat-label">קבצים</div>
+          <div className="sidebar-stat-item clickable" onClick={() => handleStatClick('transcriptions')}>
+            <div className="sidebar-stat-number">{getTotalTranscriptions()}</div>
+            <div className="sidebar-stat-label">תמלולים</div>
           </div>
-          <div className="sidebar-stat-item">
-            <div className="sidebar-stat-number">15:30</div>
-            <div className="sidebar-stat-label">שעות</div>
+          <div className="sidebar-stat-item clickable" onClick={() => handleStatClick('duration')}>
+            <div className="sidebar-stat-number">{getTotalDuration()}</div>
+            <div className="sidebar-stat-label">משך כולל</div>
           </div>
-          <div className="sidebar-stat-item">
-            <div className="sidebar-stat-number">85%</div>
-            <div className="sidebar-stat-label">הושלם</div>
+          <div className="sidebar-stat-item clickable" onClick={() => handleStatClick('progress')}>
+            <div className="sidebar-stat-number">-</div>
+            <div className="sidebar-stat-label">התקדמות</div>
           </div>
         </div>
       </div>

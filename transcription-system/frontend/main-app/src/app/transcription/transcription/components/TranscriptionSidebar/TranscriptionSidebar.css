@@ -30,7 +30,7 @@
   width: 100%;
   padding: 10px 0;  /* Vertical padding only */
   margin: 0;
-  overflow-y: auto;
+  overflow-y: hidden;  /* Remove scrollbar from here */
   box-sizing: border-box;
 }
 
@@ -83,6 +83,16 @@
   min-height: 60px;  /* Minimum height */
 }
 
+.theme-transcription .sidebar-stat-item.clickable {
+  cursor: pointer;
+}
+
+.theme-transcription .sidebar-stat-item.clickable:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 .theme-transcription .hovering-sidebar.locked .sidebar-stat-item {
   padding: 5px;
 }
@@ -125,6 +135,9 @@
   margin-top: 10px;
   width: 100%;
   padding: 0;
+  flex: 1;
+  overflow-y: auto;  /* Add scrollbar only here */
+  min-height: 0;  /* Important for flex child scrolling */
 }
 
 .theme-transcription .project-item {
