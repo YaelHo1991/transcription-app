@@ -19,7 +19,15 @@
       "Bash(npm start)",
       "Bash(cmd //c:*)",
       "Bash(dir:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm install:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(cmd /c:*)",
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "Bash(wmic process:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": [],

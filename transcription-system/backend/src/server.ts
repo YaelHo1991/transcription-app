@@ -108,6 +108,35 @@ if (isDevelopment) {
   });
 }
 
+// TEMPORARY: Direct test endpoints to debug the issue
+app.get('/api/projects/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Test endpoint works!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// TEMPORARY: Hardcoded project list for testing
+app.get('/api/projects/list-test', (req, res) => {
+  res.json({
+    success: true,
+    projects: [
+      {
+        projectId: 'test-001',
+        name: 'Test Project 1',
+        displayName: 'Test Project 1',
+        mediaFiles: ['media-1', 'media-2'],
+        totalMedia: 2,
+        currentMediaIndex: 0,
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      }
+    ],
+    count: 1
+  });
+});
+
 // Production API routes
 app.use('/api', apiRouter);
 

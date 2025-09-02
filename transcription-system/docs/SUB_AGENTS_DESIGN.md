@@ -436,7 +436,7 @@ OWASP Top 10 focus:
 - "Use security-scanner: check for XSS vulnerabilities"
 
 ---
-
+****
 ## 5. UI/UX Enhancement Agents
 
 ### theme-coordinator
@@ -452,9 +452,9 @@ tools: Read, Edit, MultiEdit, Glob
 
 You are a UI theme specialist managing the three-theme system:
 
-1. Pink Theme (Transcription)
+1. Green Theme (Transcription)
 2. Blue Theme (Proofreading)
-3. Green Theme (Export)
+3. Pink Theme (Export)
 
 Your responsibilities:
 - Maintain theme consistency
@@ -1077,6 +1077,72 @@ Focus areas:
 
 ---
 
+## Model Recommendations
+
+### Recommended Models by Agent
+
+Each agent has been assigned a recommended model based on task complexity, required reasoning depth, and criticality:
+
+#### **Claude Opus** (3 agents) - For the most complex, critical tasks requiring deep reasoning:
+- **architecture-surgeon** - Critical refactoring where mistakes could break entire application; requires extreme precision and understanding of complex dependencies
+- **code-archaeologist** - Deep legacy code analysis requiring understanding of implicit behaviors and hidden dependencies
+- **security-scanner** - Critical security vulnerability detection requiring comprehensive understanding of attack vectors and OWASP principles
+
+#### **Claude 3.5 Sonnet** (6 agents) - For complex tasks requiring nuanced understanding:
+- **hebrew-text-specialist** - Complex BiDi algorithms and RTL text handling with mixed language support
+- **performance-optimizer** - Deep React performance analysis and optimization strategies
+- **accessibility-advocate** - WCAG compliance requiring nuanced understanding of user needs
+- **migration-specialist** - Complex database migration planning with zero-downtime considerations
+- **api-architect** - RESTful API design requiring architectural decisions and best practices
+- **integration-engineer** - Complex third-party integrations with error handling and retry logic
+
+#### **Claude 3.5 Haiku** (10 agents) - For systematic, rule-based tasks:
+- **media-sync-engineer** - Technical but straightforward media synchronization
+- **speaker-manager** - Pattern matching and speaker assignment logic
+- **transcription-validator** - Rule-based validation and consistency checks
+- **backup-guardian** - Systematic backup and recovery operations
+- **project-organizer** - File organization and structure management
+- **permission-auditor** - Permission validation and access control checks
+- **theme-coordinator** - CSS organization and theme consistency
+- **export-specialist** - Document generation with defined formats
+- **session-chronicler** - Automated documentation and commit generation
+- **progress-tracker** - Status tracking and progress updates
+
+### Model Selection Criteria
+
+**Choose Opus when:**
+- Mistakes could cause critical system failures
+- Task requires understanding complex, interconnected systems
+- Deep analysis of implicit behaviors is needed
+- Security or data integrity is paramount
+
+**Choose Sonnet when:**
+- Task requires nuanced technical understanding
+- Multiple valid approaches need evaluation
+- Complex but well-defined problems
+- Performance optimization is involved
+
+**Choose Haiku when:**
+- Task follows clear, systematic procedures
+- Rule-based validation or checking
+- File organization and management
+- Automated documentation generation
+
+### Configuration Update Example
+
+To add the model recommendation to an agent configuration, add the `model` field:
+
+```yaml
+---
+name: architecture-surgeon
+description: "Code refactoring expert specializing in safe, incremental reorganization"
+model: claude-opus  # Recommended for critical refactoring
+tools: Read, Edit, MultiEdit, Bash, Grep, Glob
+---
+```
+
+---
+
 ## Maintenance
 
 This document should be updated when:
@@ -1084,6 +1150,7 @@ This document should be updated when:
 - Agent configurations change
 - New use cases discovered
 - Best practices evolve
+- Model recommendations need adjustment
 
 Last Updated: 2025-09-02
-Version: 1.0
+Version: 1.1

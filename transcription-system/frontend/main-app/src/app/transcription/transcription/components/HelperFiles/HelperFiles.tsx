@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { convertPDFToImages } from './legacyPdfUtils';
+import { convertPDFToImages } from './simplePdfUtils';
 import './HelperFiles.css';
 
 interface HelperFile {

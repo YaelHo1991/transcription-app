@@ -43,9 +43,24 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
       return blockManagerRef.current.getBlocks();
     },
     loadSpeakers: (speakers: SpeakerBlockData[]) => {
+      // Clear selection state when loading new speakers
+      setSelectedSpeakers(new Set());
+      setIsSelectionMode(false);
+      setActiveBlockId(null);
+      setActiveField('code');
+      setEditingNameBlockId(null);
+      nameBeforeEditRef.current = '';
+      
       // Use the new setSpeakers method for proper color assignment
       blockManagerRef.current.setSpeakers(speakers);
       setBlocks([...blockManagerRef.current.getBlocks()]);
+      
+      // Notify that selections have been cleared
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent('speakersSelected', {
+          detail: { selectedCodes: [] }
+        }));
+      }, 0);
       
       // Save to localStorage if mediaId is available
       if (mediaId && transcriptionNumber) {
@@ -75,10 +90,25 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
     // Clear existing speakers when mediaId changes
     console.log('[SimpleSpeaker] Media ID changed to:', mediaId);
     
+    // Clear all selection and editing states when media changes
+    setSelectedSpeakers(new Set());
+    setIsSelectionMode(false);
+    setActiveBlockId(null);
+    setActiveField('code');
+    setEditingNameBlockId(null);
+    nameBeforeEditRef.current = '';
+    
     // Reset to empty state first
     // The SpeakerBlockManager constructor already sets colorIndex to 0 and creates the first block
     // so we don't need to reset it again
     blockManagerRef.current = new SpeakerBlockManager();
+    
+    // Notify that selections have been cleared
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent('speakersSelected', {
+        detail: { selectedCodes: [] }
+      }));
+    }, 0);
     
     if (mediaId) {
       // Don't load from localStorage anymore - wait for data from project service
