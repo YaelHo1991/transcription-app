@@ -6,35 +6,44 @@
   color: #201e20;
 }
 
-/* Override HoveringBarsLayout gradients for purple theme */
+/* Override HoveringBarsLayout gradients for professional pink-burgundy theme */
 .theme-export .hovering-header {
   background: linear-gradient(135deg, 
-    #4c0f7c 0%,      /* Dark purple */
-    #5d1a8d 20%,     /* Medium dark purple */
-    #8b14d1 60%,     /* Light purple - more area */
-    #7c0fa6 80%,     /* Medium purple */
-    #5d1a8d 100%     /* Back to medium dark */
+    #880e4f 0%,      /* Dark burgundy */
+    #ad1457 25%,     /* Rich magenta - bridge */
+    #d81b60 40%,     /* Medium pink - transition */
+    #f8bbd0 50%,     /* Light pink - center */
+    #d81b60 60%,     /* Medium pink - transition */
+    #ad1457 75%,     /* Rich magenta - bridge */
+    #880e4f 100%     /* Dark burgundy */
   ) !important;
-  border-bottom: 1px solid rgba(139, 20, 209, 0.3);
+  border-bottom: 1px solid rgba(248, 187, 208, 0.3);
 }
 
 .theme-export .hovering-sidebar {
   background: linear-gradient(135deg, 
-    #5d1a8d 0%,      /* Start with medium dark to connect with header */
-    #8b14d1 40%,     /* Light purple - large area */
-    #9c27b0 60%,     /* Material purple */
-    #7c0fa6 80%,     /* Medium purple */
-    #4c0f7c 100%     /* End with dark purple */
+    #880e4f 0%,      /* Dark burgundy */
+    #ad1457 20%,     /* Rich magenta */
+    #d81b60 35%,     /* Medium pink - transition */
+    #f8bbd0 50%,     /* Light pink - center */
+    #d81b60 65%,     /* Medium pink - transition */
+    #ad1457 80%,     /* Rich magenta */
+    #880e4f 100%     /* Dark burgundy */
   ) !important;
-  border-left: 1px solid rgba(139, 20, 209, 0.3);
+  border-left: 1px solid rgba(248, 187, 208, 0.3);
 }
 
-/* Purple theme active navigation */
+/* Pink theme active navigation - ENHANCED WHITE SHINE */
 .theme-export .t-nav-links a.active,
 .theme-export .hovering-header .nav-links a.active {
-  background: rgba(139, 20, 209, 0.4) !important;
-  border-color: rgba(139, 20, 209, 0.8) !important;
-  box-shadow: 0 0 10px rgba(139, 20, 209, 0.5) !important;
+  background: rgba(248, 187, 208, 0.5) !important;
+  border-color: rgba(248, 187, 208, 0.9) !important;
+  box-shadow: 0 0 15px rgba(248, 187, 208, 0.7), 
+              0 0 30px rgba(248, 187, 208, 0.4),
+              inset 0 0 10px rgba(255, 255, 255, 0.2) !important;
+  font-weight: 700 !important;
+  transform: scale(1.05) !important;
+  text-shadow: 0 0 10px rgba(248, 187, 208, 0.8) !important;
 }
 
 /* Purple theme user profile */

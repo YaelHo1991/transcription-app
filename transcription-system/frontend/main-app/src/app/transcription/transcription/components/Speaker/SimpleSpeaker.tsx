@@ -38,7 +38,7 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
   const nameBeforeEditRef = useRef<string>('');
   
   // Expose methods to parent component
-  useImperativeHandle(ref, () => ({
+  const componentRef = {
     getAllSpeakers: () => {
       return blockManagerRef.current.getBlocks();
     },
@@ -53,7 +53,22 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
         localStorage.setItem(storageKey, JSON.stringify(speakers));
       }
     }
-  }), [mediaId]);
+  };
+  
+  useImperativeHandle(ref, () => componentRef, [mediaId]);
+  
+  // Set global reference for easy access
+  useEffect(() => {
+    (window as any).simpleSpeakerRef = componentRef;
+    console.log('[SimpleSpeaker] Global reference set');
+    
+    return () => {
+      // Clean up global reference on unmount
+      if ((window as any).simpleSpeakerRef === componentRef) {
+        (window as any).simpleSpeakerRef = null;
+      }
+    };
+  }, []);
   
   // Initialize blocks and handle media changes
   useEffect(() => {

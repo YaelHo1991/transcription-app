@@ -20,6 +20,7 @@ export default function HoveringBarsLayout({
   onHeaderLockChange,
   onSidebarLockChange
 }: HoveringBarsLayoutProps) {
+  console.log('[HoveringBarsLayout] Rendering with sidebarContent:', !!sidebarContent);
   const [headerLocked, setHeaderLocked] = useState(false);
   const [sidebarLocked, setSidebarLocked] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
@@ -153,6 +154,7 @@ export default function HoveringBarsLayout({
             </button>
           </div>
           <div className="sidebar-content-wrapper">
+            {console.log('[HoveringBarsLayout] Rendering sidebar content')}
             {sidebarContent}
           </div>
         </div>

@@ -17,7 +17,7 @@ export const loginRateLimiter = rateLimit({
 // General API rate limiting
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit in dev (1000 vs 100)
   message: 'יותר מדי בקשות, נסה שוב מאוחר יותר',
   standardHeaders: true,
   legacyHeaders: false,
@@ -90,7 +90,7 @@ export const sqlInjectionProtection = (req: Request, res: Response, next: NextFu
 
   const checkObject = (obj: any): boolean => {
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = obj[key];
         if (typeof value === 'object' && value !== null) {
           if (checkObject(value)) return true;

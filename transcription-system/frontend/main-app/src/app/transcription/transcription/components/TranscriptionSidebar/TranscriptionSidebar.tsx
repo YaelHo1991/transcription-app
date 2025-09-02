@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import useProjectStore from '@/lib/stores/projectStore';
 import { NotificationModal, useNotification } from '@/components/NotificationModal/NotificationModal';
 import './TranscriptionSidebar.css';
@@ -10,29 +10,46 @@ interface TranscriptionSidebarProps {
 }
 
 export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
+  console.log('[TranscriptionSidebar] Component function called');
+  
+  const [isMounted, setIsMounted] = useState(false);
+  
   const { 
-    projects = [], // Default to empty array if undefined
-    currentProject, 
+    projects,
+    currentProject,
     currentMedia,
-    loading,
-    loadProjects, 
-    selectProject,
-    addProject,
-    clearAllProjects 
+    currentMediaId,
+    isLoading,
+    error,
+    loadProjects,
+    setCurrentProject,
+    setCurrentMedia,
+    setCurrentMediaById,
+    createProjectFromFolder,
+    setError
   } = useProjectStore();
+  
+  console.log('[TranscriptionSidebar] Store accessed successfully');
   
   const { notification, showNotification, hideNotification } = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   
+  // Load projects immediately on mount
   useEffect(() => {
-    // Load projects on mount if not already loaded
-    if (projects.length === 0 && !loading) {
-      loadProjects();
+    console.log('[TranscriptionSidebar] Component mounted - loading projects');
+    console.log('[TranscriptionSidebar] loadProjects function:', typeof loadProjects);
+    loadProjects();
+    setIsMounted(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Log when projects change
+  useEffect(() => {
+    console.log('[TranscriptionSidebar] Projects changed:', projects.length, 'projects');
+    if (projects.length > 0) {
+      console.log('[TranscriptionSidebar] First project:', projects[0].projectId);
     }
-    // Log to verify component is updated
-    console.log('[TranscriptionSidebar] Component mounted - v2 with clear button', { projects });
-  }, []);
+  }, [projects]);
   
   const handleFolderUpload = async () => {
     // Show custom styled confirmation before browser dialog
@@ -66,37 +83,45 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
         return;
       }
       
-      // Create media file objects with File reference for blob URL creation
-      const mediaFileObjects = mediaFiles.map((file, index) => ({
-        id: `media-${Date.now()}-${index}`,
-        name: file.name,
-        type: 'local' as const,
-        file: file,
-        mimeType: file.type,
-        size: file.size,
-        duration: '00:00' // Will be extracted when loaded
-      }));
+      // Create FormData for upload
+      const formData = new FormData();
+      const computerId = localStorage.getItem('computerId') || generateComputerId();
+      const computerName = localStorage.getItem('computerName') || 'Unknown';
       
-      // Create project from folder
-      const newProject = {
-        projectId: `proj-${Date.now()}`,
-        name: folderName,
-        displayName: folderName,
-        mediaFiles: mediaFileObjects,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        currentMediaIndex: 0
-      };
+      if (!localStorage.getItem('computerId')) {
+        localStorage.setItem('computerId', computerId);
+      }
       
-      // Add to store and select it
-      addProject(newProject);
-      showNotification(`הפרויקט "${folderName}" נוסף בהצלחה`, 'success');
+      formData.append('folderName', folderName);
+      formData.append('computerId', computerId);
+      formData.append('computerName', computerName);
       
-      // Try to save to backend but don't fail if it doesn't work
-      try {
-        await saveProjectToBackend(newProject, mediaFiles);
-      } catch (backendError) {
-        console.warn('Failed to save to backend, but project is available locally:', backendError);
+      // Send filenames separately to preserve UTF-8 encoding
+      const fileNames = mediaFiles.map(f => f.name);
+      formData.append('fileNames', JSON.stringify(fileNames));
+      
+      mediaFiles.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Use the store method to create project
+      const newProject = await createProjectFromFolder(formData);
+      
+      if (newProject) {
+        showNotification(`הפרויקט "${folderName}" נוצר בהצלחה עם ${mediaFiles.length} קבצי מדיה`, 'success');
+        console.log('[TranscriptionSidebar] Project created successfully:', newProject);
+        
+        // Auto-select the new project and its first media
+        console.log('[TranscriptionSidebar] Auto-selecting new project:', newProject.projectId);
+        setCurrentProject(newProject);
+        
+        if (newProject.mediaFiles && newProject.mediaFiles.length > 0) {
+          const firstMediaId = newProject.mediaFiles[0];
+          console.log('[TranscriptionSidebar] Auto-selecting first media:', firstMediaId);
+          await setCurrentMediaById(newProject.projectId, firstMediaId);
+        }
+      } else {
+        showNotification('שגיאה ביצירת הפרויקט', 'error');
       }
       
     } catch (error) {
@@ -110,42 +135,6 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     }
   };
   
-  const saveProjectToBackend = async (project: any, files: File[]) => {
-    try {
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-      const computerId = localStorage.getItem('computerId') || generateComputerId();
-      const computerName = localStorage.getItem('computerName') || 'Unknown';
-      
-      if (!localStorage.getItem('computerId')) {
-        localStorage.setItem('computerId', computerId);
-      }
-      
-      const formData = new FormData();
-      formData.append('userId', getUserIdFromToken());
-      formData.append('folderName', project.name);
-      formData.append('computerId', computerId);
-      formData.append('computerName', computerName);
-      
-      files.forEach(file => {
-        formData.append('files', file);
-      });
-      
-      const response = await fetch('http://localhost:5000/api/projects/create-from-folder', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save project');
-      }
-    } catch (error) {
-      console.error('Failed to save project to backend:', error);
-    }
-  };
-  
   const generateComputerId = () => {
     const fingerprint = [
       navigator.platform,
@@ -155,19 +144,6 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       screen.height
     ].join('-');
     return btoa(fingerprint).substring(0, 16);
-  };
-  
-  const getUserIdFromToken = () => {
-    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return payload.id || payload.userId || 'anonymous';
-      } catch (error) {
-        return 'anonymous';
-      }
-    }
-    return 'anonymous';
   };
   
   return (
@@ -183,31 +159,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
           <span className="upload-plus">+</span>
           <span className="upload-text">פרויקט חדש</span>
         </button>
-        {/* Debug button - remove in production */}
-        {projects.length > 0 && (
-          <button 
-            className="sidebar-clear-button"
-            onClick={() => {
-              if (confirm('למחוק את כל הפרויקטים?')) {
-                clearAllProjects();
-                showNotification('כל הפרויקטים נמחקו', 'info');
-              }
-            }}
-            style={{
-              marginTop: '8px',
-              padding: '8px',
-              background: 'rgba(220, 53, 69, 0.2)',
-              border: '1px solid rgba(220, 53, 69, 0.5)',
-              borderRadius: '8px',
-              color: 'white',
-              fontSize: '12px',
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            🗑️ נקה את כל הפרויקטים
-          </button>
-        )}
+        {/* Debug button removed - project management disabled */}
       </div>
       
       <div className="sidebar-stats">
@@ -233,34 +185,60 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       </div>
       
       <div className="project-list">
-        {projects.length === 0 && !loading && (
-          <div className="empty-projects">
-            <p>אין פרויקטים</p>
-            <p className="hint">לחץ על + להוספת פרויקט</p>
-          </div>
-        )}
-        {loading && (
+        {isLoading ? (
           <div className="loading-projects">
             <p>טוען פרויקטים...</p>
           </div>
-        )}
-        {Array.isArray(projects) && projects.map((project) => (
-          <div
-            key={project.projectId}
-            className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''}`}
-            onClick={() => selectProject(project)}
-            data-project-id={project.projectId}
-          >
-            <h4 className="project-item-title">{project.displayName || project.name}</h4>
-            <div className="project-item-meta">
-              <span>{project.mediaFiles.length} קבצים</span>
-              <span>{project.mediaFiles[0]?.duration || '00:00'}</span>
-            </div>
-            <span className="project-type-badge crm">
-              {project.mediaFiles[0]?.type === 'url' ? 'URL' : 'מקומי'}
-            </span>
+        ) : error ? (
+          <div className="error-projects">
+            <p>שגיאה בטעינת פרויקטים</p>
+            <p className="error-message">{error}</p>
+            <button onClick={() => { setError(null); loadProjects(); }}>נסה שוב</button>
           </div>
-        ))}
+        ) : projects.length === 0 ? (
+          <div className="empty-projects">
+            <p>אין פרויקטים</p>
+            <p className="hint">העלה תיקייה עם קבצי מדיה כדי ליצור פרויקט חדש</p>
+          </div>
+        ) : (
+          <div className="projects-list">
+            <h3 className="projects-title">פרויקטים ({projects.length})</h3>
+            {projects.map(project => (
+              <div 
+                key={project.projectId} 
+                className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''}`}
+                onClick={() => setCurrentProject(project)}
+              >
+                <div className="project-header">
+                  <span className="project-name">{project.displayName}</span>
+                  <span className="media-count">{project.totalMedia} קבצים</span>
+                </div>
+                <div className="project-meta">
+                  <span className="project-date">
+                    {new Date(project.lastModified).toLocaleDateString('he-IL')}
+                  </span>
+                </div>
+                {currentProject?.projectId === project.projectId && (
+                  <div className="media-list">
+                    {project.mediaFiles.map((mediaId, index) => (
+                      <div 
+                        key={mediaId} 
+                        className={`media-item ${currentMediaId === mediaId ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentMediaById(project.projectId, mediaId);
+                        }}
+                      >
+                        <span className="media-name">מדיה {index + 1}</span>
+                        <span className="media-id" style={{ fontSize: '0.75em', opacity: 0.7 }}>{mediaId}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       
       {/* Hidden file inputs */}

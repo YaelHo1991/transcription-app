@@ -34,6 +34,7 @@ interface TextBlockProps {
   blockViewEnabled?: boolean;
   speakerHighlights?: Array<{ startIndex: number; endIndex: number; isCurrent?: boolean }>;
   textHighlights?: Array<{ startIndex: number; endIndex: number; isCurrent?: boolean }>;
+  mediaName?: string;
   onClick?: (ctrlKey: boolean, shiftKey: boolean) => void;
   autoCorrectEngine?: AutoCorrectEngine;
   previousSpeaker?: string;
@@ -43,6 +44,7 @@ const TextBlock = React.memo(function TextBlock({
   block,
   isActive,
   isFirstBlock = false,
+  mediaName,
   activeArea,
   cursorAtStart = false,
   onNavigate,
@@ -2199,7 +2201,7 @@ const TextBlock = React.memo(function TextBlock({
               checkTimestampHover(textarea.selectionStart, textarea.value);
             }, 10);
           }}
-          placeholder={isFirstBlock ? "הקלד טקסט כאן..." : ""}
+          placeholder={isFirstBlock ? (mediaName ? `תמלול עבור ${mediaName}...` : "הקלד טקסט כאן...") : ""}
           dir="rtl"
           style={{ 
             direction: 'rtl',

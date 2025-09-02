@@ -444,7 +444,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
   ): Promise<any> => {
     try {
       // Check cache first
-      const cacheKey = '${mediaId}-${transcriptionNumber}`;
+      const cacheKey = `${mediaId}-${transcriptionNumber}`;
       if (sessionCacheRef.current.has(cacheKey)) {
         return sessionCacheRef.current.get(cacheKey);
       }
@@ -477,7 +477,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       
       const mediaId = transcription.mediaIds[0];
       const response = await axios.post(
-        '${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/transcription/sessions/backup/${mediaId}/${transcription.number}',
+        `${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/transcription/sessions/backup/${mediaId}/${transcription.number}`,
         {
           blocks,
           speakers,
@@ -581,7 +581,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
           
           const result = createTranscription({
             mediaId: initialMediaId,
-            name: 'תמלול ${nextNumber}`,
+            name: `תמלול ${nextNumber}`,
             content: ''
           });
           
@@ -606,7 +606,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
                   blocks: [initialBlock],
                   speakers: [],
                   projectName: 'Current Project',
-                  transcriptionTitle: 'תמלול ${nextNumber}`,
+                  transcriptionTitle: `תמלול ${nextNumber}`,
                   mediaFile: initialMediaName
                 }
               );
@@ -690,7 +690,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             
             try {
               await axios.post(
-                '${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/transcription/sessions/save',
+                `${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/transcription/sessions/save`,
                 {
                   mediaId: initialMediaId,
                   transcriptionNumber: 1,

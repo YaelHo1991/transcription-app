@@ -23,6 +23,9 @@ export class ShortcutManager {
   private lastFetchTime: number = 0;
   private cacheTimeout: number = 5 * 60 * 1000; // 5 minutes cache
   private cache: ShortcutCache;
+  private isLoadingPublic: boolean = false;
+  private isLoadingUser: boolean = false;
+  private publicShortcutsLoaded: boolean = false;
   
   // Hebrew prefixes that can combine with shortcuts
   private readonly hebrewPrefixes = ['ו', 'ה', 'ש', 'וש', 'כש', 'ב', 'ל', 'מ', 'כ', 'מה'];
@@ -52,6 +55,14 @@ export class ShortcutManager {
    * This is used to load system shortcuts for all users
    */
   async loadPublicShortcuts(): Promise<void> {
+    // Skip if already loaded or currently loading
+    if (this.publicShortcutsLoaded || this.isLoadingPublic) {
+      console.log('[ShortcutManager] Public shortcuts already loaded or loading, skipping...');
+      return;
+    }
+    
+    this.isLoadingPublic = true;
+    
     try {
       const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' 
         ? '' // Use same origin in production
@@ -91,10 +102,14 @@ export class ShortcutManager {
       // Update categories (quota will be updated when user logs in)
       this.categories = data.categories || [];
       this.lastFetchTime = Date.now();
+      this.publicShortcutsLoaded = true;
       
       console.log('ShortcutManager: Loaded ' + this.shortcuts.size + ' public shortcuts')
     } catch (error) {
       console.error('ShortcutManager: Error loading public shortcuts:', error);
+      // Don't throw - we can still work without shortcuts
+    } finally {
+      this.isLoadingPublic = false;
     }
   }
   
@@ -102,6 +117,12 @@ export class ShortcutManager {
    * Load shortcuts from the API
    */
   async loadShortcuts(forceRefresh: boolean = false): Promise<void> {
+    // Skip if already loading
+    if (this.isLoadingUser) {
+      console.log('[ShortcutManager] User shortcuts already loading, skipping...');
+      return;
+    }
+    
     // Check cache validity
     const now = Date.now();
     if (!forceRefresh && (now - this.lastFetchTime) < this.cacheTimeout) {
@@ -112,6 +133,8 @@ export class ShortcutManager {
       console.error('ShortcutManager: No authentication token');
       return;
     }
+    
+    this.isLoadingUser = true;
     
     try {
       const response = await fetch(this.apiUrl, {
@@ -168,6 +191,9 @@ export class ShortcutManager {
       console.log('ShortcutManager: Loaded ' + this.shortcuts.size + ' shortcuts (Cache hit rate: ' + (this.cache.getStats().hitRate * 100).toFixed(1) + '%)')
     } catch (error) {
       console.error('ShortcutManager: Error loading shortcuts:', error);
+      // Don't throw - we can still work without user shortcuts
+    } finally {
+      this.isLoadingUser = false;
     }
   }
   

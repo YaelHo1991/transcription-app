@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "set NODE_ENV=development && nodemon --exec ts-node src/server.ts",
+    "dev": "set NODE_ENV=development && nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "set NODE_ENV=development && ts-node src/db/seed.ts",

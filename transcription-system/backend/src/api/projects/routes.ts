@@ -59,32 +59,6 @@ const verifyUser = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-/**
- * Create a new project
- */
-router.post('/create', verifyUser, async (req: Request, res: Response) => {
-  try {
-    const { mediaFileName, projectName } = req.body;
-    
-    if (!mediaFileName) {
-      return res.status(400).json({ error: 'Media file name is required' });
-    }
-    
-    const userId = (req as any).user?.id || 'unknown';
-    // console.log removed for production
-    
-    const projectId = await projectService.createProject(mediaFileName, projectName, userId);
-    
-    res.json({
-      success: true,
-      projectId,
-      message: 'Project ' + projectId + ' created successfully'
-    });
-  } catch (error: any) {
-    console.error('Error creating project:', error);
-    res.status(500).json({ error: error.message || 'Failed to create project' });
-  }
-});
 
 /**
  * Save project data
@@ -117,33 +91,6 @@ router.post('/:projectId/save', verifyUser, async (req: Request, res: Response) 
   }
 });
 
-/**
- * Load project data
- */
-router.get('/:projectId/load', verifyUser, async (req: Request, res: Response) => {
-  try {
-    const { projectId } = req.params;
-    const userId = (req as any).user?.id || 'unknown';
-    
-    // console.log removed for production
-    
-    const data = await projectService.loadProject(projectId, userId);
-    
-    if (data) {
-      // console.log removed for production
-      
-      res.json({
-        success: true,
-        ...data
-      });
-    } else {
-      res.status(404).json({ error: 'Project not found' });
-    }
-  } catch (error: any) {
-    console.error('Error loading project:', error);
-    res.status(500).json({ error: error.message || 'Failed to load project' });
-  }
-});
 
 /**
  * Create a backup
@@ -185,14 +132,12 @@ router.post('/:projectId/restore/:backupFile', verifyUser, async (req: Request, 
     const success = await projectService.restoreBackup(projectId, backupFile, userId);
     
     if (success) {
-      // Load the restored data
-      const userId = (req as any).user?.id || 'unknown';
-      const data = await projectService.loadProject(projectId, userId);
+      // Project loading removed
+      console.log('[API] Project loading disabled');
       
       res.json({
         success: true,
-        message: `Project restored from backup ${backupFile}`,
-        ...data
+        message: `Project restored from backup ${backupFile}` 
       });
     } else {
       res.status(500).json({ error: 'Failed to restore from backup' });
@@ -204,13 +149,74 @@ router.post('/:projectId/restore/:backupFile', verifyUser, async (req: Request, 
 });
 
 /**
+ * Create project from folder with multiple media files
+ */
+router.post('/create-from-folder', verifyUser, upload.array('files'), async (req: Request, res: Response) => {
+  try {
+    const { folderName, computerId, computerName } = req.body;
+    const files = req.files as Express.Multer.File[];
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' });
+    }
+    
+    const userId = (req as any).user?.id || 'unknown';
+    console.log(`[FolderUpload] Creating project from folder: ${folderName} with ${files.length} files for user: ${userId}`);
+    
+    // Filter for media files only
+    const mediaFiles = files.filter(file => 
+      file.mimetype.startsWith('audio/') || 
+      file.mimetype.startsWith('video/')
+    );
+    
+    if (mediaFiles.length === 0) {
+      return res.status(400).json({ error: 'No media files found in upload' });
+    }
+    
+    // Get properly encoded filenames if provided
+    let fileNames: string[] = [];
+    try {
+      if (req.body.fileNames) {
+        fileNames = JSON.parse(req.body.fileNames);
+      }
+    } catch (e) {
+      console.log('[FolderUpload] Could not parse fileNames, using originalname');
+    }
+    
+    // Prepare media files for project service
+    const mediaFilesData = mediaFiles.map((file, index) => ({
+      name: fileNames[index] || file.originalname, // Use UTF-8 encoded name if available
+      buffer: file.buffer,
+      mimeType: file.mimetype
+    }));
+    
+    // Create the project
+    const result = await projectService.createMultiMediaProject(folderName, mediaFilesData, userId);
+    
+    console.log(`[FolderUpload] Project created successfully: ${result.projectId} with ${result.mediaIds.length} media files`);
+    
+    res.json({
+      success: true,
+      projectId: result.projectId,
+      mediaIds: result.mediaIds,
+      totalMedia: result.mediaIds.length,
+      message: `Project "${folderName}" created with ${result.mediaIds.length} media files`
+    });
+  } catch (error: any) {
+    console.error('Error creating project from folder:', error);
+    res.status(500).json({ error: error.message || 'Failed to create project from folder' });
+  }
+});
+
+/**
  * List all projects
  */
 router.get('/list', verifyUser, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id || 'unknown';
-    // console.log removed for production
+    console.log(`[ProjectList] Loading projects for user: ${userId}`);
     
+    // Load projects using the new project service method
     const projects = await projectService.listProjects(userId);
     
     res.json({
@@ -224,264 +230,8 @@ router.get('/list', verifyUser, async (req: Request, res: Response) => {
   }
 });
 
-/**
- * NEW: Get all projects for authenticated user (ProjectLoader compatible)
- */
-router.get('/user', verifyUser, async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user?.id || 'unknown';
-    const userPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects');
-    
-    // Check if user directory exists
-    try {
-      await fs_promises.access(userPath);
-    } catch {
-      // No projects yet
-      return res.json([]);
-    }
 
-    // Read all project directories
-    const projectDirs = await fs_promises.readdir(userPath);
-    const projects = [];
 
-    for (const projectId of projectDirs) {
-      const projectPath = path.join(userPath, projectId, 'project.json');
-      try {
-        const projectData = await fs_promises.readFile(projectPath, 'utf-8');
-        const project = JSON.parse(projectData);
-        
-        // Add duration to media files if missing
-        if (project.mediaFiles && Array.isArray(project.mediaFiles)) {
-          project.mediaFiles = project.mediaFiles.map((file: any, index: number) => ({
-            ...file,
-            // Use actual duration if available, otherwise estimate
-            duration: file.actualDuration || file.duration || Math.floor(300 + (file.size / 100000) + index * 180)
-          }));
-        }
-        
-        projects.push(project);
-      } catch (error) {
-        console.error(`Failed to read project ${projectId}:`, error);
-      }
-    }
-
-    res.json(projects);
-  } catch (error) {
-    console.error('Failed to get user projects:', error);
-    res.status(500).json({ error: 'Failed to load projects' });
-  }
-});
-
-/**
- * NEW: Upload new project with media files (ProjectLoader compatible)
- */
-router.post('/upload', verifyUser, upload.array('media'), async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).user?.id || 'unknown';
-    const { folderName } = req.body;
-    const files = req.files as Express.Multer.File[];
-
-    if (!files || files.length === 0) {
-      return res.status(400).json({ error: 'No media files provided' });
-    }
-
-    // Generate project ID
-    const projectId = `proj_${Date.now()}_${Math.random().toString(36).substring(2, 10)}_${folderName.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10)}`;
-    
-    // Create project structure
-    const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
-    await fs_promises.mkdir(projectPath, { recursive: true });
-
-    // Process media files
-    const mediaFiles = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const mediaId = `media-${Date.now()}-${i}`;
-      
-      // Create media folder structure
-      const mediaPath = path.join(projectPath, mediaId);
-      await fs_promises.mkdir(mediaPath, { recursive: true });
-      
-      // Fix encoding issue with filenames - ensure UTF-8
-      const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-      
-      // Save the actual media file
-      const mediaFilePath = path.join(mediaPath, originalName);
-      await fs_promises.writeFile(mediaFilePath, file.buffer);
-
-      // Create transcription folders
-      const transcriptionPath = path.join(mediaPath, 'transcription');
-      const proofreadingPath = path.join(mediaPath, 'proofreading');
-      const exportPath = path.join(mediaPath, 'export');
-      
-      await fs_promises.mkdir(transcriptionPath, { recursive: true });
-      await fs_promises.mkdir(proofreadingPath, { recursive: true });
-      await fs_promises.mkdir(exportPath, { recursive: true });
-      
-      // Create backups folder in transcription
-      await fs_promises.mkdir(path.join(transcriptionPath, 'backups'), { recursive: true });
-
-      // Create initial transcription data with media identifier
-      const transcriptionData = {
-        folderId: uuidv4(),
-        type: 'transcription',
-        blocks: [
-          {
-            id: `block-${Date.now()}-0`,
-            text: `[${originalName}] - תמלול חדש`,
-            timestamp: 0,
-            duration: 0,
-            speaker: '',
-            isEdited: false
-          }
-        ],
-        speakers: [],
-        remarks: [],
-        helperFiles: [],
-        backups: [],
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString()
-      };
-
-      // Save main data.json
-      await fs_promises.writeFile(
-        path.join(transcriptionPath, 'data.json'),
-        JSON.stringify(transcriptionData, null, 2)
-      );
-      
-      // Save separate files for speakers and remarks
-      await fs_promises.writeFile(
-        path.join(transcriptionPath, 'speakers.json'),
-        JSON.stringify([], null, 2)
-      );
-      
-      await fs_promises.writeFile(
-        path.join(transcriptionPath, 'remarks.json'),
-        JSON.stringify([], null, 2)
-      );
-
-      // Create metadata file for media
-      const metadata = {
-        projectId,
-        mediaId,
-        createdAt: new Date().toISOString(),
-        projectName: folderName,
-        lastModified: new Date().toISOString()
-      };
-
-      await fs_promises.writeFile(
-        path.join(mediaPath, 'metadata.json'),
-        JSON.stringify(metadata, null, 2)
-      );
-
-      // Add to media files array
-      mediaFiles.push({
-        mediaId,
-        fileName: originalName,
-        filePath: `/api/projects/media/${userId}/${projectId}/${mediaId}/${encodeURIComponent(originalName)}`,
-        size: file.size,
-        mimeType: file.mimetype,
-        duration: Math.floor(300 + (file.size / 100000)), // Estimate duration based on file size
-        transcriptions: {
-          transcription: transcriptionData
-        }
-      });
-    }
-
-    // Create project metadata
-    const project = {
-      projectId,
-      userId,
-      projectName: folderName,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      mediaFiles,
-      currentMediaIndex: 0
-    };
-
-    // Save project data
-    await fs_promises.writeFile(
-      path.join(projectPath, 'project.json'),
-      JSON.stringify(project, null, 2)
-    );
-
-    res.json(project);
-  } catch (error) {
-    console.error('Upload failed:', error);
-    res.status(500).json({ error: 'Failed to upload project' });
-  }
-});
-
-/**
- * NEW: Get media file (ProjectLoader compatible)
- */
-router.get('/media/:userId/:projectId/:mediaId/:filename', async (req: Request, res: Response) => {
-  try {
-    const { userId, projectId, mediaId, filename } = req.params;
-    const decodedFilename = decodeURIComponent(filename);
-    const filePath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId, mediaId, decodedFilename);
-    
-    console.log('[Media] Serving file:', filePath);
-    
-    // Check if file exists
-    try {
-      await fs_promises.access(filePath);
-    } catch (err) {
-      console.error('[Media] File not found:', filePath);
-      return res.status(404).json({ error: 'Media file not found' });
-    }
-    
-    // Get file stats for content type
-    const stats = await fs_promises.stat(filePath);
-    
-    // Determine content type based on extension
-    const ext = path.extname(decodedFilename).toLowerCase();
-    let contentType = 'application/octet-stream';
-    
-    if (['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac'].includes(ext)) {
-      contentType = `audio/${ext.substring(1)}`;
-      if (ext === '.m4a') contentType = 'audio/mp4';
-    } else if (['.mp4', '.webm', '.ogv', '.mov', '.avi'].includes(ext)) {
-      contentType = `video/${ext.substring(1)}`;
-      if (ext === '.mov') contentType = 'video/quicktime';
-      if (ext === '.avi') contentType = 'video/x-msvideo';
-    }
-    
-    // Set headers
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', stats.size.toString());
-    res.setHeader('Accept-Ranges', 'bytes');
-    
-    // Handle range requests for media streaming
-    const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
-      const chunksize = (end - start) + 1;
-      
-      const stream = createReadStream(filePath, { start, end });
-      res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${stats.size}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize.toString(),
-        'Content-Type': contentType
-      });
-      stream.pipe(res);
-    } else {
-      // Send entire file
-      const stream = createReadStream(filePath);
-      res.writeHead(200, {
-        'Content-Length': stats.size.toString(),
-        'Content-Type': contentType
-      });
-      stream.pipe(res);
-    }
-  } catch (error) {
-    console.error('[Media] Failed to serve file:', error);
-    res.status(500).json({ error: 'Failed to serve media file' });
-  }
-});
 
 /**
  * NEW: Save transcription data for media (ProjectLoader compatible)
@@ -568,7 +318,33 @@ router.post('/media/:mediaId/:type', verifyUser, async (req: Request, res: Respo
 });
 
 /**
- * NEW: Get transcription data for specific media in specific project
+ * Load media data from multi-media project (MUST come before generic /:type route)
+ */
+router.get('/:projectId/media/:mediaId/load', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId } = req.params;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log(`[MediaData] Loading data for project: ${projectId}, media: ${mediaId}, user: ${userId}`);
+    
+    const mediaData = await projectService.loadMediaData(projectId, mediaId, userId);
+    
+    if (mediaData) {
+      res.json({
+        success: true,
+        ...mediaData
+      });
+    } else {
+      res.status(404).json({ error: 'Media data not found' });
+    }
+  } catch (error: any) {
+    console.error('Error loading media data:', error);
+    res.status(500).json({ error: error.message || 'Failed to load media data' });
+  }
+});
+
+/**
+ * NEW: Get transcription data for specific media in specific project (GENERIC ROUTE - must come after specific routes)
  */
 router.get('/:projectId/media/:mediaId/:type', verifyUser, async (req: Request, res: Response) => {
   try {
@@ -585,6 +361,7 @@ router.get('/:projectId/media/:mediaId/:type', verifyUser, async (req: Request, 
       userId, 
       'projects', 
       projectId, 
+      'media',
       mediaId, 
       type, 
       'data.json'
@@ -599,7 +376,16 @@ router.get('/:projectId/media/:mediaId/:type', verifyUser, async (req: Request, 
       return res.json(parsed);
     } catch (error) {
       console.log(`[Transcription] No transcription found at: ${mediaPath}`);
-      return res.status(404).json({ error: 'Transcription not found' });
+      // For transcription type, return empty structure instead of 404
+      if (type === 'transcription') {
+        return res.json({
+          blocks: [],
+          speakers: [],
+          remarks: [],
+          metadata: {}
+        });
+      }
+      return res.status(404).json({ error: 'Data not found' });
     }
   } catch (error) {
     console.error('[Transcription] Failed to get transcription:', error);
@@ -660,7 +446,8 @@ router.get('/by-media/:mediaFileName', verifyUser, async (req: Request, res: Res
     // console.log removed for production
     
     const userId = (req as any).user?.id || 'unknown';
-    const projectId = await projectService.getProjectByMedia(mediaFileName, userId);
+    // Project lookup by media removed
+    const projectId = null; // await projectService.getProjectByMedia(mediaFileName, userId);
     
     if (projectId) {
       res.json({
@@ -952,6 +739,7 @@ router.put('/:projectId/media/:mediaId/transcription', verifyUser, async (req: R
       userId, 
       'projects', 
       projectId, 
+      'media',
       mediaId, 
       'transcription', 
       'data.json'
@@ -987,6 +775,8 @@ router.put('/:projectId/media/:mediaId/transcription', verifyUser, async (req: R
 /**
  * Get transcription for a specific media file
  */
+// COMMENTED OUT - DUPLICATE ENDPOINT WITH WRONG PATH STRUCTURE
+/*
 router.get('/:projectId/media/:mediaId/transcription', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId, mediaId } = req.params;
@@ -1041,6 +831,7 @@ router.get('/:projectId/media/:mediaId/transcription', verifyUser, async (req: R
     res.status(500).json({ error: error.message || 'Failed to load transcription' });
   }
 });
+*/
 
 /**
  * Update media duration when obtained from actual media file
@@ -1140,24 +931,238 @@ router.put('/:projectId/media/:mediaId/duration', async (req: Request, res: Resp
   }
 });
 
+
+/**
+ * Load transcription data for a specific media file
+ */
+router.get('/:projectId/media/:mediaId/transcription', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId } = req.params;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log(`[Transcription] Loading transcription for project: ${projectId}, media: ${mediaId}, user: ${userId}`);
+    
+    // Determine user data path
+    const userDataPath = path.join(
+      process.cwd(), 'user_data',
+      'users', userId,
+      'projects', projectId,
+      'media', mediaId,
+      'transcription'
+    );
+    
+    const transcriptionPath = path.join(userDataPath, 'data.json');
+    
+    try {
+      await fs_promises.access(transcriptionPath);
+      const data = JSON.parse(await fs_promises.readFile(transcriptionPath, 'utf-8'));
+      
+      console.log(`[Transcription] Found transcription data at: ${transcriptionPath}`);
+      res.json(data);
+    } catch (error) {
+      // File doesn't exist - return empty structure
+      console.log(`[Transcription] No transcription found at: ${transcriptionPath}`);
+      
+      // Get media metadata if available
+      const metadataPath = path.join(
+        process.cwd(), 'user_data',
+        'users', userId,
+        'projects', projectId,
+        'media', mediaId,
+        'metadata.json'
+      );
+      
+      let metadata = {};
+      try {
+        metadata = JSON.parse(await fs_promises.readFile(metadataPath, 'utf-8'));
+      } catch {
+        // No metadata file
+      }
+      
+      // Return empty transcription structure
+      res.json({
+        blocks: [],
+        speakers: [],
+        remarks: [],
+        metadata
+      });
+    }
+  } catch (error: any) {
+    console.error('Error loading transcription:', error);
+    res.status(500).json({ error: error.message || 'Failed to load transcription' });
+  }
+});
+
+/**
+ * Save media data to multi-media project
+ */
+router.put('/:projectId/media/:mediaId/save', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId } = req.params;
+    const { blocks, speakers, remarks } = req.body;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log(`[MediaData] Saving data for project: ${projectId}, media: ${mediaId}, user: ${userId}`);
+    
+    const success = await projectService.saveMediaData(projectId, mediaId, {
+      blocks,
+      speakers,
+      remarks
+    }, userId);
+    
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Media data saved successfully'
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to save media data' });
+    }
+  } catch (error: any) {
+    console.error('Error saving media data:', error);
+    res.status(500).json({ error: error.message || 'Failed to save media data' });
+  }
+});
+
+/**
+ * Update media stage (transcription -> proofreading -> export)
+ */
+router.put('/:projectId/media/:mediaId/stage', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId, mediaId } = req.params;
+    const { stage } = req.body;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    if (!['transcription', 'proofreading', 'export'].includes(stage)) {
+      return res.status(400).json({ error: 'Invalid stage. Must be transcription, proofreading, or export' });
+    }
+    
+    console.log(`[MediaStage] Updating stage for project: ${projectId}, media: ${mediaId}, stage: ${stage}, user: ${userId}`);
+    
+    const success = await projectService.updateMediaStage(projectId, mediaId, stage, userId);
+    
+    if (success) {
+      res.json({
+        success: true,
+        stage,
+        message: `Media stage updated to ${stage}`
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update media stage' });
+    }
+  } catch (error: any) {
+    console.error('Error updating media stage:', error);
+    res.status(500).json({ error: error.message || 'Failed to update media stage' });
+  }
+});
+
 /**
  * Serve media file from project folder
  */
-router.get('/:projectId/media/:filename', verifyUser, async (req: Request, res: Response) => {
+router.get('/:projectId/media/:filename', async (req: Request, res: Response) => {
   try {
     const { projectId, filename } = req.params;
     
-    // console.log removed for production
+    // Get token from query param for media requests (audio element can't send headers)
+    const token = req.query.token as string;
+    if (token) {
+      // Manually verify token for media requests
+      if (token.startsWith('dev-')) {
+        const userId = token.substring(4) || 'dev-user-default';
+        (req as any).user = { id: userId, username: userId };
+      } else {
+        try {
+          const jwt = require('jsonwebtoken');
+          const secret = process.env.JWT_SECRET || 'default-secret-key';
+          const decoded = jwt.verify(token, secret) as any;
+          (req as any).user = { 
+            id: decoded.userId || decoded.id || 'unknown', 
+            username: decoded.username || decoded.email || 'unknown'
+          };
+        } catch {
+          (req as any).user = { id: 'unknown', username: 'unknown' };
+        }
+      }
+    }
     
     // Get the project folder path with user-specific directory
     const userId = (req as any).user?.id || 'unknown';
     const safeUserId = userId.toString().replace(/[^a-zA-Z0-9-_]/g, '_');
-    const userDataPath = path.join(process.cwd(), 'user_data', 'users', safeUserId, 'projects', projectId);
-    const mediaPath = path.join(userDataPath, filename);
+    
+    // First try the new structure (media files in media/mediaId/ subdirectories)
+    let mediaPath: string | null = null;
+    // Try both possible base paths
+    const possibleBasePaths = [
+      path.join(process.cwd(), 'user_data', 'users', safeUserId, 'projects', projectId),
+      path.join(__dirname, '..', '..', '..', 'user_data', 'users', safeUserId, 'projects', projectId)
+    ];
+    
+    let userDataPath = possibleBasePaths[0];
+    for (const basePath of possibleBasePaths) {
+      if (fs.existsSync(basePath)) {
+        userDataPath = basePath;
+        break;
+      }
+    }
+    
+    // Check if filename is actually a mediaId (like "media-1", "media-2")
+    const isMediaId = filename.match(/^media-\d+$/);
+    
+    // Try to find the file in any of the media subdirectories
+    const mediaDir = path.join(userDataPath, 'media');
+    console.log(`[MediaServe] Looking for ${filename} in ${mediaDir}`);
+    
+    if (isMediaId) {
+      // If it's a media ID, look for any media file in that specific subdirectory
+      const mediaIdPath = path.join(mediaDir, filename);
+      console.log(`[MediaServe] Checking media ID directory: ${mediaIdPath}`);
+      
+      try {
+        const files = await fs_promises.readdir(mediaIdPath);
+        // Find the first audio/video file
+        const mediaFile = files.find(file => {
+          const ext = path.extname(file).toLowerCase();
+          return ['.mp3', '.mp4', '.wav', '.m4a', '.webm', '.ogg'].includes(ext);
+        });
+        
+        if (mediaFile) {
+          mediaPath = path.join(mediaIdPath, mediaFile);
+          console.log(`[MediaServe] Found media file: ${mediaPath}`);
+        }
+      } catch (err) {
+        console.log(`[MediaServe] Media ID directory not found: ${mediaIdPath}`);
+      }
+    } else {
+      // Original logic for finding by filename
+      try {
+        const mediaDirs = await fs_promises.readdir(mediaDir);
+        console.log(`[MediaServe] Found media directories:`, mediaDirs);
+        for (const mediaId of mediaDirs) {
+          const possiblePath = path.join(mediaDir, mediaId, filename);
+          console.log(`[MediaServe] Checking: ${possiblePath}`);
+          if (fs.existsSync(possiblePath)) {
+            console.log(`[MediaServe] Found media file at: ${possiblePath}`);
+            mediaPath = possiblePath;
+            break;
+          }
+        }
+      } catch (error) {
+        console.log(`[MediaServe] Media directory doesn't exist: ${mediaDir}`);
+        // Media directory doesn't exist, try old structure
+      }
+    }
+    
+    // Fallback to old structure (direct in project directory)
+    if (!mediaPath) {
+      const fallbackPath = path.join(userDataPath, filename);
+      if (fs.existsSync(fallbackPath)) {
+        mediaPath = fallbackPath;
+      }
+    }
     
     // Check if file exists
-    if (!fs.existsSync(mediaPath)) {
-      console.error(`Media file not found: ${mediaPath}`);
+    if (!mediaPath || !fs.existsSync(mediaPath)) {
+      console.error(`Media file not found: ${filename} in project ${projectId}`);
       return res.status(404).json({ error: 'Media file not found' });
     }
     

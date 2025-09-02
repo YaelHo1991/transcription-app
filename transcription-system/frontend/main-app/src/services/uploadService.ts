@@ -88,7 +88,7 @@ class SmartUploadService {
     formData.append('fileUrl', url);
     formData.append('projectId', projectId);
 
-    const response = await axios.post('${this.API_URL}/upload`, formData, {
+    const response = await axios.post(`${this.API_URL}/upload`, formData, {
       headers: {
         'Authorization': 'Bearer ' + this.getAuthToken()
       },

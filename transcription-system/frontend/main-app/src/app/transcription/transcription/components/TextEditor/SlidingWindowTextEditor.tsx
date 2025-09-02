@@ -7,6 +7,7 @@ interface SlidingWindowTextEditorProps {
   activeBlockId: string | null;
   activeArea: 'speaker' | 'text';
   cursorAtStart: boolean;
+  mediaName?: string;
   selectedBlocks: Set<string>;
   searchResults: any[];
   currentSearchIndex: number;
@@ -38,6 +39,7 @@ export default function SlidingWindowTextEditor({
   activeBlockId,
   activeArea,
   cursorAtStart,
+  mediaName,
   selectedBlocks,
   searchResults,
   currentSearchIndex,
@@ -192,6 +194,7 @@ export default function SlidingWindowTextEditor({
               block={block}
               isActive={isActive}
               isFirstBlock={absoluteIndex === 0}
+              mediaName={mediaName}
               activeArea={isActive ? activeArea : 'speaker'}
               cursorAtStart={isActive && cursorAtStart}
               onNavigate={(direction, fromField) => onNavigate(block.id, direction, fromField)}

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import ExportSidebar from './components/ExportSidebar';
-import UnauthorizedOverlay from '../../../components/UnauthorizedOverlay/UnauthorizedOverlay';
 import './export-theme.css';
 import './export-page.css';
 
@@ -19,8 +18,8 @@ interface ExportTemplate {
     includeProjectInfo: boolean;
     includePageNumbers: boolean;
     speakerFormat: 'inline' | 'newline' | 'bullet';
-    headerText?: string;
-    footerText?: string;
+    headerText: string;  // הסרתי את הסימן ?
+    footerText: string;  // הסרתי את הסימן ?
   };
 }
 
@@ -30,7 +29,6 @@ export default function ExportPage() {
   // User information
   const [userFullName, setUserFullName] = useState('משתמש');
   const [userPermissions, setUserPermissions] = useState('DEF');
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   
   // Get user's full name from localStorage
   useEffect(() => {
@@ -43,23 +41,8 @@ export default function ExportPage() {
     }
     
     // Get user permissions
-    const token = localStorage.getItem('token');
-    const permissions = localStorage.getItem('permissions') || '';
-    
-    // If no token, redirect to login
-    if (!token) {
-      router.push('/login?system=transcription');
-      return;
-    }
-    
-    setUserPermissions(permissions || 'DEF'); // Only set DEF for display if empty
-    
-    // Check if user has export permission
-    if (!permissions || !permissions.includes('F')) {
-      setHasPermission(false);
-    } else {
-      setHasPermission(true);
-    }
+    const permissions = localStorage.getItem('permissions') || 'DEF';
+    setUserPermissions(permissions);
   }, []);
   
   const [headerLocked, setHeaderLocked] = useState(false);
@@ -125,15 +108,7 @@ export default function ExportPage() {
   };
 
   return (
-    <>
-      {hasPermission === false && (
-        <UnauthorizedOverlay 
-          requiredPermission="F"
-          permissionName="ייצוא"
-          theme="export"
-        />
-      )}
-      <HoveringBarsLayout
+    <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
@@ -303,7 +278,7 @@ export default function ExportPage() {
                       <select 
                         className="ex-select"
                         value={exportSettings.speakerFormat}
-                        onChange={(e) => setExportSettings({...exportSettings, speakerFormat: e.target.value as any})}
+                        onChange={(e) => setExportSettings({...exportSettings, speakerFormat: e.target.value as 'inline' | 'newline' | 'bullet'})}
                       >
                         <option value="inline">באותה שורה</option>
                         <option value="newline">שורה חדשה</option>
@@ -376,6 +351,5 @@ export default function ExportPage() {
         </div>
       </div>
     </HoveringBarsLayout>
-    </>
   );
 }

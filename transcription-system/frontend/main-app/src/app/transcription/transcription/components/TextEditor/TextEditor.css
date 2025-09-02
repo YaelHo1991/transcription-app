@@ -439,6 +439,22 @@
   color: #20c997;
 }
 
+.te-save-btn.saving {
+  animation: pulse 1s infinite;
+  background: rgba(32, 201, 151, 0.2);
+}
+
+.te-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
 .te-export-btn:hover {
   color: #17a2b8;
 }

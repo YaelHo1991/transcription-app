@@ -20,49 +20,13 @@ export class ProjectService {
   private async initializeService() {
     try {
       await fs.mkdir(this.baseDir, { recursive: true });
-      // Load counter from existing projects
-      await this.loadProjectCounter();
+      // Project counter removed - no longer loading projects
+      this.projectCounter = 0;
     } catch (error) {
       console.error('Error initializing project service:', error);
     }
   }
 
-  /**
-   * Load the project counter based on existing projects
-   */
-  private async loadProjectCounter() {
-    try {
-      // Check all user directories for the highest counter
-      const usersDir = path.join(this.baseDir, 'users');
-      await fs.mkdir(usersDir, { recursive: true });
-      
-      const users = await fs.readdir(usersDir);
-      let maxCounter = 0;
-      
-      for (const user of users) {
-        const userProjectsDir = path.join(usersDir, user, 'projects');
-        try {
-          const entries = await fs.readdir(userProjectsDir);
-          const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
-          
-          if (projectFolders.length > 0) {
-            const counters = projectFolders.map(folder => {
-              const parts = folder.split('_');
-              return parseInt(parts[2], 10);
-            });
-            maxCounter = Math.max(maxCounter, ...counters);
-          }
-        } catch (err) {
-          // User directory might not exist yet
-        }
-      }
-      
-      this.projectCounter = maxCounter;
-    } catch (error) {
-      console.error('Error loading project counter:', error);
-      this.projectCounter = 0;
-    }
-  }
 
   /**
    * Generate a unique project ID
@@ -123,6 +87,121 @@ export class ProjectService {
     
     // console.log removed for production
     return projectId;
+  }
+
+  /**
+   * Create a new multi-media project from folder
+   */
+  async createMultiMediaProject(folderName: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
+    const projectId = this.generateProjectId();
+    const userDir = this.getUserDir(userId);
+    const projectDir = path.join(userDir, projectId);
+    
+    // Create project directory
+    await fs.mkdir(projectDir, { recursive: true });
+    
+    // Create media IDs and directories
+    const mediaIds: string[] = [];
+    
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const file = mediaFiles[i];
+      const mediaId = `media-${i + 1}`;
+      mediaIds.push(mediaId);
+      
+      const mediaDir = path.join(projectDir, 'media', mediaId);
+      const backupsDir = path.join(mediaDir, 'backups');
+      
+      // Create media directory structure
+      await fs.mkdir(backupsDir, { recursive: true });
+      
+      // Save media file with filesystem-safe name
+      const fileExtension = path.extname(file.name);
+      const safeFileName = `media${fileExtension}`;
+      await fs.writeFile(path.join(mediaDir, safeFileName), file.buffer);
+      
+      // Create media metadata
+      const mediaMetadata = {
+        mediaId,
+        fileName: safeFileName,
+        originalName: file.name,
+        mimeType: file.mimeType,
+        size: file.buffer.length,
+        stage: 'transcription',
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      };
+      
+      await fs.writeFile(
+        path.join(mediaDir, 'metadata.json'),
+        JSON.stringify(mediaMetadata, null, 2),
+        'utf8'
+      );
+      
+      // Initialize empty transcription files for this media
+      await this.initializeMediaFiles(mediaDir);
+    }
+    
+    // Create project metadata
+    const projectMetadata = {
+      projectId,
+      name: folderName,
+      displayName: folderName,
+      createdAt: new Date().toISOString(),
+      lastModified: new Date().toISOString(),
+      mediaFiles: mediaIds,
+      totalMedia: mediaFiles.length,
+      currentMediaIndex: 0
+    };
+    
+    await fs.writeFile(
+      path.join(projectDir, 'project.json'),
+      JSON.stringify(projectMetadata, null, 2),
+      'utf8'
+    );
+    
+    return { projectId, mediaIds };
+  }
+
+  /**
+   * Initialize empty media files for individual media
+   */
+  private async initializeMediaFiles(mediaDir: string) {
+    // Empty transcription
+    const transcription = {
+      blocks: [],
+      version: '1.0.0',
+      lastSaved: new Date().toISOString()
+    };
+    
+    // Empty speakers
+    const speakers = {
+      speakers: [],
+      version: '1.0.0'
+    };
+    
+    // Empty remarks
+    const remarks = {
+      remarks: [],
+      version: '1.0.0'
+    };
+    
+    await Promise.all([
+      fs.writeFile(
+        path.join(mediaDir, 'transcription.json'),
+        JSON.stringify(transcription, null, 2),
+        'utf8'
+      ),
+      fs.writeFile(
+        path.join(mediaDir, 'speakers.json'),
+        JSON.stringify(speakers, null, 2),
+        'utf8'
+      ),
+      fs.writeFile(
+        path.join(mediaDir, 'remarks.json'),
+        JSON.stringify(remarks, null, 2),
+        'utf8'
+      )
+    ]);
   }
 
   /**
@@ -243,46 +322,6 @@ export class ProjectService {
     }
   }
 
-  /**
-   * Load project data
-   */
-  async loadProject(projectId: string, userId?: string): Promise<any> {
-    try {
-      // Try to find the project in user-specific directory first
-      let projectDir: string;
-      
-      if (userId) {
-        const userDir = this.getUserDir(userId);
-        projectDir = path.join(userDir, projectId);
-      } else {
-        // Fallback to old structure for backward compatibility
-        projectDir = path.join(this.baseDir, 'user_live', 'projects', projectId);
-      }
-      
-      // Check if project exists
-      await fs.access(projectDir);
-      
-      // Load all files
-      const [metadata, transcription, speakers, remarks] = await Promise.all([
-        fs.readFile(path.join(projectDir, 'metadata.json'), 'utf8').then(JSON.parse),
-        fs.readFile(path.join(projectDir, 'transcription.json'), 'utf8').then(JSON.parse),
-        fs.readFile(path.join(projectDir, 'speakers.json'), 'utf8').then(JSON.parse),
-        fs.readFile(path.join(projectDir, 'remarks.json'), 'utf8').then(JSON.parse)
-      ]);
-      
-      // console.log removed for production
-      
-      return {
-        metadata,
-        blocks: transcription.blocks,
-        speakers: speakers.speakers,
-        remarks: remarks.remarks
-      };
-    } catch (error) {
-      console.error(`Error loading project ${projectId}:`, error);
-      return null;
-    }
-  }
 
   /**
    * Create a backup of the project
@@ -385,63 +424,7 @@ export class ProjectService {
     }
   }
 
-  /**
-   * List all projects for a specific user
-   */
-  async listProjects(userId: string = 'default'): Promise<any[]> {
-    try {
-      const userDir = this.getUserDir(userId);
-      
-      // Ensure user directory exists
-      await fs.mkdir(userDir, { recursive: true });
-      
-      const entries = await fs.readdir(userDir);
-      // console.log removed for production
-      
-      const projectFolders = entries.filter(e => e.match(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{3}$/));
-      // console.log removed for production
-      
-      const projects = [];
-      for (const folder of projectFolders) {
-        try {
-          const metadataPath = path.join(userDir, folder, 'metadata.json');
-          const metadata = JSON.parse(
-            await fs.readFile(metadataPath, 'utf8')
-          );
-          projects.push(metadata);
-        } catch (error: any) {
-          // Skip projects without metadata (probably incomplete)
-          if (error.code !== 'ENOENT') {
-            console.error(`Error reading metadata for ${folder}:`, error.message);
-          }
-        }
-      }
-      
-      // console.log removed for production
-      
-      // Sort by creation date (newest first)
-      projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      
-      return projects;
-    } catch (error) {
-      console.error('Error listing projects:', error);
-      return [];
-    }
-  }
 
-  /**
-   * Get project by media file name
-   */
-  async getProjectByMedia(mediaFileName: string, userId: string = 'default'): Promise<string | null> {
-    try {
-      const projects = await this.listProjects(userId);
-      const project = projects.find(p => p.mediaFile === mediaFileName);
-      return project ? project.projectId : null;
-    } catch (error) {
-      console.error('Error finding project by media:', error);
-      return null;
-    }
-  }
 
   /**
    * List backups for a project
@@ -529,6 +512,228 @@ export class ProjectService {
       }
       console.error(`Error deleting project ${projectId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * List all projects for a user
+   */
+  async listProjects(userId: string = 'default'): Promise<any[]> {
+    try {
+      const userDir = this.getUserDir(userId);
+      
+      // Check if user directory exists
+      try {
+        await fs.access(userDir);
+      } catch {
+        return [];
+      }
+      
+      const projectDirs = await fs.readdir(userDir);
+      const projects = [];
+      
+      for (const projectId of projectDirs) {
+        const projectDir = path.join(userDir, projectId);
+        const stats = await fs.stat(projectDir);
+        
+        if (stats.isDirectory()) {
+          try {
+            // Try to read project.json (multi-media project)
+            const projectPath = path.join(projectDir, 'project.json');
+            try {
+              const projectData = JSON.parse(await fs.readFile(projectPath, 'utf8'));
+              projects.push(projectData);
+            } catch {
+              // Fallback to metadata.json (single media project)
+              const metadataPath = path.join(projectDir, 'metadata.json');
+              const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+              projects.push({
+                projectId: metadata.projectId,
+                name: metadata.projectName,
+                displayName: metadata.projectName,
+                createdAt: metadata.createdAt,
+                lastModified: metadata.lastModified,
+                mediaFiles: [metadata.mediaFile],
+                totalMedia: 1,
+                currentMediaIndex: 0
+              });
+            }
+          } catch (error) {
+            console.error(`Error reading project ${projectId}:`, error);
+          }
+        }
+      }
+      
+      // Sort by creation date (newest first)
+      projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      return projects;
+    } catch (error) {
+      console.error(`Error listing projects for user ${userId}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Load specific media data from project
+   */
+  async loadMediaData(projectId: string, mediaId: string, userId: string = 'default'): Promise<any | null> {
+    try {
+      const userDir = this.getUserDir(userId);
+      const mediaDir = path.join(userDir, projectId, 'media', mediaId);
+      
+      console.log(`[MediaData] Loading data from: ${mediaDir}`);
+      
+      // Load all media files with error handling for each
+      let transcription, speakers, remarks, metadata;
+      
+      try {
+        transcription = JSON.parse(await fs.readFile(path.join(mediaDir, 'transcription.json'), 'utf8'));
+      } catch (error) {
+        console.log(`[MediaData] No transcription.json found, using empty`);
+        transcription = { blocks: [], version: '1.0.0', lastSaved: new Date().toISOString() };
+      }
+      
+      try {
+        speakers = JSON.parse(await fs.readFile(path.join(mediaDir, 'speakers.json'), 'utf8'));
+      } catch (error) {
+        console.log(`[MediaData] No speakers.json found, using empty`);
+        speakers = { speakers: [], version: '1.0.0' };
+      }
+      
+      try {
+        remarks = JSON.parse(await fs.readFile(path.join(mediaDir, 'remarks.json'), 'utf8'));
+      } catch (error) {
+        console.log(`[MediaData] No remarks.json found, using empty`);
+        remarks = { remarks: [], version: '1.0.0' };
+      }
+      
+      try {
+        metadata = JSON.parse(await fs.readFile(path.join(mediaDir, 'metadata.json'), 'utf8'));
+      } catch (error) {
+        console.error(`[MediaData] No metadata.json found for ${mediaId}`);
+        return null;
+      }
+      
+      return {
+        blocks: transcription.blocks || [],
+        speakers: speakers.speakers || [],
+        remarks: remarks.remarks || [],
+        metadata: metadata
+      };
+    } catch (error) {
+      console.error(`[MediaData] Error loading media data ${mediaId} from project ${projectId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Save media data to specific media within project
+   */
+  async saveMediaData(projectId: string, mediaId: string, data: {
+    blocks?: any[];
+    speakers?: any[];
+    remarks?: any[];
+  }, userId: string = 'default'): Promise<boolean> {
+    try {
+      const userDir = this.getUserDir(userId);
+      const mediaDir = path.join(userDir, projectId, 'media', mediaId);
+      
+      // Update media metadata
+      const metadataPath = path.join(mediaDir, 'metadata.json');
+      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+      metadata.lastModified = new Date().toISOString();
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+      
+      // Save each component if provided
+      const saves = [];
+      
+      // Save all transcription data in one file
+      const transcriptionDir = path.join(mediaDir, 'transcription');
+      await fs.mkdir(transcriptionDir, { recursive: true });
+      
+      const transcriptionData = {
+        blocks: data.blocks || [],
+        speakers: data.speakers || [],
+        remarks: data.remarks || [],
+        metadata: metadata,
+        version: '1.0.0',
+        lastSaved: new Date().toISOString()
+      };
+      
+      saves.push(
+        fs.writeFile(
+          path.join(transcriptionDir, 'data.json'),
+          JSON.stringify(transcriptionData, null, 2),
+          'utf8'
+        )
+      );
+      
+      // Also save individual files for backward compatibility (optional)
+      if (data.speakers !== undefined) {
+        const speakers = {
+          speakers: data.speakers,
+          version: '1.0.0'
+        };
+        saves.push(
+          fs.writeFile(
+            path.join(mediaDir, 'speakers.json'),
+            JSON.stringify(speakers, null, 2),
+            'utf8'
+          )
+        );
+      }
+      
+      if (data.remarks !== undefined) {
+        const remarks = {
+          remarks: data.remarks,
+          version: '1.0.0'
+        };
+        saves.push(
+          fs.writeFile(
+            path.join(mediaDir, 'remarks.json'),
+            JSON.stringify(remarks, null, 2),
+            'utf8'
+          )
+        );
+      }
+      
+      await Promise.all(saves);
+      
+      // Update project metadata
+      const projectMetadataPath = path.join(userDir, projectId, 'project.json');
+      try {
+        const projectMetadata = JSON.parse(await fs.readFile(projectMetadataPath, 'utf8'));
+        projectMetadata.lastModified = new Date().toISOString();
+        await fs.writeFile(projectMetadataPath, JSON.stringify(projectMetadata, null, 2), 'utf8');
+      } catch (error) {
+        // Project metadata might not exist for single-media projects
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error saving media data ${mediaId} to project ${projectId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Update media stage (transcription -> proofreading -> export)
+   */
+  async updateMediaStage(projectId: string, mediaId: string, stage: 'transcription' | 'proofreading' | 'export', userId: string = 'default'): Promise<boolean> {
+    try {
+      const userDir = this.getUserDir(userId);
+      const metadataPath = path.join(userDir, projectId, 'media', mediaId, 'metadata.json');
+      
+      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+      metadata.stage = stage;
+      metadata.lastModified = new Date().toISOString();
+      
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+      return true;
+    } catch (error) {
+      console.error(`Error updating stage for media ${mediaId}:`, error);
+      return false;
     }
   }
 }

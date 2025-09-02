@@ -40,6 +40,9 @@ export interface TextEditorProps {
   /** Current media file name */
   mediaFileName?: string;
   
+  /** Original media name for display */
+  mediaName?: string;
+  
   /** Media duration in format HH:MM:SS */
   mediaDuration?: string;
   

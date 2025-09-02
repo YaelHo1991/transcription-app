@@ -10,6 +10,7 @@ interface TextEditorWrapperProps {
   marks: any[];
   currentTime: number;
   mediaFileName: string;
+  mediaName?: string;
   mediaDuration: number;
   projectName: string;
   speakerComponentRef: any;
@@ -49,7 +50,7 @@ const TextEditorWrapper: React.FC<TextEditorWrapperProps> = (props) => {
     }
   }, [useVirtualized, blockCount]);
 
-  // Pass virtualization flag to TextEditor
+  // Pass virtualization flag and all props to TextEditor
   return (
     <TextEditor {...props} virtualizationEnabled={useVirtualized} />
   );
