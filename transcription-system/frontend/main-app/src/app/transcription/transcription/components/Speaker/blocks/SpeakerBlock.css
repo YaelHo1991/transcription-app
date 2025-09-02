@@ -39,6 +39,11 @@
   box-shadow: inset 3px 0 0 #14b8a6;
 }
 
+.speaker-block.active.selected {
+  background: #f0fdf4 !important;
+  box-shadow: inset 3px 0 0 #10b981, inset -3px 0 0 #14b8a6;
+}
+
 
 /* Individual fields */
 .speaker-field {

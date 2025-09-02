@@ -47,6 +47,10 @@ export default class SpeakerBlockManager {
     this.blocks = [];
     this.colorIndex = 0; // Reset color index for consistent colors
     
+    // Always clear active block when loading new speakers
+    this.activeBlockId = null;
+    this.activeField = 'code';
+    
     // If we have speakers, load them with their saved data
     if (speakers && speakers.length > 0) {
       speakers.forEach((speaker, index) => {
@@ -72,8 +76,7 @@ export default class SpeakerBlockManager {
       };
       this.colorIndex++;
       this.blocks.push(initialBlock);
-      this.activeBlockId = initialBlock.id;
-      this.activeField = 'code';
+      // Don't set active block - let user click to activate
     }
   }
 
