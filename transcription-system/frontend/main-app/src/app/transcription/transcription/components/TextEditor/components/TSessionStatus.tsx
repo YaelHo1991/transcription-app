@@ -62,18 +62,8 @@ export default function TSessionStatus({
   }, [lastSaveTime, isSaving]);
   
   return (
-    <div className="t-session-status">
-      <span className="t-status-icon">
-        {isSaving ? '⏳' : hasChanges ? '📝' : '💾'}
-      </span>
-      <span className="t-status-text">
-        {displayText}
-      </span>
-      {transcriptionNumber > 0 && (
-        <span className="t-status-number">
-          תמלול {transcriptionNumber}
-        </span>
-      )}
-    </div>
+    <span className="t-status-text">
+      {displayText}
+    </span>
   );
 }

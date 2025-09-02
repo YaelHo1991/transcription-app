@@ -819,19 +819,6 @@
 .footer-right {
   display: flex;
   align-items: center;
-  position: relative;
-  padding-left: 16px;
-}
-
-.footer-right::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1px;
-  height: 16px;
-  background: #d0f2ed;
 }
 
 .media-file-name {
