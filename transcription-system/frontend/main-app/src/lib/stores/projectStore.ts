@@ -19,6 +19,14 @@ export interface MediaFile {
   file?: File; // For blob URL creation
 }
 
+export interface MediaInfo {
+  mediaId: string;
+  name: string;
+  size: number; // Size in bytes
+  duration: number; // Duration in seconds
+  mimeType?: string;
+}
+
 export interface Project {
   projectId: string;
   name: string;
@@ -28,6 +36,8 @@ export interface Project {
   currentMediaIndex: number;
   createdAt: string;
   lastModified: string;
+  mediaInfo?: MediaInfo[]; // Detailed info for each media file
+  size?: number; // Total project size in bytes
 }
 
 export interface MediaMetadata {

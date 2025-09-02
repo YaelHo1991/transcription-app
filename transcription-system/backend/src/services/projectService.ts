@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import * as mm from 'music-metadata';
 
 /**
  * Project Service - Manages transcription projects with unique IDs
@@ -542,7 +543,58 @@ export class ProjectService {
             const projectPath = path.join(projectDir, 'project.json');
             try {
               const projectData = JSON.parse(await fs.readFile(projectPath, 'utf8'));
-              projects.push(projectData);
+              
+              // Load media metadata for each media file
+              const mediaInfo = [];
+              let totalSize = 0;
+              
+              if (projectData.mediaFiles && Array.isArray(projectData.mediaFiles)) {
+                for (const mediaId of projectData.mediaFiles) {
+                  try {
+                    const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
+                    const mediaMetadata = JSON.parse(await fs.readFile(mediaMetadataPath, 'utf8'));
+                    
+                    // Get actual media file for duration
+                    const mediaFilePath = path.join(projectDir, 'media', mediaId, mediaMetadata.fileName);
+                    let duration = 0;
+                    
+                    try {
+                      // Extract duration using music-metadata
+                      const metadata = await mm.parseFile(mediaFilePath);
+                      duration = metadata.format.duration || 0;
+                    } catch (error) {
+                      console.log(`Could not extract duration for ${mediaId}:`, error);
+                      duration = 0;
+                    }
+                    
+                    mediaInfo.push({
+                      mediaId: mediaId,
+                      name: mediaMetadata.originalName || mediaMetadata.fileName,
+                      size: mediaMetadata.size || 0,
+                      duration: duration,
+                      mimeType: mediaMetadata.mimeType
+                    });
+                    
+                    totalSize += mediaMetadata.size || 0;
+                  } catch (error) {
+                    console.error(`Error loading media metadata for ${mediaId}:`, error);
+                    // Add placeholder if metadata not found
+                    mediaInfo.push({
+                      mediaId: mediaId,
+                      name: `Media ${mediaId}`,
+                      size: 0,
+                      duration: 0,
+                      mimeType: 'unknown'
+                    });
+                  }
+                }
+              }
+              
+              projects.push({
+                ...projectData,
+                mediaInfo: mediaInfo,
+                size: totalSize
+              });
             } catch {
               // Fallback to metadata.json (single media project)
               const metadataPath = path.join(projectDir, 'metadata.json');
@@ -555,7 +607,9 @@ export class ProjectService {
                 lastModified: metadata.lastModified,
                 mediaFiles: [metadata.mediaFile],
                 totalMedia: 1,
-                currentMediaIndex: 0
+                currentMediaIndex: 0,
+                mediaInfo: [],
+                size: 0
               });
             }
           } catch (error) {

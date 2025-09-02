@@ -1,26 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import type { Project, MediaInfo } from '@/lib/stores/projectStore';
 import './ProjectManagementModal.css';
-
-interface MediaInfo {
-  mediaId: string;
-  name: string;
-  size: number; // Size in bytes
-  duration: number; // Duration in seconds
-  mimeType?: string;
-}
-
-interface Project {
-  projectId: string;
-  displayName: string;
-  totalMedia: number;
-  size?: number; // Total size in bytes
-  createdAt: string;
-  lastModified: string;
-  mediaFiles: string[];
-  mediaInfo?: MediaInfo[]; // Detailed info for each media file
-}
 
 interface ArchivedTranscription {
   id: string;
