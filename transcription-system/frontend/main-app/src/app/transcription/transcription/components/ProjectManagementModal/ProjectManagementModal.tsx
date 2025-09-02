@@ -254,17 +254,24 @@ export default function ProjectManagementModal({
                           🗑️
                         </button>
                       </div>
-
-                      {selectedProject === project.projectId && (
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Media Details Panel - Outside of grid */}
+              {selectedProject && (
+                <>
+                  <div className="media-details-overlay" onClick={() => setSelectedProject(null)} />
+                  <div className="media-details-panel">
+                    <button className="close-panel-btn" onClick={() => setSelectedProject(null)}>×</button>
+                    {(() => {
+                      const project = projects.find(p => p.projectId === selectedProject);
+                      if (!project) return null;
+                      return (
                         <>
-                          <div className="media-details-overlay" onClick={() => setSelectedProject(null)} />
-                          <div className="media-details-panel">
-                            <button className="close-panel-btn" onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProject(null);
-                            }}>×</button>
-                            <h4>קבצי מדיה - {project.displayName}</h4>
-                            <div className="media-list-detailed">
+                          <h4>קבצי מדיה - {project.displayName}</h4>
+                          <div className="media-list-detailed">
                             {project.mediaInfo && project.mediaInfo.length > 0 ? (
                               project.mediaInfo.map((media) => (
                                 <div key={media.mediaId} className="media-detail-item">
@@ -312,13 +319,12 @@ export default function ProjectManagementModal({
                               ))
                             )}
                           </div>
-                        </div>
                         </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
