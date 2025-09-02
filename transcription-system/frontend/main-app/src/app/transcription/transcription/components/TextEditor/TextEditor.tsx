@@ -223,9 +223,13 @@ export default function TextEditor({
   const isTransitioningRef = useRef<boolean>(false);
   
   // Initialize ShortcutManager - load public shortcuts first, then user shortcuts if authenticated
+  const shortcutsInitialized = useRef(false);
   useEffect(() => {
     const initShortcuts = async () => {
-      if (!shortcutManagerRef.current) return;
+      if (!shortcutManagerRef.current || shortcutsInitialized.current) return;
+      
+      // Mark as initialized to prevent duplicate calls
+      shortcutsInitialized.current = true;
       
       try {
         // First, always load public system shortcuts (no auth required)
@@ -975,6 +979,69 @@ export default function TextEditor({
       document.removeEventListener('clearBlockSelection', handleClearBlockSelection);
     };
   }, [handleUndo, handleRedo, showFeedback]); // Include all dependencies used in the effect
+  
+  // Handle Ctrl+S for saving (works with any keyboard layout)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Ctrl+S or Cmd+S (works with Hebrew, Caps Lock, etc.)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S' || e.key === 'ד')) {
+        e.preventDefault(); // Prevent browser's default save dialog
+        e.stopPropagation();
+        console.log('[TextEditor] Ctrl+S pressed - triggering save');
+        // Call saveProjectData directly to avoid stale closure issues
+        saveProjectData();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [currentProjectId, currentMediaId]); // Add dependencies to get fresh values
+  
+  // Handle auto-save on navigation
+  useEffect(() => {
+    const handleAutoSave = (e: CustomEvent) => {
+      console.log('[TextEditor] Auto-save triggered:', e.detail);
+      console.log('[TextEditor] Has changes:', tHasChanges.current, 'Is saving:', tIsSaving);
+      
+      // Always save on navigation, regardless of changes flag
+      // The user explicitly wants to save when navigating
+      if (!tIsSaving) {
+        console.log('[TextEditor] Performing auto-save before navigation');
+        // Use the ref to call the current saveProjectData function
+        if (saveProjectDataRef.current) {
+          saveProjectDataRef.current();
+        } else {
+          console.warn('[TextEditor] saveProjectDataRef not set yet');
+        }
+      } else {
+        console.log('[TextEditor] Save already in progress, skipping');
+      }
+    };
+    
+    // Handle page unload/refresh
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (tHasChanges.current) {
+        // Try to save quickly using the ref
+        if (saveProjectDataRef.current) {
+          saveProjectDataRef.current();
+        }
+        // Show browser's confirmation dialog
+        e.preventDefault();
+        e.returnValue = 'יש שינויים שלא נשמרו. האם אתה בטוח שברצונך לצאת?';
+        return e.returnValue;
+      }
+    };
+    
+    document.addEventListener('autoSaveBeforeNavigation', handleAutoSave as EventListener);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      document.removeEventListener('autoSaveBeforeNavigation', handleAutoSave as EventListener);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []); // Empty deps - we want this to run once and use refs for current values
   
   // Initialize blocks from block manager and shortcuts
   useEffect(() => {
@@ -2008,6 +2075,12 @@ export default function TextEditor({
     // Reset change tracking
     tLastSavedContent.current = JSON.stringify([initialBlock]);
     setTHasChanges(false);
+  };
+  
+  // Wrapper for saving (called by Ctrl+S and auto-save)
+  const handleProjectSave = () => {
+    console.log('[TextEditor] handleProjectSave called');
+    saveProjectData();
   };
   
   // Project: Save current transcription

@@ -809,34 +809,88 @@ export default function TranscriptionWorkPage() {
               mediaDuration={mediaDuration}
               mediaSize={currentTranscriptionData?.metadata.size ? `${(currentTranscriptionData.metadata.size / (1024 * 1024)).toFixed(1)} MB` : '0 MB'}
               projectName={currentProject?.displayName || 'אין פרויקט'}
-              onPreviousProject={() => {
+              onPreviousProject={async () => {
                 const currentIndex = currentProject ? projects.indexOf(currentProject) : -1;
                 if (currentIndex > 0) {
+                  // Trigger save before switching projects
+                  console.log('[Page] Navigation: Previous project clicked');
+                  const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
+                    detail: { 
+                      projectId: currentProject?.projectId, 
+                      mediaId: currentMediaId,
+                      reason: 'project-navigation-prev'
+                    }
+                  });
+                  document.dispatchEvent(saveEvent);
+                  // Wait for save to complete
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  
                   const prevProject = projects[currentIndex - 1];
                   // Switch to previous project
                   console.log('Navigate to previous project:', prevProject.displayName);
-                  setCurrentProject(prevProject);
+                  await setCurrentProject(prevProject);
                   // Auto-select first media of the new project
                   if (prevProject.mediaFiles && prevProject.mediaFiles.length > 0) {
                     setCurrentMediaById(prevProject.projectId, prevProject.mediaFiles[0]);
                   }
                 }
               }}
-              onNextProject={() => {
+              onNextProject={async () => {
                 const currentIndex = currentProject ? projects.indexOf(currentProject) : -1;
                 if (currentIndex < projects.length - 1) {
+                  // Trigger save before switching projects
+                  console.log('[Page] Navigation: Next project clicked');
+                  const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
+                    detail: { 
+                      projectId: currentProject?.projectId, 
+                      mediaId: currentMediaId,
+                      reason: 'project-navigation-next'
+                    }
+                  });
+                  document.dispatchEvent(saveEvent);
+                  // Wait for save to complete
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                  
                   const nextProject = projects[currentIndex + 1];
                   // Switch to next project
                   console.log('Navigate to next project:', nextProject.displayName);
-                  setCurrentProject(nextProject);
+                  await setCurrentProject(nextProject);
                   // Auto-select first media of the new project
                   if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
                     setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
                   }
                 }
               }}
-              onPreviousMedia={() => navigateMedia('previous')}
-              onNextMedia={() => navigateMedia('next')}
+              onPreviousMedia={async () => {
+                console.log('[Page] Navigation: Previous media clicked');
+                // Directly trigger save before navigation
+                const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
+                  detail: { 
+                    projectId: currentProject?.projectId, 
+                    mediaId: currentMediaId,
+                    reason: 'media-navigation-prev'
+                  }
+                });
+                document.dispatchEvent(saveEvent);
+                // Wait for save to complete
+                await new Promise(resolve => setTimeout(resolve, 200));
+                navigateMedia('previous');
+              }}
+              onNextMedia={async () => {
+                console.log('[Page] Navigation: Next media clicked');
+                // Directly trigger save before navigation
+                const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
+                  detail: { 
+                    projectId: currentProject?.projectId, 
+                    mediaId: currentMediaId,
+                    reason: 'media-navigation-next'
+                  }
+                });
+                document.dispatchEvent(saveEvent);
+                // Wait for save to complete
+                await new Promise(resolve => setTimeout(resolve, 200));
+                navigateMedia('next');
+              }}
             />
             </div>
             
@@ -874,8 +928,8 @@ export default function TranscriptionWorkPage() {
                   console.log('Seek to time:', time);
                 }}
                 enabled={true}
-                transcriptions={transcriptions}
-                currentTranscriptionIndex={currentTranscriptionIndex}
+                transcriptions={[]} // Pass empty array to force using project store save method
+                currentTranscriptionIndex={0}
                 onTranscriptionChange={async (index) => {
                   console.log('[Page] Transcription changed to index:', index);
                   setCurrentTranscriptionIndex(index);

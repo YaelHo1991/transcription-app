@@ -35,12 +35,18 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   
-  // Load projects immediately on mount
+  // Load projects with a small delay to avoid race conditions
   useEffect(() => {
-    console.log('[TranscriptionSidebar] Component mounted - loading projects');
+    console.log('[TranscriptionSidebar] Component mounted - will load projects after delay');
     console.log('[TranscriptionSidebar] loadProjects function:', typeof loadProjects);
-    loadProjects();
-    setIsMounted(true);
+    
+    // Small delay to avoid simultaneous requests on page load
+    const timer = setTimeout(() => {
+      loadProjects();
+      setIsMounted(true);
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Log when projects change
@@ -207,7 +213,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
               <div 
                 key={project.projectId} 
                 className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''}`}
-                onClick={() => setCurrentProject(project)}
+                onClick={async () => await setCurrentProject(project)}
               >
                 <div className="project-header">
                   <span className="project-name">{project.displayName}</span>
