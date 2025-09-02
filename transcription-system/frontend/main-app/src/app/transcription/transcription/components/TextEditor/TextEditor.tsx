@@ -3353,16 +3353,16 @@ export default function TextEditor({
         isOpen={showVersionHistoryModal}
         onClose={() => setShowVersionHistoryModal(false)}
         onRestore={async (version) => {
-          console.log('[Project] Restoring version:', version);
+          console.log('[Project] Restoring version for media:', currentMediaId, version);
           try {
-            // Use the project restore endpoint to load version data and make it current
+            // Load the backup content from the media-specific backup location
             const response = await fetch(
-              (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api') + '/projects/' + currentProjectId + '/restore/' + version.filename,
+              `http://localhost:5000/api/projects/${currentProjectId}/media/${currentMediaId}/backups/${version.filename}`,
               {
-                method: 'POST',
+                method: 'GET',
                 headers: {
                   'Content-Type': 'application/json',
-                  'X-Dev-Mode': 'true'
+                  'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`
                 }
               }
             );
@@ -3438,6 +3438,21 @@ export default function TextEditor({
                 setTHasChanges(false);
                 setTLastSaveTime(new Date());
                 
+                // Save the restored content to the current media
+                if (currentProjectId && currentMediaId) {
+                  console.log('[T-Session] Saving restored content to current media:', currentMediaId);
+                  await saveMediaData(currentProjectId, currentMediaId, {
+                    blocks: restoredBlocks,
+                    speakers: data.speakers || [],
+                    remarks: data.remarks || [],
+                    metadata: {
+                      ...data.metadata,
+                      restoredFrom: version.filename,
+                      restoredAt: new Date().toISOString()
+                    }
+                  });
+                }
+                
                 // Force refresh of the editor to show restored content immediately
                 setActiveBlockId(null);
                 setEditorRefreshKey(prev => prev + 1); // Force complete re-render
@@ -3449,7 +3464,7 @@ export default function TextEditor({
                   }
                 }, 100);
                 
-                console.log('[T-Session] Successfully restored to version ' + version.version);
+                console.log('[T-Session] Successfully restored to version ' + version.version + ' for media ' + currentMediaId);
               }
             }
           } catch (error) {
