@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../../../../../../config/environment';
+import VirtualizedPreview from './VirtualizedPreview';
 import './VersionHistoryModal.css';
 
 interface BackupVersion {
@@ -429,35 +430,11 @@ export default function VersionHistoryModal({
                   </div>
                   
                   <div className="preview-main">
-                    <div className="preview-document">
-                      {versionContent ? (
-                        versionContent.split('\n').map((line, index) => {
-                          if (!line.trim()) return null;
-                          
-                          // Parse speaker and text
-                          const colonIndex = line.indexOf(':');
-                          if (colonIndex !== -1) {
-                            const speaker = line.substring(0, colonIndex).trim();
-                            const text = line.substring(colonIndex + 1).trim();
-                            return (
-                              <div key={index} className="preview-block">
-                                <span className="preview-speaker">{speaker}:</span>
-                                <span className="preview-text"> {text}</span>
-                              </div>
-                            );
-                          }
-                          
-                          // Regular text without speaker
-                          return (
-                            <div key={index} className="preview-line">
-                              {line}
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="preview-empty">אין תוכן להצגה</div>
-                      )}
-                    </div>
+                    <VirtualizedPreview 
+                      content={versionContent}
+                      containerHeight={400}
+                      className=""
+                    />
                   </div>
                 </div>
               ) : (

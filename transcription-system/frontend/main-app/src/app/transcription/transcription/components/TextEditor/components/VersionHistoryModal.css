@@ -283,6 +283,14 @@
   width: 100%;
 }
 
+.preview-document.virtualized {
+  padding: 0;
+}
+
+.preview-document.virtualized > div {
+  padding: 30px;
+}
+
 .preview-block {
   display: flex;
   gap: 20px;

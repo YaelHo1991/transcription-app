@@ -17,10 +17,15 @@ export const loginRateLimiter = rateLimit({
 // General API rate limiting
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit in dev (1000 vs 100)
+  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Much higher limit in dev (10000 vs 100)
   message: 'יותר מדי בקשות, נסה שוב מאוחר יותר',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for localhost in development
+    return process.env.NODE_ENV === 'development' && 
+           (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1');
+  },
   // Use default key generator which handles IPv6 properly
 });
 
