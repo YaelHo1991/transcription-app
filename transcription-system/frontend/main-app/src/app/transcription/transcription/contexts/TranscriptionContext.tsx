@@ -10,6 +10,7 @@ import {
   MediaSegment
 } from '../types/transcription';
 import axios from 'axios';
+import { buildApiUrl } from '@/utils/api';
 
 interface TranscriptionContextType {
   // State
@@ -418,7 +419,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       });
       
       const response = await axios.post(
-        (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save',
+        buildApiUrl('/api/transcription/sessions/save'),
         {
           mediaId,
           transcriptionNumber: transcription.number,
@@ -450,7 +451,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       }
       
       const response = await axios.get(
-        (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/load/' + mediaId + '/' + transcriptionNumber
+        buildApiUrl(`/api/transcription/sessions/load/${mediaId}/${transcriptionNumber}`)
       );
       
       if (response.data.success) {
@@ -477,7 +478,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       
       const mediaId = transcription.mediaIds[0];
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/transcription/sessions/backup/${mediaId}/${transcription.number}`,
+        buildApiUrl(`/api/transcription/sessions/backup/${mediaId}/${transcription.number}`),
         {
           blocks,
           speakers,
@@ -560,7 +561,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
       try {
         // First, check if there are existing sessions for this media
         const response = await axios.get(
-          (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/list/' + initialMediaId
+          buildApiUrl(`/api/transcription/sessions/list/${initialMediaId}`)
         );
         
         if (response.data.success && response.data.transcriptions && response.data.transcriptions.length > 0) {
@@ -599,7 +600,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             
             try {
               await axios.post(
-                (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save',
+                buildApiUrl('/api/transcription/sessions/save'),
                 {
                   mediaId: initialMediaId,
                   transcriptionNumber: nextNumber,
@@ -641,7 +642,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
               
               try {
                 await axios.post(
-                  (process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '') + '/api/transcription/sessions/save',
+                  buildApiUrl('/api/transcription/sessions/save'),
                   {
                     mediaId: initialMediaId,
                     transcriptionNumber: 1,
@@ -690,7 +691,7 @@ export const TranscriptionProvider: React.FC<TranscriptionProviderProps> = ({
             
             try {
               await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL || (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + ''}/api/transcription/sessions/save`,
+                buildApiUrl('/api/transcription/sessions/save'),
                 {
                   mediaId: initialMediaId,
                   transcriptionNumber: 1,

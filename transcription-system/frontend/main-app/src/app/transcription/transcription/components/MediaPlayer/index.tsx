@@ -21,6 +21,7 @@ import { waveformCache } from './utils/waveformCache';
 import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/resourceMonitor';
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import { ResourceWarningModal } from './components/ResourceWarningModal';
+import { buildApiUrl } from '@/utils/api';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
@@ -774,7 +775,7 @@ export default function MediaPlayer({
           
           // First, check if waveform already exists on server
           try {
-            const existingResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/${fileId}');
+            const existingResponse = await fetch(buildApiUrl(`/api/waveform/${fileId}`));
             if (existingResponse.ok) {
               console.log('Using existing server-side waveform');
               const data = await existingResponse.json();
@@ -800,7 +801,7 @@ export default function MediaPlayer({
           }
           
           // If not found, trigger generation on server
-          const generateResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/generate', {
+          const generateResponse = await fetch(buildApiUrl('/api/waveform/generate'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -828,7 +829,7 @@ export default function MediaPlayer({
               await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
               
               try {
-                const waveformResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/${fileId}');
+                const waveformResponse = await fetch(buildApiUrl(`/api/waveform/${fileId}`));
                 
                 if (waveformResponse.ok) {
                   const data = await waveformResponse.json();
@@ -862,7 +863,7 @@ export default function MediaPlayer({
             }
           } else if (statusData.status === 'completed') {
             // Small files complete immediately
-            const waveformResponse = await fetch((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/waveform/${fileId}');
+            const waveformResponse = await fetch(buildApiUrl(`/api/waveform/${fileId}`));
             
             if (waveformResponse.ok) {
               const data = await waveformResponse.json();

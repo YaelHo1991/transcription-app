@@ -19,7 +19,7 @@ rm -rf .next
 
 # Build with production settings
 echo "Building Next.js application..."
-NEXT_PUBLIC_API_URL="http://yalitranscription.duckdns.org" npm run build
+NEXT_PUBLIC_API_URL="http://yalitranscription.duckdns.org:5000" npm run build
 
 if [ $? -ne 0 ]; then
     echo "❌ Build failed locally. Fixing common issues..."
@@ -28,7 +28,7 @@ if [ $? -ne 0 ]; then
     npm install --legacy-peer-deps
     
     # Retry build
-    NEXT_PUBLIC_API_URL="http://yalitranscription.duckdns.org" npm run build
+    NEXT_PUBLIC_API_URL="http://yalitranscription.duckdns.org:5000" npm run build
     
     if [ $? -ne 0 ]; then
         echo "❌ Build still failing. Please check the errors above."
@@ -67,7 +67,7 @@ cd /var/app/transcription-system/transcription-system/frontend/main-app
 
 # Create production environment file
 cat > .env.production << 'ENV'
-NEXT_PUBLIC_API_URL=http://yalitranscription.duckdns.org
+NEXT_PUBLIC_API_URL=http://yalitranscription.duckdns.org:5000
 NODE_ENV=production
 ENV
 

@@ -25,6 +25,7 @@ import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
 import { useAutoWordExport } from './hooks/useAutoWordExport';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
+import { buildApiUrl } from '@/utils/api';
 import backupService from '@/services/backupService';
 import incrementalBackupService from '@/services/incrementalBackupService';
 import indexedDBService from '@/services/indexedDBService';
@@ -219,7 +220,7 @@ export default function TextEditor({
   }, [currentMediaId]);
   const blockManagerRef = useRef<BlockManager>(new BlockManager());
   const speakerManagerRef = useRef<SpeakerManager>(new SpeakerManager());
-  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager((process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/transcription/shortcuts'));
+  const shortcutManagerRef = useRef<ShortcutManager>(new ShortcutManager(buildApiUrl('/api/transcription/shortcuts')));
   // Track speaker code -> name mappings
   const speakerNamesRef = useRef<Map<string, string>>(new Map());
   // Track previous media ID to detect navigation
@@ -1131,7 +1132,7 @@ export default function TextEditor({
       
       try {
         const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-        const response = await fetch(`http://localhost:5000/api/projects/${currentProjectId}/media/${currentMediaId}/transcription`, {
+        const response = await fetch(buildApiUrl(`/api/projects/${currentProjectId}/media/${currentMediaId}/transcription`), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -1372,7 +1373,7 @@ export default function TextEditor({
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const apiUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/auth/storage';
+        const apiUrl = buildApiUrl('/api/auth/storage');
         const response = await fetch(apiUrl, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -3480,7 +3481,7 @@ export default function TextEditor({
           try {
             // Load the backup content from the media-specific backup location
             const response = await fetch(
-              `http://localhost:5000/api/projects/${currentProjectId}/media/${currentMediaId}/backups/${version.filename}`,
+              buildApiUrl(`/api/projects/${currentProjectId}/media/${currentMediaId}/backups/${version.filename}`),
               {
                 method: 'GET',
                 headers: {

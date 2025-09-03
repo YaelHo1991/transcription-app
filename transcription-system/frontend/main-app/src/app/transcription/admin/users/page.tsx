@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import useUsersAdminColumnStore from '@/lib/stores/usersAdminColumnStore';
+import { getApiUrl } from '@/utils/api';
 
 const ADMIN_USER_IDS = [
   // Production IDs
@@ -100,7 +101,7 @@ export default function UsersManagement() {
       }
       
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
+        ? getApiUrl() 
         : '';
       const response = await fetch(`${baseUrl}/api/admin/users`, {
         headers: {
@@ -152,7 +153,7 @@ export default function UsersManagement() {
       }
       
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
+        ? getApiUrl() 
         : '';
       
       const response = await fetch(`${baseUrl}/api/admin/user/${userId}/admin`, {
@@ -195,7 +196,7 @@ export default function UsersManagement() {
       console.log('[QuotaUpdate] Using token:', token ? 'present' : 'missing');
       
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
+        ? getApiUrl() 
         : '';
       
       const url = `${baseUrl}/api/admin/user/${userId}/storage-quota`;
@@ -248,7 +249,7 @@ export default function UsersManagement() {
       console.log('[ToggleAutoExport] Using token:', token ? 'present' : 'missing', 'isTestSession:', isTestSession);
       
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
+        ? getApiUrl() 
         : '';
       
       const url = `${baseUrl}/api/admin/user/${userId}/auto-export`;
@@ -304,7 +305,7 @@ export default function UsersManagement() {
       }
       
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
+        ? getApiUrl() 
         : '';
       
       // Generate a token for the target user

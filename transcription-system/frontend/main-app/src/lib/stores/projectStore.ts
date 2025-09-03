@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { buildApiUrl } from '@/utils/api';
 
 export interface MediaFile {
   id: string;
@@ -112,7 +113,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
           console.log('[ProjectStore] Using token:', token);
           
-          const response = await fetch('http://localhost:5000/api/projects/list', {
+          const response = await fetch(buildApiUrl('/api/projects/list'), {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -185,7 +186,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
       loadMediaData: async (projectId, mediaId) => {
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-          const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}/load`, {
+          const response = await fetch(buildApiUrl(`/api/projects/${projectId}/media/${mediaId}/load`), {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -217,7 +218,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
         try {
           console.log('[ProjectStore] Saving media data:', { projectId, mediaId, data });
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-          const url = `http://localhost:5000/api/projects/${projectId}/media/${mediaId}/transcription`;
+          const url = buildApiUrl(`/api/projects/${projectId}/media/${mediaId}/transcription`);
           console.log('[ProjectStore] Save URL:', url);
           console.log('[ProjectStore] Save token:', token?.substring(0, 20) + '...');
           
@@ -252,7 +253,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
       updateMediaStage: async (projectId, mediaId, stage) => {
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-          const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}/stage`, {
+          const response = await fetch(buildApiUrl(`/api/projects/${projectId}/media/${mediaId}/stage`), {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -308,7 +309,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
         
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-          const response = await fetch('http://localhost:5000/api/projects/create-from-folder', {
+          const response = await fetch(buildApiUrl('/api/projects/create-from-folder'), {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`

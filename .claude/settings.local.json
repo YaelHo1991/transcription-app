@@ -35,7 +35,14 @@
       "Bash(npm run migrate:*)",
       "Bash(npm run:*)",
       "Bash(find:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Read(\\/**)",
+      "Read(C:\\/**)",
+      "Bash(pm2 list:*)",
+      "Bash(chmod:*)",
+      "Bash(./deploy-frontend.sh)",
+      "Bash(sudo -u postgres psql:*)",
+      "Bash(su:*)"
     ],
     "deny": [],
     "ask": [],

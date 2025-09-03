@@ -1,5 +1,6 @@
 import { TemplateProcessor } from './templateProcessor';
 import WordDocumentGenerator, { BlockData } from './WordDocumentGenerator';
+import { buildApiUrl } from '@/utils/api';
 
 export class AutoExportHandler {
   private templateProcessor: TemplateProcessor;
@@ -14,18 +15,13 @@ export class AutoExportHandler {
     if (this.isInitialized) return;
     
     try {
-      // Use relative URL for production, explicit URL for localhost
-      const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
-        ? '' // Use relative URL on production
-        : 'http://localhost:5000'; // Use explicit URL on localhost
-      
       // Check for session template first
       const sessionTemplate = localStorage.getItem('sessionTemplate');
-      let templateUrl = `${baseUrl}/api/template/export-template`;
+      let templateUrl = buildApiUrl('/api/template/export-template');
       
       if (sessionTemplate) {
         // Use session template if available
-        templateUrl = `${baseUrl}/api/template/export-template?template=${encodeURIComponent(sessionTemplate)}`;
+        templateUrl = buildApiUrl(`/api/template/export-template?template=${encodeURIComponent(sessionTemplate)}`);
       }
       
       console.log('[AutoExportHandler] Loading template from:', templateUrl);

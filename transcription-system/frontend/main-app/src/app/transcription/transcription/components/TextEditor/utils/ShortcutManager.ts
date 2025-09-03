@@ -7,6 +7,7 @@ import {
   ShortcutCategory
 } from '../types/shortcuts';
 import { ShortcutCache, getShortcutCache } from './ShortcutCache';
+import { getApiUrl } from '@/utils/api';
 
 /**
  * ShortcutManager - Manages text shortcuts for the TextEditor
@@ -66,7 +67,7 @@ export class ShortcutManager {
     try {
       const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' 
         ? '' // Use same origin in production
-        : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000');
+        : getApiUrl();
       
       const response = await fetch(baseUrl + '/api/transcription/shortcuts/public', {
         method: 'GET',

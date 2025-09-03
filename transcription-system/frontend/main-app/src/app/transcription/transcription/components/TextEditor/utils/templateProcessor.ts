@@ -6,6 +6,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType } from
 import { extractBodyXML, injectFormattedXML } from './xmlMerger';
 // @ts-ignore - docx-merger doesn't have TypeScript definitions
 import DocxMerger from 'docx-merger';
+import { buildApiUrl } from '@/utils/api';
 
 interface TemplateData {
   fileName: string;
@@ -801,7 +802,7 @@ export class TemplateProcessor {
       // Use relative URL to avoid HTTPS/HTTP issues
       const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
         ? '' // Use relative URL on production
-        : 'http://localhost:5000'; // Use explicit URL on localhost
+        : buildApiUrl('').replace('/api', ''); // Use buildApiUrl for base URL
       const response = await fetch(baseUrl + '/api/template/convert-and-export', {
         method: 'POST',
         body: formData

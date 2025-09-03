@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildApiUrl } from '@/utils/api';
 
 // Development mode flag - automatically set based on environment
 const DEV_MODE = process.env.NODE_ENV === 'development';
@@ -182,7 +183,7 @@ class BackupService {
       
       // Use project backup endpoint
       const response = await axios.post(
-        `http://localhost:5000/api/projects/${this.currentProjectId}/media/${this.currentMediaId}/backup`,
+        buildApiUrl(`/api/projects/${this.currentProjectId}/media/${this.currentMediaId}/backup`),
         backupPayload,
         {
           headers: {

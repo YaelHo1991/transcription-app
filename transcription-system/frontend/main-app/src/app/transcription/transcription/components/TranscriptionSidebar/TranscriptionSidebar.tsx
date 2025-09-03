@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import useProjectStore from '@/lib/stores/projectStore';
 import { NotificationModal, useNotification } from '@/components/NotificationModal/NotificationModal';
 import './TranscriptionSidebar.css';
+import { buildApiUrl } from '@/utils/api';
 
 export interface TranscriptionSidebarProps {
   onOpenManagementModal?: (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => void;
@@ -48,7 +49,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     const loadOrphanedCount = async () => {
       try {
         const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-        const response = await fetch('http://localhost:5000/api/projects/orphaned/transcriptions', {
+        const response = await fetch(buildApiUrl('/api/projects/orphaned/transcriptions'), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -76,10 +77,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
           return;
         }
         
-        const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-          ? 'http://localhost:5000' 
-          : '';
-        const response = await fetch(`${baseUrl}/api/auth/storage`, {
+        const response = await fetch(buildApiUrl('/api/auth/storage'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -186,7 +184,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     }
     // Default implementation if no handler provided
     try {
-      const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
+      const response = await fetch(buildApiUrl(`/api/projects/${projectId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
@@ -213,7 +211,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     }
     // Default implementation if no handler provided
     try {
-      const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}`, {
+      const response = await fetch(buildApiUrl(`/api/projects/${projectId}/media/${mediaId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
