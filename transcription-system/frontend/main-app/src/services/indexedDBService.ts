@@ -425,6 +425,137 @@ class IndexedDBService {
   }
 
   /**
+   * Delete all data for a specific project
+   */
+  async deleteProjectData(projectId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const transaction = this.db.transaction(
+        ['transcriptions', 'backups', 'metadata'], 
+        'readwrite'
+      );
+
+      let deletedCount = 0;
+
+      // Delete from transcriptions
+      const transcriptionStore = transaction.objectStore('transcriptions');
+      const transcriptionIndex = transcriptionStore.index('projectId');
+      const transcriptionRequest = transcriptionIndex.openCursor(IDBKeyRange.only(projectId));
+      
+      transcriptionRequest.onsuccess = () => {
+        const cursor = transcriptionRequest.result;
+        if (cursor) {
+          cursor.delete();
+          deletedCount++;
+          cursor.continue();
+        }
+      };
+
+      // Delete from backups
+      const backupStore = transaction.objectStore('backups');
+      const backupIndex = backupStore.index('projectId');
+      const backupRequest = backupIndex.openCursor(IDBKeyRange.only(projectId));
+      
+      backupRequest.onsuccess = () => {
+        const cursor = backupRequest.result;
+        if (cursor) {
+          cursor.delete();
+          deletedCount++;
+          cursor.continue();
+        }
+      };
+
+      // Delete from metadata
+      const metadataStore = transaction.objectStore('metadata');
+      const metadataIndex = metadataStore.index('projectId');
+      const metadataRequest = metadataIndex.openCursor(IDBKeyRange.only(projectId));
+      
+      metadataRequest.onsuccess = () => {
+        const cursor = metadataRequest.result;
+        if (cursor) {
+          cursor.delete();
+          deletedCount++;
+          cursor.continue();
+        }
+      };
+
+      transaction.oncomplete = () => {
+        console.log('[IndexedDB] Deleted ' + deletedCount + ' records for project:', projectId);
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        console.error('[IndexedDB] Failed to delete project data:', transaction.error);
+        reject(transaction.error);
+      };
+    });
+  }
+
+  /**
+   * Delete all data for a specific media within a project
+   */
+  async deleteMediaData(projectId: string, mediaId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      const combinedId = projectId + '_' + mediaId;
+      const transaction = this.db.transaction(
+        ['transcriptions', 'backups', 'metadata'], 
+        'readwrite'
+      );
+
+      let deletedCount = 0;
+
+      // Delete specific transcription
+      const transcriptionStore = transaction.objectStore('transcriptions');
+      const transcriptionRequest = transcriptionStore.delete(combinedId);
+      
+      transcriptionRequest.onsuccess = () => {
+        deletedCount++;
+      };
+
+      // Delete backups for this media
+      const backupStore = transaction.objectStore('backups');
+      const backupIndex = backupStore.index('projectId');
+      const backupRequest = backupIndex.openCursor(IDBKeyRange.only(combinedId));
+      
+      backupRequest.onsuccess = () => {
+        const cursor = backupRequest.result;
+        if (cursor) {
+          cursor.delete();
+          deletedCount++;
+          cursor.continue();
+        }
+      };
+
+      // Delete metadata
+      const metadataStore = transaction.objectStore('metadata');
+      const metadataRequest = metadataStore.delete(combinedId);
+      
+      metadataRequest.onsuccess = () => {
+        deletedCount++;
+      };
+
+      transaction.oncomplete = () => {
+        console.log('[IndexedDB] Deleted ' + deletedCount + ' records for media:', mediaId);
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        console.error('[IndexedDB] Failed to delete media data:', transaction.error);
+        reject(transaction.error);
+      };
+    });
+  }
+
+  /**
    * Close database connection
    */
   close(): void {

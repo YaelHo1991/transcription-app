@@ -118,15 +118,28 @@ export class ProjectService {
       // Save media file with filesystem-safe name
       const fileExtension = path.extname(file.name);
       const safeFileName = `media${fileExtension}`;
-      await fs.writeFile(path.join(mediaDir, safeFileName), file.buffer);
+      const mediaFilePath = path.join(mediaDir, safeFileName);
+      await fs.writeFile(mediaFilePath, file.buffer);
       
-      // Create media metadata
+      // Extract duration from audio file
+      let duration = 0;
+      try {
+        const metadata = await mm.parseFile(mediaFilePath);
+        duration = metadata.format.duration || 0;
+        console.log(`[ProjectService] Extracted duration for ${mediaId}: ${duration} seconds`);
+      } catch (error) {
+        console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, error);
+        duration = 0;
+      }
+      
+      // Create media metadata with duration
       const mediaMetadata = {
         mediaId,
         fileName: safeFileName,
         originalName: file.name,
         mimeType: file.mimeType,
         size: file.buffer.length,
+        duration: duration,
         stage: 'transcription',
         createdAt: new Date().toISOString(),
         lastModified: new Date().toISOString()
@@ -554,38 +567,62 @@ export class ProjectService {
                     const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
                     const mediaMetadata = JSON.parse(await fs.readFile(mediaMetadataPath, 'utf8'));
                     
-                    // Get actual media file for duration
-                    const mediaFilePath = path.join(projectDir, 'media', mediaId, mediaMetadata.fileName);
-                    let duration = 0;
-                    
-                    try {
-                      // Extract duration using music-metadata
-                      const metadata = await mm.parseFile(mediaFilePath);
-                      duration = metadata.format.duration || 0;
-                    } catch (error) {
-                      console.log(`Could not extract duration for ${mediaId}:`, error);
-                      duration = 0;
-                    }
-                    
+                    // Use stored duration from metadata (already extracted during creation)
                     mediaInfo.push({
                       mediaId: mediaId,
                       name: mediaMetadata.originalName || mediaMetadata.fileName,
                       size: mediaMetadata.size || 0,
-                      duration: duration,
+                      duration: mediaMetadata.duration || 0, // Use stored duration
                       mimeType: mediaMetadata.mimeType
                     });
                     
                     totalSize += mediaMetadata.size || 0;
                   } catch (error) {
                     console.error(`Error loading media metadata for ${mediaId}:`, error);
-                    // Add placeholder if metadata not found
-                    mediaInfo.push({
-                      mediaId: mediaId,
-                      name: `Media ${mediaId}`,
-                      size: 0,
-                      duration: 0,
-                      mimeType: 'unknown'
-                    });
+                    // Try to at least get file info directly
+                    try {
+                      const mediaFiles = await fs.readdir(path.join(projectDir, 'media', mediaId));
+                      const audioFile = mediaFiles.find(f => 
+                        ['.mp3', '.mp4', '.wav', '.m4a', '.webm', '.ogg'].includes(path.extname(f).toLowerCase())
+                      );
+                      
+                      if (audioFile) {
+                        const audioPath = path.join(projectDir, 'media', mediaId, audioFile);
+                        const stats = await fs.stat(audioPath);
+                        let duration = 0;
+                        
+                        try {
+                          const metadata = await mm.parseFile(audioPath);
+                          duration = metadata.format.duration || 0;
+                        } catch {}
+                        
+                        mediaInfo.push({
+                          mediaId: mediaId,
+                          name: audioFile,
+                          size: stats.size,
+                          duration: duration,
+                          mimeType: `audio/${path.extname(audioFile).substring(1)}`
+                        });
+                      } else {
+                        // Final fallback
+                        mediaInfo.push({
+                          mediaId: mediaId,
+                          name: mediaId,
+                          size: 0,
+                          duration: 0,
+                          mimeType: 'unknown'
+                        });
+                      }
+                    } catch {
+                      // Final fallback if all else fails
+                      mediaInfo.push({
+                        mediaId: mediaId,
+                        name: mediaId,
+                        size: 0,
+                        duration: 0,
+                        mimeType: 'unknown'
+                      });
+                    }
                   }
                 }
               }

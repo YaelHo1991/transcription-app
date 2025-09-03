@@ -269,7 +269,7 @@ router.post('/forgot-password', loginRateLimiter, async (req, res) => {
     // Send reset email
     await emailService.sendPasswordResetEmail({
       to: email,
-      fullName: user.username,
+      fullName: user.full_name || user.username,
       resetToken
     });
 

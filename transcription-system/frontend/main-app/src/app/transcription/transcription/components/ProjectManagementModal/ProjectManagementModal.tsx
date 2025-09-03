@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Project, MediaInfo } from '@/lib/stores/projectStore';
+import { ConfirmationModal } from '../TextEditor/components/ConfirmationModal';
 import './ProjectManagementModal.css';
 
 interface ArchivedTranscription {
@@ -36,8 +37,12 @@ export default function ProjectManagementModal({
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [deleteTranscriptions, setDeleteTranscriptions] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'project' | 'media', id: string, mediaId?: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'project' | 'media' | 'orphaned', id: string, mediaId?: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     setCurrentTab(activeTab);
@@ -51,18 +56,28 @@ export default function ProjectManagementModal({
 
   const loadArchivedTranscriptions = async () => {
     try {
-      const response = await fetch('/api/archive/transcriptions', {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const response = await fetch('http://localhost:5000/api/projects/orphaned/transcriptions', {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'dev-anonymous'}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
       });
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Loaded orphaned transcriptions:', data.transcriptions);
         setArchivedTranscriptions(data.transcriptions || []);
+      } else {
+        console.error('Failed to load orphaned transcriptions:', response.status);
+        setArchivedTranscriptions([]);
       }
     } catch (error) {
-      console.error('Failed to load archived transcriptions:', error);
+      // Silently fail - might be due to Chrome extension or CORS
+      console.log('Could not load archived transcriptions (may be due to browser extension):', error);
+      setArchivedTranscriptions([]);
     }
   };
 
@@ -90,48 +105,144 @@ export default function ProjectManagementModal({
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     
+    setShowConfirmDialog(false);
     setLoading(true);
+    
     try {
       if (deleteTarget.type === 'project' && onProjectDelete) {
         await onProjectDelete(deleteTarget.id, deleteTranscriptions);
+        setSuccessMessage('הפרויקט נמחק בהצלחה');
+        setShowSuccessModal(true);
       } else if (deleteTarget.type === 'media' && deleteTarget.mediaId && onMediaDelete) {
         await onMediaDelete(deleteTarget.id, deleteTarget.mediaId, deleteTranscriptions);
+        setSuccessMessage('המדיה נמחקה בהצלחה');
+        setShowSuccessModal(true);
+      } else if (deleteTarget.type === 'orphaned') {
+        await executeOrphanedDelete(deleteTarget.id);
       }
       
-      setShowConfirmDialog(false);
       setDeleteTarget(null);
       setDeleteTranscriptions(false);
     } catch (error) {
       console.error('Delete failed:', error);
+      setErrorMessage('שגיאה במחיקה. אנא נסה שנית.');
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
   };
 
   const exportTranscription = async (transcriptionId: string, format: 'word' | 'json') => {
+    console.log(`Exporting transcription ${transcriptionId} as ${format}`);
     try {
-      const response = await fetch(`/api/archive/transcription/${transcriptionId}/export`, {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const response = await fetch(`http://localhost:5000/api/projects/orphaned/export`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'dev-anonymous'}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ format })
+        body: JSON.stringify({ transcriptionId, format })
       });
       
+      console.log('Export response:', response.status);
+      
       if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `transcription_${transcriptionId}.${format === 'word' ? 'docx' : 'json'}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        if (format === 'json') {
+          // JSON format returns JSON data
+          const data = await response.json();
+          const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = data.filename || `transcription_${transcriptionId}.json`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else if (format === 'word') {
+          // Word format returns binary data
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `transcription_${transcriptionId}.docx`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('Export failed:', response.status, errorText);
+        alert(`Export failed: ${errorText}`);
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error('Export error:', error);
+      alert(`Export error: ${error}`);
+    }
+  };
+  
+  const deleteTranscription = async (transcriptionId: string) => {
+    // Set the delete target to trigger the confirmation modal
+    setDeleteTarget({ type: 'orphaned', id: transcriptionId });
+    setShowConfirmDialog(true);
+  };
+  
+  const executeOrphanedDelete = async (transcriptionId: string) => {
+    console.log(`[Frontend] Deleting orphaned transcription: ${transcriptionId}`);
+    
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      
+      // URL encode the transcriptionId to handle special characters
+      const encodedId = encodeURIComponent(transcriptionId);
+      console.log(`[Frontend] Encoded ID: ${encodedId}`);
+      
+      const response = await fetch(`http://localhost:5000/api/projects/orphaned/${encodedId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('[Frontend] Delete response:', response.status, response.statusText);
+      
+      if (response.ok) {
+        // Immediately remove the item from the list for better UX
+        setArchivedTranscriptions(prev => prev.filter(t => t.id !== transcriptionId));
+        
+        // Then reload the list from server to ensure consistency
+        setTimeout(async () => {
+          await loadArchivedTranscriptions();
+        }, 500);
+        
+        setSuccessMessage('התמלול נמחק בהצלחה');
+        setShowSuccessModal(true);
+      } else if (response.status === 404) {
+        // File not found - it's already deleted, just refresh the list
+        console.log('Transcription already deleted (404), refreshing list');
+        
+        // Immediately remove the item from the list
+        setArchivedTranscriptions(prev => prev.filter(t => t.id !== transcriptionId));
+        
+        // Then reload from server
+        setTimeout(async () => {
+          await loadArchivedTranscriptions();
+        }, 500);
+        
+        setSuccessMessage('התמלול כבר נמחק מהמערכת');
+        setShowSuccessModal(true);
+      } else {
+        const errorText = await response.text();
+        console.error('Delete failed:', response.status, errorText);
+        setErrorMessage(`שגיאה במחיקת התמלול: ${response.status === 500 ? 'שגיאת שרת פנימית' : errorText}`);
+        setShowErrorModal(true);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      setErrorMessage('שגיאת רשת במחיקת התמלול. אנא ודא שהשרת פועל.');
+      setShowErrorModal(true);
     }
   };
 
@@ -162,7 +273,12 @@ export default function ProjectManagementModal({
   if (!isOpen) return null;
 
   return (
-    <div className="project-management-modal-overlay" onClick={onClose}>
+    <div className="project-management-modal-overlay" onClick={(e) => {
+      // Only close if clicking the overlay itself, not nested modals
+      if ((e.target as HTMLElement).classList.contains('project-management-modal-overlay')) {
+        onClose();
+      }
+    }}>
       <div className="project-management-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>ניהול פרויקטים ותמלולים</h2>
@@ -278,15 +394,18 @@ export default function ProjectManagementModal({
                                 </div>
                               ))
                             ) : (
-                              project.mediaFiles.map((mediaId, index) => (
-                                <div key={mediaId} className="media-detail-item">
-                                  <div className="media-icon">🎵</div>
-                                  <div className="media-info">
-                                    <div className="media-name">קובץ {index + 1}</div>
-                                    <div className="media-meta">
-                                      <span className="media-id">{mediaId}</span>
+                              project.mediaFiles.map((mediaId, index) => {
+                                // Try to get media name from mediaInfo if we somehow missed it
+                                const mediaName = typeof mediaId === 'string' ? mediaId : `Media ${index + 1}`;
+                                return (
+                                  <div key={mediaId} className="media-detail-item">
+                                    <div className="media-icon">🎵</div>
+                                    <div className="media-info">
+                                      <div className="media-name">{mediaName}</div>
+                                      <div className="media-meta">
+                                        <span className="media-id">0 B</span>
+                                      </div>
                                     </div>
-                                  </div>
                                   <button 
                                     className="delete-media-btn"
                                     onClick={(e) => {
@@ -298,7 +417,8 @@ export default function ProjectManagementModal({
                                     🗑️
                                   </button>
                                 </div>
-                              ))
+                              );
+                            })
                             )}
                           </div>
                         </>
@@ -339,19 +459,28 @@ export default function ProjectManagementModal({
                         </button>
                         <button 
                           className="export-word-btn"
-                          onClick={() => exportTranscription(transcription.id, 'word')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportTranscription(transcription.id, 'word');
+                          }}
                         >
                           📄 Word
                         </button>
                         <button 
                           className="export-json-btn"
-                          onClick={() => exportTranscription(transcription.id, 'json')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            exportTranscription(transcription.id, 'json');
+                          }}
                         >
                           💾 JSON
                         </button>
                         <button 
                           className="delete-transcription-btn"
-                          onClick={() => {/* TODO: Implement delete */}}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteTranscription(transcription.id);
+                          }}
                         >
                           🗑️
                         </button>
@@ -396,13 +525,16 @@ export default function ProjectManagementModal({
                             </div>
                           ))
                         ) : (
-                          project.mediaFiles.map((mediaId, index) => (
-                            <div key={mediaId} className="media-duration-item">
-                              <div className="media-icon-small">🎵</div>
-                              <span className="media-name">קובץ {index + 1}</span>
-                              <span className="duration">00:00:00</span>
-                            </div>
-                          ))
+                          project.mediaFiles.map((mediaId, index) => {
+                            const mediaName = typeof mediaId === 'string' ? mediaId : `Media ${index + 1}`;
+                            return (
+                              <div key={mediaId} className="media-duration-item">
+                                <div className="media-icon-small">🎵</div>
+                                <span className="media-name">{mediaName}</span>
+                                <span className="duration">00:00:00</span>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -422,42 +554,70 @@ export default function ProjectManagementModal({
             </div>
           )}
         </div>
-
-        {/* Confirmation Dialog */}
+        
+        {/* Custom Delete Confirmation Modal */}
         {showConfirmDialog && (
-          <div className="confirm-dialog-overlay">
-            <div className="confirm-dialog">
-              <h3>אישור מחיקה</h3>
-              <p>
-                האם אתה בטוח שברצונך למחוק את {deleteTarget?.type === 'project' ? 'הפרויקט' : 'קובץ המדיה'}?
-              </p>
-              
-              <div className="delete-options">
-                <label>
-                  <input 
-                    type="checkbox" 
-                    checked={deleteTranscriptions}
-                    onChange={(e) => setDeleteTranscriptions(e.target.checked)}
-                  />
-                  מחק גם את התמלולים המשויכים
-                </label>
-                {!deleteTranscriptions && (
-                  <p className="archive-note">
-                    התמלולים יועברו לארכיון ויהיו זמינים בלשונית "תמלולים"
-                  </p>
+          <div className="modal-overlay" onClick={(e) => {
+            if ((e.target as HTMLElement).classList.contains('modal-overlay') && !loading) {
+              setShowConfirmDialog(false);
+              setDeleteTarget(null);
+              setDeleteTranscriptions(false);
+            }
+          }}>
+            <div className="modal-container small error-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3 className="modal-title">אישור מחיקה</h3>
+                {!loading && (
+                  <button className="modal-close" onClick={() => {
+                    setShowConfirmDialog(false);
+                    setDeleteTarget(null);
+                    setDeleteTranscriptions(false);
+                  }}>×</button>
                 )}
               </div>
               
-              <div className="dialog-actions">
-                <button 
-                  className="confirm-btn"
+              <div className="modal-body">
+                <div className="confirmation-icon">⚠️</div>
+                <div className="confirmation-message">
+                  {deleteTarget?.type === 'project' 
+                    ? 'האם אתה בטוח שברצונך למחוק את הפרויקט?' 
+                    : deleteTarget?.type === 'orphaned'
+                    ? 'האם אתה בטוח שברצונך למחוק את התמלול לצמיתות?'
+                    : 'האם אתה בטוח שברצונך למחוק את קובץ המדיה?'}
+                </div>
+                
+                {/* Checkbox for delete transcriptions option */}
+                {deleteTarget?.type !== 'orphaned' && (
+                  <div className="delete-options" style={{ marginTop: '15px', textAlign: 'right' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', cursor: 'pointer' }}>
+                      <span style={{ marginLeft: '8px' }}>מחק גם את התמלולים המשויכים</span>
+                      <input 
+                        type="checkbox" 
+                        checked={deleteTranscriptions}
+                        onChange={(e) => setDeleteTranscriptions(e.target.checked)}
+                        disabled={loading}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </label>
+                    {!deleteTranscriptions && (
+                      <p className="confirmation-submessage" style={{ marginTop: '8px', fontSize: '0.9em', color: '#666' }}>
+                        התמלולים יועברו לארכיון ויהיו זמינים בלשונית "תמלולים"
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  className={'modal-btn modal-btn-danger' + (loading ? ' loading' : '')}
                   onClick={confirmDelete}
                   disabled={loading}
                 >
-                  {loading ? 'מוחק...' : 'אישור'}
+                  {loading ? '' : 'מחק'}
                 </button>
-                <button 
-                  className="cancel-btn"
+                <button
+                  className="modal-btn modal-btn-secondary"
                   onClick={() => {
                     setShowConfirmDialog(false);
                     setDeleteTarget(null);
@@ -471,6 +631,38 @@ export default function ProjectManagementModal({
             </div>
           </div>
         )}
+        
+        {/* Success Modal */}
+        <ConfirmationModal
+          isOpen={showSuccessModal}
+          onClose={() => {
+            setShowSuccessModal(false);
+          }}
+          onConfirm={() => {
+            setShowSuccessModal(false);
+          }}
+          title="הפעולה הושלמה"
+          message={successMessage}
+          confirmText="אישור"
+          type="success"
+          showIcon={true}
+        />
+        
+        {/* Error Modal */}
+        <ConfirmationModal
+          isOpen={showErrorModal}
+          onClose={() => {
+            setShowErrorModal(false);
+          }}
+          onConfirm={() => {
+            setShowErrorModal(false);
+          }}
+          title="שגיאה"
+          message={errorMessage}
+          confirmText="סגור"
+          type="danger"
+          showIcon={true}
+        />
       </div>
     </div>
   );

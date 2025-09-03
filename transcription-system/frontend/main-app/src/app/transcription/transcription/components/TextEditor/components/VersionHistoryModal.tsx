@@ -23,6 +23,7 @@ interface VersionHistoryModalProps {
   onRestore?: (version: BackupVersion) => void;
   transcriptionId?: string;
   mediaId?: string;
+  mediaName?: string;
   transcriptionNumber?: number;
 }
 
@@ -32,6 +33,7 @@ export default function VersionHistoryModal({
   onRestore,
   transcriptionId,
   mediaId,
+  mediaName,
   transcriptionNumber
 }: VersionHistoryModalProps) {
   const [versions, setVersions] = useState<BackupVersion[]>([]);
@@ -44,9 +46,6 @@ export default function VersionHistoryModal({
   const [compareVersion, setCompareVersion] = useState<BackupVersion | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<BackupVersion | null>(null);
-  
-  // Extract media name from mediaId (format: 0-0-filename.mp3)
-  const mediaName = mediaId ? mediaId.replace(/^0-0-/, '') : '';
 
   useEffect(() => {
     if (isOpen && mediaId && transcriptionNumber) {

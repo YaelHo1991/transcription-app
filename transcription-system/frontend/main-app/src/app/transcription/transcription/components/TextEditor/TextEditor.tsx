@@ -770,6 +770,9 @@ export default function TextEditor({
       setCurrentMediaFileName(mediaName);
     } else if (mediaFileName) {
       setCurrentMediaFileName(mediaFileName);
+    } else {
+      // Clear the filename if both are empty
+      setCurrentMediaFileName('');
     }
   }, [mediaName, mediaFileName]);
   
@@ -3386,6 +3389,7 @@ export default function TextEditor({
       <VersionHistoryModal
         isOpen={showVersionHistoryModal}
         onClose={() => setShowVersionHistoryModal(false)}
+        mediaName={mediaName}
         onRestore={async (version) => {
           console.log('[Project] Restoring version for media:', currentMediaId, version);
           try {

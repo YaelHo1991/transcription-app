@@ -19,6 +19,7 @@ import { ConfirmationModal } from './components/TextEditor/components/Confirmati
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import LoginPromptModal from '../../../components/LoginPromptModal';
 import useProjectStore from '@/lib/stores/projectStore';
+import indexedDBService from '@/services/indexedDBService';
 import './transcription-theme.css';
 import './transcription-page.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
@@ -82,6 +83,39 @@ const getCurrentUserId = (): string | null => {
     console.error('[Auth] Error getting user ID:', error);
   }
   return null;
+};
+
+// Helper function to clear all media-related localStorage entries
+const clearMediaLocalStorage = (projectId?: string, mediaId?: string) => {
+  const keysToRemove: string[] = [];
+  
+  // Find all media-related keys
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key) {
+      // Clear media positions
+      if (key.startsWith('mediaPosition_')) {
+        if (mediaId && key.includes(mediaId)) {
+          keysToRemove.push(key);
+        } else if (projectId && key.includes(projectId)) {
+          keysToRemove.push(key);
+        } else if (!mediaId && !projectId) {
+          // Clear all if no specific project/media
+          keysToRemove.push(key);
+        }
+      }
+      // Clear project/transcription data
+      if (projectId && (key.includes(projectId) || key === `project_${projectId}` || key === `transcription_${projectId}`)) {
+        keysToRemove.push(key);
+      }
+    }
+  }
+  
+  // Remove all found keys
+  keysToRemove.forEach(key => {
+    localStorage.removeItem(key);
+    console.log('[Page] Removed localStorage key:', key);
+  });
 };
 
 export default function TranscriptionWorkPage() {
@@ -710,13 +744,63 @@ export default function TranscriptionWorkPage() {
         body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
       });
       
-      if (response.ok) {
-        // Reload projects through the store
-        const { loadProjects } = useProjectStore.getState();
+      if (!response.ok) {
+        console.error('Delete project failed with status:', response.status);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        alert(`שגיאה במחיקת הפרויקט: ${errorText}`);
+        return;
+      }
+      
+      // Get current state from the store
+      const { currentProject, projects, loadProjects, setCurrentProject, setCurrentMediaById, clearCurrentTranscription } = useProjectStore.getState();
+      
+      // Clear IndexedDB cache for this project
+      try {
+        await indexedDBService.deleteProjectData(projectId);
+        console.log('[Page] Cleared IndexedDB cache for project:', projectId);
+      } catch (error) {
+        console.error('[Page] Failed to clear IndexedDB cache:', error);
+      }
+      
+      // Clear localStorage entries for this project
+      clearMediaLocalStorage(projectId);
+      
+      // Check if the deleted project is the current one
+      if (currentProject?.projectId === projectId) {
+        // Clear current selection and transcription data
+        setCurrentProject(null);
+        clearCurrentTranscription();
+        // Also clear the IDs that TextEditor uses
+        await setCurrentMediaById('', '');
+        
+        // Reload projects
+        await loadProjects();
+        
+        // Get updated projects after reload
+        const updatedState = useProjectStore.getState();
+        
+        // Switch to the first available project
+        if (updatedState.projects.length > 0) {
+          const nextProject = updatedState.projects[0];
+          setCurrentProject(nextProject);
+          
+          // Load first media of the new project
+          if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
+            await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+          }
+        } else {
+          // No projects left - ensure everything is cleared
+          clearCurrentTranscription();
+          await setCurrentMediaById('', ''); // Clear IDs to prevent TextEditor from loading
+          setActualMediaDuration(0); // Clear media duration
+        }
+      } else {
+        // Just reload if it wasn't the current project
         await loadProjects();
       }
     } catch (error) {
-      console.error('Failed to delete project:', error);
+      console.error('Failed to delete project - network error:', error);
+      alert('שגיאת רשת במחיקת הפרויקט. אנא ודא שהשרת פועל.');
     }
   };
 
@@ -732,13 +816,106 @@ export default function TranscriptionWorkPage() {
         body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
       });
       
-      if (response.ok) {
-        // Reload projects through the store
-        const { loadProjects } = useProjectStore.getState();
+      if (!response.ok) {
+        console.error('Delete media failed with status:', response.status);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        alert(`שגיאה במחיקת המדיה: ${errorText}`);
+        return;
+      }
+      
+      const result = await response.json();
+      
+      // Get current state from the store
+      const { currentProject, currentMediaId, projects, loadProjects, setCurrentProject, setCurrentMediaById, clearCurrentTranscription } = useProjectStore.getState();
+      
+      // Clear IndexedDB cache for this media
+      try {
+        await indexedDBService.deleteMediaData(projectId, mediaId);
+        console.log('[Page] Cleared IndexedDB cache for media:', mediaId);
+      } catch (error) {
+        console.error('[Page] Failed to clear IndexedDB cache:', error);
+      }
+      
+      // Clear localStorage entries for this media
+      clearMediaLocalStorage(projectId, mediaId);
+      
+      // Check if entire project was deleted (happens when last media is deleted)
+      if (result.projectDeleted) {
+        // Also clear all project data from IndexedDB
+        try {
+          await indexedDBService.deleteProjectData(projectId);
+          console.log('[Page] Cleared IndexedDB cache for entire project:', projectId);
+        } catch (error) {
+          console.error('[Page] Failed to clear IndexedDB project cache:', error);
+        }
+        // Clear current selection and transcription data
+        setCurrentProject(null);
+        clearCurrentTranscription();
+        // Clear IDs to prevent TextEditor from loading cached data
+        await setCurrentMediaById('', '');
+        
+        // Reload projects
+        await loadProjects();
+        
+        // Get updated projects after reload
+        const updatedState = useProjectStore.getState();
+        
+        // Switch to the first available project
+        if (updatedState.projects.length > 0) {
+          const nextProject = updatedState.projects[0];
+          setCurrentProject(nextProject);
+          
+          // Load first media of the new project
+          if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
+            await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+          }
+        } else {
+          // No projects left - ensure everything is cleared
+          clearCurrentTranscription();
+          await setCurrentMediaById('', ''); // Clear IDs to prevent TextEditor from loading
+          setActualMediaDuration(0); // Clear media duration
+        }
+      } else if (currentProject?.projectId === projectId && currentMediaId === mediaId) {
+        // Current media was deleted but project still exists
+        clearCurrentTranscription();
+        // Temporarily clear IDs to force TextEditor refresh
+        await setCurrentMediaById('', '');
+        await loadProjects();
+        
+        // Get updated project data
+        const updatedState = useProjectStore.getState();
+        const updatedProject = updatedState.projects.find(p => p.projectId === projectId);
+        
+        if (updatedProject && updatedProject.mediaFiles.length > 0) {
+          // Switch to the first available media in the same project
+          const nextMediaId = updatedProject.mediaFiles[0];
+          await setCurrentMediaById(projectId, nextMediaId);
+        } else {
+          // No media left in this project (shouldn't happen due to backend changes)
+          // Switch to first available project
+          if (updatedState.projects.length > 0) {
+            const nextProject = updatedState.projects[0];
+            setCurrentProject(nextProject);
+            
+            if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
+              await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+            }
+          } else {
+            // No projects left at all
+            setCurrentProject(null);
+            clearCurrentTranscription();
+            await setCurrentMediaById('', ''); // Clear IDs
+            setActualMediaDuration(0); // Clear media duration
+          }
+        }
+      } else {
+        // Just reload if it wasn't the current media
         await loadProjects();
       }
+      
     } catch (error) {
-      console.error('Failed to delete media:', error);
+      console.error('Failed to delete media - network error:', error);
+      alert('שגיאת רשת במחיקת המדיה. אנא ודא שהשרת פועל.');
     }
   };
 

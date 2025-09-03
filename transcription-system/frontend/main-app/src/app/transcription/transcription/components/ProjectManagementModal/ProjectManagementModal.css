@@ -88,6 +88,8 @@
   padding: 0 30px;
   background: rgba(0, 0, 0, 0.2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  justify-content: space-evenly;
+  width: 100%;
 }
 
 .tab {
@@ -97,6 +99,8 @@
   padding: 15px 25px;
   font-size: 16px;
   cursor: pointer;
+  flex: 1;
+  text-align: center;
   transition: all 0.3s ease;
   position: relative;
   margin-right: 10px;

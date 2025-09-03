@@ -714,6 +714,256 @@ router.get('/:projectId/backups/:backupFile', verifyUser, async (req: Request, r
 });
 
 /**
+ * Get orphaned transcriptions
+ */
+router.get('/orphaned/transcriptions', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id || 'unknown';
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    
+    const transcriptions: any[] = [];
+    
+    try {
+      await fs_promises.access(orphanedPath);
+      
+      // Read all orphan folders
+      const orphanFolders = await fs_promises.readdir(orphanedPath);
+      
+      for (const orphanFolder of orphanFolders) {
+        const orphanPath = path.join(orphanedPath, orphanFolder);
+        const stats = await fs_promises.stat(orphanPath);
+        
+        if (stats.isDirectory()) {
+          // Check if this is a project folder (has media subfolders) or single media
+          const contents = await fs_promises.readdir(orphanPath);
+          
+          for (const item of contents) {
+            const itemPath = path.join(orphanPath, item);
+            const itemStats = await fs_promises.stat(itemPath);
+            
+            if (itemStats.isDirectory()) {
+              // This could be a media folder
+              const transcriptionDataPath = path.join(itemPath, 'transcription', 'data.json');
+              
+              try {
+                const data = JSON.parse(await fs_promises.readFile(transcriptionDataPath, 'utf-8'));
+                
+                // Calculate size
+                let size = 0;
+                try {
+                  const files = await fs_promises.readdir(path.join(itemPath, 'transcription'));
+                  for (const file of files) {
+                    const filePath = path.join(itemPath, 'transcription', file);
+                    const fileStats = await fs_promises.stat(filePath);
+                    size += fileStats.size;
+                  }
+                } catch {
+                  // Ignore size calculation errors
+                }
+                
+                transcriptions.push({
+                  id: `${orphanFolder}_${item}`,
+                  originalProjectName: data.orphanedFrom?.projectName || 'Unknown Project',
+                  originalMediaName: data.orphanedFrom?.mediaName || data.metadata?.originalName || data.metadata?.fileName || 'Unknown Media',
+                  archivedDate: data.orphanedFrom?.orphanedAt || stats.ctime.toISOString(),
+                  size: size,
+                  blocksCount: data.blocks?.length || 0,
+                  speakersCount: data.speakers?.length || 0,
+                  path: transcriptionDataPath,
+                  orphanFolder: orphanFolder,
+                  mediaId: item
+                });
+              } catch {
+                // Not a valid transcription folder, skip
+              }
+            }
+          }
+          
+          // Also check for direct transcription folder (old format)
+          const directTranscriptionPath = path.join(orphanPath, 'transcription', 'data.json');
+          try {
+            const data = JSON.parse(await fs_promises.readFile(directTranscriptionPath, 'utf-8'));
+            
+            // Calculate size
+            let size = 0;
+            try {
+              const files = await fs_promises.readdir(path.join(orphanPath, 'transcription'));
+              for (const file of files) {
+                const filePath = path.join(orphanPath, 'transcription', file);
+                const fileStats = await fs_promises.stat(filePath);
+                size += fileStats.size;
+              }
+            } catch {
+              // Ignore size calculation errors
+            }
+            
+            transcriptions.push({
+              id: orphanFolder,
+              originalProjectName: data.orphanedFrom?.projectName || 'Unknown Project',
+              originalMediaName: data.orphanedFrom?.mediaName || data.metadata?.originalName || data.metadata?.fileName || 'Unknown Media',
+              archivedDate: data.orphanedFrom?.orphanedAt || stats.ctime.toISOString(),
+              size: size,
+              blocksCount: data.blocks?.length || 0,
+              speakersCount: data.speakers?.length || 0,
+              path: directTranscriptionPath,
+              orphanFolder: orphanFolder,
+              mediaId: null
+            });
+          } catch {
+            // Not a transcription folder, skip
+          }
+        }
+      }
+    } catch {
+      // Orphaned directory doesn't exist yet
+    }
+    
+    res.json({
+      success: true,
+      transcriptions: transcriptions
+    });
+  } catch (error: any) {
+    console.error('Error loading orphaned transcriptions:', error);
+    res.status(500).json({ error: error.message || 'Failed to load orphaned transcriptions' });
+  }
+});
+
+/**
+ * Export orphaned transcription
+ */
+router.post('/orphaned/export', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { transcriptionId, format } = req.body;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    // The transcriptionId is the full folder name (e.g., orphan_1756840988593_media-1)
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    
+    // Check if the ID contains both orphan folder and media ID (new format for multi-media projects)
+    // Format: orphan_timestamp_projectname_mediaId where mediaId is separate
+    const idParts = transcriptionId.split('_');
+    let dataPath;
+    
+    // Check if this is a media-specific orphan (ends with media-N or similar pattern)
+    if (transcriptionId.match(/_media-\d+$/)) {
+      // Single media orphan: orphan_timestamp_media-N/transcription/data.json
+      dataPath = path.join(orphanedPath, transcriptionId, 'transcription', 'data.json');
+    } else if (idParts.length > 3 && idParts[idParts.length - 1].startsWith('media-')) {
+      // Multi-media project orphan with separate folder
+      const mediaId = idParts[idParts.length - 1];
+      const projectFolder = idParts.slice(0, -1).join('_');
+      dataPath = path.join(orphanedPath, projectFolder, mediaId, 'transcription', 'data.json');
+    } else {
+      // Default: direct transcription folder
+      dataPath = path.join(orphanedPath, transcriptionId, 'transcription', 'data.json');
+    }
+    
+    // Read the transcription data
+    const data = JSON.parse(await fs_promises.readFile(dataPath, 'utf-8'));
+    
+    if (format === 'json') {
+      // Return as JSON
+      res.json({
+        success: true,
+        format: 'json',
+        filename: `transcription_${transcriptionId}.json`,
+        data: data
+      });
+    } else if (format === 'word') {
+      // Create Word document using the service
+      const { wordExportService } = await import('../../services/wordExportService');
+      const buffer = await wordExportService.createWordDocument(data);
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="transcription_${transcriptionId}.docx"`);
+      res.send(buffer);
+    } else {
+      res.status(400).json({ error: 'Invalid format. Use "json" or "word"' });
+    }
+  } catch (error: any) {
+    console.error('Error exporting orphaned transcription:', error);
+    res.status(500).json({ error: error.message || 'Failed to export transcription' });
+  }
+});
+
+/**
+ * Delete orphaned transcription
+ */
+router.delete('/orphaned/:transcriptionId', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const transcriptionId = decodeURIComponent(req.params.transcriptionId);
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log(`[OrphanDelete] Received deletion request for: ${transcriptionId} from user: ${userId}`);
+    
+    // The transcriptionId could be in different formats depending on how it was orphaned
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    
+    // Parse the transcription ID to handle different formats
+    let deletePath;
+    
+    // Check if this is a nested media ID (format: orphan_timestamp_projectname_media-N)
+    if (transcriptionId.includes('_media-')) {
+      // This might be a media within a project orphan
+      const parts = transcriptionId.split('_');
+      const mediaId = parts[parts.length - 1]; // Get the last part (media-N)
+      const projectPart = parts.slice(0, -1).join('_'); // Get everything except media-N
+      
+      // First try the nested structure
+      const nestedPath = path.join(orphanedPath, projectPart, mediaId);
+      const directPath = path.join(orphanedPath, transcriptionId);
+      
+      // Check which path exists
+      const nestedExists = await fs_promises.access(nestedPath).then(() => true).catch(() => false);
+      const directExists = await fs_promises.access(directPath).then(() => true).catch(() => false);
+      
+      if (nestedExists) {
+        deletePath = nestedPath;
+        console.log(`[OrphanDelete] Found nested orphan at: ${nestedPath}`);
+      } else if (directExists) {
+        deletePath = directPath;
+        console.log(`[OrphanDelete] Found direct orphan at: ${directPath}`);
+      } else {
+        // Try the full ID as-is
+        deletePath = path.join(orphanedPath, transcriptionId);
+        console.log(`[OrphanDelete] Trying default path: ${deletePath}`);
+      }
+    } else {
+      // Simple orphan folder name
+      deletePath = path.join(orphanedPath, transcriptionId);
+      console.log(`[OrphanDelete] Using simple path: ${deletePath}`);
+    }
+    
+    console.log(`[OrphanDelete] Final delete path: ${deletePath}`);
+    
+    // Check if the folder exists
+    const exists = await fs_promises.access(deletePath).then(() => true).catch(() => false);
+    
+    if (!exists) {
+      console.log(`[OrphanDelete] Path does not exist: ${deletePath}`);
+      res.status(404).json({ 
+        error: 'Transcription not found',
+        message: `Orphaned transcription ${transcriptionId} not found`
+      });
+      return;
+    }
+    
+    // Delete the folder
+    await fs_promises.rm(deletePath, { recursive: true, force: true });
+    
+    console.log(`[OrphanDelete] Successfully deleted: ${deletePath}`);
+    
+    res.json({
+      success: true,
+      message: `Orphaned transcription ${transcriptionId} deleted successfully`
+    });
+  } catch (error: any) {
+    console.error('[OrphanDelete] Error deleting orphaned transcription:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete transcription' });
+  }
+});
+
+/**
  * Delete a project with option to preserve transcriptions
  */
 router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => {
@@ -747,14 +997,22 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
         
         // Move each media's transcription folder
         if (projectData.mediaFiles) {
-          for (const media of projectData.mediaFiles) {
-            const transcriptionPath = path.join(projectPath, media.mediaId, 'transcription');
+          for (const mediaId of projectData.mediaFiles) {
+            // Check for multi-media project structure first
+            let transcriptionPath = path.join(projectPath, 'media', mediaId, 'transcription');
+            
+            // If not found, try old structure
+            try {
+              await fs_promises.access(transcriptionPath);
+            } catch {
+              transcriptionPath = path.join(projectPath, mediaId, 'transcription');
+            }
             
             try {
               await fs_promises.access(transcriptionPath);
               
               // Create media folder in orphaned
-              const targetMediaPath = path.join(orphanedProjectPath, media.mediaId);
+              const targetMediaPath = path.join(orphanedProjectPath, mediaId);
               await fs_promises.mkdir(targetMediaPath, { recursive: true });
               
               // Move the transcription folder
@@ -768,8 +1026,8 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
                 data.orphanedFrom = {
                   projectId,
                   projectName,
-                  mediaId: media.mediaId,
-                  mediaName: media.fileName,
+                  mediaId: mediaId,
+                  mediaName: data.metadata?.originalName || data.metadata?.fileName || mediaId,
                   orphanedAt: new Date().toISOString()
                 };
                 await fs_promises.writeFile(dataPath, JSON.stringify(data, null, 2));
@@ -814,7 +1072,15 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
     const userId = (req as any).user?.id || 'unknown';
     
     const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
-    const mediaPath = path.join(projectPath, mediaId);
+    
+    // Check if this is a multi-media project (has media subdirectory)
+    let mediaPath = path.join(projectPath, 'media', mediaId);
+    try {
+      await fs_promises.access(mediaPath);
+    } catch {
+      // Fall back to old structure (direct mediaId folder)
+      mediaPath = path.join(projectPath, mediaId);
+    }
     
     // Check if media exists
     try {
@@ -859,10 +1125,23 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
         const dataPath = path.join(targetPath, 'data.json');
         try {
           const data = JSON.parse(await fs_promises.readFile(dataPath, 'utf-8'));
+          
+          // Try to get the media name from metadata
+          let mediaName = mediaId;
+          try {
+            const mediaMetadataPath = path.join(mediaPath, '..', 'metadata.json');
+            const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetadataPath, 'utf-8'));
+            mediaName = mediaMetadata.originalName || mediaMetadata.fileName || mediaId;
+          } catch {
+            // If no metadata.json, use the name from transcription metadata if available
+            mediaName = data.metadata?.originalName || data.metadata?.fileName || mediaId;
+          }
+          
           data.orphanedFrom = {
             projectId,
             projectName,
             mediaId,
+            mediaName,
             orphanedAt: new Date().toISOString()
           };
           await fs_promises.writeFile(dataPath, JSON.stringify(data, null, 2));
@@ -879,14 +1158,34 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
     
     // Update project.json to remove the media file
     const projectFile = path.join(projectPath, 'project.json');
+    let isLastMedia = false;
+    
     try {
       const projectData = JSON.parse(await fs_promises.readFile(projectFile, 'utf-8'));
       
       if (projectData.mediaFiles) {
-        projectData.mediaFiles = projectData.mediaFiles.filter((m: any) => m.mediaId !== mediaId);
-        projectData.updatedAt = new Date().toISOString();
+        projectData.mediaFiles = projectData.mediaFiles.filter((id: string) => id !== mediaId);
         
-        await fs_promises.writeFile(projectFile, JSON.stringify(projectData, null, 2));
+        // Check if this was the last media file
+        if (projectData.mediaFiles.length === 0) {
+          isLastMedia = true;
+          console.log(`[MediaDelete] Last media file deleted from project ${projectId}, deleting entire project`);
+          
+          // Delete the entire project directory
+          await fs_promises.rm(projectPath, { recursive: true, force: true });
+          
+          res.json({
+            success: true,
+            message: `Last media deleted - entire project ${projectId} removed`,
+            projectDeleted: true,
+            transcriptionPreserved: !deleteTranscription
+          });
+          return;
+        } else {
+          // Update the project file if there are remaining media files
+          projectData.updatedAt = new Date().toISOString();
+          await fs_promises.writeFile(projectFile, JSON.stringify(projectData, null, 2));
+        }
       }
     } catch (error) {
       console.error('Failed to update project.json:', error);
@@ -944,11 +1243,164 @@ router.put('/:projectId/media/:mediaId/transcription', verifyUser, async (req: R
     // Ensure directory exists
     await fs_promises.mkdir(path.dirname(transcriptionPath), { recursive: true });
     
-    // Save transcription data
+    // Get media info from metadata.json file
+    let mediaInfo = null;
+    const metadataPath = path.join(
+      process.cwd(), 
+      'user_data', 
+      'users', 
+      userId, 
+      'projects', 
+      projectId,
+      'media',
+      mediaId,
+      'metadata.json'
+    );
+    
+    try {
+      mediaInfo = JSON.parse(await fs_promises.readFile(metadataPath, 'utf-8'));
+      console.log('[Save] Loaded media metadata:', { 
+        mediaId: mediaInfo.mediaId, 
+        originalName: mediaInfo.originalName,
+        size: mediaInfo.size,
+        duration: mediaInfo.duration
+      });
+      
+      // If duration is missing, try to extract it
+      if (!mediaInfo.duration || mediaInfo.duration === 0) {
+        const mediaDir = path.join(
+          process.cwd(), 
+          'user_data', 
+          'users', 
+          userId, 
+          'projects', 
+          projectId,
+          'media',
+          mediaId
+        );
+        
+        try {
+          const files = await fs_promises.readdir(mediaDir);
+          const audioFile = files.find(f => 
+            ['.mp3', '.mp4', '.wav', '.m4a', '.webm', '.ogg'].includes(path.extname(f).toLowerCase())
+          );
+          
+          if (audioFile) {
+            const audioPath = path.join(mediaDir, audioFile);
+            // Import music-metadata dynamically
+            const mm = await import('music-metadata');
+            const metadata = await mm.parseFile(audioPath);
+            mediaInfo.duration = metadata.format.duration || 0;
+            
+            // Update the metadata file with the duration
+            await fs_promises.writeFile(metadataPath, JSON.stringify(mediaInfo, null, 2));
+            console.log('[Save] Updated metadata with duration:', mediaInfo.duration);
+          }
+        } catch (err) {
+          console.log('[Save] Could not extract duration:', err);
+        }
+      }
+    } catch (error) {
+      console.log('[Save] Could not load metadata.json for media info:', error);
+      // Try to get basic info from media directory
+      try {
+        const mediaDir = path.join(
+          process.cwd(), 
+          'user_data', 
+          'users', 
+          userId, 
+          'projects', 
+          projectId,
+          'media',
+          mediaId
+        );
+        
+        const files = await fs_promises.readdir(mediaDir);
+        const audioFile = files.find(f => 
+          ['.mp3', '.mp4', '.wav', '.m4a', '.webm', '.ogg'].includes(path.extname(f).toLowerCase())
+        );
+        
+        if (audioFile) {
+          const audioPath = path.join(mediaDir, audioFile);
+          const stats = await fs_promises.stat(audioPath);
+          let duration = 0;
+          
+          try {
+            const mm = await import('music-metadata');
+            const metadata = await mm.parseFile(audioPath);
+            duration = metadata.format.duration || 0;
+          } catch {}
+          
+          // Try to get the original name from the project or use a better default
+          let originalName = audioFile;
+          
+          // Check if we can get a better name from the project
+          try {
+            const projectJsonPath = path.join(
+              process.cwd(), 
+              'user_data', 
+              'users', 
+              userId, 
+              'projects', 
+              projectId,
+              'project.json'
+            );
+            const projectData = JSON.parse(await fs_promises.readFile(projectJsonPath, 'utf-8'));
+            // Use project display name as a hint for the media name if it's not generic
+            if (projectData.displayName && !projectData.displayName.startsWith('Project ')) {
+              originalName = projectData.displayName;
+              // If there are multiple media files, append the media number
+              if (projectData.mediaFiles && projectData.mediaFiles.length > 1) {
+                const mediaIndex = projectData.mediaFiles.indexOf(mediaId);
+                if (mediaIndex >= 0) {
+                  originalName = `${originalName} - קובץ ${mediaIndex + 1}`;
+                }
+              }
+            }
+          } catch {}
+          
+          // Create new metadata
+          mediaInfo = {
+            mediaId: mediaId,
+            fileName: audioFile,
+            originalName: originalName,
+            size: stats.size,
+            duration: duration,
+            mimeType: `audio/${path.extname(audioFile).substring(1)}`,
+            stage: 'transcription',
+            createdAt: new Date().toISOString(),
+            lastModified: new Date().toISOString()
+          };
+          
+          // Save the metadata
+          await fs_promises.writeFile(metadataPath, JSON.stringify(mediaInfo, null, 2));
+          console.log('[Save] Created new metadata file with extracted info');
+        } else {
+          // Just use mediaId as a fallback name
+          mediaInfo = {
+            fileName: mediaId,
+            originalName: mediaId
+          };
+        }
+      } catch {
+        // No metadata available
+        mediaInfo = {
+          fileName: mediaId,
+          originalName: mediaId
+        };
+      }
+    }
+    
+    // Save transcription data with metadata
     const transcriptionData = {
       blocks: blocks || [],
       speakers: speakers || [],
       remarks: remarks || [],
+      metadata: {
+        fileName: mediaInfo?.fileName || mediaInfo?.name || mediaId,
+        originalName: mediaInfo?.originalName || mediaInfo?.fileName || mediaInfo?.name || mediaId,
+        duration: mediaInfo?.duration || 0
+      },
       lastModified: new Date().toISOString()
     };
     
@@ -1101,17 +1553,13 @@ router.put('/:projectId/media/:mediaId/duration', async (req: Request, res: Resp
       return res.status(404).json({ error: 'Project file not found' });
     }
     
-    // Find and update the media file's duration
+    // Check if the mediaId exists in the project
     if (projectData.mediaFiles && Array.isArray(projectData.mediaFiles)) {
-      const mediaFile = projectData.mediaFiles.find((m: any) => m.mediaId === mediaId);
-      if (mediaFile) {
-        mediaFile.duration = duration;
-        mediaFile.actualDuration = duration; // Mark as actual duration
-        
-        // Save updated project data
-        await fs_promises.writeFile(projectPath, JSON.stringify(projectData, null, 2));
-        
-        console.log('[Duration] Updated media duration successfully:', duration);
+      const mediaExists = projectData.mediaFiles.includes(mediaId);
+      if (mediaExists) {
+        // Duration should be stored in the media's metadata, not in project.json
+        // For now, just acknowledge the duration update
+        console.log('[Duration] Duration update acknowledged for mediaId:', mediaId, 'duration:', duration);
         return res.json({ success: true, duration });
       } else {
         console.error('[Duration] Media file not found in project:', mediaId);

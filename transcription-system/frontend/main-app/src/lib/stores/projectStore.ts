@@ -81,6 +81,7 @@ interface ProjectState {
   createProjectFromFolder: (formData: FormData) => Promise<Project | null>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  clearCurrentTranscription: () => void;
 }
 
 const useProjectStore = create<ProjectState>()((set, get) => ({
@@ -97,28 +98,19 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
   // Load all projects
   loadProjects: async () => {
         console.log('[ProjectStore] Starting loadProjects...'); 
-        console.log('[ProjectStore] Called from:', new Error().stack?.split('\n')[2]);
         
-        // Prevent rapid reloads - check if we loaded recently (within 2 seconds)
-        const now = Date.now();
-        const { lastLoadTime, isLoading } = get();
+        const { isLoading } = get();
         
         if (isLoading) {
           console.log('[ProjectStore] Already loading, skipping duplicate request');
           return;
         }
         
-        if (lastLoadTime && (now - lastLoadTime) < 2000) {
-          console.log('[ProjectStore] Recently loaded, skipping (throttled)');
-          return;
-        }
-        
-        set({ isLoading: true, error: null, lastLoadTime: now });
+        set({ isLoading: true, error: null });
         
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-          console.log('[ProjectStore] Using token:', token ? `${token.substring(0, 20)}...` : 'none');
-          console.log('[ProjectStore] Full request URL: http://localhost:5000/api/projects/list');
+          console.log('[ProjectStore] Using token:', token);
           
           const response = await fetch('http://localhost:5000/api/projects/list', {
             headers: {
@@ -133,71 +125,22 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           }
           
           const data = await response.json();
-          console.log('[ProjectStore] Raw response data:', data);
+          console.log('[ProjectStore] Loaded', data.projects?.length || 0, 'projects');
           
           const projects = data.projects || [];
           
-          console.log('[ProjectStore] Loaded projects:', { 
-            count: projects.length, 
-            currentProject: get().currentProject?.projectId || 'none',
-            firstProject: projects[0] || 'none'
+          // Just set the projects, no auto-selection for now
+          set({ 
+            projects,
+            isLoading: false 
           });
-          console.log('[ProjectStore] Setting state with projects:', projects.map(p => p.projectId));
           
-          // Auto-select first project and first media if available
-          if (projects.length > 0 && !get().currentProject) {
-            const firstProject = projects[0];
-            const firstMediaId = firstProject.mediaFiles?.[0];
-            
-            console.log('[ProjectStore] Auto-selecting first project and media:', {
-              projectId: firstProject.projectId,
-              mediaId: firstMediaId,
-              hasMediaFiles: !!firstProject.mediaFiles,
-              mediaFilesCount: firstProject.mediaFiles?.length || 0
-            });
-            
-            if (firstMediaId) {
-              // First set the project and media selection
-              set({ 
-                projects,
-                currentProject: firstProject,
-                currentMediaId: firstMediaId,
-                isLoading: false 
-              });
-              
-              console.log('[ProjectStore] State updated, now loading media data...');
-              
-              // Then load media data in a separate async operation
-              setTimeout(async () => {
-                try {
-                  console.log('[ProjectStore] Loading media data for:', firstProject.projectId, firstMediaId);
-                  const transcriptionData = await get().loadMediaData(firstProject.projectId, firstMediaId);
-                  console.log('[ProjectStore] Media data loaded successfully:', {
-                    hasBlocks: !!transcriptionData?.blocks,
-                    hasMetadata: !!transcriptionData?.metadata,
-                    fileName: transcriptionData?.metadata?.fileName || 'none',
-                    originalName: transcriptionData?.metadata?.originalName || 'none'
-                  });
-                  set({ currentTranscriptionData: transcriptionData });
-                } catch (error) {
-                  console.error('[ProjectStore] Error loading initial media data:', error);
-                  // Still keep the project/media selection even if data loading fails
-                }
-              }, 100); // Small delay to ensure state is set
-            } else {
-              console.log('[ProjectStore] No media files in first project');
-              set({ projects, isLoading: false });
-            }
-          } else {
-            console.log('[ProjectStore] Not auto-selecting:', {
-              hasProjects: projects.length > 0,
-              hasCurrentProject: !!get().currentProject
-            });
-            set({ projects, isLoading: false });
-          }
         } catch (error) {
-          console.error('Error loading projects:', error);
-          set({ error: error instanceof Error ? error.message : 'Failed to load projects', isLoading: false });
+          console.error('[ProjectStore] Error loading projects:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to load projects', 
+            isLoading: false 
+          });
         }
       },
 
@@ -378,15 +321,45 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           }
           
           const result = await response.json();
+          console.log('[ProjectStore] Project creation result:', result);
           
-          // Reload projects to get the new one
+          // Check if creation was successful
+          if (!result.success || !result.projectId) {
+            throw new Error(result.message || 'Failed to create project');
+          }
+          
+          // Reload projects to get the full project with metadata
           await get().loadProjects();
           
-          // Find and return the new project
-          const newProject = get().projects.find(p => p.projectId === result.projectId);
-          set({ isLoading: false });
+          // Find the newly created project with full details
+          const { projects } = get();
+          const newProject = projects.find(p => p.projectId === result.projectId);
           
-          return newProject || null;
+          if (newProject) {
+            set({ isLoading: false });
+            return newProject;
+          }
+          
+          // Fallback: construct basic project if not found
+          const folderName = formData.get('folderName') as string;
+          const constructedProject: Project = {
+            projectId: result.projectId,
+            name: folderName,
+            displayName: folderName,
+            mediaFiles: result.mediaIds || [],
+            totalMedia: result.totalMedia || result.mediaIds?.length || 0,
+            currentMediaIndex: 0,
+            createdAt: new Date().toISOString(),
+            lastModified: new Date().toISOString()
+          };
+          
+          // Add it to the projects list
+          set({ 
+            projects: [...projects, constructedProject],
+            isLoading: false 
+          });
+          
+          return constructedProject;
         } catch (error) {
           console.error('Error creating project:', error);
           set({ 
@@ -405,6 +378,15 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
       // Set error
       setError: (error) => {
         set({ error });
+      },
+      
+      // Clear current transcription data
+      clearCurrentTranscription: () => {
+        set({ 
+          currentTranscriptionData: null,
+          currentMediaId: null,
+          currentMedia: null
+        });
       }
 }));
 

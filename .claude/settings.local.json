@@ -27,7 +27,9 @@
       "Bash(cat:*)",
       "Bash(node:*)",
       "Bash(wmic process:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(grep:*)",
+      "Bash(npx ts-node:*)"
     ],
     "deny": [],
     "ask": [],

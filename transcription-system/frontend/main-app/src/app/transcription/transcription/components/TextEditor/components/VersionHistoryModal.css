@@ -266,6 +266,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 400px; /* Ensure minimum height for proper centering */
 }
 
 .preview-text-container {
@@ -358,7 +359,9 @@
   align-items: center;
   justify-content: center;
   height: 100%;
+  width: 100%; /* Ensure full width of parent */
   color: #999;
+  /* Remove the padding - center within the preview area itself */
 }
 
 .placeholder-icon {

@@ -15,6 +15,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   console.log('[TranscriptionSidebar] Component function called');
   
   const [isMounted, setIsMounted] = useState(false);
+  const [orphanedCount, setOrphanedCount] = useState(0);
   
   const { 
     projects,
@@ -37,13 +38,39 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   
+  // Load orphaned transcriptions count
+  useEffect(() => {
+    const loadOrphanedCount = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+        const response = await fetch('http://localhost:5000/api/projects/orphaned/transcriptions', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setOrphanedCount(data.transcriptions?.length || 0);
+        }
+      } catch (error) {
+        console.error('Failed to load orphaned transcriptions count:', error);
+      }
+    };
+    
+    loadOrphanedCount();
+  }, [projects]); // Reload when projects change
+  
   // Load projects with a small delay to avoid race conditions
   useEffect(() => {
     console.log('[TranscriptionSidebar] Component mounted - will load projects after delay');
     console.log('[TranscriptionSidebar] loadProjects function:', typeof loadProjects);
+    console.log('[TranscriptionSidebar] Initial isLoading:', isLoading);
+    console.log('[TranscriptionSidebar] Initial projects:', projects.length);
     
     // Small delay to avoid simultaneous requests on page load
     const timer = setTimeout(() => {
+      console.log('[TranscriptionSidebar] Calling loadProjects now...');
       loadProjects();
       setIsMounted(true);
     }, 500);
@@ -54,10 +81,12 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   // Log when projects change
   useEffect(() => {
     console.log('[TranscriptionSidebar] Projects changed:', projects.length, 'projects');
+    console.log('[TranscriptionSidebar] Current isLoading:', isLoading);
+    console.log('[TranscriptionSidebar] Current error:', error);
     if (projects.length > 0) {
       console.log('[TranscriptionSidebar] First project:', projects[0].projectId);
     }
-  }, [projects]);
+  }, [projects, isLoading, error]);
   
   const handleFolderUpload = async () => {
     // Show custom styled confirmation before browser dialog
@@ -70,12 +99,27 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   
   // Helper functions for statistics
   const getTotalTranscriptions = () => {
-    return projects.reduce((total, project) => total + (project.totalMedia || 0), 0);
+    return orphanedCount; // Show orphaned transcriptions count instead
   };
   
   const getTotalDuration = () => {
-    // For now return placeholder - will be calculated from media metadata
-    return '00:00';
+    // Calculate total duration from all media files
+    let totalSeconds = 0;
+    projects.forEach(project => {
+      if (project.mediaInfo) {
+        project.mediaInfo.forEach(media => {
+          totalSeconds += media.duration || 0;
+        });
+      }
+    });
+    
+    // Format duration as HH:MM:SS
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    
+    // Always return in HH:MM:SS format, default to 00:00:00 if no duration
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
   
   const handleStatClick = (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => {
@@ -139,7 +183,9 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   };
   
   const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[TranscriptionSidebar] handleFilesSelected called');
     const files = event.target.files;
+    console.log('[TranscriptionSidebar] Files selected:', files?.length || 0);
     if (!files || files.length === 0) return;
     
     try {
@@ -183,7 +229,9 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       });
       
       // Use the store method to create project
+      console.log('[TranscriptionSidebar] About to call createProjectFromFolder with formData:', formData);
       const newProject = await createProjectFromFolder(formData);
+      console.log('[TranscriptionSidebar] createProjectFromFolder returned:', newProject);
       
       if (newProject) {
         showNotification(`הפרויקט "${folderName}" נוצר בהצלחה עם ${mediaFiles.length} קבצי מדיה`, 'success');
@@ -285,13 +333,20 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
               <div 
                 key={project.projectId} 
                 className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''}`}
-                onClick={async () => await setCurrentProject(project)}
+                onClick={async () => {
+                  setCurrentProject(project);
+                  // Auto-load first media when project is selected
+                  if (project.mediaFiles && project.mediaFiles.length > 0) {
+                    const firstMediaId = project.mediaFiles[0];
+                    await setCurrentMediaById(project.projectId, firstMediaId);
+                  }
+                }}
               >
                 <div className="project-header">
                   <span className="project-name">{project.displayName}</span>
-                  <span className="media-count">{project.totalMedia} קבצים</span>
                 </div>
                 <div className="project-meta">
+                  <span className="media-count">{project.totalMedia} קבצים</span>
                   <span className="project-date">
                     {new Date(project.lastModified).toLocaleDateString('he-IL')}
                   </span>
@@ -307,8 +362,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
                           setCurrentMediaById(project.projectId, mediaId);
                         }}
                       >
-                        <span className="media-name">מדיה {index + 1}</span>
-                        <span className="media-id" style={{ fontSize: '0.75em', opacity: 0.7 }}>{mediaId}</span>
+                        <span className="media-name">קובץ {index + 1}</span>
                       </div>
                     ))}
                   </div>
