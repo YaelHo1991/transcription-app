@@ -3,9 +3,13 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' 
+  ? '.env.production' 
+  : '.env.development';
+
 dotenv.config({ 
-  path: path.resolve(__dirname, '..', '.env.development')
+  path: path.resolve(__dirname, '..', envFile)
 });
 
 const app = express();
