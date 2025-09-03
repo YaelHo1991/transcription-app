@@ -3,10 +3,11 @@
  * This centralizes API URL configuration and handles both localhost and production
  */
 export function getApiUrl(): string {
-  // In production (Digital Ocean), use the full backend URL with port 5000
+  // In production (Digital Ocean), use HTTPS without port (nginx proxies /api to backend)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    // Production backend URL
-    return 'http://yalitranscription.duckdns.org:5000';
+    // Production backend URL - uses same protocol as the current page
+    const protocol = window.location.protocol;
+    return `${protocol}//${window.location.hostname}`;
   }
   
   // Use environment variables with fallback for localhost
