@@ -81,7 +81,7 @@ import apiRouter from './api/routes';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { testConnection, initializeDatabase } from './db/connection';
 import { seedDatabase } from './db/seed';
-import { initializeEmailService } from './services/email.service';
+import { emailService } from './services/email.service';
 
 // Health check with database status
 app.get('/health', async (req, res) => {
@@ -177,8 +177,8 @@ async function startServer() {
       }
     }
     
-    // Initialize email service
-    await initializeEmailService();
+    // Email service is already initialized when imported
+    console.log('📧 Email service ready');
     
     // Start server
     const server = app.listen(PORT, () => {
