@@ -53,13 +53,28 @@ export default class SpeakerBlockManager {
     
     // If we have speakers, load them with their saved data
     if (speakers && speakers.length > 0) {
+      let maxId = 0;
+      
       speakers.forEach((speaker, index) => {
         // Use existing color if available, otherwise assign new color
         this.blocks.push({
           ...speaker,
           color: speaker.color || this.colors[index % this.colors.length]
         });
+        
+        // Extract numeric ID from speaker ID to find the highest one
+        const match = speaker.id.match(/speaker-(\d+)/);
+        if (match) {
+          const numId = parseInt(match[1], 10);
+          if (numId > maxId) {
+            maxId = numId;
+          }
+        }
       });
+      
+      // Update nextId to be higher than any existing ID to prevent collisions
+      this.nextId = maxId + 1;
+      console.log('[SpeakerBlockManager] Updated nextId to:', this.nextId, 'based on max existing ID:', maxId);
       
       // Update color index to next available
       this.colorIndex = speakers.length;
@@ -104,15 +119,26 @@ export default class SpeakerBlockManager {
 
   addBlock(code = '', name = '', description = '', afterId?: string): SpeakerBlockData {
     console.log('[SpeakerBlockManager] addBlock called, current colorIndex: ' + this.colorIndex);
+    
+    // Ensure we don't create duplicate IDs
+    let proposedId = 'speaker-' + this.nextId;
+    while (this.blocks.some(b => b.id === proposedId)) {
+      console.log('[SpeakerBlockManager] ID collision detected for:', proposedId, 'incrementing nextId');
+      this.nextId++;
+      proposedId = 'speaker-' + this.nextId;
+    }
+    
     const newBlock: SpeakerBlockData = {
-      id: 'speaker-' + this.nextId++,
+      id: proposedId,
       code,
       name,
       description,
       color: this.colors[this.colorIndex % this.colors.length],
       count: 0
     };
+    this.nextId++; // Increment for next time
     
+    console.log('[SpeakerBlockManager] Created block with ID:', newBlock.id, 'nextId now:', this.nextId);
     console.log('[SpeakerBlockManager] Assigned color: ' + newBlock.color + ' at index ' + this.colorIndex);
     this.colorIndex++;
 
