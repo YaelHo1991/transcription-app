@@ -215,13 +215,13 @@ class WordHebrewConverter {
         ind.setAttribute('w:left', '1134');
         ind.setAttribute('w:hanging', '1134');
 
-        // שינוי היישור לשמאל (למניעת רווחים)
+        // שינוי היישור לשני הצדדים (justified)
         let jc = this.getChildByTagName(pPr, 'w:jc');
         if (!jc) {
             jc = doc.createElement('w:jc');
             pPr.appendChild(jc);
         }
-        jc.setAttribute('w:val', 'left');
+        jc.setAttribute('w:val', 'both');
 
         // הוספת טאב
         let tabs = this.getChildByTagName(pPr, 'w:tabs');
@@ -269,7 +269,7 @@ class WordHebrewConverter {
                     <w:bidi/>
                     <w:spacing w:after="200" w:line="280" w:lineRule="auto"/>
                     <w:ind w:left="1134" w:hanging="1134"/>
-                    <w:jc w:val="left"/>
+                    <w:jc w:val="both"/>
                     <w:tabs>
                         <w:tab w:val="left" w:pos="1134"/>
                     </w:tabs>

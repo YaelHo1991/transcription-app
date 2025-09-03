@@ -34,7 +34,8 @@
       "Bash(psql:*)",
       "Bash(npm run migrate:*)",
       "Bash(npm run:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(ssh:*)"
     ],
     "deny": [],
     "ask": [],
