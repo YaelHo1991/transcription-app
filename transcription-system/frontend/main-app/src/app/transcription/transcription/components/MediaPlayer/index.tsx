@@ -1524,7 +1524,7 @@ export default function MediaPlayer({
                 </button>
                 <div className="t-nav-info-new">
                   <div className={'t-nav-name-wrapper ' + (projectName && projectName.length > 15 ? 'scrolling' : '')}>
-                    <div className={'t-nav-name ' + (projectName && projectName.length > 15 ? 'scroll-rtl' : '')}>
+                    <div className={'t-nav-name ' + (projectName && projectName.length > 15 ? (/[֐-׿]/.test(projectName) ? 'scroll-rtl' : 'scroll-ltr') : '')}>
                       {projectName || 'ללא פרויקט'}
                     </div>
                   </div>
@@ -1546,9 +1546,18 @@ export default function MediaPlayer({
                 </button>
                 <div className="t-nav-info-new">
                   <div className={'t-nav-name-wrapper ' + (mediaName && mediaName.length > 25 ? 'scrolling' : '')}>
-                    <div className={'t-nav-name ' + (mediaName && mediaName.length > 25 ? 'scroll-rtl' : '')}>
+                    <div className={'t-nav-name ' + (mediaName && mediaName.length > 25 ? (/[֐-׿]/.test(mediaName) ? 'scroll-rtl' : 'scroll-ltr') : '')}>
                       {mediaName || 'ללא מדיה'}
                     </div>
+                    {/* DEBUG: Always log values */}
+                    {(() => {
+                      if (mediaName) {
+                        const isHebrew = /[֐-׿]/.test(mediaName);
+                        const scrollClass = mediaName.length > 25 ? (isHebrew ? 'scroll-rtl' : 'scroll-ltr') : 'no-scroll';
+                        console.log('[MediaPlayer] mediaName:', mediaName, 'length:', mediaName.length, 'isHebrew:', isHebrew, 'scroll class:', scrollClass);
+                      }
+                      return null;
+                    })()}
                   </div>
                   <div className="t-nav-details">
                     <span className="t-nav-counter">{currentMedia} / {totalMedia}</span>

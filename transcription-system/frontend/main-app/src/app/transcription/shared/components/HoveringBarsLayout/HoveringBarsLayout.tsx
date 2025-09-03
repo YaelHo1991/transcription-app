@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import useHoveringBarsStore from '@/lib/stores/hoveringBarsStore';
 import './HoveringBarsLayout.css';
 
 interface HoveringBarsLayoutProps {
@@ -21,8 +22,9 @@ export default function HoveringBarsLayout({
   onSidebarLockChange
 }: HoveringBarsLayoutProps) {
   console.log('[HoveringBarsLayout] Rendering with sidebarContent:', !!sidebarContent);
-  const [headerLocked, setHeaderLocked] = useState(false);
-  const [sidebarLocked, setSidebarLocked] = useState(false);
+  
+  // Use global store for lock states
+  const { headerLocked, sidebarLocked, toggleHeaderLocked, toggleSidebarLocked } = useHoveringBarsStore();
   const [headerHovered, setHeaderHovered] = useState(false);
   const [sidebarHovered, setSidebarHovered] = useState(false);
   
@@ -52,11 +54,11 @@ export default function HoveringBarsLayout({
   }, []);
 
   const handleHeaderLockToggle = () => {
-    setHeaderLocked(!headerLocked);
+    toggleHeaderLocked();
   };
 
   const handleSidebarLockToggle = () => {
-    setSidebarLocked(!sidebarLocked);
+    toggleSidebarLocked();
   };
   
   // Debounced hover handlers to prevent rapid state updates

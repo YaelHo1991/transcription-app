@@ -6,6 +6,7 @@ import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import ProofreadingSidebar from './components/ProofreadingSidebar';
 import UnauthorizedOverlay from '../../../components/UnauthorizedOverlay/UnauthorizedOverlay';
+import useHoveringBarsStore from '@/lib/stores/hoveringBarsStore';
 import './proofreading-theme.css';
 import './proofreading-page.css';
 
@@ -47,8 +48,8 @@ export default function ProofreadingPage() {
     }
   }, []);
   
-  const [headerLocked, setHeaderLocked] = useState(false);
-  const [sidebarLocked, setSidebarLocked] = useState(false);
+  // Use global hovering bars store
+  const { headerLocked, sidebarLocked } = useHoveringBarsStore();
   
   // States for proofreading functionality
   const [originalText, setOriginalText] = useState('');
@@ -56,14 +57,7 @@ export default function ProofreadingPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [followText, setFollowText] = useState(true);
   
-  // Memoize callbacks
-  const handleHeaderLockChange = useCallback((locked: boolean) => {
-    setHeaderLocked(locked);
-  }, []);
-
-  const handleSidebarLockChange = useCallback((locked: boolean) => {
-    setSidebarLocked(locked);
-  }, []);
+  // Remove local lock change handlers - now handled by global store
 
   return (
     <>
@@ -87,8 +81,6 @@ export default function ProofreadingPage() {
       }
       sidebarContent={<ProofreadingSidebar />}
       theme="proofreading"
-      onHeaderLockChange={handleHeaderLockChange}
-      onSidebarLockChange={handleSidebarLockChange}
     >
       {/* Workspace Header */}
       <div className={`pr-workspace-header ${headerLocked ? 'pr-header-locked' : ''}`}>

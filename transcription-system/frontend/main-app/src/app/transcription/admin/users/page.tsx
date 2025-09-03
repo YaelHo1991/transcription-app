@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import useUsersAdminColumnStore from '@/lib/stores/usersAdminColumnStore';
 
 const ADMIN_USER_IDS = [
   // Production IDs
@@ -23,6 +24,16 @@ interface User {
   created_at: string;
   last_login: string;
   password?: string;
+  auto_word_export_enabled?: boolean;
+  quota_limit_mb?: number;
+  quota_used_mb?: number;
+}
+
+interface SystemStorage {
+  totalGB: number;
+  usedGB: number;
+  availableGB: number;
+  usedPercent: number;
 }
 
 export default function UsersManagement() {
@@ -32,6 +43,14 @@ export default function UsersManagement() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [updatingAdmin, setUpdatingAdmin] = useState<string | null>(null);
+  const [systemStorage, setSystemStorage] = useState<SystemStorage | null>(null);
+  
+  // Use global persistent column store
+  const { expandedColumns, toggleColumn } = useUsersAdminColumnStore();
+  
+  const [editingQuota, setEditingQuota] = useState<string | null>(null);
+  const [quotaValue, setQuotaValue] = useState<number>(500);
+  const [updatingAutoExport, setUpdatingAutoExport] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminAccess();
@@ -92,6 +111,7 @@ export default function UsersManagement() {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
+        setSystemStorage(data.systemStorage);
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -157,6 +177,121 @@ export default function UsersManagement() {
     } finally {
       setUpdatingAdmin(null);
     }
+  };
+
+  const toggleColumnExpansion = (columnId: string) => {
+    toggleColumn(columnId);
+  };
+
+  const updateUserQuota = async (userId: string, newQuotaMB: number) => {
+    console.log('[QuotaUpdate] Starting quota update:', userId, newQuotaMB);
+    try {
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
+      console.log('[QuotaUpdate] Using token:', token ? 'present' : 'missing');
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '';
+      
+      const url = `${baseUrl}/api/admin/user/${userId}/storage-quota`;
+      const payload = { quotaMB: newQuotaMB };
+      
+      console.log('[QuotaUpdate] Making request to:', url, 'with payload:', payload);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('[QuotaUpdate] Response status:', response.status, response.statusText);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[QuotaUpdate] Success response:', result);
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === userId ? { ...user, quota_limit_mb: newQuotaMB } : user
+          )
+        );
+        setEditingQuota(null);
+        console.log('[QuotaUpdate] Updated state and closed editor');
+      } else {
+        const errorText = await response.text();
+        console.error('[QuotaUpdate] Server error:', response.status, errorText);
+        alert('שגיאה בעדכון מכסת האחסון: ' + response.status);
+      }
+    } catch (error) {
+      console.error('[QuotaUpdate] Failed to update quota:', error);
+      alert('שגיאה בחיבור לשרת: ' + error.message);
+    }
+  };
+
+  const toggleAutoExport = async (userId: string, currentEnabled: boolean) => {
+    console.log('[ToggleAutoExport] Starting toggle for user:', userId, 'current:', currentEnabled);
+    setUpdatingAutoExport(userId);
+    try {
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
+      console.log('[ToggleAutoExport] Using token:', token ? 'present' : 'missing', 'isTestSession:', isTestSession);
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '';
+      
+      const url = `${baseUrl}/api/admin/user/${userId}/auto-export`;
+      const payload = { enabled: !currentEnabled };
+      
+      console.log('[ToggleAutoExport] Making request to:', url, 'with payload:', payload);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('[ToggleAutoExport] Response status:', response.status, response.statusText);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[ToggleAutoExport] Success:', result);
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === userId ? { ...user, auto_word_export_enabled: !currentEnabled } : user
+          )
+        );
+      } else {
+        const errorData = await response.text();
+        console.error('[ToggleAutoExport] Server error:', response.status, errorData);
+        alert('שגיאה בעדכון הגדרות הייצוא האוטומטי');
+      }
+    } catch (error) {
+      console.error('[ToggleAutoExport] Failed to toggle auto export:', error);
+    } finally {
+      setUpdatingAutoExport(null);
+    }
+  };
+
+  const getStorageColor = (percent: number) => {
+    if (percent < 50) return '#4CAF50';
+    if (percent < 70) return '#66BB6A';
+    if (percent < 85) return '#388E3C';
+    return '#1B5E20';
   };
 
   const loginAsUser = async (user: User) => {
@@ -264,96 +399,254 @@ export default function UsersManagement() {
   return (
     <div className="page-users">
       <div className="page-header-fixed">
-        <h1>ניהול משתמשים</h1>
-        <Link href="/transcription/admin" className="back-link">
-          חזרה ללוח בקרה
-        </Link>
+        <div className="header-top">
+          <h1>ניהול משתמשים</h1>
+          <Link href="/transcription/admin" className="back-link">
+            חזרה ללוח בקרה
+          </Link>
+        </div>
+        {systemStorage && (
+          <div className="system-storage-bar">
+            <div className="storage-info">
+              <span className="storage-label">אחסון מערכת:</span>
+              <span className="storage-value">
+                {systemStorage.usedGB}GB / {systemStorage.totalGB}GB ({systemStorage.usedPercent}%)
+              </span>
+              <div className="storage-progress">
+                <div 
+                  className="storage-progress-fill"
+                  style={{
+                    width: `${systemStorage.usedPercent}%`,
+                    backgroundColor: getStorageColor(systemStorage.usedPercent)
+                  }}
+                />
+              </div>
+              <span className="storage-available">
+                זמין: {systemStorage.availableGB}GB
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="users-container">
         <div className="scrollable-content">
           <div className="table-container">
-          <table className="users-table">
+          <table className="users-table collapsible-table">
             <thead>
               <tr>
-                <th>שם מלא</th>
-                <th>אימייל</th>
-                <th>סיסמה</th>
-                <th>הרשאות</th>
-                <th>קוד מתמלל</th>
-                <th>מנהל</th>
-                <th>נרשם</th>
-                <th>כניסה אחרונה</th>
-                <th>פעולות</th>
+                <th className={`collapsible-header ${!expandedColumns.has('name') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('name')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('name') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('name') && 'שם מלא'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('email') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('email')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('email') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('email') && 'אימייל'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('password') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('password')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('password') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('password') && 'סיסמה'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('permissions') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('permissions')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('permissions') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('permissions') && 'הרשאות'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('transcriber') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('transcriber')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('transcriber') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('transcriber') && 'קוד מתמלל'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('storage') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('storage')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('storage') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('storage') && 'אחסון'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('autoExport') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('autoExport')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('autoExport') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('autoExport') && 'ייצוא אוטומטי'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('admin') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('admin')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('admin') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('admin') && 'מנהל'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('dates') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('dates')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('dates') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('dates') && 'תאריכים'}
+                  </span>
+                </th>
+                <th className={`collapsible-header ${!expandedColumns.has('actions') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('actions')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('actions') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('actions') && 'פעולות'}
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {users.map(user => (
-                <tr key={user.id}>
-                  <td className="user-name">{user.full_name || '-'}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    <div className="password-cell">
-                      {visiblePasswords.has(user.id) ? (
-                        <span className="password-text">{user.password || 'לא זמין'}</span>
-                      ) : (
-                        <span className="password-hidden">••••••••</span>
+              {users.map(user => {
+                const usedPercent = user.quota_limit_mb ? (user.quota_used_mb! / user.quota_limit_mb) * 100 : 0;
+                return (
+                  <tr key={user.id}>
+                    <td className={`collapsible-cell ${!expandedColumns.has('name') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('name') && (
+                        <span className="user-name">{user.full_name || '-'}</span>
                       )}
-                      <button 
-                        className="password-toggle"
-                        onClick={() => togglePasswordVisibility(user.id)}
-                      >
-                        {visiblePasswords.has(user.id) ? '🙈' : '👁️'}
-                      </button>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="permissions">
-                      {getPermissionBadges(user.permissions).map(badge => (
-                        <span key={badge} className="permission-badge">
-                          {badge}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td>
-                    {user.transcriber_code && (
-                      <code className="transcriber-code">{user.transcriber_code}</code>
-                    )}
-                  </td>
-                  <td>
-                    {user.is_admin && (
-                      <span className="admin-badge">✓ מנהל</span>
-                    )}
-                  </td>
-                  <td>{new Date(user.created_at).toLocaleDateString('he-IL')}</td>
-                  <td>
-                    {user.last_login 
-                      ? new Date(user.last_login).toLocaleDateString('he-IL')
-                      : '-'
-                    }
-                  </td>
-                  <td>
-                    <div className="actions-cell">
-                      <button 
-                        className={`admin-toggle-btn ${user.is_admin ? 'is-admin' : ''}`}
-                        onClick={() => toggleAdminStatus(user.id, user.is_admin)}
-                        disabled={updatingAdmin === user.id || ADMIN_USER_IDS.includes(user.id)}
-                        title={ADMIN_USER_IDS.includes(user.id) ? 'לא ניתן לשנות מנהל ראשי' : ''}
-                      >
-                        {updatingAdmin === user.id ? '...' : (user.is_admin ? 'הסר מנהל' : 'הפוך למנהל')}
-                      </button>
-                      <button 
-                        className="login-as-btn"
-                        onClick={() => loginAsUser(user)}
-                        title="כניסה כמשתמש זה בחלון חדש"
-                      >
-                        🔑 כניסה
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('email') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('email') && user.email}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('password') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('password') && (
+                        <div className="password-cell">
+                          {visiblePasswords.has(user.id) ? (
+                            <span className="password-text">{user.password || 'לא זמין'}</span>
+                          ) : (
+                            <span className="password-hidden">••••••••</span>
+                          )}
+                          <button 
+                            className="password-toggle"
+                            onClick={() => togglePasswordVisibility(user.id)}
+                          >
+                            {visiblePasswords.has(user.id) ? '🙈' : '👁️'}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('permissions') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('permissions') && (
+                        <div className="permissions">
+                          {getPermissionBadges(user.permissions).map(badge => (
+                            <span key={badge} className="permission-badge">
+                              {badge}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('transcriber') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('transcriber') && user.transcriber_code && (
+                        <code className="transcriber-code">{user.transcriber_code}</code>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('storage') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('storage') && (
+                        <div className="storage-cell">
+                          {editingQuota === user.id ? (
+                            <div className="quota-edit">
+                              <input 
+                                type="number"
+                                value={quotaValue}
+                                onChange={(e) => setQuotaValue(Number(e.target.value))}
+                                className="quota-input"
+                                min="0"
+                              />
+                              <button 
+                                onClick={() => updateUserQuota(user.id, quotaValue)}
+                                className="quota-save"
+                              >
+                                ✓
+                              </button>
+                              <button 
+                                onClick={() => setEditingQuota(null)}
+                                className="quota-cancel"
+                              >
+                                ✗
+                              </button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="storage-display"
+                              onClick={() => {
+                                setEditingQuota(user.id);
+                                setQuotaValue(user.quota_limit_mb || 500);
+                              }}
+                            >
+                              <span className="storage-text">
+                                {user.quota_used_mb || 0}MB / {user.quota_limit_mb || 500}MB
+                              </span>
+                              <div className="storage-bar">
+                                <div 
+                                  className="storage-bar-fill"
+                                  style={{
+                                    width: `${Math.min(usedPercent, 100)}%`,
+                                    backgroundColor: getStorageColor(usedPercent)
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('autoExport') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('autoExport') && (
+                        <div className="auto-export-cell">
+                          <label className="toggle-switch">
+                            <input 
+                              type="checkbox"
+                              checked={user.auto_word_export_enabled || false}
+                              onChange={() => toggleAutoExport(user.id, user.auto_word_export_enabled || false)}
+                              disabled={updatingAutoExport === user.id}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </div>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('admin') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('admin') && user.is_admin && (
+                        <span className="admin-badge">✓ מנהל</span>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('dates') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('dates') && (
+                        <div className="dates-cell">
+                          <div>נרשם: {new Date(user.created_at).toLocaleDateString('he-IL')}</div>
+                          {user.last_login && (
+                            <div>אחרון: {new Date(user.last_login).toLocaleDateString('he-IL')}</div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('actions') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('actions') && (
+                        <div className="actions-cell">
+                          <button 
+                            className={`admin-toggle-btn ${user.is_admin ? 'is-admin' : ''}`}
+                            onClick={() => toggleAdminStatus(user.id, user.is_admin)}
+                            disabled={updatingAdmin === user.id || ADMIN_USER_IDS.includes(user.id)}
+                            title={ADMIN_USER_IDS.includes(user.id) ? 'לא ניתן לשנות מנהל ראשי' : ''}
+                          >
+                            {updatingAdmin === user.id ? '...' : (user.is_admin ? 'הסר מנהל' : 'הפוך למנהל')}
+                          </button>
+                          <button 
+                            className="login-as-btn"
+                            onClick={() => loginAsUser(user)}
+                            title="כניסה כמשתמש זה בחלון חדש"
+                          >
+                            🔑 כניסה
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -390,10 +683,6 @@ export default function UsersManagement() {
         }
 
         .page-header-fixed {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 30px 40px;
           background: linear-gradient(135deg, #ddc3a5 0%, #c7a788 100%);
           border-bottom: 2px solid rgba(224, 169, 109, 0.3);
           position: sticky;
@@ -401,11 +690,61 @@ export default function UsersManagement() {
           z-index: 10;
         }
 
+        .header-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 30px 40px;
+        }
+
         .page-header-fixed h1 {
           font-size: 32px;
           color: #201e20;
           margin: 0;
           font-weight: 700;
+        }
+
+        .system-storage-bar {
+          padding: 15px 40px;
+          background: rgba(255, 255, 255, 0.2);
+          border-top: 1px solid rgba(224, 169, 109, 0.2);
+        }
+
+        .storage-info {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .storage-label {
+          font-weight: 600;
+          color: #5a4a3a;
+        }
+
+        .storage-value {
+          color: #201e20;
+          font-size: 16px;
+          font-weight: 500;
+        }
+
+        .storage-progress {
+          flex: 1;
+          max-width: 300px;
+          height: 20px;
+          background: white;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid #e0a96d;
+        }
+
+        .storage-progress-fill {
+          height: 100%;
+          transition: width 0.3s ease;
+        }
+
+        .storage-available {
+          color: #5a4a3a;
+          font-size: 14px;
         }
 
         .users-container {
@@ -495,22 +834,121 @@ export default function UsersManagement() {
         .users-table {
           width: 100%;
           border-collapse: collapse;
+          table-layout: fixed;
           min-width: 1200px;
         }
 
-        .users-table th {
+        .collapsible-table th,
+        .collapsible-table td {
+          overflow: hidden;
+          transition: width 0.3s ease, padding 0.3s ease;
+          position: relative;
+        }
+
+        /* Default collapsed state - narrow columns */
+        .collapsible-table th.collapsed,
+        .collapsible-table td.collapsed {
+          width: 40px !important;
+          min-width: 40px !important;
+          max-width: 40px !important;
+          padding: 8px 2px !important;
+          text-overflow: clip;
+        }
+
+        /* Expanded column styles with specific widths for proper content display */
+        .collapsible-table th:nth-child(1):not(.collapsed), /* Name */
+        .collapsible-table td:nth-child(1):not(.collapsed) {
+          width: 200px !important;
+          min-width: 200px !important;
+        }
+
+        .collapsible-table th:nth-child(2):not(.collapsed), /* Email */
+        .collapsible-table td:nth-child(2):not(.collapsed) {
+          width: 250px !important;
+          min-width: 250px !important;
+        }
+
+        .collapsible-table th:nth-child(3):not(.collapsed), /* Password */
+        .collapsible-table td:nth-child(3):not(.collapsed) {
+          width: 500px !important;
+          min-width: 500px !important;
+        }
+
+        .collapsible-table th:nth-child(4):not(.collapsed), /* Permissions */
+        .collapsible-table td:nth-child(4):not(.collapsed) {
+          width: 120px !important;
+          min-width: 120px !important;
+        }
+
+        .collapsible-table th:nth-child(5):not(.collapsed), /* Transcriber Code */
+        .collapsible-table td:nth-child(5):not(.collapsed) {
+          width: 100px !important;
+          min-width: 100px !important;
+        }
+
+        .collapsible-table th:nth-child(6):not(.collapsed), /* Storage */
+        .collapsible-table td:nth-child(6):not(.collapsed) {
+          width: 180px !important;
+          min-width: 180px !important;
+        }
+
+        .collapsible-table th:nth-child(7):not(.collapsed), /* Auto Export */
+        .collapsible-table td:nth-child(7):not(.collapsed) {
+          width: 120px !important;
+          min-width: 120px !important;
+        }
+
+        .collapsible-table th:nth-child(8):not(.collapsed), /* Admin */
+        .collapsible-table td:nth-child(8):not(.collapsed) {
+          width: 100px !important;
+          min-width: 100px !important;
+        }
+
+        .collapsible-table th:nth-child(9):not(.collapsed), /* Dates */
+        .collapsible-table td:nth-child(9):not(.collapsed) {
+          width: 140px !important;
+          min-width: 140px !important;
+        }
+
+        .collapsible-table th:nth-child(10):not(.collapsed), /* Actions */
+        .collapsible-table td:nth-child(10):not(.collapsed) {
+          width: 180px !important;
+          min-width: 180px !important;
+        }
+
+        .collapsible-header {
           background: linear-gradient(135deg, #f8f9fa 0%, #f0f1f2 100%);
           padding: 12px;
           text-align: right;
           font-weight: 600;
           color: #5a4a3a;
           border-bottom: 2px solid #e0a96d;
+          cursor: pointer;
+          user-select: none;
+          transition: background 0.2s ease;
         }
 
-        .users-table td {
+        .collapsible-header:hover {
+          background: linear-gradient(135deg, #f0f1f2 0%, #e8e9ea 100%);
+        }
+
+        .header-content {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .collapse-arrow {
+          font-size: 12px;
+          color: #e0a96d;
+          transition: transform 0.2s ease;
+        }
+
+        .collapsible-cell {
           padding: 12px;
           border-bottom: 1px solid #f0f0f0;
           color: #333;
+          min-height: 48px;
         }
 
         .users-table tr:hover {
@@ -642,6 +1080,148 @@ export default function UsersManagement() {
           background: linear-gradient(135deg, #b8956f 0%, #a68560 100%);
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(199, 167, 136, 0.4);
+        }
+
+        .storage-cell {
+          width: 100%;
+        }
+
+        .storage-display {
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 6px;
+          transition: background 0.2s ease;
+        }
+
+        .storage-display:hover {
+          background: rgba(224, 169, 109, 0.1);
+        }
+
+        .storage-text {
+          font-size: 12px;
+          color: #5a4a3a;
+          display: block;
+          margin-bottom: 4px;
+        }
+
+        .storage-bar {
+          width: 100%;
+          height: 8px;
+          background: #f0f0f0;
+          border-radius: 4px;
+          overflow: hidden;
+          border: 1px solid #e0a96d;
+        }
+
+        .storage-bar-fill {
+          height: 100%;
+          transition: width 0.3s ease;
+        }
+
+        .quota-edit {
+          display: flex;
+          gap: 4px;
+          align-items: center;
+        }
+
+        .quota-input {
+          width: 80px;
+          padding: 4px 8px;
+          border: 1px solid #e0a96d;
+          border-radius: 4px;
+          font-size: 13px;
+        }
+
+        .quota-save,
+        .quota-cancel {
+          padding: 2px 8px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.2s ease;
+        }
+
+        .quota-save {
+          background: #4CAF50;
+          color: white;
+        }
+
+        .quota-save:hover {
+          background: #45a049;
+        }
+
+        .quota-cancel {
+          background: #f44336;
+          color: white;
+        }
+
+        .quota-cancel:hover {
+          background: #da190b;
+        }
+
+        .auto-export-cell {
+          display: flex;
+          justify-content: center;
+        }
+
+        .toggle-switch {
+          position: relative;
+          display: inline-block;
+          width: 50px;
+          height: 24px;
+        }
+
+        .toggle-switch input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+
+        .toggle-slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          transition: 0.4s;
+          border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+          position: absolute;
+          content: "";
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: 0.4s;
+          border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+          background-color: #4CAF50;
+        }
+
+        input:disabled + .toggle-slider {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        input:checked + .toggle-slider:before {
+          transform: translateX(26px);
+        }
+
+        .dates-cell {
+          font-size: 12px;
+          color: #666;
+        }
+
+        .dates-cell div {
+          margin-bottom: 2px;
         }
 
         .summary-stats {

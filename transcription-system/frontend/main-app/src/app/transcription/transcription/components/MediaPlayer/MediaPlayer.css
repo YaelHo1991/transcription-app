@@ -2734,7 +2734,23 @@
 
 @keyframes scroll-nav-rtl {
   0% {
+    transform: translateX(0);
+  }
+  100% {
     transform: translateX(100%);
+  }
+}
+
+/* Scrolling animation - LTR direction for long names */
+.t-nav-name.scroll-ltr {
+  position: absolute;  /* Only absolute when scrolling */
+  padding: 0 50px;  /* Padding for smooth scroll */
+  animation: scroll-nav-ltr 20s linear infinite;  /* Slower for better readability */
+}
+
+@keyframes scroll-nav-ltr {
+  0% {
+    transform: translateX(0);
   }
   100% {
     transform: translateX(-100%);
@@ -2742,7 +2758,7 @@
 }
 
 /* For non-scrolling short names - default display */
-.t-nav-name:not(.scroll-rtl) {
+.t-nav-name:not(.scroll-rtl):not(.scroll-ltr) {
   position: relative;
   padding: 0;
   text-align: center;

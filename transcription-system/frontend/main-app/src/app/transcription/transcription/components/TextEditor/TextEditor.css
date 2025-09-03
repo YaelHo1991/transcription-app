@@ -459,6 +459,30 @@
   color: #17a2b8;
 }
 
+.te-export-btn.auto-export-active {
+  background: rgba(32, 201, 151, 0.2);
+  border-color: #20c997;
+  color: #0f766e;
+  box-shadow: 0 0 8px rgba(32, 201, 151, 0.3);
+  animation: autoExportGlow 2s ease-in-out infinite;
+}
+
+.te-export-btn.auto-export-active:hover {
+  background: rgba(32, 201, 151, 0.3);
+  color: #20c997;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 12px rgba(32, 201, 151, 0.4);
+}
+
+@keyframes autoExportGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(32, 201, 151, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(32, 201, 151, 0.5);
+  }
+}
+
 .te-history-btn:hover {
   color: #ffc107;
 }

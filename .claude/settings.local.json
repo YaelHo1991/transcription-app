@@ -29,7 +29,12 @@
       "Bash(wmic process:*)",
       "Bash(timeout:*)",
       "Bash(grep:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(git push:*)",
+      "Bash(psql:*)",
+      "Bash(npm run migrate:*)",
+      "Bash(npm run:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": [],

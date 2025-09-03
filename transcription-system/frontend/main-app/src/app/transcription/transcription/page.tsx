@@ -19,6 +19,7 @@ import { ConfirmationModal } from './components/TextEditor/components/Confirmati
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import LoginPromptModal from '../../../components/LoginPromptModal';
 import useProjectStore from '@/lib/stores/projectStore';
+import useHoveringBarsStore from '@/lib/stores/hoveringBarsStore';
 import indexedDBService from '@/services/indexedDBService';
 import './transcription-theme.css';
 import './transcription-page.css';
@@ -177,9 +178,10 @@ export default function TranscriptionWorkPage() {
   // Create a unique session ID for this transcription session
   const [sessionId] = useState<string>('session-default');
   
+  // Use global hovering bars store
+  const { headerLocked, sidebarLocked } = useHoveringBarsStore();
+  
   const [helperFilesExpanded, setHelperFilesExpanded] = useState(false);
-  const [headerLocked, setHeaderLocked] = useState(false);
-  const [sidebarLocked, setSidebarLocked] = useState(false);
   
   // MediaPlayer and TextEditor synchronization
   const [currentTime, setCurrentTime] = useState(0);
@@ -717,14 +719,7 @@ export default function TranscriptionWorkPage() {
     handleMediaChange();
   }, [currentMedia, collectionName, getOrCreateProject, loadProjectData]); // Dependencies updated
 
-  // Memoize callbacks to prevent unnecessary re-renders
-  const handleHeaderLockChange = useCallback((locked: boolean) => {
-    setHeaderLocked(locked);
-  }, []);
-
-  const handleSidebarLockChange = useCallback((locked: boolean) => {
-    setSidebarLocked(locked);
-  }, []);
+  // Remove local lock change handlers - now handled by global store
 
   // Handler for opening management modal from sidebar
   const handleOpenManagementModal = useCallback((tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => {
@@ -945,8 +940,6 @@ export default function TranscriptionWorkPage() {
         />
       }
       theme="transcription"
-      onHeaderLockChange={handleHeaderLockChange}
-      onSidebarLockChange={handleSidebarLockChange}
     >
       {/* Workspace Header */}
       <WorkspaceHeader 

@@ -3,6 +3,10 @@ import jwt from 'jsonwebtoken';
 import { loginRateLimiter } from '../../middleware/security.middleware';
 import { UserModel } from '../../models/user.model';
 import { emailService } from '../../services/email.service';
+import { authenticateToken, AuthRequest } from '../../middleware/auth.middleware';
+import { asyncHandler } from '../../middleware/error.middleware';
+import { db } from '../../db/connection';
+import storageService from '../../services/storageService';
 
 const router = Router();
 
@@ -386,5 +390,25 @@ router.post('/reset-password', async (req, res) => {
     });
   }
 });
+
+// GET /api/auth/storage - Get user storage info
+router.get('/storage', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  
+  const storageInfo = await storageService.getUserStorage(userId);
+  
+  // Also get if auto export is enabled  
+  const userResult = await db.query(
+    'SELECT auto_word_export_enabled FROM users WHERE id = $1',
+    [userId]
+  );
+  const autoExportEnabled = userResult.rows[0]?.auto_word_export_enabled || false;
+  
+  res.json({
+    success: true,
+    storage: storageInfo,
+    autoExportEnabled
+  });
+}));
 
 export default router;

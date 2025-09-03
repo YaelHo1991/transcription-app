@@ -3,6 +3,7 @@ import { authenticateToken, requireAdminFlag, requireSpecificAdmin, AuthRequest 
 import { asyncHandler } from '../../middleware/error.middleware';
 import { db } from '../../db/connection';
 import jwt from 'jsonwebtoken';
+import storageService from '../../services/storageService';
 
 const router = Router();
 
@@ -13,28 +14,75 @@ router.use(authenticateToken);
 // Or use requireAdminFlag to check is_admin column
 router.use(requireSpecificAdmin);
 
-// GET /api/admin/users - Get all users (with passwords for admins)
+// GET /api/admin/users - Get all users (simplified for now)
 router.get('/users', asyncHandler(async (req: AuthRequest, res) => {
-  const users = await db.query(
-    `SELECT 
-      id, 
-      email, 
-      full_name, 
-      permissions, 
-      is_admin,
-      transcriber_code,
-      created_at,
-      last_login,
-      password
-    FROM users 
-    ORDER BY created_at DESC`
-  );
+  try {
+    const users = await db.query(
+      `SELECT 
+        u.id, 
+        u.email, 
+        u.full_name, 
+        u.permissions, 
+        u.is_admin,
+        u.transcriber_code,
+        u.created_at,
+        u.last_login,
+        u.password,
+        u.auto_word_export_enabled
+      FROM users u
+      ORDER BY u.created_at DESC`
+    );
 
-  res.json({
-    success: true,
-    users: users.rows,
-    total: users.rowCount
-  });
+    // Get system storage info (simplified)
+    let systemStorage = null;
+    let totalStats = null;
+    
+    try {
+      systemStorage = await storageService.getSystemStorage();
+      totalStats = await storageService.getTotalStorageStats();
+    } catch (storageError) {
+      console.log('Storage info unavailable:', storageError.message);
+    }
+
+    // Get storage data for all users
+    const usersWithStorage = await Promise.all(
+      users.rows.map(async (user) => {
+        try {
+          const storageInfo = await storageService.getUserStorage(user.id);
+          const result = {
+            ...user,
+            auto_word_export_enabled: user.auto_word_export_enabled || false,
+            quota_limit_mb: storageInfo.quotaLimitMB,
+            quota_used_mb: storageInfo.quotaUsedMB
+          };
+          console.log(`[AdminUsers] User ${user.id} auto_word_export_enabled:`, user.auto_word_export_enabled, '-> final:', result.auto_word_export_enabled);
+          return result;
+        } catch (error) {
+          console.error(`Error getting storage for user ${user.id}:`, error);
+          return {
+            ...user,
+            auto_word_export_enabled: false, // Default false
+            quota_limit_mb: 500, // Default 500MB
+            quota_used_mb: 0     // Default 0MB used
+          };
+        }
+      })
+    );
+
+    res.json({
+      success: true,
+      users: usersWithStorage,
+      total: users.rowCount,
+      systemStorage,
+      totalStats
+    });
+  } catch (error) {
+    console.error('Admin users API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה בטעינת משתמשים'
+    });
+  }
 }));
 
 // GET /api/admin/stats - Get system statistics
@@ -258,6 +306,74 @@ router.post('/impersonate', asyncHandler(async (req: AuthRequest, res) => {
       permissions: targetUser.permissions,
       is_admin: targetUser.is_admin
     }
+  });
+}));
+
+// PUT /api/admin/user/:id/storage-quota - Update user storage quota
+router.put('/user/:id/storage-quota', asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { quotaMB } = req.body;
+
+  if (!quotaMB || quotaMB < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'נדרש ערך חיובי למכסת אחסון'
+    });
+  }
+
+  await storageService.updateUserQuota(id, quotaMB);
+
+  res.json({
+    success: true,
+    message: 'מכסת האחסון עודכנה בהצלחה'
+  });
+}));
+
+// POST /api/admin/user/:id/auto-export - Toggle auto Word export
+router.post('/user/:id/auto-export', requireAdminFlag, asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { enabled } = req.body;
+
+  console.log(`[AutoExport] Updating user ${id} to enabled=${enabled}`);
+
+  const result = await db.query(
+    'UPDATE users SET auto_word_export_enabled = $1 WHERE id = $2 RETURNING id, auto_word_export_enabled',
+    [enabled, id]
+  );
+
+  console.log(`[AutoExport] Update result:`, result.rows[0]);
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'משתמש לא נמצא'
+    });
+  }
+
+  res.json({
+    success: true,
+    user: result.rows[0],
+    message: 'הגדרות הייצוא האוטומטי עודכנו בהצלחה'
+  });
+}));
+
+// GET /api/admin/storage/system - Get system storage info
+router.get('/storage/system', asyncHandler(async (req: AuthRequest, res) => {
+  const systemStorage = await storageService.getSystemStorage();
+  
+  res.json({
+    success: true,
+    storage: systemStorage
+  });
+}));
+
+// GET /api/admin/storage/users - Get all users storage info
+router.get('/storage/users', asyncHandler(async (req: AuthRequest, res) => {
+  const usersStorage = await storageService.getAllUsersStorage();
+  
+  res.json({
+    success: true,
+    storage: usersStorage
   });
 }));
 

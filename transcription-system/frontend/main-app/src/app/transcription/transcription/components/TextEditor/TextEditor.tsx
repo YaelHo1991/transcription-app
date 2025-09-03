@@ -23,6 +23,7 @@ import { AutoCorrectEngine } from './utils/AutoCorrectEngine';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import ToolbarContent from './ToolbarContent';
 import { useMediaSync } from './hooks/useMediaSync';
+import { useAutoWordExport } from './hooks/useAutoWordExport';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import backupService from '@/services/backupService';
 import incrementalBackupService from '@/services/incrementalBackupService';
@@ -145,6 +146,7 @@ export default function TextEditor({
   const [showAutoCorrectModal, setShowAutoCorrectModal] = useState(false);
   const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
   const [showHTMLPreviewModal, setShowHTMLPreviewModal] = useState(false);
+  const [autoExportEnabled, setAutoExportEnabled] = useState(false);
   const [isMediaNameOverflowing, setIsMediaNameOverflowing] = useState(false);
   const [selectedTranscriptions, setSelectedTranscriptions] = useState<Set<number>>(new Set());
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -162,6 +164,8 @@ export default function TextEditor({
   const [tIsSaving, setTIsSaving] = useState(false);
   const tLastSavedContent = useRef<string>('');
   const mediaNameRef = useRef<HTMLDivElement>(null);
+  const tHasChangesRef = useRef(false);
+  const tIsSavingRef = useRef(false);
   const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>({
     blockDuplicateSpeakers: true,
     requirePunctuation: true,
@@ -317,6 +321,15 @@ export default function TextEditor({
   
   // Store saveProjectData in a ref to use in useEffect (will be set after the function is defined)
   const saveProjectDataRef = useRef<() => void>();
+  
+  // Keep refs synchronized with state for use in effects
+  useEffect(() => {
+    tHasChangesRef.current = tHasChanges;
+  }, [tHasChanges]);
+  
+  useEffect(() => {
+    tIsSavingRef.current = tIsSaving;
+  }, [tIsSaving]);
   
   // Global keyboard shortcuts
   useEffect(() => {
@@ -1007,11 +1020,11 @@ export default function TextEditor({
   useEffect(() => {
     const handleAutoSave = (e: CustomEvent) => {
       console.log('[TextEditor] Auto-save triggered:', e.detail);
-      console.log('[TextEditor] Has changes:', tHasChanges.current, 'Is saving:', tIsSaving);
+      console.log('[TextEditor] Has changes:', tHasChangesRef.current, 'Is saving:', tIsSavingRef.current);
       
       // Always save on navigation, regardless of changes flag
       // The user explicitly wants to save when navigating
-      if (!tIsSaving) {
+      if (!tIsSavingRef.current) {
         console.log('[TextEditor] Performing auto-save before navigation');
         // Use the ref to call the current saveProjectData function
         if (saveProjectDataRef.current) {
@@ -1026,7 +1039,7 @@ export default function TextEditor({
     
     // Handle page unload/refresh
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (tHasChanges.current) {
+      if (tHasChangesRef.current) {
         // Try to save quickly using the ref
         if (saveProjectDataRef.current) {
           saveProjectDataRef.current();
@@ -1046,6 +1059,20 @@ export default function TextEditor({
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []); // Empty deps - we want this to run once and use refs for current values
+  
+  // Auto-save when component unmounts (navigating to other pages)
+  useEffect(() => {
+    return () => {
+      // Component is unmounting - save if there are changes
+      console.log('[TextEditor] Component unmounting - checking for unsaved changes');
+      if (tHasChangesRef.current && !tIsSavingRef.current) {
+        console.log('[TextEditor] Auto-saving on unmount due to unsaved changes');
+        if (saveProjectDataRef.current) {
+          saveProjectDataRef.current();
+        }
+      }
+    };
+  }, []); // Empty deps - only run on mount/unmount
   
   // Initialize blocks from block manager and shortcuts
   useEffect(() => {
@@ -1327,6 +1354,52 @@ export default function TextEditor({
     autoScroll: false,
     highlightDelay: 200
   });
+
+  // Auto Word export hook
+  const { lastExportTime } = useAutoWordExport({
+    blocks,
+    speakers: speakerNamesRef.current,
+    remarks: remarksContext?.state.remarks,
+    mediaFileName: currentMediaFileName,
+    mediaDuration,
+    autoExportEnabled
+  });
+
+  // Fetch user auto export setting
+  useEffect(() => {
+    const fetchAutoExportSetting = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const apiUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000') + '/api/auth/storage';
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        console.log('[TextEditor] Storage API response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[TextEditor] Full storage API response:', data);
+          console.log('[TextEditor] autoExportEnabled from API:', data.autoExportEnabled);
+          console.log('[TextEditor] Type of autoExportEnabled:', typeof data.autoExportEnabled);
+          
+          const enabled = data.autoExportEnabled || false;
+          setAutoExportEnabled(enabled);
+          console.log('[TextEditor] Final autoExportEnabled state set to:', enabled);
+        } else {
+          console.error('[TextEditor] Storage API error:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('[TextEditor] Failed to fetch auto export setting:', error);
+      }
+    };
+
+    fetchAutoExportSetting();
+  }, []); // Only run once on mount
 
   // Handle block navigation with isolation support
   const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'speaker' | 'text', fromField: 'speaker' | 'text' = 'speaker') => {
@@ -3156,6 +3229,15 @@ export default function TextEditor({
                   )}
                 >
                   {currentMediaFileName || 'אין תמלול'}
+                  {/* DEBUG: Always log values */}
+                  {(() => {
+                    if (currentMediaFileName) {
+                      const isHebrew = /[\u0590-\u05FF]/.test(currentMediaFileName);
+                      const scrollClass = isMediaNameOverflowing ? (isHebrew ? 'scroll-rtl' : 'scroll-ltr') : 'no-scroll';
+                      console.log('[TextEditor] currentMediaFileName:', currentMediaFileName, 'overflowing:', isMediaNameOverflowing, 'isHebrew:', isHebrew, 'scroll class:', scrollClass);
+                    }
+                    return null;
+                  })()}
                   {mediaDuration && mediaDuration !== '00:00:00' && (
                     <span className="te-duration-inline"> ({mediaDuration})</span>
                   )}
@@ -3192,9 +3274,12 @@ export default function TextEditor({
               </button>
               
               <button 
-                className="te-header-btn te-export-btn" 
-                onClick={() => setShowDocumentExportModal(true)} 
-                title="ייצוא למסמך Word"
+                className={`te-header-btn te-export-btn ${autoExportEnabled ? 'auto-export-active' : ''}`}
+                onClick={() => {
+                  console.log('[TextEditor] Export button clicked, autoExportEnabled:', autoExportEnabled);
+                  setShowDocumentExportModal(true);
+                }} 
+                title={autoExportEnabled ? "ייצוא למסמך Word (ייצוא אוטומטי פעיל)" : "ייצוא למסמך Word"}
               >
                 <svg viewBox="0 0 24 24" width="14" height="14">
                   <path fill="currentColor" d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6ZM13 3.5L18.5 9H13V3.5ZM12 11L8 15H10.5V19H13.5V15H16L12 11Z"/>

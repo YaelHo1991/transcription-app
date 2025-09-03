@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import ExportSidebar from './components/ExportSidebar';
+import useHoveringBarsStore from '@/lib/stores/hoveringBarsStore';
 import './export-theme.css';
 import './export-page.css';
 
@@ -45,8 +46,8 @@ export default function ExportPage() {
     setUserPermissions(permissions);
   }, []);
   
-  const [headerLocked, setHeaderLocked] = useState(false);
-  const [sidebarLocked, setSidebarLocked] = useState(false);
+  // Use global hovering bars store
+  const { headerLocked, sidebarLocked } = useHoveringBarsStore();
   
   // Export page states
   const [activeTab, setActiveTab] = useState<'export' | 'templates'>('export');
@@ -93,14 +94,7 @@ export default function ExportPage() {
     }
   ];
   
-  // Memoize callbacks
-  const handleHeaderLockChange = useCallback((locked: boolean) => {
-    setHeaderLocked(locked);
-  }, []);
-
-  const handleSidebarLockChange = useCallback((locked: boolean) => {
-    setSidebarLocked(locked);
-  }, []);
+  // Remove local lock change handlers - now handled by global store
 
   const handleTemplateSelect = (template: ExportTemplate) => {
     setSelectedTemplate(template);
@@ -121,8 +115,6 @@ export default function ExportPage() {
       }
       sidebarContent={<ExportSidebar />}
       theme="export"
-      onHeaderLockChange={handleHeaderLockChange}
-      onSidebarLockChange={handleSidebarLockChange}
     >
       {/* Workspace Header */}
       <div className={`ex-workspace-header ${headerLocked ? 'ex-header-locked' : ''}`}>

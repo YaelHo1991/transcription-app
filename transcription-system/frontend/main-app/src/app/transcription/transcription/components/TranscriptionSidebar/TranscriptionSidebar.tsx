@@ -16,6 +16,11 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   
   const [isMounted, setIsMounted] = useState(false);
   const [orphanedCount, setOrphanedCount] = useState(0);
+  const [storageInfo, setStorageInfo] = useState<{
+    quotaLimitMB: number;
+    quotaUsedMB: number;
+    usedPercent: number;
+  } | null>(null);
   
   const { 
     projects,
@@ -60,6 +65,46 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     
     loadOrphanedCount();
   }, [projects]); // Reload when projects change
+
+  // Load user storage info
+  useEffect(() => {
+    const loadStorageInfo = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        if (!token || token === 'dev-anonymous') {
+          // Don't try to load storage for anonymous users
+          return;
+        }
+        
+        const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+          ? 'http://localhost:5000' 
+          : '';
+        const response = await fetch(`${baseUrl}/api/auth/storage`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.storage) {
+            setStorageInfo(data.storage);
+          }
+        } else if (response.status === 401) {
+          // Token is invalid, don't keep trying
+          console.log('Storage info not available - user not authenticated');
+        }
+      } catch (error) {
+        console.error('Failed to load storage info:', error);
+      }
+    };
+    
+    loadStorageInfo();
+    // Refresh storage info every 30 seconds
+    const interval = setInterval(loadStorageInfo, 30000);
+    return () => clearInterval(interval);
+  }, [projects]); // Reload when projects change
   
   // Load projects with a small delay to avoid race conditions
   useEffect(() => {
@@ -100,6 +145,13 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   // Helper functions for statistics
   const getTotalTranscriptions = () => {
     return orphanedCount; // Show orphaned transcriptions count instead
+  };
+
+  const getStorageColor = (percent: number) => {
+    if (percent < 50) return '#4CAF50';
+    if (percent < 70) return '#66BB6A';
+    if (percent < 85) return '#388E3C';
+    return '#1B5E20';
   };
   
   const getTotalDuration = () => {
@@ -309,6 +361,33 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
           </div>
         </div>
       </div>
+
+      {/* Storage Display */}
+      {storageInfo && (
+        <div className="sidebar-storage" title="אחסון">
+          <div className="storage-info-display">
+            <div className="storage-text-compact">
+              <div className="storage-size-display">
+                <span className="storage-used">{storageInfo.quotaUsedMB}MB</span>
+                <span className="storage-separator"> / </span>
+                <span className="storage-total">{storageInfo.quotaLimitMB}MB</span>
+              </div>
+            </div>
+            <div className="storage-progress-bar-compact">
+              <div 
+                className="storage-progress-fill"
+                style={{
+                  width: `${Math.min(storageInfo.usedPercent, 100)}%`,
+                  backgroundColor: getStorageColor(storageInfo.usedPercent)
+                }}
+              />
+              <div className="storage-progress-text">
+                {Math.round(storageInfo.usedPercent)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="project-list">
         {isLoading ? (

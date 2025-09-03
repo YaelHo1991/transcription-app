@@ -199,15 +199,30 @@ class BackupService {
         console.log('Backup created: v' + this.currentVersion + ' for media ' + this.currentMediaId);
       }
     } catch (error: any) {
-      console.error('Backup failed:', error);
-      this.lastError = error.response?.data?.error || 'Backup failed';
+      // Handle different error types more gracefully
+      if (error.response?.status === 400) {
+        // 400 errors are expected when project/media isn't ready yet
+        // Don't log these to console to avoid noise
+        this.lastError = 'Waiting for valid project/media';
+      } else if (error.response?.status === 401) {
+        // Authentication error - token might be expired
+        this.lastError = 'Authentication required';
+        console.warn('Backup authentication failed - token may be expired');
+      } else {
+        // Log other errors
+        console.error('Backup failed:', error);
+        this.lastError = error.response?.data?.error || 'Backup failed';
+      }
       
       // In development, still mark as saved to prevent constant retries
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'development' && error.response?.status !== 401) {
         this.lastSaveTime = Date.now();
         this.hasChanges = false;
         this.currentVersion++;
-        console.log('Dev mode: Marked as saved despite error');
+        // Only log if it's not a 400 error
+        if (error.response?.status !== 400) {
+          console.log('Dev mode: Marked as saved despite error');
+        }
       }
     } finally {
       this.isBackingUp = false;
