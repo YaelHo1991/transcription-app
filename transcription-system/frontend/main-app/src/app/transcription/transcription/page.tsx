@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiUrl } from '@/utils/api';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
@@ -730,7 +731,8 @@ export default function TranscriptionWorkPage() {
   // Handler for project deletion
   const handleProjectDelete = async (projectId: string, deleteTranscriptions: boolean) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/projects/${projectId}`, {
+      const apiUrl = getApiUrl(); // Use the proper API URL function
+      const response = await fetch(`${apiUrl}/api/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
@@ -802,7 +804,8 @@ export default function TranscriptionWorkPage() {
   // Handler for media deletion
   const handleMediaDelete = async (projectId: string, mediaId: string, deleteTranscriptions: boolean) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/projects/${projectId}/media/${mediaId}`, {
+      const apiUrl = getApiUrl(); // Use the proper API URL function
+      const response = await fetch(`${apiUrl}/api/projects/${projectId}/media/${mediaId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`,
@@ -995,9 +998,7 @@ export default function TranscriptionWorkPage() {
                 
                 if (currentProject && currentMediaId) {
                 // Construct media URL from project store data - use currentMediaId directly
-                const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-                  ? (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000')
-                  : '';
+                const apiUrl = getApiUrl(); // Use the proper API URL function
                 const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
                 const mediaUrl = `${apiUrl}/api/projects/${currentProject.projectId}/media/${currentMediaId}?token=${encodeURIComponent(token)}`;
                 

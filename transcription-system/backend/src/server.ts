@@ -27,6 +27,9 @@ import {
 // Security headers - Apply FIRST
 app.use(helmetConfig);
 
+// Trust proxy for nginx reverse proxy (fixes express-rate-limit warning)
+app.set('trust proxy', 1);
+
 // CORS configuration - More permissive for development and DO
 const corsOptions = {
   origin: function (origin: any, callback: any) {

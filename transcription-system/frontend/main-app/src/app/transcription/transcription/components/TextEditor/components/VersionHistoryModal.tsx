@@ -68,9 +68,10 @@ export default function VersionHistoryModal({
     setLoading(true);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const apiUrl = getApiUrl(); // Use the proper API URL function
       // Load backups from media-specific endpoint
       const response = await fetch(
-        `http://localhost:5000/api/projects/${transcriptionId}/media/${mediaId}/backups`,
+        `${apiUrl}/api/projects/${transcriptionId}/media/${mediaId}/backups`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -158,9 +159,10 @@ export default function VersionHistoryModal({
     setLoading(true);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const apiUrl = getApiUrl(); // Use the proper API URL function
       // Load backup content from media-specific endpoint
       const response = await fetch(
-        `http://localhost:5000/api/projects/${transcriptionId}/media/${mediaId}/backups/${version.filename}`,
+        `${apiUrl}/api/projects/${transcriptionId}/media/${mediaId}/backups/${version.filename}`,
         {
           headers: {
             'Content-Type': 'application/json',

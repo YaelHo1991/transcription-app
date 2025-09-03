@@ -45,6 +45,8 @@ export default function UsersManagement() {
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [updatingAdmin, setUpdatingAdmin] = useState<string | null>(null);
   const [systemStorage, setSystemStorage] = useState<SystemStorage | null>(null);
+  const [clearingStorage, setClearingStorage] = useState<string | null>(null);
+  const [clearingAllStorage, setClearingAllStorage] = useState(false);
   
   // Use global persistent column store
   const { expandedColumns, toggleColumn } = useUsersAdminColumnStore();
@@ -295,6 +297,95 @@ export default function UsersManagement() {
     return '#1B5E20';
   };
 
+  const clearUserStorage = async (userId: string, userEmail: string) => {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את כל האחסון של ${userEmail}?`)) {
+      return;
+    }
+    
+    setClearingStorage(userId);
+    try {
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? getApiUrl() 
+        : '';
+      
+      const response = await fetch(`${baseUrl}/api/admin/storage/clear-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`אחסון המשתמש נמחק בהצלחה. ${result.filesDeleted || 0} קבצים נמחקו.`);
+        // Refresh users to update storage info
+        await fetchUsers();
+      } else {
+        const errorText = await response.text();
+        alert('שגיאה במחיקת האחסון: ' + errorText);
+      }
+    } catch (error) {
+      console.error('Failed to clear user storage:', error);
+      alert('שגיאה בחיבור לשרת');
+    } finally {
+      setClearingStorage(null);
+    }
+  };
+
+  const clearAllStorage = async () => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את כל האחסון של כל המשתמשים? פעולה זו אינה ניתנת לביטול!')) {
+      return;
+    }
+    
+    if (!confirm('אזהרה: פעולה זו תמחק את כל הפרויקטים והקבצים של כל המשתמשים במערכת. האם אתה בטוח?')) {
+      return;
+    }
+    
+    setClearingAllStorage(true);
+    try {
+      const isTestSession = localStorage.getItem('is_test_session') === 'true';
+      let token = localStorage.getItem('admin_token');
+      if (!token || !isTestSession) {
+        token = localStorage.getItem('token');
+      }
+      
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? getApiUrl() 
+        : '';
+      
+      const response = await fetch(`${baseUrl}/api/admin/storage/clear-all`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`כל האחסון נמחק בהצלחה. ${result.totalFilesDeleted || 0} קבצים נמחקו מ-${result.usersCleared || 0} משתמשים.`);
+        // Refresh users to update storage info
+        await fetchUsers();
+      } else {
+        const errorText = await response.text();
+        alert('שגיאה במחיקת האחסון: ' + errorText);
+      }
+    } catch (error) {
+      console.error('Failed to clear all storage:', error);
+      alert('שגיאה בחיבור לשרת');
+    } finally {
+      setClearingAllStorage(false);
+    }
+  };
+
   const loginAsUser = async (user: User) => {
     try {
       // Use admin token if in test session, otherwise regular token
@@ -425,6 +516,13 @@ export default function UsersManagement() {
               <span className="storage-available">
                 זמין: {systemStorage.availableGB}GB
               </span>
+              <button 
+                className="clear-all-storage-btn"
+                onClick={clearAllStorage}
+                disabled={clearingAllStorage}
+              >
+                {clearingAllStorage ? 'מוחק...' : '🗑️ מחק את כל האחסון'}
+              </button>
             </div>
           </div>
         )}
@@ -641,6 +739,14 @@ export default function UsersManagement() {
                             title="כניסה כמשתמש זה בחלון חדש"
                           >
                             🔑 כניסה
+                          </button>
+                          <button 
+                            className="clear-storage-btn"
+                            onClick={() => clearUserStorage(user.id, user.email)}
+                            disabled={clearingStorage === user.id}
+                            title="מחק את כל האחסון של המשתמש"
+                          >
+                            {clearingStorage === user.id ? '...' : '🗑️'}
                           </button>
                         </div>
                       )}
@@ -1081,6 +1187,54 @@ export default function UsersManagement() {
           background: linear-gradient(135deg, #b8956f 0%, #a68560 100%);
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(199, 167, 136, 0.4);
+        }
+
+        .clear-storage-btn {
+          background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 15px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          min-width: 40px;
+        }
+
+        .clear-storage-btn:hover:not(:disabled) {
+          background: linear-gradient(135deg, #da190b 0%, #b71c0c 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+        }
+
+        .clear-storage-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .clear-all-storage-btn {
+          background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+          color: white;
+          border: none;
+          padding: 8px 20px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-left: auto;
+        }
+
+        .clear-all-storage-btn:hover:not(:disabled) {
+          background: linear-gradient(135deg, #da190b 0%, #b71c0c 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+        }
+
+        .clear-all-storage-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .storage-cell {

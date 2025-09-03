@@ -64,12 +64,20 @@ export default function SpeakerList({
 
   return (
     <div className="speaker-list">
-      {speakers.map((speaker) => (
-        <div
-          key={speaker.id}
-          className={'speaker-item ' + (activeSpeakerId === speaker.id ? 'active' : '')}
-          onClick={() => onSelect(speaker)}
-        >
+      {speakers.map((speaker) => {
+        const isActive = activeSpeakerId === speaker.id;
+        return (
+          <div
+            key={speaker.id}
+            className={`speaker-item ${isActive ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (!isActive && editingId !== speaker.id) {
+                onSelect(speaker);
+              }
+            }}
+          >
           <span 
             className="speaker-color-dot"
             style={{ backgroundColor: speaker.color }}
@@ -85,7 +93,10 @@ export default function SpeakerList({
               className="speaker-name-input"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              onBlur={saveEdit}
+              onBlur={(e) => {
+                e.stopPropagation();
+                saveEdit();
+              }}
               onKeyDown={handleEditKeyDown}
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
@@ -95,6 +106,7 @@ export default function SpeakerList({
               className="speaker-name"
               onDoubleClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 startEdit(speaker);
               }}
             >
@@ -111,6 +123,7 @@ export default function SpeakerList({
               className="speaker-edit-btn"
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 startEdit(speaker);
               }}
               title="ערוך שם (F2)"
@@ -123,6 +136,7 @@ export default function SpeakerList({
                 className="speaker-delete-btn"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   if (confirm('למחוק את ' + speaker.name + '?')) {
                     onDelete(speaker.id);
                   }
@@ -133,8 +147,9 @@ export default function SpeakerList({
               </button>
             )}
           </div>
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }

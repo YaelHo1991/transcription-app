@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { projectService } from '../../services/projectService';
+import { backgroundJobService } from '../../services/backgroundJobs';
 import path from 'path';
 import fs, { createReadStream } from 'fs';
 import fs_promises from 'fs/promises';
@@ -412,7 +413,10 @@ router.get('/list', verifyUser, async (req: Request, res: Response) => {
     const userId = (req as any).user?.id || 'unknown';
     console.log(`[ProjectList] Loading projects for user: ${userId}`);
     
-    // Load projects using the new project service method
+    // Queue background storage calculation (non-blocking)
+    backgroundJobService.queueStorageCalculation(userId);
+    
+    // Load projects using the new project service method (fast now)
     const projects = await projectService.listProjects(userId);
     
     res.json({
@@ -1735,10 +1739,9 @@ router.get('/:projectId/media/:filename', async (req: Request, res: Response) =>
     
     // First try the new structure (media files in media/mediaId/ subdirectories)
     let mediaPath: string | null = null;
-    // Try both possible base paths
+    // Use consistent base path with process.cwd()
     const possibleBasePaths = [
-      path.join(process.cwd(), 'user_data', 'users', safeUserId, 'projects', projectId),
-      path.join(__dirname, '..', '..', '..', 'user_data', 'users', safeUserId, 'projects', projectId)
+      path.join(process.cwd(), 'user_data', 'users', safeUserId, 'projects', projectId)
     ];
     
     let userDataPath = possibleBasePaths[0];

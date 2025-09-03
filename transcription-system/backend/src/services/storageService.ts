@@ -19,7 +19,88 @@ export interface UserStorageInfo {
   usedPercent: number;
 }
 
+interface StorageCache {
+  userId: string;
+  data: UserStorageInfo;
+  timestamp: number;
+  calculating?: boolean;
+}
+
 export class StorageService {
+  private storageCache = new Map<string, StorageCache>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly BACKGROUND_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+  private backgroundTimer?: NodeJS.Timeout;
+
+  constructor() {
+    // Start background refresh timer
+    this.startBackgroundRefresh();
+  }
+
+  /**
+   * Start background refresh of storage calculations
+   */
+  private startBackgroundRefresh() {
+    this.backgroundTimer = setInterval(async () => {
+      // Refresh cache for users that have been accessed recently
+      for (const [userId, cache] of this.storageCache.entries()) {
+        const age = Date.now() - cache.timestamp;
+        if (age > this.CACHE_TTL && age < this.BACKGROUND_REFRESH_INTERVAL * 2) {
+          // Background refresh without blocking
+          this.refreshUserStorageBackground(userId);
+        }
+      }
+    }, this.BACKGROUND_REFRESH_INTERVAL);
+  }
+
+  /**
+   * Background refresh of user storage (non-blocking)
+   */
+  private async refreshUserStorageBackground(userId: string) {
+    try {
+      const cached = this.storageCache.get(userId);
+      if (cached && !cached.calculating) {
+        cached.calculating = true;
+        const actualUsedBytes = await this.calculateUserStorageUsage(userId);
+        
+        const result = await db.query(
+          `SELECT quota_limit FROM user_storage_quotas WHERE user_id = $1`,
+          [userId]
+        );
+        
+        const quotaLimit = result.rows[0]?.quota_limit || 524288000;
+        const quotaLimitMB = Math.round(quotaLimit / (1024 * 1024));
+        const quotaUsedMB = Math.round(actualUsedBytes / (1024 * 1024));
+        const usedPercent = quotaLimit > 0 ? (actualUsedBytes / quotaLimit) * 100 : 0;
+
+        this.storageCache.set(userId, {
+          userId,
+          data: {
+            userId,
+            quotaLimitMB,
+            quotaUsedMB,
+            usedPercent: Math.round(usedPercent * 10) / 10
+          },
+          timestamp: Date.now(),
+          calculating: false
+        });
+        
+        // Update database with calculated value
+        await db.query(
+          `UPDATE user_storage_quotas SET quota_used = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2`,
+          [actualUsedBytes, userId]
+        );
+        
+        console.log(`[StorageService] Background refresh completed for user ${userId}: ${quotaUsedMB}MB`);
+      }
+    } catch (error) {
+      console.error(`[StorageService] Background refresh failed for user ${userId}:`, error);
+      // Remove calculating flag on error
+      const cached = this.storageCache.get(userId);
+      if (cached) cached.calculating = false;
+    }
+  }
+
   /**
    * Get system disk storage information
    * Works on both Windows (for development) and Linux (for DigitalOcean)
@@ -98,15 +179,27 @@ export class StorageService {
   }
 
   /**
-   * Get storage information for a specific user
+   * Get storage information for a specific user (with caching)
    */
   async getUserStorage(userId: string): Promise<UserStorageInfo> {
     try {
+      // Check cache first
+      const cached = this.storageCache.get(userId);
+      const now = Date.now();
+      
+      // Return cached data if fresh
+      if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+        console.log(`[StorageService] Using cached storage for user ${userId}`);
+        return cached.data;
+      }
+      
+      // Get from database (fast lookup)
       const result = await db.query(
         `SELECT 
           user_id,
           quota_limit,
-          quota_used
+          quota_used,
+          updated_at
         FROM user_storage_quotas
         WHERE user_id = $1`,
         [userId]
@@ -121,35 +214,82 @@ export class StorageService {
           [userId]
         );
         
-        // Calculate actual usage for new user
-        const actualUsedBytes = await this.calculateUserStorageUsage(userId);
-        
-        return {
+        const defaultData: UserStorageInfo = {
           userId,
           quotaLimitMB: 500,
-          quotaUsedMB: Math.round(actualUsedBytes / (1024 * 1024)),
-          usedPercent: actualUsedBytes > 0 ? (actualUsedBytes / 524288000) * 100 : 0
+          quotaUsedMB: 0,
+          usedPercent: 0
         };
+        
+        // Cache the default data and start background calculation
+        this.storageCache.set(userId, {
+          userId,
+          data: defaultData,
+          timestamp: now
+        });
+        
+        // Trigger background calculation for new user (non-blocking)
+        this.refreshUserStorageBackground(userId);
+        
+        return defaultData;
       }
 
       const row = result.rows[0];
       const quotaLimitMB = Math.round(row.quota_limit / (1024 * 1024));
-      
-      // Calculate actual storage usage instead of relying on potentially outdated quota_used
-      const actualUsedBytes = await this.calculateUserStorageUsage(userId);
-      const quotaUsedMB = Math.round(actualUsedBytes / (1024 * 1024));
-      const usedPercent = row.quota_limit > 0 ? (actualUsedBytes / row.quota_limit) * 100 : 0;
+      const quotaUsedMB = Math.round(row.quota_used / (1024 * 1024));
+      const usedPercent = row.quota_limit > 0 ? (row.quota_used / row.quota_limit) * 100 : 0;
 
-      return {
+      const data: UserStorageInfo = {
         userId,
         quotaLimitMB,
         quotaUsedMB,
         usedPercent: Math.round(usedPercent * 10) / 10
       };
+      
+      // Cache the data
+      this.storageCache.set(userId, {
+        userId,
+        data,
+        timestamp: now
+      });
+      
+      // If data is older than 30 minutes, trigger background refresh
+      const dataAge = row.updated_at ? now - new Date(row.updated_at).getTime() : Infinity;
+      if (dataAge > 30 * 60 * 1000) {
+        this.refreshUserStorageBackground(userId);
+      }
+      
+      console.log(`[StorageService] Returning cached/DB storage for user ${userId}: ${quotaUsedMB}MB`);
+      return data;
     } catch (error) {
       console.error('Error getting user storage:', error);
       throw error;
     }
+  }
+
+  /**
+   * Force refresh storage calculation for a user (use sparingly)
+   */
+  async forceRefreshUserStorage(userId: string): Promise<UserStorageInfo> {
+    console.log(`[StorageService] Force refreshing storage for user ${userId}`);
+    
+    // Remove from cache to force recalculation
+    this.storageCache.delete(userId);
+    
+    // Calculate actual usage
+    const actualUsedBytes = await this.calculateUserStorageUsage(userId);
+    
+    // Update database
+    await db.query(
+      `INSERT INTO user_storage_quotas (user_id, quota_limit, quota_used)
+       VALUES ($1, 524288000, $2)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET quota_used = $2, updated_at = CURRENT_TIMESTAMP`,
+      [userId, actualUsedBytes]
+    );
+    
+    // Get fresh data
+    return this.getUserStorage(userId);
   }
 
   /**
@@ -160,9 +300,9 @@ export class StorageService {
       const path = require('path');
       const fs = require('fs').promises;
       
-      // Determine user storage directory
+      // Determine user storage directory - use the actual location where projects are stored
       const userStorageDir = process.env.NODE_ENV === 'production' 
-        ? path.join('/var/lib/transcription-data', 'users', userId)
+        ? path.join('/var/app/transcription-system/transcription-system/backend/user_data/users', userId)
         : path.join(process.cwd(), 'user_data', 'users', userId);
 
       // Calculate directory size recursively
@@ -322,6 +462,161 @@ export class StorageService {
     } catch (error) {
       console.error('Error getting total storage stats:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Clear all storage for a specific user
+   */
+  async clearUserStorage(userId: string): Promise<{
+    filesDeleted: number;
+    bytesFreed: number;
+  }> {
+    try {
+      const path = require('path');
+      const fs = require('fs').promises;
+      
+      // Determine user storage directory - use the actual location where projects are stored
+      const userStorageDir = process.env.NODE_ENV === 'production' 
+        ? path.join('/var/app/transcription-system/transcription-system/backend/user_data/users', userId)
+        : path.join(process.cwd(), 'user_data', 'users', userId);
+
+      // Calculate current size before deletion
+      const bytesBeforeDeletion = await this.getDirectorySize(userStorageDir);
+      
+      // Count files before deletion
+      let filesDeleted = 0;
+      try {
+        filesDeleted = await this.countFiles(userStorageDir);
+      } catch (error) {
+        console.log(`[StorageService] Could not count files for user ${userId}:`, error);
+      }
+
+      // Delete the entire user directory using built-in fs
+      try {
+        await fs.rm(userStorageDir, { recursive: true, force: true });
+        console.log(`[StorageService] Deleted storage directory for user ${userId}`);
+      } catch (error: any) {
+        // If fs.rm is not available (older Node), try fs.rmdir
+        if (error.code === 'ERR_INVALID_ARG_TYPE' || !fs.rm) {
+          try {
+            await fs.rmdir(userStorageDir, { recursive: true });
+            console.log(`[StorageService] Deleted storage directory for user ${userId} using fs.rmdir`);
+          } catch (rmdirError) {
+            console.error(`[StorageService] Failed to delete directory for user ${userId}:`, rmdirError);
+          }
+        } else {
+          console.error(`[StorageService] Failed to delete directory for user ${userId}:`, error);
+        }
+      }
+
+      // Update the user's quota usage to 0
+      await db.query(
+        `UPDATE user_storage_quotas 
+         SET quota_used = 0, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Also clear any project references from the database
+      await db.query(
+        `DELETE FROM projects WHERE user_id = $1`,
+        [userId]
+      );
+
+      return {
+        filesDeleted,
+        bytesFreed: bytesBeforeDeletion
+      };
+    } catch (error) {
+      console.error('Error clearing user storage:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear storage for all users (DANGER!)
+   */
+  async clearAllUsersStorage(): Promise<{
+    totalFilesDeleted: number;
+    totalBytesFreed: number;
+    usersCleared: number;
+  }> {
+    try {
+      // Get all users
+      const usersResult = await db.query('SELECT id FROM users');
+      
+      let totalFilesDeleted = 0;
+      let totalBytesFreed = 0;
+      let usersCleared = 0;
+
+      // Clear storage for each user
+      for (const user of usersResult.rows) {
+        try {
+          const result = await this.clearUserStorage(user.id);
+          totalFilesDeleted += result.filesDeleted;
+          totalBytesFreed += result.bytesFreed;
+          usersCleared++;
+        } catch (error) {
+          console.error(`Failed to clear storage for user ${user.id}:`, error);
+        }
+      }
+
+      return {
+        totalFilesDeleted,
+        totalBytesFreed,
+        usersCleared
+      };
+    } catch (error) {
+      console.error('Error clearing all users storage:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Count files in a directory recursively
+   */
+  private async countFiles(dirPath: string): Promise<number> {
+    try {
+      const fs = require('fs').promises;
+      let fileCount = 0;
+
+      try {
+        const items = await fs.readdir(dirPath);
+        
+        for (const item of items) {
+          const itemPath = require('path').join(dirPath, item);
+          
+          try {
+            const stats = await fs.stat(itemPath);
+            
+            if (stats.isDirectory()) {
+              fileCount += await this.countFiles(itemPath);
+            } else {
+              fileCount++;
+            }
+          } catch (itemError) {
+            // Skip files that can't be accessed
+          }
+        }
+      } catch (dirError) {
+        // Directory doesn't exist or can't be read
+        return 0;
+      }
+
+      return fileCount;
+    } catch (error) {
+      console.error('Error counting files:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Clean up resources
+   */
+  destroy() {
+    if (this.backgroundTimer) {
+      clearInterval(this.backgroundTimer);
     }
   }
 }

@@ -42,7 +42,12 @@
       "Bash(chmod:*)",
       "Bash(./deploy-frontend.sh)",
       "Bash(sudo -u postgres psql:*)",
-      "Bash(su:*)"
+      "Bash(su:*)",
+      "Bash(scp:*)",
+      "Read(C:\\Users\\ayelh/**)",
+      "Read(C:\\Users\\ayelh\\.ssh/**)",
+      "Read(C:\\Users\\ayelh\\.ssh/**)",
+      "Bash(npx kill-port:*)"
     ],
     "deny": [],
     "ask": [],

@@ -555,7 +555,11 @@ export default function SpeakerBlock({
           value={localCode}
           onChange={(e) => handleCodeChange(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, 'code')}
-          onFocus={() => onNavigate('code')}
+          onFocus={() => {
+            if (!isActive) {
+              onNavigate('code');
+            }
+          }}
           placeholder={codeSuggestion || 'קוד'}
           className="code-input"
           dir="rtl"
@@ -571,7 +575,9 @@ export default function SpeakerBlock({
           onChange={(e) => handleNameChange(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, 'name')}
           onFocus={() => {
-            onNavigate('name');
+            if (!isActive || activeField !== 'name') {
+              onNavigate('name');
+            }
             // Notify parent that name editing has started
             if (onNameFocus) {
               onNameFocus(speaker.id, localName);
@@ -595,7 +601,11 @@ export default function SpeakerBlock({
           value={localDescription}
           onChange={handleDescriptionInput}
           onKeyDown={(e) => handleKeyDown(e, 'description')}
-          onFocus={() => onNavigate('description')}
+          onFocus={() => {
+            if (!isActive || activeField !== 'description') {
+              onNavigate('description');
+            }
+          }}
           placeholder="תיאור"
           className="description-input"
           dir="rtl"

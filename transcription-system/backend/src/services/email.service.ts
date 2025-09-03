@@ -1,14 +1,30 @@
 import nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
 class EmailService {
   private transporter: Transporter | null = null;
+  private useSendGrid: boolean = false;
 
   constructor() {
     this.initializeTransporter();
   }
 
   private initializeTransporter() {
+    // Check for SendGrid first (works immediately on Digital Ocean)
+    const sendGridApiKey = process.env.SENDGRID_API_KEY;
+    if (sendGridApiKey) {
+      try {
+        sgMail.setApiKey(sendGridApiKey);
+        this.useSendGrid = true;
+        console.log('✅ Email service ready using SendGrid');
+        return;
+      } catch (error) {
+        console.error('❌ SendGrid initialization failed:', error);
+      }
+    }
+
+    // Fall back to Gmail if SendGrid not configured
     const gmailUser = process.env.GMAIL_USER;
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
@@ -27,15 +43,18 @@ class EmailService {
         }
       });
 
-      // Verify configuration
-      this.transporter.verify((error, success) => {
-        if (error) {
-          console.error('❌ Email service configuration error:', error.message);
-          this.transporter = null;
-        } else {
-          console.log('✅ Email service ready to send emails via Gmail');
-        }
-      });
+      // Verify configuration with timeout
+      setTimeout(() => {
+        this.transporter?.verify((error, success) => {
+          if (error) {
+            console.error('❌ Email service configuration error:', error.message);
+            console.warn('📧 Falling back to console logging mode (Digital Ocean may block SMTP)');
+            this.transporter = null;
+          } else {
+            console.log('✅ Email service ready to send emails via Gmail');
+          }
+        });
+      }, 1000);
     } catch (error) {
       console.error('❌ Failed to initialize email service:', error);
       this.transporter = null;

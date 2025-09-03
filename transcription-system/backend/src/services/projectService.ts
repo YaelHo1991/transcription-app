@@ -10,8 +10,8 @@ export class ProjectService {
   private projectCounter: number = 0;
 
   constructor() {
-    // Base directory for all users' projects
-    this.baseDir = path.join(__dirname, '..', '..', 'user_data');
+    // Base directory for all users' projects - use process.cwd() for consistent paths
+    this.baseDir = path.join(process.cwd(), 'user_data');
     this.initializeService();
   }
 
@@ -578,8 +578,8 @@ export class ProjectService {
                     
                     totalSize += mediaMetadata.size || 0;
                   } catch (error) {
-                    console.error(`Error loading media metadata for ${mediaId}:`, error);
-                    // Try to at least get file info directly
+                    console.log(`[ProjectService] No metadata.json for ${mediaId}, using fallback file detection`);
+                    // Try to at least get file info directly (without expensive audio parsing)
                     try {
                       const mediaFiles = await fs.readdir(path.join(projectDir, 'media', mediaId));
                       const audioFile = mediaFiles.find(f => 
@@ -591,16 +591,14 @@ export class ProjectService {
                         const stats = await fs.stat(audioPath);
                         let duration = 0;
                         
-                        try {
-                          const metadata = await mm.parseFile(audioPath);
-                          duration = metadata.format.duration || 0;
-                        } catch {}
+                        // Skip expensive audio parsing during listing for performance
+                        // Duration will be calculated in background or when needed
                         
                         mediaInfo.push({
                           mediaId: mediaId,
                           name: audioFile,
                           size: stats.size,
-                          duration: duration,
+                          duration: 0, // Don't parse audio files during listing
                           mimeType: `audio/${path.extname(audioFile).substring(1)}`
                         });
                       } else {
@@ -609,17 +607,18 @@ export class ProjectService {
                           mediaId: mediaId,
                           name: mediaId,
                           size: 0,
-                          duration: 0,
+                          duration: 0, // Keep as 0 for performance
                           mimeType: 'unknown'
                         });
                       }
-                    } catch {
+                    } catch (fileError) {
+                      console.log(`[ProjectService] Could not access media files for ${mediaId}`);
                       // Final fallback if all else fails
                       mediaInfo.push({
                         mediaId: mediaId,
                         name: mediaId,
                         size: 0,
-                        duration: 0,
+                        duration: 0, // Keep as 0 for performance
                         mimeType: 'unknown'
                       });
                     }
@@ -632,7 +631,8 @@ export class ProjectService {
                 mediaInfo: mediaInfo,
                 size: totalSize
               });
-            } catch {
+            } catch (projectError) {
+              console.log(`[ProjectService] Could not read project.json for ${projectId}, trying metadata.json fallback`);
               // Fallback to metadata.json (single media project)
               const metadataPath = path.join(projectDir, 'metadata.json');
               const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
@@ -650,7 +650,7 @@ export class ProjectService {
               });
             }
           } catch (error) {
-            console.error(`Error reading project ${projectId}:`, error);
+            console.log(`[ProjectService] Skipping invalid project ${projectId}:`, error.message);
           }
         }
       }

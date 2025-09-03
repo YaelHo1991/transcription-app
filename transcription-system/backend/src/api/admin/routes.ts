@@ -4,6 +4,7 @@ import { asyncHandler } from '../../middleware/error.middleware';
 import { db } from '../../db/connection';
 import jwt from 'jsonwebtoken';
 import storageService from '../../services/storageService';
+import { backgroundJobService } from '../../services/backgroundJobs';
 
 const router = Router();
 
@@ -374,6 +375,125 @@ router.get('/storage/users', asyncHandler(async (req: AuthRequest, res) => {
   res.json({
     success: true,
     storage: usersStorage
+  });
+}));
+
+// POST /api/admin/storage/clear-user - Clear storage for a specific user
+router.post('/storage/clear-user', asyncHandler(async (req: AuthRequest, res) => {
+  const { userId } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      message: 'חסר מזהה משתמש'
+    });
+  }
+
+  try {
+    const result = await storageService.clearUserStorage(userId);
+    
+    res.json({
+      success: true,
+      filesDeleted: result.filesDeleted,
+      bytesFreed: result.bytesFreed,
+      message: `אחסון המשתמש נמחק בהצלחה. ${result.filesDeleted} קבצים נמחקו.`
+    });
+  } catch (error) {
+    console.error('Error clearing user storage:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה במחיקת אחסון המשתמש'
+    });
+  }
+}));
+
+// POST /api/admin/storage/clear-all - Clear storage for all users (DANGER!)
+router.post('/storage/clear-all', asyncHandler(async (req: AuthRequest, res) => {
+  try {
+    const result = await storageService.clearAllUsersStorage();
+    
+    res.json({
+      success: true,
+      totalFilesDeleted: result.totalFilesDeleted,
+      totalBytesFreed: result.totalBytesFreed,
+      usersCleared: result.usersCleared,
+      message: `כל האחסון נמחק בהצלחה. ${result.totalFilesDeleted} קבצים נמחקו מ-${result.usersCleared} משתמשים.`
+    });
+  } catch (error) {
+    console.error('Error clearing all storage:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה במחיקת כל האחסון'
+    });
+  }
+}));
+
+/**
+ * Get performance monitoring data
+ */
+router.get('/performance', asyncHandler(async (req: AuthRequest, res) => {
+  const jobStats = backgroundJobService.getStats();
+  
+  // Get system performance info
+  const systemStorage = await storageService.getSystemStorage();
+  const totalStorageStats = await storageService.getTotalStorageStats();
+  
+  // Calculate cache efficiency (rough estimate)
+  const cacheStats = {
+    storageCache: 'Active', // storageService has internal caching
+    backgroundJobs: jobStats
+  };
+  
+  res.json({
+    success: true,
+    performance: {
+      system: systemStorage,
+      storage: totalStorageStats,
+      cache: cacheStats,
+      backgroundJobs: jobStats,
+      optimizations: {
+        storageCaching: 'Enabled - 5min TTL with background refresh',
+        audioParsingSkipped: 'Enabled - Background jobs only',
+        errorHandling: 'Enhanced - Graceful fallbacks',
+        backgroundJobs: `${jobStats.pending} pending, ${jobStats.running} running`
+      }
+    }
+  });
+}));
+
+/**
+ * Force refresh storage for a specific user (admin tool)
+ */
+router.post('/refresh-storage/:userId', asyncHandler(async (req: AuthRequest, res) => {
+  const { userId } = req.params;
+  
+  console.log(`[Admin] Force refreshing storage for user: ${userId}`);
+  const storageInfo = await storageService.forceRefreshUserStorage(userId);
+  
+  res.json({
+    success: true,
+    message: `Storage refreshed for user ${userId}`,
+    storage: storageInfo
+  });
+}));
+
+/**
+ * Queue background job (admin tool)
+ */
+router.post('/queue-job', asyncHandler(async (req: AuthRequest, res) => {
+  const { type, userId } = req.body;
+  
+  let jobId;
+  if (type === 'storage_calculation') {
+    jobId = backgroundJobService.queueStorageCalculation(userId);
+  } else {
+    return res.status(400).json({ error: 'Invalid job type. Use: storage_calculation' });
+  }
+  
+  res.json({
+    success: true,
+    jobId,
+    message: `Queued ${type} job for user ${userId}`
   });
 }));
 

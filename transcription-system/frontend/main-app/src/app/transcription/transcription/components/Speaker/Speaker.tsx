@@ -88,7 +88,9 @@ export default function Speaker({
 
   // Handle speaker selection
   const handleSpeakerSelect = (speaker: SpeakerData) => {
+    // Simply set the new active speaker
     setActiveSpeakerId(speaker.id);
+    
     if (onSpeakerSelect) {
       onSpeakerSelect(speaker);
     }
@@ -127,12 +129,13 @@ export default function Speaker({
   // Handle speaker deletion
   const handleSpeakerDelete = (id: string) => {
     if (speakers.length > 1) {
-      speakerManager.removeSpeaker(id);
-      setSpeakers([...speakerManager.getAllSpeakers()]);
-      
+      // Clear selection immediately if deleting active speaker
       if (activeSpeakerId === id) {
         setActiveSpeakerId(null);
       }
+      
+      speakerManager.removeSpeaker(id);
+      setSpeakers([...speakerManager.getAllSpeakers()]);
       
       // Notify TextEditor
       document.dispatchEvent(new CustomEvent('speakerDeleted', {

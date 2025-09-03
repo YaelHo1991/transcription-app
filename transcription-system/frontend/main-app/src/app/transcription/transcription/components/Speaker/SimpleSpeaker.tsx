@@ -165,12 +165,17 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
 
   // Handle block navigation
   const handleNavigate = useCallback((blockId: string, direction: 'prev' | 'next' | 'up' | 'down' | 'code' | 'name' | 'description', cursorStart = false) => {
+    console.log('[SimpleSpeaker] handleNavigate called with blockId:', blockId, 'direction:', direction, 'current activeBlockId:', activeBlockId);
+    
     blockManagerRef.current.setActiveBlock(blockId, activeField);
     const result = blockManagerRef.current.navigate(direction);
     
     const newBlockId = blockManagerRef.current.getActiveBlockId();
     const newField = blockManagerRef.current.getActiveField();
     
+    console.log('[SimpleSpeaker] After navigation, newBlockId:', newBlockId, 'newField:', newField);
+    
+    // Only set active if it's actually changing
     setActiveBlockId(newBlockId);
     setActiveField(newField);
     setCursorAtStart(cursorStart);
@@ -713,11 +718,13 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
         <span></span>
       </div>
       <div className="speaker-list" onClick={handlePanelClick}>
-        {blocks.map((block, index) => (
-          <SpeakerBlock
-            key={'speaker-' + block.id + '-' + index}
-            speaker={block}
-            isActive={block.id === activeBlockId}
+        {blocks.map((block, index) => {
+          const isCurrentlyActive = block.id === activeBlockId;
+          return (
+            <SpeakerBlock
+              key={'speaker-' + block.id + '-' + index}
+              speaker={block}
+              isActive={isCurrentlyActive}
             isFirstBlock={index === 0}
             isLastBlock={index === blocks.length - 1}
             isSelected={selectedSpeakers.has(block.id)}
@@ -741,7 +748,8 @@ const SimpleSpeaker = forwardRef<SimpleSpeakerHandle, SimpleSpeakerProps>(({
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, block.id)}
           />
-        ))}
+          );
+        })}
       </div>
       
     </div>
