@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
-import * as mm from 'music-metadata';
+let mm: any;
+try {
+  mm = require('music-metadata');
+} catch (error) {
+  console.log('[ProjectService] music-metadata not available, duration extraction disabled');
+}
 
 /**
  * Project Service - Manages transcription projects with unique IDs
@@ -124,9 +129,13 @@ export class ProjectService {
       // Extract duration from audio file
       let duration = 0;
       try {
-        const metadata = await mm.parseFile(mediaFilePath);
-        duration = metadata.format.duration || 0;
-        console.log(`[ProjectService] Extracted duration for ${mediaId}: ${duration} seconds`);
+        if (mm && mm.parseFile) {
+          const metadata = await mm.parseFile(mediaFilePath);
+          duration = metadata.format.duration || 0;
+          console.log(`[ProjectService] Extracted duration for ${mediaId}: ${duration} seconds`);
+        } else {
+          console.log(`[ProjectService] music-metadata not available, skipping duration extraction for ${mediaId}`);
+        }
       } catch (error) {
         console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, error);
         duration = 0;
@@ -580,7 +589,7 @@ export class ProjectService {
                           f.endsWith('.ogg') || f.endsWith('.flac')
                         );
                         
-                        if (audioFile) {
+                        if (audioFile && mm && mm.parseFile) {
                           const audioPath = path.join(mediaDir, audioFile);
                           const metadata = await mm.parseFile(audioPath);
                           duration = metadata.format.duration || 0;
@@ -620,24 +629,26 @@ export class ProjectService {
                         
                         // Try to extract duration for missing metadata
                         try {
-                          const metadata = await mm.parseFile(audioPath);
-                          duration = metadata.format.duration || 0;
-                          console.log(`[ProjectService] Extracted duration for ${mediaId} (no metadata.json): ${duration} seconds`);
-                          
-                          // Create metadata.json to cache this for next time
-                          const mediaMetadata = {
-                            mediaId: mediaId,
-                            fileName: audioFile,
-                            originalName: audioFile,
-                            mimeType: `audio/${path.extname(audioFile).substring(1)}`,
-                            size: stats.size,
-                            duration: duration,
-                            stage: 'transcription',
-                            createdAt: stats.birthtime.toISOString(),
-                            lastModified: stats.mtime.toISOString()
-                          };
-                          const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
-                          await fs.writeFile(mediaMetadataPath, JSON.stringify(mediaMetadata, null, 2));
+                          if (mm && mm.parseFile) {
+                            const metadata = await mm.parseFile(audioPath);
+                            duration = metadata.format.duration || 0;
+                            console.log(`[ProjectService] Extracted duration for ${mediaId} (no metadata.json): ${duration} seconds`);
+                            
+                            // Create metadata.json to cache this for next time
+                            const mediaMetadata = {
+                              mediaId: mediaId,
+                              fileName: audioFile,
+                              originalName: audioFile,
+                              mimeType: `audio/${path.extname(audioFile).substring(1)}`,
+                              size: stats.size,
+                              duration: duration,
+                              stage: 'transcription',
+                              createdAt: stats.birthtime.toISOString(),
+                              lastModified: stats.mtime.toISOString()
+                            };
+                            const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
+                            await fs.writeFile(mediaMetadataPath, JSON.stringify(mediaMetadata, null, 2));
+                          }
                         } catch (extractError) {
                           console.log(`[ProjectService] Could not extract duration (no metadata): ${extractError.message}`);
                         }
