@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { uploadService } from '../services/uploadService';
+import storageService from '../services/storageService';
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -89,12 +90,30 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
       });
     }
 
+    // Check storage limit before saving
+    const storageCheck = await storageService.canUserUpload(userId, req.file.size);
+    
+    if (!storageCheck.canUpload) {
+      return res.status(413).json({ 
+        success: false,
+        error: 'Storage limit exceeded',
+        details: storageCheck.message,
+        currentUsedMB: storageCheck.currentUsedMB,
+        limitMB: storageCheck.limitMB,
+        availableMB: storageCheck.availableMB,
+        requestedMB: storageCheck.requestedMB
+      });
+    }
+
     // Save regular file
     const timestamp = Date.now();
     const fileName = '${userId}_' + projectId + '_${timestamp}_${req.file.originalname}';
     const filePath = path.join(process.env.UPLOAD_DIR || './uploads', fileName);
     
     require('fs').writeFileSync(filePath, req.file.buffer);
+    
+    // Update user's storage usage after successful upload
+    await storageService.incrementUsedStorage(userId, req.file.size);
     
     res.json({
       success: true,

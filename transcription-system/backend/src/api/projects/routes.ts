@@ -370,6 +370,22 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
       return res.status(400).json({ error: 'No media files found in upload' });
     }
     
+    // Check storage limit before processing
+    const totalSize = mediaFiles.reduce((sum, file) => sum + file.buffer.length, 0);
+    const storageCheck = await storageService.canUserUpload(userId, totalSize);
+    
+    if (!storageCheck.canUpload) {
+      console.log(`[FolderUpload] Storage limit exceeded for user ${userId}: ${storageCheck.message}`);
+      return res.status(413).json({ 
+        error: 'Storage limit exceeded',
+        details: storageCheck.message,
+        currentUsedMB: storageCheck.currentUsedMB,
+        limitMB: storageCheck.limitMB,
+        availableMB: storageCheck.availableMB,
+        requestedMB: storageCheck.requestedMB
+      });
+    }
+    
     // Get properly encoded filenames if provided
     let fileNames: string[] = [];
     try {
@@ -391,6 +407,9 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
     const result = await projectService.createMultiMediaProject(folderName, mediaFilesData, userId);
     
     console.log(`[FolderUpload] Project created successfully: ${result.projectId} with ${result.mediaIds.length} media files`);
+    
+    // Update user's storage usage after successful upload
+    await storageService.incrementUsedStorage(userId, totalSize);
     
     res.json({
       success: true,

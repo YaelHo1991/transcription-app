@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { MediaModel } from '../../../models/media.model';
 import { authenticateToken } from '../../../middleware/auth.middleware';
+import storageService from '../../../services/storageService';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
@@ -55,6 +56,23 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
     const userId = (req as any).user.id;
     const { projectId } = req.body;
 
+    // Check storage limit before saving
+    const storageCheck = await storageService.canUserUpload(userId, req.file.size);
+    
+    if (!storageCheck.canUpload) {
+      // Delete the uploaded file since user exceeded storage
+      await fs.unlink(req.file.path).catch(err => console.error('Error deleting file:', err));
+      
+      return res.status(413).json({ 
+        error: 'Storage limit exceeded',
+        details: storageCheck.message,
+        currentUsedMB: storageCheck.currentUsedMB,
+        limitMB: storageCheck.limitMB,
+        availableMB: storageCheck.availableMB,
+        requestedMB: storageCheck.requestedMB
+      });
+    }
+
     const media = await MediaModel.create(
       userId,
       req.file.originalname,
@@ -69,6 +87,9 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req: Req
         }
       }
     );
+
+    // Update user's storage usage after successful upload
+    await storageService.incrementUsedStorage(userId, req.file.size);
 
     res.json({ success: true, media });
   } catch (error) {

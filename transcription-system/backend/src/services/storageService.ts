@@ -612,6 +612,84 @@ export class StorageService {
   }
 
   /**
+   * Check if user can upload files based on storage limits
+   * @param userId - User ID to check
+   * @param additionalBytes - Size of files to be uploaded in bytes
+   * @returns Object with canUpload boolean and details
+   */
+  async canUserUpload(userId: string, additionalBytes: number = 0): Promise<{
+    canUpload: boolean;
+    currentUsedMB: number;
+    limitMB: number;
+    availableMB: number;
+    requestedMB: number;
+    wouldExceed: boolean;
+    message?: string;
+  }> {
+    try {
+      // Get user's current storage info
+      const storageInfo = await this.getUserStorageInfo(userId);
+      
+      const currentUsedBytes = storageInfo.quotaUsedMB * 1024 * 1024;
+      const limitBytes = storageInfo.quotaLimitMB * 1024 * 1024;
+      const availableBytes = limitBytes - currentUsedBytes;
+      const wouldExceed = (currentUsedBytes + additionalBytes) > limitBytes;
+      
+      const result = {
+        canUpload: !wouldExceed,
+        currentUsedMB: storageInfo.quotaUsedMB,
+        limitMB: storageInfo.quotaLimitMB,
+        availableMB: Math.max(0, Math.floor(availableBytes / (1024 * 1024))),
+        requestedMB: Math.ceil(additionalBytes / (1024 * 1024)),
+        wouldExceed,
+        message: wouldExceed 
+          ? `Storage limit exceeded. You need ${Math.ceil(additionalBytes / (1024 * 1024))}MB but only have ${Math.max(0, Math.floor(availableBytes / (1024 * 1024)))}MB available.`
+          : undefined
+      };
+      
+      console.log(`[StorageService] Storage check for user ${userId}:`, result);
+      return result;
+      
+    } catch (error) {
+      console.error(`[StorageService] Error checking storage limit for user ${userId}:`, error);
+      // On error, allow upload but log the issue
+      return {
+        canUpload: true,
+        currentUsedMB: 0,
+        limitMB: 500,
+        availableMB: 500,
+        requestedMB: Math.ceil(additionalBytes / (1024 * 1024)),
+        wouldExceed: false,
+        message: 'Storage check failed, upload allowed'
+      };
+    }
+  }
+
+  /**
+   * Update user's used storage after upload
+   * @param userId - User ID
+   * @param additionalBytes - Bytes to add to used storage
+   */
+  async incrementUsedStorage(userId: string, additionalBytes: number): Promise<void> {
+    try {
+      await db.query(
+        `UPDATE user_storage_quotas 
+         SET quota_used = quota_used + $1, 
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE user_id = $2`,
+        [additionalBytes, userId]
+      );
+      
+      // Clear cache to force recalculation on next request
+      this.storageCache.delete(userId);
+      
+      console.log(`[StorageService] Incremented storage for user ${userId} by ${Math.round(additionalBytes / 1024)}KB`);
+    } catch (error) {
+      console.error(`[StorageService] Error incrementing storage for user ${userId}:`, error);
+    }
+  }
+
+  /**
    * Clean up resources
    */
   destroy() {

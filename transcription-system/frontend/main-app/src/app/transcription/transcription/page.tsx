@@ -4,21 +4,64 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '@/utils/api';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
+import dynamic from 'next/dynamic';
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
 import ProjectManagementModal from './components/ProjectManagementModal/ProjectManagementModal';
 import WorkspaceHeader from './components/WorkspaceHeader/WorkspaceHeader';
 import HelperFiles from './components/HelperFiles/HelperFiles';
-import MediaPlayer from './components/MediaPlayer';
-import TextEditor from './components/TextEditor';
-import SimpleSpeaker, { SimpleSpeakerHandle } from './components/Speaker/SimpleSpeaker';
 import Remarks from './components/Remarks/Remarks';
 import { RemarksProvider } from './components/Remarks/RemarksContext';
 import RemarksEventListener from './components/Remarks/RemarksEventListener';
 import { ConfirmationModal } from './components/TextEditor/components/ConfirmationModal';
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import LoginPromptModal from '../../../components/LoginPromptModal';
+import { SimpleSpeakerHandle } from './components/Speaker/SimpleSpeaker';
+
+// Lazy load heavy components with loading skeletons
+const TextEditor = dynamic(
+  () => import('./components/TextEditor'),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center h-full bg-gray-50">
+        <div className="text-gray-500">טוען עורך טקסט...</div>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const MediaPlayer = dynamic(
+  () => import('./components/MediaPlayer'),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center h-full bg-gray-50">
+        <div className="text-gray-500">טוען נגן מדיה...</div>
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const SimpleSpeaker = dynamic(
+  () => import('./components/Speaker/SimpleSpeaker'),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center h-full bg-gray-50">
+        <div className="text-gray-500">טוען פאנל דוברים...</div>
+      </div>
+    ),
+    ssr: false
+  }
+) as React.ComponentType<{
+  ref?: React.RefObject<SimpleSpeakerHandle>;
+  onSpeakersChange?: (speakers: any[]) => void;
+  onActiveFieldChange?: (field: 'code' | 'name' | 'description' | null) => void;
+  onRequestFocus?: () => void;
+  currentProjectId: string | null;
+  currentMediaId: string | null;
+}>;
 import useProjectStore from '@/lib/stores/projectStore';
 import useHoveringBarsStore from '@/lib/stores/hoveringBarsStore';
 import indexedDBService from '@/services/indexedDBService';

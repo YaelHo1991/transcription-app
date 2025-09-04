@@ -47,7 +47,10 @@
       "Read(C:\\Users\\ayelh/**)",
       "Read(C:\\Users\\ayelh\\.ssh/**)",
       "Read(C:\\Users\\ayelh\\.ssh/**)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "Bash(NODE_ENV=production npm run build)",
+      "Bash(set NODE_ENV=production)",
+      "Bash(./deploy-frontend-fast.sh)"
     ],
     "deny": [],
     "ask": [],
