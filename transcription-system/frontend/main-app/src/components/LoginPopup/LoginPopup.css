@@ -43,33 +43,33 @@
   animation: slideUp 0.3s ease-out;
 }
 
-/* Green Theme (Transcription) */
+/* Green Theme (Transcription) - Matching MediaPlayer dark green */
 .login-popup-modal.theme-green {
-  border-top: 4px solid #4caf50;
+  border-top: 4px solid #20c997;
 }
 
 .login-popup-modal.theme-green h2 {
-  color: #2e7d32;
+  color: #0f4c4c;
 }
 
 .login-popup-modal.theme-green .login-popup-submit {
-  background: linear-gradient(135deg, #4caf50, #388e3c);
+  background: linear-gradient(135deg, #20c997, #17a2b8);
   color: white;
 }
 
 .login-popup-modal.theme-green .login-popup-submit:hover:not(:disabled) {
-  background: linear-gradient(135deg, #388e3c, #2e7d32);
+  background: linear-gradient(135deg, #17a2b8, #0f766e);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.3);
 }
 
 .login-popup-modal.theme-green input:focus {
-  border-color: #4caf50;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+  border-color: #20c997;
+  box-shadow: 0 0 0 3px rgba(32, 201, 151, 0.1);
 }
 
 .login-popup-modal.theme-green .login-popup-link {
-  color: #4caf50;
+  color: #20c997;
 }
 
 /* Brown Theme (CRM) */
