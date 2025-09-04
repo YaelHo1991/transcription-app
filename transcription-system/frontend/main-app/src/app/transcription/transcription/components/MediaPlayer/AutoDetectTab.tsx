@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import AutoDetectRegular from './AutoDetectRegular';
 import AutoDetectEnhanced from './AutoDetectEnhanced';
+import { safeLocalStorage, getJsonItem, setJsonItem } from '@/lib/utils/storage';
 
 interface AutoDetectTabProps {
   autoDetectEnabled: boolean;
@@ -23,14 +24,10 @@ export default function AutoDetectTab({
 }: AutoDetectTabProps) {
   // Load saved settings or use defaults
   const loadAutoDetectSettings = () => {
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('autoDetectSettings');
+    if (typeof window !== 'undefined') {
+      const saved = getJsonItem('autoDetectSettings', null);
       if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Error loading auto-detect settings:', e);
-        }
+        return saved;
       }
     }
     // Default settings
@@ -65,7 +62,7 @@ export default function AutoDetectTab({
 
   // Save settings whenever they change
   const saveSettings = () => {
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    if (typeof window !== 'undefined') {
       const settings = {
         mode,
         regularDelay,
@@ -74,7 +71,7 @@ export default function AutoDetectTab({
         enhancedResumeDelay,
         rewindOnPause
       };
-      localStorage.setItem('autoDetectSettings', JSON.stringify(settings));
+      setJsonItem('autoDetectSettings', settings);
     }
   };
 

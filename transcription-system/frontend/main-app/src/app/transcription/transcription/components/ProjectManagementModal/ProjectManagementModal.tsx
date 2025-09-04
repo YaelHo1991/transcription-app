@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Project, MediaInfo } from '@/lib/stores/projectStore';
 import { ConfirmationModal } from '../TextEditor/components/ConfirmationModal';
+import { buildApiUrl } from '@/utils/api';
 import './ProjectManagementModal.css';
 
 interface ArchivedTranscription {
@@ -57,7 +58,7 @@ export default function ProjectManagementModal({
   const loadArchivedTranscriptions = async () => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-      const response = await fetch('/api/projects/orphaned/transcriptions', {
+      const response = await fetch(buildApiUrl('/api/projects/orphaned/transcriptions'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +137,7 @@ export default function ProjectManagementModal({
     console.log(`Exporting transcription ${transcriptionId} as ${format}`);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-      const response = await fetch(`/api/projects/orphaned/export`, {
+      const response = await fetch(buildApiUrl('/api/projects/orphaned/export'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -199,7 +200,7 @@ export default function ProjectManagementModal({
       const encodedId = encodeURIComponent(transcriptionId);
       console.log(`[Frontend] Encoded ID: ${encodedId}`);
       
-      const response = await fetch(`/api/projects/orphaned/${encodedId}`, {
+      const response = await fetch(buildApiUrl(`/api/projects/orphaned/${encodedId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

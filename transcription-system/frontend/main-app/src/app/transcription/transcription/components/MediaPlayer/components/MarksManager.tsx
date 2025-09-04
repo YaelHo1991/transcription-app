@@ -10,6 +10,7 @@ import {
   sortMarksByTime,
   getMarksStorageKey
 } from '../types/marks';
+import { safeLocalStorage, getJsonItem, setJsonItem } from '@/lib/utils/storage';
 
 interface MarksManagerProps {
   mediaUrl: string;
@@ -58,16 +59,8 @@ const MarksManager = forwardRef(function MarksManager({
     if (!mediaUrl) return;
     
     const storageKey = getMarksStorageKey(mediaUrl);
-    const storedMarks = localStorage.getItem(storageKey);
-    
-    if (storedMarks) {
-      try {
-        const parsedMarks = JSON.parse(storedMarks);
-        setMarks(parsedMarks);
-      } catch (error) {
-        console.error('Failed to load marks:', error);
-      }
-    }
+    const parsedMarks = getJsonItem(storageKey, []);
+    setMarks(parsedMarks);
   }, [mediaUrl]);
 
   // Save marks to localStorage when they change
@@ -75,7 +68,7 @@ const MarksManager = forwardRef(function MarksManager({
     if (!mediaUrl || marks.length === 0) return;
     
     const storageKey = getMarksStorageKey(mediaUrl);
-    localStorage.setItem(storageKey, JSON.stringify(marks));
+    setJsonItem(storageKey, marks);
   }, [marks, mediaUrl]);
 
   // Add a new mark

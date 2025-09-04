@@ -22,6 +22,7 @@ import { resourceMonitor, OperationType, Recommendation } from '@/lib/services/r
 import { useResourceCheck } from '@/hooks/useResourceCheck';
 import { ResourceWarningModal } from './components/ResourceWarningModal';
 import { buildApiUrl } from '@/utils/api';
+import { safeLocalStorage, getJsonItem, setJsonItem } from '@/lib/utils/storage';
 import './MediaPlayer.css';
 import './shortcuts-styles.css';
 import './pedal-styles.css';
@@ -141,10 +142,9 @@ export default function MediaPlayer({
   // Load all settings from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem('mediaPlayerSettings');
-      if (savedSettings) {
+      const parsed = getJsonItem('mediaPlayerSettings', null);
+      if (parsed) {
         try {
-          const parsed = JSON.parse(savedSettings);
           
           // Load keyboard shortcuts
           if (parsed.shortcuts) {
@@ -206,8 +206,8 @@ export default function MediaPlayer({
         enhancedResumeDelay
       };
       
-      localStorage.setItem('mediaPlayerSettings', JSON.stringify(settingsToSave));
-      console.log('Saved all media player settings to localStorage');
+      setJsonItem('mediaPlayerSettings', settingsToSave);
+      console.log('Saved all media player settings to storage');
     }
   }, [
     settingsLoaded,
@@ -999,7 +999,7 @@ export default function MediaPlayer({
       
       // Save to localStorage
       try {
-        localStorage.setItem('mediaPosition_' + currentMediaIdRef.current, JSON.stringify(positionData));
+        setJsonItem('mediaPosition_' + currentMediaIdRef.current, positionData);
         console.log('💾 Saved position and UI state for ' + currentMediaIdRef.current + ': ' + position + 's', positionData.uiState);
       } catch (e) {
         console.error('Failed to save media position and UI state:', e);
@@ -1011,16 +1011,16 @@ export default function MediaPlayer({
   useEffect(() => {
     // Load all saved positions
     const loadedPositions = new Map();
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    const allKeys = safeLocalStorage.getAllKeys();
+    for (const key of allKeys) {
       if (key && key.startsWith('mediaPosition_')) {
         try {
           const mediaId = key.replace('mediaPosition_', '');
-          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          const data = getJsonItem(key, {});
           
           // Clean up old positions (older than 30 days)
           if (data.timestamp && Date.now() - data.timestamp > 30 * 24 * 60 * 60 * 1000) {
-            localStorage.removeItem(key);
+            safeLocalStorage.removeItem(key);
           } else {
             loadedPositions.set(mediaId, data);
           }
@@ -1219,9 +1219,8 @@ export default function MediaPlayer({
         
         if (!savedPosition) {
           try {
-            const stored = localStorage.getItem('mediaPosition_' + currentMediaIdRef.current);
-            if (stored) {
-              savedPosition = JSON.parse(stored);
+            savedPosition = getJsonItem('mediaPosition_' + currentMediaIdRef.current, null);
+            if (savedPosition) {
               // Update the ref for future use
               if (savedPosition && currentMediaIdRef.current) {
                 mediaPositionsRef.current.set(currentMediaIdRef.current, savedPosition);
@@ -1329,7 +1328,7 @@ export default function MediaPlayer({
       // Clear saved position when media completes
       if (currentMediaIdRef.current) {
         mediaPositionsRef.current.delete(currentMediaIdRef.current);
-        localStorage.removeItem('mediaPosition_' + currentMediaIdRef.current);
+        safeLocalStorage.removeItem('mediaPosition_' + currentMediaIdRef.current);
         console.log('Cleared position for completed media: ' + currentMediaIdRef.current);
       }
     };
@@ -1372,9 +1371,8 @@ export default function MediaPlayer({
         
         if (!savedPosition) {
           try {
-            const stored = localStorage.getItem('mediaPosition_' + currentMediaIdRef.current);
-            if (stored) {
-              savedPosition = JSON.parse(stored);
+            savedPosition = getJsonItem('mediaPosition_' + currentMediaIdRef.current, null);
+            if (savedPosition) {
               // Update the ref for future use
               if (savedPosition && currentMediaIdRef.current) {
                 mediaPositionsRef.current.set(currentMediaIdRef.current, savedPosition);
