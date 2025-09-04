@@ -567,12 +567,39 @@ export class ProjectService {
                     const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
                     const mediaMetadata = JSON.parse(await fs.readFile(mediaMetadataPath, 'utf8'));
                     
-                    // Use stored duration from metadata (already extracted during creation)
+                    // If duration is missing, try to extract it from the audio file
+                    let duration = mediaMetadata.duration || 0;
+                    if (!duration || duration === 0) {
+                      try {
+                        // Find the audio file in the media directory
+                        const mediaDir = path.join(projectDir, 'media', mediaId);
+                        const files = await fs.readdir(mediaDir);
+                        const audioFile = files.find(f => 
+                          f.endsWith('.mp3') || f.endsWith('.wav') || 
+                          f.endsWith('.m4a') || f.endsWith('.aac') ||
+                          f.endsWith('.ogg') || f.endsWith('.flac')
+                        );
+                        
+                        if (audioFile) {
+                          const audioPath = path.join(mediaDir, audioFile);
+                          const metadata = await mm.parseFile(audioPath);
+                          duration = metadata.format.duration || 0;
+                          
+                          // Update the metadata file with the extracted duration
+                          mediaMetadata.duration = duration;
+                          await fs.writeFile(mediaMetadataPath, JSON.stringify(mediaMetadata, null, 2));
+                          console.log(`[ProjectService] Extracted and saved duration for ${mediaId}: ${duration} seconds`);
+                        }
+                      } catch (extractError) {
+                        console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, extractError.message);
+                      }
+                    }
+                    
                     mediaInfo.push({
                       mediaId: mediaId,
                       name: mediaMetadata.originalName || mediaMetadata.fileName,
                       size: mediaMetadata.size || 0,
-                      duration: mediaMetadata.duration || 0, // Use stored duration
+                      duration: duration,
                       mimeType: mediaMetadata.mimeType
                     });
                     
@@ -591,14 +618,35 @@ export class ProjectService {
                         const stats = await fs.stat(audioPath);
                         let duration = 0;
                         
-                        // Skip expensive audio parsing during listing for performance
-                        // Duration will be calculated in background or when needed
+                        // Try to extract duration for missing metadata
+                        try {
+                          const metadata = await mm.parseFile(audioPath);
+                          duration = metadata.format.duration || 0;
+                          console.log(`[ProjectService] Extracted duration for ${mediaId} (no metadata.json): ${duration} seconds`);
+                          
+                          // Create metadata.json to cache this for next time
+                          const mediaMetadata = {
+                            mediaId: mediaId,
+                            fileName: audioFile,
+                            originalName: audioFile,
+                            mimeType: `audio/${path.extname(audioFile).substring(1)}`,
+                            size: stats.size,
+                            duration: duration,
+                            stage: 'transcription',
+                            createdAt: stats.birthtime.toISOString(),
+                            lastModified: stats.mtime.toISOString()
+                          };
+                          const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
+                          await fs.writeFile(mediaMetadataPath, JSON.stringify(mediaMetadata, null, 2));
+                        } catch (extractError) {
+                          console.log(`[ProjectService] Could not extract duration (no metadata): ${extractError.message}`);
+                        }
                         
                         mediaInfo.push({
                           mediaId: mediaId,
                           name: audioFile,
                           size: stats.size,
-                          duration: 0, // Don't parse audio files during listing
+                          duration: duration,
                           mimeType: `audio/${path.extname(audioFile).substring(1)}`
                         });
                       } else {
