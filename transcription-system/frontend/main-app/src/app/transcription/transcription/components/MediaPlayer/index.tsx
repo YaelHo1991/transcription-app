@@ -120,15 +120,33 @@ export default function MediaPlayer({
     rewindOnPause: { enabled: false, amount: 0.5, source: 'keyboard' as 'keyboard' | 'pedal' | 'autodetect' | 'all' }
   });
   
+  // Pedal settings
+  const [pedalEnabled, setPedalEnabled] = useState(true);
+  const [continuousPress, setContinuousPress] = useState(true);
+  const [continuousInterval, setContinuousInterval] = useState(0.5);
+  
+  // Auto-detect settings
+  const [autoDetectEnabled, setAutoDetectEnabled] = useState(false);
+  const [autoDetectMode, setAutoDetectMode] = useState<'regular' | 'enhanced'>('regular');
+  const [regularDelay, setRegularDelay] = useState(2.0);
+  const [enhancedFirstDelay, setEnhancedFirstDelay] = useState(1.5);
+  const [enhancedSecondDelay, setEnhancedSecondDelay] = useState(1.5);
+  const [enhancedResumeDelay, setEnhancedResumeDelay] = useState(2.0);
+  
+  // Track if settings have been loaded from localStorage to prevent overwriting during initial load
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  
   // Waveform background processing setting
   
-  // Load and merge shortcuts from localStorage on mount
+  // Load all settings from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedSettings = localStorage.getItem('mediaPlayerSettings');
       if (savedSettings) {
         try {
           const parsed = JSON.parse(savedSettings);
+          
+          // Load keyboard shortcuts
           if (parsed.shortcuts) {
             // Merge new shortcuts from defaults that don't exist in saved
             const savedActions = new Set(parsed.shortcuts.map((s: any) => s.action));
@@ -142,45 +160,69 @@ export default function MediaPlayer({
               rewindOnPause: parsed.rewindOnPause || prev.rewindOnPause
             }));
           }
+          
+          // Load pedal settings
+          if (parsed.pedalEnabled !== undefined) setPedalEnabled(parsed.pedalEnabled);
+          if (parsed.continuousPress !== undefined) setContinuousPress(parsed.continuousPress);
+          if (parsed.continuousInterval !== undefined) setContinuousInterval(parsed.continuousInterval);
+          
+          // Load auto-detect settings
+          if (parsed.autoDetectEnabled !== undefined) setAutoDetectEnabled(parsed.autoDetectEnabled);
+          if (parsed.autoDetectMode !== undefined) setAutoDetectMode(parsed.autoDetectMode);
+          if (parsed.regularDelay !== undefined) setRegularDelay(parsed.regularDelay);
+          if (parsed.enhancedFirstDelay !== undefined) setEnhancedFirstDelay(parsed.enhancedFirstDelay);
+          if (parsed.enhancedSecondDelay !== undefined) setEnhancedSecondDelay(parsed.enhancedSecondDelay);
+          if (parsed.enhancedResumeDelay !== undefined) setEnhancedResumeDelay(parsed.enhancedResumeDelay);
+          
         } catch (error) {
-          console.error('Failed to load shortcuts:', error);
+          console.error('Failed to load settings:', error);
         }
       }
+      // Mark settings as loaded (even if no saved settings existed)
+      setSettingsLoaded(true);
     }
   }, []);
   
-  // Save keyboard settings to localStorage whenever they change
+  // Save all settings to localStorage whenever they change (but only after initial load)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Save the current keyboard settings
-      const currentSettings = localStorage.getItem('mediaPlayerSettings');
-      let settingsToSave = {
+    if (typeof window !== 'undefined' && settingsLoaded) {
+      const settingsToSave = {
+        // Keyboard settings
         shortcuts: keyboardSettings.shortcuts,
         shortcutsEnabled: keyboardSettings.shortcutsEnabled,
-        rewindOnPause: keyboardSettings.rewindOnPause
+        rewindOnPause: keyboardSettings.rewindOnPause,
+        
+        // Pedal settings
+        pedalEnabled,
+        continuousPress,
+        continuousInterval,
+        
+        // Auto-detect settings
+        autoDetectEnabled,
+        autoDetectMode,
+        regularDelay,
+        enhancedFirstDelay,
+        enhancedSecondDelay,
+        enhancedResumeDelay
       };
       
-      // Merge with existing settings if they exist
-      if (currentSettings) {
-        try {
-          const parsed = JSON.parse(currentSettings);
-          settingsToSave = { ...parsed, ...settingsToSave };
-        } catch (error) {
-          console.error('Failed to parse existing settings:', error);
-        }
-      }
-      
       localStorage.setItem('mediaPlayerSettings', JSON.stringify(settingsToSave));
-      console.log('Saved keyboard settings to localStorage');
+      console.log('Saved all media player settings to localStorage');
     }
-  }, [keyboardSettings]); // Run whenever keyboardSettings change
+  }, [
+    settingsLoaded,
+    keyboardSettings,
+    pedalEnabled,
+    continuousPress,
+    continuousInterval,
+    autoDetectEnabled,
+    autoDetectMode,
+    regularDelay,
+    enhancedFirstDelay,
+    enhancedSecondDelay,
+    enhancedResumeDelay
+  ]); // Run whenever any settings change (but only after settings are loaded)
   
-  // Pedal settings
-  const [pedalEnabled, setPedalEnabled] = useState(true);
-  
-  // Auto-detect settings
-  const [autoDetectEnabled, setAutoDetectEnabled] = useState(false);
-  const [autoDetectMode, setAutoDetectMode] = useState<'regular' | 'enhanced'>('regular');
 
   // Waveform settings
   const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
@@ -930,26 +972,40 @@ export default function MediaPlayer({
     return btoa(encodeURIComponent(media.name)).replace(/[^a-zA-Z0-9]/g, '');
   };
 
-  // Helper function to save current position
+  // Helper function to save current position and UI state
   const saveCurrentPosition = useCallback(() => {
     const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
-    if (mediaElement && currentMediaIdRef.current && !isNaN(mediaElement.currentTime) && mediaElement.currentTime > 0) {
+    
+    // Save if we have a currentMediaId, even without a media element (for UI state persistence)
+    if (currentMediaIdRef.current) {
+      const position = (mediaElement && !isNaN(mediaElement.currentTime)) ? mediaElement.currentTime : 0;
+      const duration = (mediaElement && mediaElement.duration) ? mediaElement.duration : 0;
+      
       const positionData = {
-        position: mediaElement.currentTime,
+        position,
         timestamp: Date.now(),
-        duration: mediaElement.duration || 0
+        duration,
+        uiState: {
+          volume,
+          isMuted,
+          playbackRate,
+          navigationCollapsed,
+          controlsCollapsed,
+          slidersCollapsed,
+          videoMinimized
+        }
       };
       mediaPositionsRef.current.set(currentMediaIdRef.current, positionData);
       
       // Save to localStorage
       try {
         localStorage.setItem('mediaPosition_' + currentMediaIdRef.current, JSON.stringify(positionData));
-        console.log('Saved position for ' + currentMediaIdRef.current + ': ' + mediaElement.currentTime + 's');
+        console.log('💾 Saved position and UI state for ' + currentMediaIdRef.current + ': ' + position + 's', positionData.uiState);
       } catch (e) {
-        console.error('Failed to save media position:', e);
+        console.error('Failed to save media position and UI state:', e);
       }
     }
-  }, [showVideo]);
+  }, [showVideo, volume, isMuted, playbackRate, navigationCollapsed, controlsCollapsed, slidersCollapsed, videoMinimized]);
 
   // Load saved positions from localStorage on mount
   useEffect(() => {
@@ -1074,6 +1130,40 @@ export default function MediaPlayer({
       setShowVideoCube(!videoMinimized);
     }
   }, [videoMinimized, showVideo]);
+  
+  // Save UI state when it changes (but only after initial load)
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  useEffect(() => {
+    // Mark initial load as complete after a short delay to avoid saving during restoration
+    const timer = setTimeout(() => {
+      setInitialLoadComplete(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Save UI state changes after initial load is complete
+  useEffect(() => {
+    console.log('UI state change detected:', {
+      initialLoadComplete,
+      currentMediaId: currentMediaIdRef.current,
+      volume,
+      isMuted,
+      playbackRate,
+      navigationCollapsed,
+      controlsCollapsed,
+      slidersCollapsed,
+      videoMinimized
+    });
+    
+    if (initialLoadComplete && currentMediaIdRef.current) {
+      console.log('🎛️ UI state changed, saving position with new state');
+      saveCurrentPosition();
+    } else if (initialLoadComplete && !currentMediaIdRef.current) {
+      console.log('⚠️ UI state changed but no media ID available yet');
+    } else {
+      console.log('⏳ UI state changed but initial load not complete yet');
+    }
+  }, [volume, isMuted, playbackRate, navigationCollapsed, controlsCollapsed, slidersCollapsed, videoMinimized, initialLoadComplete, saveCurrentPosition]);
 
   // Video cube handlers
   const handleVideoCubeMinimize = () => {
@@ -1155,6 +1245,42 @@ export default function MediaPlayer({
           }
         } else {
           setCurrentTime(0);
+        }
+        
+        // Restore UI state if available
+        if (savedPosition && savedPosition.uiState) {
+          const uiState = savedPosition.uiState;
+          console.log('🔄 Restoring UI state for ' + currentMediaIdRef.current, uiState);
+          
+          // Restore volume and mute state
+          if (typeof uiState.volume === 'number') {
+            setVolume(uiState.volume);
+            audio.volume = uiState.volume / 100;
+          }
+          if (typeof uiState.isMuted === 'boolean') {
+            setIsMuted(uiState.isMuted);
+            audio.muted = uiState.isMuted;
+          }
+          
+          // Restore playback rate
+          if (typeof uiState.playbackRate === 'number') {
+            setPlaybackRate(uiState.playbackRate);
+            audio.playbackRate = uiState.playbackRate;
+          }
+          
+          // Restore collapse states
+          if (typeof uiState.navigationCollapsed === 'boolean') {
+            setNavigationCollapsed(uiState.navigationCollapsed);
+          }
+          if (typeof uiState.controlsCollapsed === 'boolean') {
+            setControlsCollapsed(uiState.controlsCollapsed);
+          }
+          if (typeof uiState.slidersCollapsed === 'boolean') {
+            setSlidersCollapsed(uiState.slidersCollapsed);
+          }
+          if (typeof uiState.videoMinimized === 'boolean') {
+            setVideoMinimized(uiState.videoMinimized);
+          }
         }
       }
     };
@@ -1272,6 +1398,42 @@ export default function MediaPlayer({
           }
         } else {
           setCurrentTime(0);
+        }
+        
+        // Restore UI state if available
+        if (savedPosition && savedPosition.uiState) {
+          const uiState = savedPosition.uiState;
+          console.log('🔄 Restoring UI state for video ' + currentMediaIdRef.current, uiState);
+          
+          // Restore volume and mute state
+          if (typeof uiState.volume === 'number') {
+            setVolume(uiState.volume);
+            video.volume = uiState.volume / 100;
+          }
+          if (typeof uiState.isMuted === 'boolean') {
+            setIsMuted(uiState.isMuted);
+            video.muted = uiState.isMuted;
+          }
+          
+          // Restore playback rate
+          if (typeof uiState.playbackRate === 'number') {
+            setPlaybackRate(uiState.playbackRate);
+            video.playbackRate = uiState.playbackRate;
+          }
+          
+          // Restore collapse states
+          if (typeof uiState.navigationCollapsed === 'boolean') {
+            setNavigationCollapsed(uiState.navigationCollapsed);
+          }
+          if (typeof uiState.controlsCollapsed === 'boolean') {
+            setControlsCollapsed(uiState.controlsCollapsed);
+          }
+          if (typeof uiState.slidersCollapsed === 'boolean') {
+            setSlidersCollapsed(uiState.slidersCollapsed);
+          }
+          if (typeof uiState.videoMinimized === 'boolean') {
+            setVideoMinimized(uiState.videoMinimized);
+          }
         }
       }
     };
@@ -1628,6 +1790,18 @@ export default function MediaPlayer({
               >
                 ⚙️
               </button>
+              
+              {/* Video Restore Button - shown when video is minimized */}
+              {videoMinimized && showVideo && (
+                <button 
+                  className="control-btn video-restore-in-controls" 
+                  id="videoRestoreInControlsBtn"
+                  onClick={handleVideoRestore}
+                  title="שחזר וידאו"
+                >
+                  🎬
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1944,16 +2118,6 @@ export default function MediaPlayer({
           </div>
         </div>
         
-        {/* Video Restore Button (shows when video is minimized and it's a video file) */}
-        {videoMinimized && showVideo && (
-          <button 
-            className="video-restore-control visible" 
-            id="videoRestoreBtn"
-            onClick={handleVideoRestore}
-          >
-            🎬 שחזר
-          </button>
-        )}
         </div>
         
         {/* Video Cube - part of layout when video is shown */}
@@ -2032,6 +2196,10 @@ export default function MediaPlayer({
                 pedalEnabled={pedalEnabled}
                 onPedalEnabledChange={setPedalEnabled}
                 onPedalAction={handleShortcutAction}
+                continuousPress={continuousPress}
+                onContinuousPressChange={setContinuousPress}
+                continuousInterval={continuousInterval}
+                onContinuousIntervalChange={setContinuousInterval}
               />
             </div>
             
@@ -2040,7 +2208,16 @@ export default function MediaPlayer({
               <AutoDetectTab
                 autoDetectEnabled={autoDetectEnabled}
                 onAutoDetectEnabledChange={setAutoDetectEnabled}
+                autoDetectMode={autoDetectMode}
                 onModeChange={setAutoDetectMode}
+                regularDelay={regularDelay}
+                onRegularDelayChange={setRegularDelay}
+                enhancedFirstDelay={enhancedFirstDelay}
+                onEnhancedFirstDelayChange={setEnhancedFirstDelay}
+                enhancedSecondDelay={enhancedSecondDelay}
+                onEnhancedSecondDelayChange={setEnhancedSecondDelay}
+                enhancedResumeDelay={enhancedResumeDelay}
+                onEnhancedResumeDelayChange={setEnhancedResumeDelay}
                 isPlaying={isPlaying}
                 onPlayPause={togglePlayPause}
                 onRewind={handleRewind}

@@ -385,4 +385,99 @@ router.get('/dashboard', requireAnyPermission(['D', 'E', 'F']), asyncHandler(asy
   });
 }));
 
+// AUTO-CORRECT SETTINGS ROUTES
+
+// GET /api/transcription/autocorrect-settings - Get user's auto-correct settings
+router.get('/autocorrect-settings', requireAnyPermission(['D', 'E', 'F']), asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  
+  try {
+    // Import db connection inside the handler to avoid timing issues
+    const { db: database } = await import('../../db/connection');
+    
+    // Query database for user's settings
+    if (!database) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection error'
+      });
+    }
+    
+    const result = await database.query(
+      'SELECT autocorrect_settings FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'משתמש לא נמצא'
+      });
+    }
+    
+    const settings = result.rows[0].autocorrect_settings;
+    
+    res.json({
+      success: true,
+      settings: settings || {}
+    });
+  } catch (error) {
+    console.error('Error fetching autocorrect settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה בטעינת הגדרות'
+    });
+  }
+}));
+
+// PUT /api/transcription/autocorrect-settings - Update user's auto-correct settings
+router.put('/autocorrect-settings', requireAnyPermission(['D', 'E', 'F']), asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { settings } = req.body;
+  
+  if (!settings || typeof settings !== 'object') {
+    return res.status(400).json({
+      success: false,
+      message: 'הגדרות לא תקינות'
+    });
+  }
+  
+  try {
+    // Import db connection inside the handler to avoid timing issues
+    const { db: database } = await import('../../db/connection');
+    
+    if (!database) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection error'
+      });
+    }
+    
+    // Update user's autocorrect settings
+    const result = await database.query(
+      'UPDATE users SET autocorrect_settings = $1 WHERE id = $2 RETURNING autocorrect_settings',
+      [JSON.stringify(settings), userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'משתמש לא נמצא'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'הגדרות נשמרו בהצלחה',
+      settings: result.rows[0].autocorrect_settings
+    });
+  } catch (error) {
+    console.error('Error saving autocorrect settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'שגיאה בשמירת ההגדרות'
+    });
+  }
+}));
+
 export default router;

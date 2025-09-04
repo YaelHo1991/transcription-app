@@ -80,8 +80,8 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
   };
 
   const getDefaultSize = (): Size => {
-    // Better proportioned size for layout
-    return { width: 240, height: 160 };
+    // Smaller size to fit better when sidebar is locked
+    return { width: 190, height: 130 };
   };
 
   const [position, setPosition] = useState<Position>({ x: 20, y: 20 }); // Safe initial position

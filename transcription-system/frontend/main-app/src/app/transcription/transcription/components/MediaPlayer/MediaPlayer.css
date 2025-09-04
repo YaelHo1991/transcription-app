@@ -70,28 +70,73 @@
         
         /* Video Cube Container - side by side with controls */
         .video-cube-container {
-            flex: 0 0 260px; /* Container width */
-            height: 180px; /* Container height */
+            flex: 0 0 200px; /* Reduced container width from 260px to 200px */
+            height: 150px; /* Reduced container height from 180px to 150px */
             display: flex;
             align-items: center;
             justify-content: center;
             border-right: 1px solid rgba(32, 201, 151, 0.2);
-            margin-right: 10px;
+            margin-right: 8px; /* Reduced margin from 10px to 8px */
             padding: 0;
         }
         
         /* Shrink controls when video is active */
         .media-player-container.video-active .control-btn {
-            padding: 8px 10px;
-            font-size: 14px;
+            padding: 6px 8px; /* Further reduced from 8px 10px */
+            font-size: 12px; /* Reduced from 14px */
+            width: 32px; /* Fixed smaller width */
+            height: 32px; /* Fixed smaller height */
         }
         
         .media-player-container.video-active .play-pause-btn {
-            padding: 10px 18px;
+            padding: 8px 12px; /* Further reduced from 10px 18px */
+            width: 48px; /* Reduced from default 60px */
+            height: 48px; /* Reduced from default 60px */
+            font-size: 20px; /* Reduced from default 24px */
         }
         
         .media-player-container.video-active .custom-slider {
-            width: 70px; /* Even smaller sliders */
+            width: 60px; /* Further reduced from 70px */
+        }
+        
+        /* Additional video-active optimizations */
+        .media-player-container.video-active .media-progress-container {
+            padding: 10px; /* Reduced from default 15px */
+        }
+        
+        .media-player-container.video-active .sliders-container {
+            padding: 3px 10px; /* Reduced from default 5px 15px */
+            gap: 10px; /* Reduced from default 15px */
+        }
+        
+        .media-player-container.video-active .controls-section {
+            padding: 10px; /* Reduced from default 15px */
+            gap: 10px; /* Reduced from default 15px */
+        }
+        
+        .media-player-container.video-active .control-buttons {
+            gap: 8px; /* Reduced from default 10px */
+            margin: 0 10px; /* Reduced from default 0 20px */
+        }
+        
+        .media-player-container.video-active .t-project-navigator {
+            padding: 6px 12px; /* Reduced from default 8px 16px */
+            height: 42px; /* Reduced from default 50px */
+        }
+        
+        .media-player-container.video-active .t-nav-btn {
+            width: 18px; /* Reduced from default 20px */
+            height: 18px; /* Reduced from default 20px */
+            font-size: 10px; /* Reduced from default 11px */
+        }
+        
+        .media-player-container.video-active .t-nav-name {
+            font-size: 12px; /* Reduced from default 13px */
+        }
+        
+        .media-player-container.video-active .t-nav-counter,
+        .media-player-container.video-active .t-nav-details {
+            font-size: 10px; /* Reduced from default 11px */
         }
         
         /* Audio element - hidden */
@@ -146,9 +191,9 @@
             border: none !important;
         }
         
-        /* Ensure controls don't shrink too much when video is shown */
+        /* Allow controls to shrink more when video is shown to save space */
         .media-player-container.video-active .media-player-content {
-            min-width: 500px;
+            min-width: 350px; /* Reduced from 500px to allow more flexibility */
         }
         
         .media-player-container.video-active .control-buttons {
@@ -488,6 +533,19 @@
         .control-btn.settings-in-controls:hover {
             background: linear-gradient(135deg, #20c997, #17a2b8);
             transform: translateY(-2px);
+        }
+        
+        /* Video restore button in controls */
+        .control-btn.video-restore-in-controls {
+            background: linear-gradient(135deg, rgba(32, 201, 151, 0.3), rgba(23, 162, 184, 0.3));
+            border-color: rgba(32, 201, 151, 0.7);
+            color: white;
+        }
+        
+        .control-btn.video-restore-in-controls:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
         }
         
         /* ================================
@@ -2204,13 +2262,13 @@
             transition: all 0.3s ease;
         }
         
-        /* Video cube in layout mode */
+        /* Video cube in layout mode - smaller size for sidebar compatibility */
         .video-cube.in-layout {
             position: relative;
-            width: 240px; /* Wider for better proportion */
-            height: 160px; /* Slightly taller */
+            width: 190px; /* Reduced from 240px to fit better when sidebar is locked */
+            height: 130px; /* Reduced from 160px to maintain proportion */
             border: 2px solid #20c997;
-            margin: 10px auto 0; /* Center horizontally, push down a bit */
+            margin: 8px auto 0; /* Reduced margin for compactness */
         }
         
         /* Video cube detached mode */
@@ -2312,7 +2370,7 @@
         .video-restore-control {
             position: absolute;
             top: 15px;
-            left: 60px; /* Position next to settings button (left + width + gap) */
+            left: 61px; /* Position next to settings button: 15px + 36px + 10px gap = 61px */
             background: linear-gradient(135deg, #0f4c4c 0%, #1a5d5d 100%);
             border: 1px solid #20c997;
             color: #20c997;

@@ -16,7 +16,8 @@ import VersionHistoryModal from './components/VersionHistoryModal';
 import MediaLinkModal from './components/MediaLinkModal';
 import SearchReplaceModal, { SearchOptions, SearchResult } from './components/SearchReplaceModal';
 import SpeakerSwapModal from './components/SpeakerSwapModal';
-import AutoCorrectModal, { AutoCorrectSettings } from './components/AutoCorrectModal';
+import AutoCorrectModal, { AutoCorrectSettings, DEFAULT_SETTINGS } from './components/AutoCorrectModal';
+import { autoCorrectService } from '@/lib/services/autoCorrectService';
 import DocumentExportModal from './components/DocumentExportModal';
 import HTMLPreviewModal from './components/HTMLPreviewModal';
 import { AutoCorrectEngine } from './utils/AutoCorrectEngine';
@@ -27,6 +28,7 @@ import { useAutoWordExport } from './hooks/useAutoWordExport';
 import { TextEditorProps, SyncedMark, EditorPosition } from './types';
 import { buildApiUrl } from '@/utils/api';
 import backupService from '@/services/backupService';
+import { EditorPreferencesService } from './utils/editorPreferencesService';
 import incrementalBackupService from '@/services/incrementalBackupService';
 import indexedDBService from '@/services/indexedDBService';
 import { tSessionService } from '@/services/tSessionService';
@@ -125,6 +127,43 @@ export default function TextEditor({
     setCurrentMediaTime(currentTime);
     currentMediaTimeRef.current = currentTime;
   }, [currentTime]);
+
+  // Get current transcription ID
+  const currentTranscriptionId = transcriptions[currentTranscriptionIndex]?.id;
+
+  // Load preferences on component mount
+  useEffect(() => {
+    if (currentTranscriptionId) {
+      const prefs = EditorPreferencesService.mergeWithDefaults(
+        EditorPreferencesService.getTranscriptionPreferences(currentTranscriptionId)
+      );
+      
+      // Apply loaded preferences to state
+      if (prefs.fontSize !== undefined) setFontSize(prefs.fontSize);
+      if (prefs.fontFamily !== undefined) setFontFamily(prefs.fontFamily);
+      if (prefs.blockViewEnabled !== undefined) setBlockViewEnabled(prefs.blockViewEnabled);
+      if (prefs.navigationMode !== undefined) setNavigationMode(prefs.navigationMode);
+    }
+    
+    // Load shortcuts enabled state from localStorage (global setting)
+    const savedShortcutsEnabled = localStorage.getItem('textEditorShortcutsEnabled');
+    if (savedShortcutsEnabled !== null) {
+      setShortcutsEnabled(savedShortcutsEnabled === 'true');
+    }
+  }, [currentTranscriptionId]);
+
+  // Save toolbar preferences when they change
+  useEffect(() => {
+    if (currentTranscriptionId) {
+      EditorPreferencesService.saveTranscriptionPreferences(currentTranscriptionId, {
+        fontSize,
+        fontFamily,
+        blockViewEnabled,
+        navigationMode
+      });
+    }
+  }, [currentTranscriptionId, fontSize, fontFamily, blockViewEnabled, navigationMode]);
+
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showNewTranscriptionModal, setShowNewTranscriptionModal] = useState(false);
@@ -167,18 +206,24 @@ export default function TextEditor({
   const mediaNameRef = useRef<HTMLDivElement>(null);
   const tHasChangesRef = useRef(false);
   const tIsSavingRef = useRef(false);
-  const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>({
-    blockDuplicateSpeakers: true,
-    requirePunctuation: true,
-    preventDoubleSpace: true,
-    fixSpaceBeforePunctuation: true,
-    validateParentheses: true,
-    validateQuotes: true,
-    autoCapitalize: false,
-    fixNumberFormatting: false
-  });
+  const [autoCorrectSettings, setAutoCorrectSettings] = useState<AutoCorrectSettings>(DEFAULT_SETTINGS);
   const autoCorrectEngineRef = useRef(new AutoCorrectEngine(autoCorrectSettings));
   
+  // Load auto-correct settings from server on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const serverSettings = await autoCorrectService.getSettings();
+        setAutoCorrectSettings(serverSettings);
+      } catch (error) {
+        console.error('Failed to load auto-correct settings:', error);
+        // Keep using DEFAULT_SETTINGS if loading fails
+      }
+    };
+    
+    loadSettings();
+  }, []);
+
   // Update AutoCorrect engine when settings change
   useEffect(() => {
     autoCorrectEngineRef.current.updateSettings(autoCorrectSettings);
@@ -292,10 +337,6 @@ export default function TextEditor({
   
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [currentTranscriptionId] = useState(() => {
-    // For now, use a mock ID. In real app, this would come from props or context
-    return 'mock-transcription-' + Date.now();
-  });
   const [currentMediaFileName, setCurrentMediaFileName] = useState<string>('');  // Track current media file name
   
   // Refs for frequently changing values (to avoid re-creating event handlers)
@@ -1099,12 +1140,7 @@ export default function TextEditor({
     historyIndexRef.current = 0; // Sync the ref with initial state
     
     // Shortcuts initialization is now handled in the useEffect above with authentication
-    
-    // Load shortcuts enabled preference
-    const savedEnabled = localStorage.getItem('textEditorShortcutsEnabled');
-    if (savedEnabled !== null) {
-      setShortcutsEnabled(savedEnabled === 'true');
-    }
+    // Shortcuts enabled preference is loaded in the preferences loading useEffect
     
   }, []); // Run only once on mount
   
@@ -3460,6 +3496,7 @@ export default function TextEditor({
         onEditShortcut={handleEditShortcut}
         onDeleteShortcut={handleDeleteShortcut}
         userQuota={userQuota}
+        transcriptionId={currentTranscriptionId}
       />
       
       {/* New Transcription Modal */}
@@ -3670,6 +3707,7 @@ export default function TextEditor({
         onClose={() => setShowAutoCorrectModal(false)}
         settings={autoCorrectSettings}
         onSettingsChange={setAutoCorrectSettings}
+        onSaveSettings={(settings) => autoCorrectService.saveSettings(settings)}
       />
       
       {/* Document Export Modal */}

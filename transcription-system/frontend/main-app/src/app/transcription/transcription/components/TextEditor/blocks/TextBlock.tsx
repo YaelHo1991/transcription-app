@@ -632,9 +632,13 @@ const TextBlock = React.memo(function TextBlock({
       // Check duplicate speaker before moving forward
       if (autoCorrectEngine) {
         const duplicateSpeakerResult = autoCorrectEngine.validateDuplicateSpeaker(text, previousSpeaker);
-        if (!duplicateSpeakerResult.isValid) {
-          displayTooltip(duplicateSpeakerResult.message || '');
-          return;
+        if (duplicateSpeakerResult.message) {
+          displayTooltip(duplicateSpeakerResult.message);
+          // If not blocking (notify mode), continue with action
+          if (!duplicateSpeakerResult.isValid) {
+            // Blocking mode - prevent action
+            return;
+          }
         }
       }
       
@@ -1094,16 +1098,26 @@ const TextBlock = React.memo(function TextBlock({
       if (autoCorrectEngine) {
         // Validate duplicate speaker
         const duplicateSpeakerResult = autoCorrectEngine.validateDuplicateSpeaker(localSpeaker, previousSpeaker);
-        if (!duplicateSpeakerResult.isValid) {
-          displayTooltip(duplicateSpeakerResult.message || '');
-          return;
+        if (duplicateSpeakerResult.message) {
+          displayTooltip(duplicateSpeakerResult.message);
+          // If not blocking (notify mode), continue with action
+          if (duplicateSpeakerResult.isValid) {
+            // Continue - just showing notification
+          } else {
+            // Blocking mode - prevent action
+            return;
+          }
         }
         
         // Validate block transition (punctuation, parentheses, quotes)
         const transitionResult = autoCorrectEngine.validateBlockTransition(text);
-        if (!transitionResult.isValid) {
-          displayTooltip(transitionResult.message || '');
-          return;
+        if (transitionResult.message) {
+          displayTooltip(transitionResult.message);
+          // If not blocking (notify mode), continue with action
+          if (!transitionResult.isValid) {
+            // Blocking mode - prevent action
+            return;
+          }
         }
       }
       
@@ -1454,7 +1468,19 @@ const TextBlock = React.memo(function TextBlock({
     // Apply auto-corrections if enabled
     if (autoCorrectEngine) {
       const originalValue = value;
-      value = autoCorrectEngine.applyAutoCorrections(value);
+      const correctionResult = autoCorrectEngine.applyAutoCorrections(value);
+      
+      // Handle both new format and potential legacy format
+      if (typeof correctionResult === 'object' && correctionResult.correctedText !== undefined) {
+        value = correctionResult.correctedText;
+        // Show notification messages if any
+        if (correctionResult.messages && correctionResult.messages.length > 0) {
+          displayTooltip(correctionResult.messages.join(' • '));
+        }
+      } else {
+        // Fallback for legacy format (just a string)
+        value = correctionResult || value;
+      }
       
       // If text was auto-corrected, adjust cursor position
       if (value !== originalValue) {

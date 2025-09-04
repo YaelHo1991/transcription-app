@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ShortcutData } from '../types/shortcuts';
 import AddShortcutForm from './AddShortcutForm';
 import ImportExportModal from './ImportExportModal';
+import { EditorPreferencesService } from '../utils/editorPreferencesService';
 import './ShortcutsModal.css';
 
 interface ShortcutsModalProps {
@@ -16,6 +17,7 @@ interface ShortcutsModalProps {
   onEditShortcut?: (oldShortcut: string, newShortcut: string, expansion: string, description?: string) => Promise<void>;
   onDeleteShortcut?: (shortcut: string) => Promise<void>;
   userQuota?: { used: number; max: number };
+  transcriptionId?: string;
 }
 
 export default function ShortcutsModal({
@@ -27,7 +29,8 @@ export default function ShortcutsModal({
   onAddShortcut,
   onEditShortcut,
   onDeleteShortcut,
-  userQuota
+  userQuota,
+  transcriptionId
 }: ShortcutsModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -36,6 +39,42 @@ export default function ShortcutsModal({
   const [editingShortcut, setEditingShortcut] = useState<{ shortcut: string; expansion: string; description?: string } | undefined>();
   const [deletingShortcut, setDeletingShortcut] = useState<string | null>(null);
   const [showImportExport, setShowImportExport] = useState(false);
+
+  // Tab configuration state
+  const [tabConfigs, setTabConfigs] = useState<{
+    system: { modeEnabled: boolean; pauseOnTabSwitch: boolean };
+    personal: { modeEnabled: boolean; pauseOnTabSwitch: boolean };
+  }>({
+    system: { modeEnabled: true, pauseOnTabSwitch: false },
+    personal: { modeEnabled: true, pauseOnTabSwitch: false }
+  });
+
+  // Load tab configurations on component mount
+  useEffect(() => {
+    if (transcriptionId) {
+      const systemConfig = EditorPreferencesService.getTabConfig(transcriptionId, 'system');
+      const personalConfig = EditorPreferencesService.getTabConfig(transcriptionId, 'personal');
+      
+      setTabConfigs({
+        system: {
+          modeEnabled: systemConfig.modeEnabled ?? true,
+          pauseOnTabSwitch: systemConfig.pauseOnTabSwitch ?? false
+        },
+        personal: {
+          modeEnabled: personalConfig.modeEnabled ?? true,
+          pauseOnTabSwitch: personalConfig.pauseOnTabSwitch ?? false
+        }
+      });
+    }
+  }, [transcriptionId]);
+
+  // Save tab configurations when they change
+  useEffect(() => {
+    if (transcriptionId) {
+      EditorPreferencesService.saveTabConfig(transcriptionId, 'system', tabConfigs.system);
+      EditorPreferencesService.saveTabConfig(transcriptionId, 'personal', tabConfigs.personal);
+    }
+  }, [transcriptionId, tabConfigs]);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -196,6 +235,51 @@ export default function ShortcutsModal({
           >
             קיצורים אישיים ({personalCount})
           </button>
+        </div>
+
+        {/* Tab Configuration Toggles */}
+        <div className="tab-configuration">
+          <div className="tab-config-item">
+            <label className="config-toggle">
+              <input
+                type="checkbox"
+                checked={tabConfigs[activeTab].modeEnabled}
+                onChange={(e) => {
+                  setTabConfigs(prev => ({
+                    ...prev,
+                    [activeTab]: {
+                      ...prev[activeTab],
+                      modeEnabled: e.target.checked
+                    }
+                  }));
+                }}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <span className="config-label">
+              {activeTab === 'system' ? 'מצב מערכת פעיל' : 'מצב אישי פעיל'}
+            </span>
+          </div>
+          
+          <div className="tab-config-item">
+            <label className="config-toggle">
+              <input
+                type="checkbox"
+                checked={tabConfigs[activeTab].pauseOnTabSwitch}
+                onChange={(e) => {
+                  setTabConfigs(prev => ({
+                    ...prev,
+                    [activeTab]: {
+                      ...prev[activeTab],
+                      pauseOnTabSwitch: e.target.checked
+                    }
+                  }));
+                }}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <span className="config-label">השהייה בעת החלפת טאב</span>
+          </div>
         </div>
 
         <div className="shortcuts-filters">

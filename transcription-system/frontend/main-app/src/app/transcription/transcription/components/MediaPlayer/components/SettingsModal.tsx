@@ -71,65 +71,50 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
   const [enhancedSecondDelay, setEnhancedSecondDelay] = useState(1.5);
   const [enhancedResumeDelay, setEnhancedResumeDelay] = useState(2.0);
   
-  // Load settings from localStorage on mount
+  // Initialize settings from props (parent component now manages localStorage)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem('mediaPlayerSettings');
-      if (savedSettings) {
-        try {
-          const parsed = JSON.parse(savedSettings);
-          
-          // Load shortcuts with merging of new defaults
-          if (parsed.shortcuts) {
-            // Simply load the saved shortcuts
-            setShortcuts(parsed.shortcuts);
-          }
-          
-          // Load shortcut settings
-          if (parsed.shortcutsEnabled !== undefined) setShortcutsEnabled(parsed.shortcutsEnabled);
-          if (parsed.rewindOnPause !== undefined) setRewindOnPause(parsed.rewindOnPause);
-          if (parsed.rewindAmount !== undefined) setRewindAmount(parsed.rewindAmount);
-          
-          // Load pedal settings
-          if (parsed.pedalEnabled !== undefined) setPedalEnabled(parsed.pedalEnabled);
-          if (parsed.continuousPress !== undefined) setContinuousPress(parsed.continuousPress);
-          if (parsed.continuousInterval !== undefined) setContinuousInterval(parsed.continuousInterval);
-          
-          // Load auto-detect settings
-          if (parsed.autoDetectEnabled !== undefined) setAutoDetectEnabled(parsed.autoDetectEnabled);
-          if (parsed.autoDetectMode !== undefined) setAutoDetectMode(parsed.autoDetectMode);
-          if (parsed.regularDelay !== undefined) setRegularDelay(parsed.regularDelay);
-          if (parsed.enhancedFirstDelay !== undefined) setEnhancedFirstDelay(parsed.enhancedFirstDelay);
-          if (parsed.enhancedSecondDelay !== undefined) setEnhancedSecondDelay(parsed.enhancedSecondDelay);
-          if (parsed.enhancedResumeDelay !== undefined) setEnhancedResumeDelay(parsed.enhancedResumeDelay);
-        } catch (error) {
-          console.error('Failed to load settings:', error);
-        }
-      }
+    // Get settings from parent component props instead of localStorage
+    if (settings.shortcuts) {
+      setShortcuts(settings.shortcuts);
     }
-  }, []);
+    if (settings.shortcutsEnabled !== undefined) setShortcutsEnabled(settings.shortcutsEnabled);
+    if (settings.rewindOnPause !== undefined) setRewindOnPause(settings.rewindOnPause);
+    if (settings.rewindAmount !== undefined) setRewindAmount(settings.rewindAmount);
+    
+    // Pedal settings
+    if (settings.pedalEnabled !== undefined) setPedalEnabled(settings.pedalEnabled);
+    if (settings.continuousPress !== undefined) setContinuousPress(settings.continuousPress);
+    if (settings.continuousInterval !== undefined) setContinuousInterval(settings.continuousInterval);
+    
+    // Auto-detect settings
+    if (settings.autoDetectEnabled !== undefined) setAutoDetectEnabled(settings.autoDetectEnabled);
+    if (settings.autoDetectMode !== undefined) setAutoDetectMode(settings.autoDetectMode);
+    if (settings.regularDelay !== undefined) setRegularDelay(settings.regularDelay);
+    if (settings.enhancedFirstDelay !== undefined) setEnhancedFirstDelay(settings.enhancedFirstDelay);
+    if (settings.enhancedSecondDelay !== undefined) setEnhancedSecondDelay(settings.enhancedSecondDelay);
+    if (settings.enhancedResumeDelay !== undefined) setEnhancedResumeDelay(settings.enhancedResumeDelay);
+  }, [settings]);
   
-  // Save settings to localStorage when they change
+  // Notify parent component when settings change (parent handles localStorage)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const settingsToSave = {
-        shortcuts,
-        shortcutsEnabled,
-        rewindOnPause,
-        rewindAmount,
-        pedalEnabled,
-        continuousPress,
-        continuousInterval,
-        autoDetectEnabled,
-        autoDetectMode,
-        regularDelay,
-        enhancedFirstDelay,
-        enhancedSecondDelay,
-        enhancedResumeDelay,
-      };
-      
-      localStorage.setItem('mediaPlayerSettings', JSON.stringify(settingsToSave));
-    }
+    const updatedSettings = {
+      shortcuts,
+      shortcutsEnabled,
+      rewindOnPause,
+      rewindAmount,
+      pedalEnabled,
+      continuousPress,
+      continuousInterval,
+      autoDetectEnabled,
+      autoDetectMode,
+      regularDelay,
+      enhancedFirstDelay,
+      enhancedSecondDelay,
+      enhancedResumeDelay,
+    };
+    
+    // Only notify if settings have actually changed
+    onSettingsChange(updatedSettings);
   }, [
     shortcuts,
     shortcutsEnabled,
@@ -144,6 +129,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
     enhancedFirstDelay,
     enhancedSecondDelay,
     enhancedResumeDelay,
+    onSettingsChange
   ]);
   
   // Handle ESC key to close modal
