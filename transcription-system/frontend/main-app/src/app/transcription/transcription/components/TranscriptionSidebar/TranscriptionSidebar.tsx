@@ -102,6 +102,9 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
 
   // Load user storage info
   useEffect(() => {
+    let retryCount = 0;
+    let intervalId: NodeJS.Timeout | null = null;
+    
     const loadStorageInfo = async () => {
       try {
         const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
@@ -110,31 +113,72 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
           return;
         }
         
-        const response = await fetch(buildApiUrl('/api/auth/storage'), {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.storage) {
-            setStorageInfo(data.storage);
+        try {
+          const response = await fetch(buildApiUrl('/api/auth/storage'), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.storage) {
+              setStorageInfo(data.storage);
+            }
+            retryCount = 0; // Reset retry count on success
+          } else if (response.status === 401) {
+            // Token is invalid, don't keep trying
+            console.log('Storage info not available - user not authenticated');
+            // Stop the interval for auth errors
+            if (intervalId) {
+              clearInterval(intervalId);
+            }
+          } else if (response.status === 404) {
+            // Endpoint not found - backend might not support this yet
+            console.log('Storage endpoint not available');
+            // Stop the interval if endpoint doesn't exist
+            if (intervalId) {
+              clearInterval(intervalId);
+            }
           }
-        } else if (response.status === 401) {
-          // Token is invalid, don't keep trying
-          console.log('Storage info not available - user not authenticated');
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          retryCount++;
+          
+          // Only log on first failure to avoid spamming console
+          if (retryCount === 1) {
+            if (fetchError.name === 'AbortError') {
+              console.log('Storage info request timed out');
+            } else {
+              // Network error - backend might be down
+              console.log('Backend not reachable - storage info unavailable');
+            }
+          }
+          
+          // Stop trying after 3 failed attempts
+          if (retryCount >= 3 && intervalId) {
+            clearInterval(intervalId);
+          }
         }
       } catch (error) {
-        console.error('Failed to load storage info:', error);
+        // Silent fail - don't log to console
       }
     };
     
     loadStorageInfo();
     // Refresh storage info every 30 seconds
-    const interval = setInterval(loadStorageInfo, 30000);
-    return () => clearInterval(interval);
+    intervalId = setInterval(loadStorageInfo, 30000);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [projects]); // Reload when projects change
   
   // Load projects with a small delay to avoid race conditions

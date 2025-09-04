@@ -13,14 +13,103 @@
 /* Remove scrollbar from body when on transcription page */
 /* Body overflow handled by parent container */
 
-/* Hide all scrollbars in transcription page */
-.transcription-work-page * {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+/* Dark green themed scrollbars for all content areas with high specificity */
+.transcription-work-page *::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
 }
 
-.transcription-work-page *::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+.transcription-work-page *::-webkit-scrollbar-track {
+  background: rgba(15, 76, 76, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.transcription-work-page *::-webkit-scrollbar-thumb {
+  background: #0f4c4c !important;
+  border-radius: 3px !important;
+}
+
+.transcription-work-page *::-webkit-scrollbar-thumb:hover {
+  background: #1a5d5d !important;
+}
+
+/* Hide scrollbar arrows for clean look */
+.transcription-work-page *::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+.transcription-work-page *::-webkit-scrollbar-corner {
+  background: rgba(15, 76, 76, 0.2) !important;
+}
+
+/* Firefox scrollbar styling */
+.transcription-work-page * {
+  scrollbar-width: thin;
+  scrollbar-color: #0f4c4c rgba(15, 76, 76, 0.2);
+}
+
+/* NUCLEAR OPTION - FORCE REMARKS SCROLLBARS - ULTIMATE SPECIFICITY */
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button:single-button,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button:single-button,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button:single-button,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button:single-button,
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button:double-button,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button:double-button,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button:double-button,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button:double-button,
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button:horizontal,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button:horizontal,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button:horizontal,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button:horizontal,
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button:vertical,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button:vertical,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button:vertical,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button:vertical,
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button:start,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button:start,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button:start,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button:start,
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button:end,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button:end,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button:end,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button:end,
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-button,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-button,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-button,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar,
+.transcription-work-page .top-comments-area::-webkit-scrollbar,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-track,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-track,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-track,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-track {
+  background: rgba(15, 76, 76, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.transcription-work-page .comments-container .top-comments-area::-webkit-scrollbar-thumb,
+.transcription-work-page .comments-container .bottom-comments-area::-webkit-scrollbar-thumb,
+.transcription-work-page .top-comments-area::-webkit-scrollbar-thumb,
+.transcription-work-page .bottom-comments-area::-webkit-scrollbar-thumb {
+  background: #0f4c4c !important;
+  border-radius: 3px !important;
 }
 
 /* Header trigger area */

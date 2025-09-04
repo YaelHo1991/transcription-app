@@ -68,6 +68,7 @@ class BackupService {
   private statusListeners: Set<(status: BackupStatus) => void> = new Set();
   private currentVersion: number = 0;
   private lastError: string | null = null;
+  private dataCallback: (() => BackupData) | null = null;
 
   private constructor() {}
 
@@ -84,10 +85,12 @@ class BackupService {
   initAutoSave(
     projectId: string,
     mediaId: string,
+    dataCallback: () => BackupData,
     intervalMs: number = 60000 // 1 minute default
   ): void {
     this.currentProjectId = projectId;
     this.currentMediaId = mediaId;
+    this.dataCallback = dataCallback;
     
     // Clear existing interval
     if (this.autoSaveInterval) {
@@ -112,6 +115,7 @@ class BackupService {
     }
     this.currentProjectId = null;
     this.currentMediaId = null;
+    this.dataCallback = null;
     console.log('Auto-save stopped');
   }
 
@@ -136,8 +140,8 @@ class BackupService {
     
     // Only save if enough time has passed (60 seconds) and there are changes
     if (timeSinceLastSave >= 60000 && this.hasChanges) {
-      // Get the latest data from the editor
-      const backupData = this.getBackupDataCallback?.();
+      // Get the latest data from the editor via callback
+      const backupData = this.dataCallback?.();
       if (backupData) {
         await this.createBackup(backupData);
       }
@@ -166,6 +170,8 @@ class BackupService {
     this.lastError = null;
     this.notifyStatusListeners();
 
+    let response: Response | undefined;
+    
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
       
@@ -181,47 +187,54 @@ class BackupService {
         }
       };
       
-      // Use project backup endpoint
-      const response = await axios.post(
+      // Use project backup endpoint with fetch instead of axios to avoid interceptor conflicts
+      response = await fetch(
         buildApiUrl(`/api/projects/${this.currentProjectId}/media/${this.currentMediaId}/backup`),
-        backupPayload,
         {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'X-Background-Request': 'true'
+          },
+          body: JSON.stringify(backupPayload)
         }
       );
 
-      if (response.data.success) {
+      const responseData = await response.json();
+      
+      if (response.ok && responseData.success) {
         this.lastSaveTime = Date.now();
         this.hasChanges = false;
-        this.currentVersion = response.data.version || this.currentVersion + 1;
+        this.currentVersion = responseData.version || this.currentVersion + 1;
         console.log('Backup created: v' + this.currentVersion + ' for media ' + this.currentMediaId);
       }
     } catch (error: any) {
       // Handle different error types more gracefully
-      if (error.response?.status === 400) {
+      if (!response) {
+        console.error('Backup failed - network error:', error);
+        this.lastError = 'Network error';
+      } else if (response.status === 400) {
         // 400 errors are expected when project/media isn't ready yet
         // Don't log these to console to avoid noise
         this.lastError = 'Waiting for valid project/media';
-      } else if (error.response?.status === 401) {
+      } else if (response.status === 401) {
         // Authentication error - token might be expired
         this.lastError = 'Authentication required';
         console.warn('Backup authentication failed - token may be expired');
       } else {
         // Log other errors
         console.error('Backup failed:', error);
-        this.lastError = error.response?.data?.error || 'Backup failed';
+        this.lastError = error.message || 'Backup failed';
       }
       
       // In development, still mark as saved to prevent constant retries
-      if (process.env.NODE_ENV === 'development' && error.response?.status !== 401) {
+      if (process.env.NODE_ENV === 'development' && response?.status !== 401) {
         this.lastSaveTime = Date.now();
         this.hasChanges = false;
         this.currentVersion++;
         // Only log if it's not a 400 error
-        if (error.response?.status !== 400) {
+        if (response?.status !== 400) {
           console.log('Dev mode: Marked as saved despite error');
         }
       }
@@ -286,18 +299,24 @@ class BackupService {
         ];
       }
       
-      const response = await axios.get(
-        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/history/' + transcriptionId,
+      const API_URL = getApiUrl();
+      const response = await fetch(
+        API_URL + '/api/transcription/backups/history/' + transcriptionId + '?' + new URLSearchParams({ limit: limit.toString() }),
         {
-          params: { limit },
           headers: {
-            Authorization: 'Bearer ' + token
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
           }
         }
       );
-
-      if (response.data.success) {
-        return response.data.backups;
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch backup history');
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        return data.backups;
       }
       return [];
     } catch (error) {
@@ -327,17 +346,24 @@ class BackupService {
         return null;
       }
       
-      const response = await axios.get(
-        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/preview/' + backupId,
+      const API_URL = getApiUrl();
+      const response = await fetch(
+        API_URL + '/api/transcription/backups/preview/' + backupId,
         {
           headers: {
-            Authorization: 'Bearer ' + token
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
           }
         }
       );
 
-      if (response.data.success) {
-        return response.data.content;
+      if (!response.ok) {
+        throw new Error('Failed to preview backup');
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        return data.content;
       }
       return null;
     } catch (error) {
@@ -370,22 +396,30 @@ class BackupService {
         return null;
       }
       
-      const response = await axios.post(
-        process.env.NEXT_PUBLIC_API_URL + '/api/transcription/backups/restore/' + backupId,
-        {},
+      const API_URL = getApiUrl();
+      const response = await fetch(
+        API_URL + '/api/transcription/backups/restore/' + backupId,
         {
+          method: 'POST',
           headers: {
-            Authorization: 'Bearer ' + token
-          }
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: '{}'
         }
       );
-
-      if (response.data.success) {
-        this.currentVersion = response.data.content.version;
+      
+      if (!response.ok) {
+        throw new Error('Failed to restore backup');
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        this.currentVersion = data.content.version;
         this.hasChanges = false;
         this.lastSaveTime = Date.now();
         this.notifyStatusListeners();
-        return response.data.content;
+        return data.content;
       }
       return null;
     } catch (error) {
@@ -427,14 +461,6 @@ class BackupService {
   }
 
   // Callback to get data from editor
-  private getBackupDataCallback: (() => BackupData | null) | null = null;
-
-  /**
-   * Set the callback to get data from the editor
-   */
-  setDataCallback(callback: () => BackupData | null): void {
-    this.getBackupDataCallback = callback;
-  }
 }
 
 export default BackupService.getInstance();

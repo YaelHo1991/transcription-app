@@ -22,7 +22,7 @@ function createToken(user: any) {
       is_admin: user.is_admin || false
     }, 
     JWT_SECRET, 
-    { expiresIn: '24h' }
+    { expiresIn: '7d' }
   );
 }
 

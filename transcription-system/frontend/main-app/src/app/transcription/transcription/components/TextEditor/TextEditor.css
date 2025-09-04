@@ -901,44 +901,93 @@
 }
 
 /* Scrollbar styling */
-.text-editor-toolbar::-webkit-scrollbar {
-  height: 4px;
+/* Universal dark green scrollbar styling for all editor areas */
+.text-editor-toolbar::-webkit-scrollbar,
+.toolbar-section::-webkit-scrollbar,
+.toolbar-dropdown::-webkit-scrollbar,
+.expanded-content::-webkit-scrollbar,
+.dropdown-content::-webkit-scrollbar,
+.speakers-list::-webkit-scrollbar,
+.remarks-list::-webkit-scrollbar,
+.panel-content::-webkit-scrollbar {
+  height: 6px !important;
+  width: 6px !important;
 }
 
-.text-editor-toolbar::-webkit-scrollbar-track {
-  background: transparent;
+.text-editor-toolbar::-webkit-scrollbar-track,
+.toolbar-section::-webkit-scrollbar-track,
+.toolbar-dropdown::-webkit-scrollbar-track,
+.expanded-content::-webkit-scrollbar-track,
+.dropdown-content::-webkit-scrollbar-track,
+.speakers-list::-webkit-scrollbar-track,
+.remarks-list::-webkit-scrollbar-track,
+.panel-content::-webkit-scrollbar-track {
+  background: rgba(15, 76, 76, 0.2) !important;
+  border-radius: 3px !important;
 }
 
-.text-editor-toolbar::-webkit-scrollbar-thumb {
-  background: rgba(20, 184, 166, 0.3);
-  border-radius: 2px;
+.text-editor-toolbar::-webkit-scrollbar-thumb,
+.toolbar-section::-webkit-scrollbar-thumb,
+.toolbar-dropdown::-webkit-scrollbar-thumb,
+.expanded-content::-webkit-scrollbar-thumb,
+.dropdown-content::-webkit-scrollbar-thumb,
+.speakers-list::-webkit-scrollbar-thumb,
+.remarks-list::-webkit-scrollbar-thumb,
+.panel-content::-webkit-scrollbar-thumb {
+  background: #0f4c4c !important;
+  border-radius: 3px !important;
 }
 
-.text-editor-toolbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(20, 184, 166, 0.5);
+.text-editor-toolbar::-webkit-scrollbar-thumb:hover,
+.toolbar-section::-webkit-scrollbar-thumb:hover,
+.toolbar-dropdown::-webkit-scrollbar-thumb:hover,
+.expanded-content::-webkit-scrollbar-thumb:hover,
+.dropdown-content::-webkit-scrollbar-thumb:hover,
+.speakers-list::-webkit-scrollbar-thumb:hover,
+.remarks-list::-webkit-scrollbar-thumb:hover,
+.panel-content::-webkit-scrollbar-thumb:hover {
+  background: #1a5d5d !important;
 }
 
+/* Hide scrollbar arrows */
+.text-editor-toolbar::-webkit-scrollbar-button,
+.toolbar-section::-webkit-scrollbar-button,
+.toolbar-dropdown::-webkit-scrollbar-button,
+.expanded-content::-webkit-scrollbar-button,
+.dropdown-content::-webkit-scrollbar-button,
+.speakers-list::-webkit-scrollbar-button,
+.remarks-list::-webkit-scrollbar-button,
+.panel-content::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+/* Main text editor content and marks sidebar */
 .text-editor-content::-webkit-scrollbar,
 .marks-sidebar::-webkit-scrollbar {
-  width: 6px;
+  width: 6px !important;
 }
 
 .text-editor-content::-webkit-scrollbar-track,
 .marks-sidebar::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 3px;
+  background: rgba(15, 76, 76, 0.2) !important;
+  border-radius: 3px !important;
 }
 
 .text-editor-content::-webkit-scrollbar-thumb,
 .marks-sidebar::-webkit-scrollbar-thumb {
-  background: #14b8a6;
-  border-radius: 3px;
-  opacity: 0.6;
+  background: #0f4c4c !important;
+  border-radius: 3px !important;
 }
 
 .text-editor-content::-webkit-scrollbar-thumb:hover,
 .marks-sidebar::-webkit-scrollbar-thumb:hover {
-  background: #0d9488;
+  background: #1a5d5d !important;
+}
+
+/* Hide scrollbar arrows for main content */
+.text-editor-content::-webkit-scrollbar-button,
+.marks-sidebar::-webkit-scrollbar-button {
+  display: none !important;
 }
 
 /* Responsive adjustments */

@@ -1298,15 +1298,14 @@ export default function TextEditor({
   useEffect(() => {
     if (autoSaveEnabled && currentProjectId && currentMediaId) {
       console.log('[AutoSave] Initializing for project:', currentProjectId, 'media:', currentMediaId);
-      backupService.initAutoSave(currentProjectId, currentMediaId, 60000); // 1 minute
       
-      // Set up data callback for backup service with complete data
-      backupService.setDataCallback(() => {
-        console.log('[Backup] Creating backup for media:', currentMediaId, 'with mediaName:', mediaName);
+      // Create data callback function
+      const getBackupData = () => {
+        console.log('[Auto-Backup] Creating backup for project:', currentProjectId, 'media:', currentMediaId);
         const blocks = blockManagerRef.current.getBlocks();
         // Get speakers from SimpleSpeaker component which has the actual names
         const speakers = speakerComponentRef?.current?.getAllSpeakers() || speakerManagerRef.current.getAllSpeakers();
-        console.log('[Backup] Saving speakers:', speakers.length, 'speakers:', speakers.map(s => s.name));
+        console.log('[Auto-Backup] Saving speakers:', speakers.length, 'speakers:', speakers.map(s => s.name));
         const remarks = remarksContext?.state.remarks || [];
         
         return {
@@ -1358,7 +1357,11 @@ export default function TextEditor({
             savedAt: new Date().toISOString()
           }
         };
-      });
+      };
+      
+      // Initialize auto-save with the callback
+      backupService.initAutoSave(currentProjectId, currentMediaId, getBackupData, 60000);
+      
     } else if (!autoSaveEnabled || !currentProjectId || !currentMediaId) {
       console.log('[AutoSave] Stopping - conditions not met:', {
         autoSaveEnabled,
@@ -1601,11 +1604,7 @@ export default function TextEditor({
       }, 100);
     }
     
-    // Update backup service with project and media IDs
-    backupService.stopAutoSave();
-    if (currentProjectId && currentMediaId) {
-      backupService.initAutoSave(currentProjectId, currentMediaId, 60000);
-    }
+    // Auto-save is now handled in the auto-save useEffect with proper transcription number
   }, []);
 
   // Handle transcription change from switcher
@@ -1617,11 +1616,7 @@ export default function TextEditor({
     // 3. Update blocks and speakers
     // 4. Update backup service with new transcription ID
     
-    // For now, just update the backup service with project/media IDs
-    backupService.stopAutoSave();
-    if (currentProjectId && currentMediaId) {
-      backupService.initAutoSave(currentProjectId, currentMediaId, 60000);
-    }
+    // Auto-save is now handled in the auto-save useEffect with proper transcription number
     
     // Update media file name (mock data for now)
     const mockMediaFiles = {
@@ -2577,16 +2572,8 @@ export default function TextEditor({
     }
     
     if (success) {
-      // Also create a versioned backup
-      try {
-        // Backup creation removed - projectService deleted
-        const backupFile = null; // await projectService.createBackup(currentProjectId);
-        if (backupFile) {
-          console.log('[Project] Backup created: ' + backupFile);
-        }
-      } catch (error) {
-        console.error('[Project] Failed to create backup:', error);
-      }
+      // Backup creation is now handled automatically in tSessionService
+      console.log('[Project] Save successful - backup will be created by tSessionService');
       
       // Update save tracking
       tLastSavedContent.current = currentContent;

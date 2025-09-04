@@ -37,7 +37,7 @@ export default function AutoDetectTab({
       enhancedFirstPauseDelay: 1.5,
       enhancedSecondPauseDelay: 1.5,
       enhancedResumeDelay: 2.0,
-      rewindOnPause: { enabled: false, amount: 0.3 }
+      rewindOnPause: { enabled: false, amount: 10.0 }
     };
   };
 
@@ -47,7 +47,7 @@ export default function AutoDetectTab({
   const [enhancedFirstPauseDelay, setEnhancedFirstPauseDelay] = useState(1.5);
   const [enhancedSecondPauseDelay, setEnhancedSecondPauseDelay] = useState(1.5);
   const [enhancedResumeDelay, setEnhancedResumeDelay] = useState(2.0);
-  const [rewindOnPause, setRewindOnPause] = useState({ enabled: false, amount: 0.3 });
+  const [rewindOnPause, setRewindOnPause] = useState({ enabled: false, amount: 10.0 });
 
   // Load saved settings after mount to avoid hydration issues
   useEffect(() => {
@@ -366,12 +366,12 @@ export default function AutoDetectTab({
                 type="number"
                 className="auto-detect-input"
                 min="0.1"
-                max="2.0"
+                max="10.0"
                 step="0.1"
                 value={rewindOnPause.amount.toFixed(1)}
                 onChange={(e) => {
                   const val = Number(e.target.value);
-                  if (!isNaN(val) && val >= 0.1 && val <= 2.0) {
+                  if (!isNaN(val) && val >= 0.1 && val <= 10.0) {
                     setRewindOnPause({
                       ...rewindOnPause,
                       amount: val
@@ -384,7 +384,7 @@ export default function AutoDetectTab({
                 className="spinner-btn increase"
                 onClick={() => setRewindOnPause({
                   ...rewindOnPause,
-                  amount: Math.min(2.0, rewindOnPause.amount + 0.1)
+                  amount: Math.min(10.0, rewindOnPause.amount + 0.1)
                 })}
                 disabled={!rewindOnPause.enabled}
                 type="button"

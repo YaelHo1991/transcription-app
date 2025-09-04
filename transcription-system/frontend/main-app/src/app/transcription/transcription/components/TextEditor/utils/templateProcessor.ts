@@ -830,11 +830,8 @@ export class TemplateProcessor {
       formData.append('fileName', customFileName || (mediaFileName?.replace(/\.[^/.]+$/, '') || 'transcription') + '_תמלול');
 
       // Send to backend for conversion
-      // Use relative URL to avoid HTTPS/HTTP issues
-      const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
-        ? '' // Use relative URL on production
-        : buildApiUrl('').replace('/api', ''); // Use buildApiUrl for base URL
-      const response = await fetch(baseUrl + '/api/template/convert-and-export', {
+      // Use buildApiUrl for proper URL construction
+      const response = await fetch(buildApiUrl('/api/template/convert-and-export'), {
         method: 'POST',
         body: formData
       });

@@ -20,7 +20,7 @@ Standard Workflow
 - **Port**: 3002 (main app)
 - **Structure**:
   - `/crm` - CRM system (brown theme #b85042)
-  - `/transcription` - Transcription system (pink theme #e91e63)
+  - `/transcription` - Transcription system (Green theme #e91e63)
   - `/licenses` - License purchase page
   - `/login` - Dual-system login with theme switching
 

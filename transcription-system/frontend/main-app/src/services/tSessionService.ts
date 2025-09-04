@@ -135,10 +135,49 @@ class TSessionService {
 
       const result = await response.json();
       console.log('[T-Session] Session saved:', result.path);
+      
+      // Create backup after successful save
+      try {
+        const backupResult = await this.tCreateBackup(data);
+        if (backupResult.success) {
+          console.log('[T-Session] Backup created:', backupResult.filename);
+        } else {
+          console.warn('[T-Session] Backup failed, but save was successful:', backupResult.error);
+        }
+      } catch (backupError) {
+        console.warn('[T-Session] Backup failed, but save was successful:', backupError);
+      }
+      
       return true;
     } catch (error) {
       console.error('[T-Session] Error saving session:', error);
       return false;
+    }
+  }
+
+  /**
+   * Create backup after successful save
+   */
+  async tCreateBackup(data: TSaveSessionData): Promise<{success: boolean, filename?: string, error?: string}> {
+    try {
+      const response = await fetch(API_URL + `/api/transcription/sessions/backup/${data.mediaId}/${data.transcriptionNumber}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Dev-Mode': 'true'
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+      }
+
+      const result = await response.json();
+      return { success: true, filename: result.filename };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 

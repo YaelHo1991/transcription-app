@@ -34,8 +34,12 @@ export function setupAuthInterceptor() {
       
       // Check for 401 Unauthorized
       if (response.status === 401) {
-        // Don't show popup for login endpoint itself
-        if (!url?.includes('/api/auth/login')) {
+        // Don't show popup for login endpoint itself or background operations
+        const isBackgroundOperation = url?.includes('/backup') || 
+                                     url?.includes('/auto-save') || 
+                                     url?.includes('/projects') && config?.headers?.['X-Background-Request'];
+        
+        if (!url?.includes('/api/auth/login') && !isBackgroundOperation) {
           // Clear invalid token
           localStorage.removeItem('auth_token');
           localStorage.removeItem('token');
@@ -69,8 +73,11 @@ export function setupXHRInterceptor() {
   XMLHttpRequest.prototype.send = function(data?: any) {
     const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     
-    // Add auth token to API requests
-    if (this._url && (this._url.includes('/api/') || this._url.startsWith(buildApiUrl('')))) {
+    // Skip interceptor for axios backup requests (they handle their own auth)
+    const isBackupRequest = this._url?.includes('/backup') || this._url?.includes('/auto-save');
+    
+    // Add auth token to API requests (except for axios backup requests which handle their own)
+    if (!isBackupRequest && this._url && (this._url.includes('/api/') || this._url.startsWith(buildApiUrl('')))) {
       if (token) {
         this.setRequestHeader('Authorization', `Bearer ${token}`);
       }
@@ -78,7 +85,11 @@ export function setupXHRInterceptor() {
 
     // Listen for response
     this.addEventListener('load', function() {
-      if (this.status === 401 && !this._url?.includes('/api/auth/login')) {
+      const isBackgroundOperation = this._url?.includes('/backup') || 
+                                   this._url?.includes('/auto-save') || 
+                                   this._url?.includes('/projects');
+      
+      if (this.status === 401 && !this._url?.includes('/api/auth/login') && !isBackgroundOperation) {
         // Clear invalid token
         localStorage.removeItem('auth_token');
         localStorage.removeItem('token');

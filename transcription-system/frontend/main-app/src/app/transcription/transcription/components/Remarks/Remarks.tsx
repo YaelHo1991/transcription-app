@@ -296,7 +296,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
 
 
   return (
-    <div className="remarks-panel" ref={containerRef}>
+    <div className="comments-container" ref={containerRef}>
       <div className="remarks-panel-header">
         <h3>הערות</h3>
         <div className="remarks-header-controls">
@@ -446,7 +446,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
       }}>
         {/* Pinned items section - grows as needed up to 25% */}
         {(sortedRemarks.filter(r => r.type === RemarkType.PINNED).length > 0 || newPinnedIds.size > 0 || forceShowPinned) && (
-          <div className="pinned-remarks-section" style={{ 
+          <div className="top-comments-area" style={{ 
             maxHeight: '25%',
             minHeight: (sortedRemarks.filter(r => r.type === RemarkType.PINNED).length > 0 || newPinnedIds.size > 0) ? '40px' : '0',
             height: 'auto',
@@ -576,7 +576,7 @@ export default function Remarks({ theme = 'transcription' }: RemarksProps) {
         )}
         
         {/* Regular remarks section - remaining space */}
-        <div className="regular-remarks-section" style={{ 
+        <div className="bottom-comments-area" style={{ 
           flex: 1, 
           overflowY: 'auto',
           overflowX: 'hidden',

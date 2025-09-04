@@ -294,7 +294,7 @@ router.post('/impersonate', asyncHandler(async (req: AuthRequest, res) => {
       impersonated_at: new Date().toISOString()
     },
     process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '4h' }
+    { expiresIn: '7d' }
   );
 
   res.json({

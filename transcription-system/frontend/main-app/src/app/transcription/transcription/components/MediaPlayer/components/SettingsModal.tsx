@@ -55,7 +55,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
   // Shortcuts state
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [rewindOnPause, setRewindOnPause] = useState(false);
-  const [rewindAmount, setRewindAmount] = useState(0.3);
+  const [rewindAmount, setRewindAmount] = useState(10.0);
   
   // Pedal state
   const [pedalEnabled, setPedalEnabled] = useState(false);
@@ -422,7 +422,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
                           type="number" 
                           className="rewind-amount-input"
                           min="0.1" 
-                          max="2.0" 
+                          max="10.0" 
                           step="0.1" 
                           value={rewindAmount}
                           onChange={(e) => setRewindAmount(Number(e.target.value))}

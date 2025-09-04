@@ -1,37 +1,106 @@
 /* Remarks Panel Styles - Matching SimpleSpeaker */
 
-/* Custom scrollbar styles for remarks sections */
-.pinned-remarks-section::-webkit-scrollbar,
-.regular-remarks-section::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* AGGRESSIVE SCROLLBAR BUTTON ELIMINATION FOR ALL CHILDREN */
+.comments-container *::-webkit-scrollbar-button,
+.comments-container *::-webkit-scrollbar-button:start,
+.comments-container *::-webkit-scrollbar-button:end,
+.comments-container *::-webkit-scrollbar-button:vertical,
+.comments-container *::-webkit-scrollbar-button:horizontal,
+.comments-container *::-webkit-scrollbar-button:single-button,
+.comments-container *::-webkit-scrollbar-button:double-button,
+.comments-container *::-webkit-scrollbar-button:increment,
+.comments-container *::-webkit-scrollbar-button:decrement {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
 
-.pinned-remarks-section::-webkit-scrollbar-track,
-.regular-remarks-section::-webkit-scrollbar-track {
-  background: rgba(15, 118, 110, 0.05);
-  border-radius: 4px;
+/* Custom scrollbar styles for comments areas - NEW CLASS NAMES */
+.comments-container .top-comments-area::-webkit-scrollbar,
+.comments-container .bottom-comments-area::-webkit-scrollbar,
+.top-comments-area::-webkit-scrollbar,
+.bottom-comments-area::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
 }
 
-.pinned-remarks-section::-webkit-scrollbar-thumb,
-.regular-remarks-section::-webkit-scrollbar-thumb {
-  background: #0f766e;
-  border-radius: 3px;
+.comments-container .top-comments-area::-webkit-scrollbar-track,
+.comments-container .bottom-comments-area::-webkit-scrollbar-track,
+.top-comments-area::-webkit-scrollbar-track,
+.bottom-comments-area::-webkit-scrollbar-track {
+  background: rgba(15, 76, 76, 0.2) !important;
+  border-radius: 3px !important;
 }
 
-.pinned-remarks-section::-webkit-scrollbar-thumb:hover,
-.regular-remarks-section::-webkit-scrollbar-thumb:hover {
-  background: #14b8a6;
+.comments-container .top-comments-area::-webkit-scrollbar-thumb,
+.comments-container .bottom-comments-area::-webkit-scrollbar-thumb,
+.top-comments-area::-webkit-scrollbar-thumb,
+.bottom-comments-area::-webkit-scrollbar-thumb {
+  background: #0f4c4c !important;
+  border-radius: 3px !important;
 }
 
-/* Firefox scrollbar styles */
-.pinned-remarks-section,
-.regular-remarks-section {
-  scrollbar-width: thin;
-  scrollbar-color: #0f766e rgba(15, 118, 110, 0.1);
+.comments-container .top-comments-area::-webkit-scrollbar-thumb:hover,
+.comments-container .bottom-comments-area::-webkit-scrollbar-thumb:hover,
+.top-comments-area::-webkit-scrollbar-thumb:hover,
+.bottom-comments-area::-webkit-scrollbar-thumb:hover {
+  background: #1a5d5d !important;
 }
 
-.remarks-panel {
+/* TOTAL SCROLLBAR ARROW ELIMINATION - NEW CLASS NAMES */
+.comments-container .top-comments-area::-webkit-scrollbar-button:single-button,
+.comments-container .bottom-comments-area::-webkit-scrollbar-button:single-button,
+.top-comments-area::-webkit-scrollbar-button:single-button,
+.bottom-comments-area::-webkit-scrollbar-button:single-button,
+.comments-container .top-comments-area::-webkit-scrollbar-button:double-button,
+.comments-container .bottom-comments-area::-webkit-scrollbar-button:double-button,
+.top-comments-area::-webkit-scrollbar-button:double-button,
+.bottom-comments-area::-webkit-scrollbar-button:double-button,
+.comments-container .top-comments-area::-webkit-scrollbar-button:start,
+.comments-container .bottom-comments-area::-webkit-scrollbar-button:start,
+.top-comments-area::-webkit-scrollbar-button:start,
+.bottom-comments-area::-webkit-scrollbar-button:start,
+.comments-container .top-comments-area::-webkit-scrollbar-button:end,
+.comments-container .bottom-comments-area::-webkit-scrollbar-button:end,
+.top-comments-area::-webkit-scrollbar-button:end,
+.bottom-comments-area::-webkit-scrollbar-button:end,
+.comments-container .top-comments-area::-webkit-scrollbar-button:vertical,
+.comments-container .bottom-comments-area::-webkit-scrollbar-button:vertical,
+.top-comments-area::-webkit-scrollbar-button:vertical,
+.bottom-comments-area::-webkit-scrollbar-button:vertical,
+.comments-container .top-comments-area::-webkit-scrollbar-button,
+.comments-container .bottom-comments-area::-webkit-scrollbar-button,
+.top-comments-area::-webkit-scrollbar-button,
+.bottom-comments-area::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  border: none !important;
+  outline: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  z-index: -1 !important;
+}
+
+/* Firefox scrollbar styles - NEW CLASS NAMES */
+.comments-container .top-comments-area,
+.comments-container .bottom-comments-area,
+.top-comments-area,
+.bottom-comments-area {
+  scrollbar-width: thin !important;
+  scrollbar-color: #0f4c4c rgba(15, 76, 76, 0.2) !important;
+}
+
+.comments-container {
   width: 100%;
   height: 100%;
   background: transparent;
@@ -341,23 +410,28 @@
   font-size: 13px;
 }
 
-/* Scrollbar styling - matching SimpleSpeaker */
+/* Scrollbar styling - matching dark green theme */
 .remarks-textarea::-webkit-scrollbar {
-  width: 4px;
+  width: 6px !important;
 }
 
 .remarks-textarea::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 2px;
+  background: rgba(15, 76, 76, 0.2) !important;
+  border-radius: 3px !important;
 }
 
 .remarks-textarea::-webkit-scrollbar-thumb {
-  background: #0f4c4c;
-  border-radius: 4px;
+  background: #0f4c4c !important;
+  border-radius: 3px !important;
 }
 
 .remarks-textarea::-webkit-scrollbar-thumb:hover {
-  background: #1a5d5d;
+  background: #1a5d5d !important;
+}
+
+/* Hide scrollbar arrows */
+.remarks-textarea::-webkit-scrollbar-button {
+  display: none !important;
 }
 
 /* Sort options - dropdown from header */

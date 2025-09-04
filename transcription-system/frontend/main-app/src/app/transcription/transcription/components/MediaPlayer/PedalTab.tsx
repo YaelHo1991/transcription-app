@@ -57,7 +57,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             right: settings.rightAction || 'skipForward2.5',
             continuousEnabled: settings.continuousEnabled !== undefined ? settings.continuousEnabled : true,
             continuousInterval: settings.continuousInterval || 0.5,
-            rewindOnPause: settings.rewindOnPause || { enabled: false, amount: 0.3 }
+            rewindOnPause: settings.rewindOnPause || { enabled: false, amount: 10.0 }
           };
         } catch (e) {
           console.error('Error loading pedal settings:', e);
@@ -73,7 +73,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
       right: 'skipBackward2.5',   // RIGHT pedal goes BACKWARD
       continuousEnabled: true,
       continuousInterval: 0.5,
-      rewindOnPause: { enabled: false, amount: 0.3 }
+      rewindOnPause: { enabled: false, amount: 10.0 }
     };
   };
   
@@ -564,29 +564,54 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
         } else {
           // Try to open the device
           try {
-            // console.log('Attempting to open device...');
-            await matchingDevice.open();
-            // console.log('Device opened successfully');
+            // Add a small delay to avoid race conditions
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Store the device
-            setConnectedDevice(matchingDevice);
-            setIsConnected(true);
-            setShowMappings(true);
-            
-            // Set up event listener
-            matchingDevice.addEventListener('inputreport', handleInputReport);
-            // console.log('Event listener attached');
-            
-            showStatus('הדוושה חוברה מחדש אוטומטית');
+            // Check again if device is already opened (state might have changed)
+            if (matchingDevice.opened) {
+              // Device was opened by another operation, just use it
+              setConnectedDevice(matchingDevice);
+              setIsConnected(true);
+              setShowMappings(true);
+              matchingDevice.addEventListener('inputreport', handleInputReport);
+              showStatus('הדוושה כבר מחוברת');
+            } else {
+              // console.log('Attempting to open device...');
+              await matchingDevice.open();
+              // console.log('Device opened successfully');
+              
+              // Store the device
+              setConnectedDevice(matchingDevice);
+              setIsConnected(true);
+              setShowMappings(true);
+              
+              // Set up event listener
+              matchingDevice.addEventListener('inputreport', handleInputReport);
+              // console.log('Event listener attached');
+              
+              showStatus('הדוושה חוברה מחדש אוטומטית');
+            }
           } catch (openError: any) {
-            console.error('Error opening device:', openError);
+            // Only log error if it's not an InvalidStateError (which is expected when device is already being operated on)
+            if (openError.name !== 'InvalidStateError') {
+              console.error('Error opening device:', openError);
+            }
             
-            if (openError.name === 'InvalidStateError') {
-              // Device might be in a weird state, show message to user
-              showStatus('הדוושה במצב לא תקין - נסה לנתק ולחבר מחדש');
-            } else if (openError.message && openError.message.includes('operation that changes the device state is in progress')) {
-              // Device is being operated on by another process/tab
-              showStatus('הדוושה בשימוש על ידי תהליך אחר - סגור כרטיסיות אחרות');
+            if (openError.name === 'InvalidStateError' || 
+                (openError.message && openError.message.includes('operation that changes the device state is in progress'))) {
+              // Device is being operated on, wait and try to use it if it becomes available
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Check if device is now opened
+              if (matchingDevice.opened) {
+                setConnectedDevice(matchingDevice);
+                setIsConnected(true);
+                setShowMappings(true);
+                matchingDevice.addEventListener('inputreport', handleInputReport);
+                showStatus('הדוושה חוברה');
+              } else {
+                showStatus('הדוושה בשימוש - נסה שוב בעוד מספר שניות');
+              }
             } else {
               showStatus('שגיאה בחיבור אוטומטי - נסה לחבר ידנית');
             }
@@ -855,12 +880,12 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
                     type="number"
                     className="rewind-amount-input"
                     min="0.1"
-                    max="2.0"
+                    max="10.0"
                     step="0.1"
                     value={rewindOnPause.amount.toFixed(1)}
                     onChange={(e) => {
                       const val = Number(e.target.value);
-                      if (!isNaN(val) && val >= 0.1 && val <= 2.0) {
+                      if (!isNaN(val) && val >= 0.1 && val <= 10.0) {
                         setRewindOnPause({
                           ...rewindOnPause,
                           amount: val
@@ -873,7 +898,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
                     className="spinner-btn increase"
                     onClick={() => setRewindOnPause({
                       ...rewindOnPause,
-                      amount: Math.min(2.0, rewindOnPause.amount + 0.1)
+                      amount: Math.min(10.0, rewindOnPause.amount + 0.1)
                     })}
                     disabled={!rewindOnPause.enabled}
                     type="button"
@@ -906,7 +931,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
                 setPedalMappings(defaultMappings);
                 setContinuousEnabled(true);
                 setContinuousInterval(0.5);
-                setRewindOnPause({ enabled: false, amount: 0.3 });
+                setRewindOnPause({ enabled: false, amount: 10.0 });
                 
                 // console.log('Reset pedal settings to:', defaultMappings);
                 

@@ -1008,34 +1008,52 @@
             flex-direction: column;
         }
         
-        /* Simple scrollbar matching inner scrollbars */
+        /* Consistent dark green scrollbar styling without arrows */
         .settings-modal-content::-webkit-scrollbar,
-        .settings-tab-content::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        .settings-tab-content::-webkit-scrollbar,
+        .media-player-container::-webkit-scrollbar,
+        .media-player-content::-webkit-scrollbar {
+            width: 6px !important;
+            height: 6px !important;
         }
         
         .settings-modal-content::-webkit-scrollbar-track,
-        .settings-tab-content::-webkit-scrollbar-track {
-            background: rgba(15, 76, 76, 0.4);
-            border-radius: 4px;
+        .settings-tab-content::-webkit-scrollbar-track,
+        .media-player-container::-webkit-scrollbar-track,
+        .media-player-content::-webkit-scrollbar-track {
+            background: rgba(15, 76, 76, 0.2) !important;
+            border-radius: 3px !important;
         }
         
         .settings-modal-content::-webkit-scrollbar-thumb,
-        .settings-tab-content::-webkit-scrollbar-thumb {
-            background: rgba(32, 201, 151, 0.3);
-            border-radius: 4px;
+        .settings-tab-content::-webkit-scrollbar-thumb,
+        .media-player-container::-webkit-scrollbar-thumb,
+        .media-player-content::-webkit-scrollbar-thumb {
+            background: #0f4c4c !important;
+            border-radius: 3px !important;
         }
         
         .settings-modal-content::-webkit-scrollbar-thumb:hover,
-        .settings-tab-content::-webkit-scrollbar-thumb:hover {
-            background: rgba(32, 201, 151, 0.5);
+        .settings-tab-content::-webkit-scrollbar-thumb:hover,
+        .media-player-container::-webkit-scrollbar-thumb:hover,
+        .media-player-content::-webkit-scrollbar-thumb:hover {
+            background: #1a5d5d !important;
+        }
+        
+        /* Hide scrollbar arrows */
+        .settings-modal-content::-webkit-scrollbar-button,
+        .settings-tab-content::-webkit-scrollbar-button,
+        .media-player-container::-webkit-scrollbar-button,
+        .media-player-content::-webkit-scrollbar-button {
+            display: none !important;
         }
         
         .settings-modal-content::-webkit-scrollbar-corner,
-        .settings-tab-content::-webkit-scrollbar-corner {
-            background: rgba(15, 76, 76, 0.4);
-            border-radius: 4px;
+        .settings-tab-content::-webkit-scrollbar-corner,
+        .media-player-container::-webkit-scrollbar-corner,
+        .media-player-content::-webkit-scrollbar-corner {
+            background: rgba(15, 76, 76, 0.2) !important;
+            border-radius: 3px !important;
         }
         
         .settings-tab-content {
@@ -1367,21 +1385,26 @@
         
         /* Scrollbar for shortcuts list */
         .media-shortcuts-list::-webkit-scrollbar {
-            width: 8px;
+            width: 6px !important;
         }
         
         .media-shortcuts-list::-webkit-scrollbar-track {
-            background: rgba(15, 76, 76, 0.4);
-            border-radius: 4px;
+            background: rgba(15, 76, 76, 0.2) !important;
+            border-radius: 3px !important;
         }
         
         .media-shortcuts-list::-webkit-scrollbar-thumb {
-            background: rgba(32, 201, 151, 0.3);
-            border-radius: 4px;
+            background: #0f4c4c !important;
+            border-radius: 3px !important;
         }
         
         .media-shortcuts-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(32, 201, 151, 0.5);
+            background: #1a5d5d !important;
+        }
+        
+        /* Hide scrollbar arrows */
+        .media-shortcuts-list::-webkit-scrollbar-button {
+            display: none !important;
         }
         
         /* Already defined above - removing duplicate */

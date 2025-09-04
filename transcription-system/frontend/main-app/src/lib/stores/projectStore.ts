@@ -217,11 +217,12 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
       // Save media data to backend
       saveMediaData: async (projectId, mediaId, data) => {
         try {
-          console.log('[ProjectStore] Saving media data:', { projectId, mediaId, data });
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
           const url = buildApiUrl(`/api/projects/${projectId}/media/${mediaId}/transcription`);
-          console.log('[ProjectStore] Save URL:', url);
-          console.log('[ProjectStore] Save token:', token?.substring(0, 20) + '...');
+          
+          // Add timeout to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
           
           const response = await fetch(url, {
             method: 'PUT',
@@ -229,23 +230,38 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            signal: controller.signal
           });
           
-          console.log('[ProjectStore] Save response:', response.status, response.statusText);
+          clearTimeout(timeoutId);
           
           if (!response.ok) {
             const errorText = await response.text();
-            console.error('[ProjectStore] Save error response:', errorText);
+            // Only log non-network errors
+            if (response.status !== 0) {
+              console.error('[ProjectStore] Save error response:', errorText);
+            }
             throw new Error(`Failed to save media data: ${response.status} ${errorText}`);
           }
           
           const result = await response.json();
-          console.log('[ProjectStore] Save success:', result);
           return true;
-        } catch (error) {
-          console.error('[ProjectStore] Error saving media data:', error);
-          set({ error: error instanceof Error ? error.message : 'Failed to save media data' });
+        } catch (error: any) {
+          // Handle network errors silently
+          if (error.name === 'AbortError') {
+            console.log('[ProjectStore] Save request timed out - data saved locally');
+          } else if (error.message && error.message.includes('Failed to fetch')) {
+            // Backend is down - data is still saved locally
+            console.log('[ProjectStore] Backend unavailable - data saved locally');
+          } else {
+            // Only log non-network errors
+            console.error('[ProjectStore] Error saving media data:', error);
+          }
+          // Don't set error state for network issues
+          if (!error.message?.includes('Failed to fetch') && !error.name?.includes('Abort')) {
+            set({ error: error instanceof Error ? error.message : 'Failed to save media data' });
+          }
           return false;
         }
       },
