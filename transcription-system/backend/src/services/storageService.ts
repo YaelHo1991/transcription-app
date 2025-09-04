@@ -628,7 +628,7 @@ export class StorageService {
   }> {
     try {
       // Get user's current storage info
-      const storageInfo = await this.getUserStorageInfo(userId);
+      const storageInfo = await this.getUserStorage(userId);
       
       const currentUsedBytes = storageInfo.quotaUsedMB * 1024 * 1024;
       const limitBytes = storageInfo.quotaLimitMB * 1024 * 1024;

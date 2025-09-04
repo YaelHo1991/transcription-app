@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { projectService } from '../../services/projectService';
+import storageService from '../../services/storageService';
 import { backgroundJobService } from '../../services/backgroundJobs';
 import path from 'path';
 import fs, { createReadStream } from 'fs';
