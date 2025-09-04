@@ -330,3 +330,72 @@
   background: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
+
+/* Inline Sidebar Notification */
+.sidebar-notification {
+  margin: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  animation: slideIn 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* All notification types use the same subtle white styling */
+.sidebar-notification-loading,
+.sidebar-notification-success,
+.sidebar-notification-error,
+.sidebar-notification-info {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.notification-message {
+  color: white;
+  line-height: 1.4;
+  text-align: right;
+  direction: rtl;
+  font-weight: 500;
+}
+
+/* Progress Bar for Loading Notification */
+.notification-progress-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.notification-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.4) 100%);
+  width: 30%;
+  animation: progressAnimation 1.5s ease-in-out infinite;
+}
+
+@keyframes progressAnimation {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}

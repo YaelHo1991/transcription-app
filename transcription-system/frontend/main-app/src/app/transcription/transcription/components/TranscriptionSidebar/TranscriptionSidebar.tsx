@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import useProjectStore from '@/lib/stores/projectStore';
-import { NotificationModal, useNotification } from '@/components/NotificationModal/NotificationModal';
 import './TranscriptionSidebar.css';
 import { buildApiUrl } from '@/utils/api';
 
@@ -23,6 +22,15 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     usedPercent: number;
   } | null>(null);
   
+  // Inline notification state
+  const [sidebarNotification, setSidebarNotification] = useState<{
+    message: string;
+    type: 'info' | 'success' | 'error' | 'loading';
+    progress?: number;
+  } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const { 
     projects,
     currentProject,
@@ -40,9 +48,34 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
   
   console.log('[TranscriptionSidebar] Store accessed successfully');
   
-  const { notification, showNotification, hideNotification } = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  
+  // Helper function to show sidebar notifications
+  const showSidebarNotification = (message: string, type: 'info' | 'success' | 'error' | 'loading' = 'info', autoHide: boolean = true) => {
+    // Clear any existing timeout
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+      notificationTimeoutRef.current = null;
+    }
+    
+    setSidebarNotification({ message, type });
+    
+    // Auto-hide after 4 seconds for non-loading notifications
+    if (autoHide && type !== 'loading') {
+      notificationTimeoutRef.current = setTimeout(() => {
+        setSidebarNotification(null);
+      }, 4000);
+    }
+  };
+  
+  const hideSidebarNotification = () => {
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+      notificationTimeoutRef.current = null;
+    }
+    setSidebarNotification(null);
+  };
   
   // Load orphaned transcriptions count
   useEffect(() => {
@@ -121,23 +154,32 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Log when projects change
+  // Log when projects change and auto-select first project if none selected
   useEffect(() => {
     console.log('[TranscriptionSidebar] Projects changed:', projects.length, 'projects');
     console.log('[TranscriptionSidebar] Current isLoading:', isLoading);
     console.log('[TranscriptionSidebar] Current error:', error);
     if (projects.length > 0) {
       console.log('[TranscriptionSidebar] First project:', projects[0].projectId);
+      
+      // Auto-select first project if no project is currently selected
+      if (!currentProject && projects[0]) {
+        console.log('[TranscriptionSidebar] Auto-selecting first project:', projects[0].projectId);
+        setCurrentProject(projects[0]);
+        
+        // Auto-load first media if available
+        if (projects[0].mediaFiles && projects[0].mediaFiles.length > 0) {
+          const firstMediaId = projects[0].mediaFiles[0];
+          console.log('[TranscriptionSidebar] Auto-loading first media:', firstMediaId);
+          setCurrentMediaById(projects[0].projectId, firstMediaId);
+        }
+      }
     }
-  }, [projects, isLoading, error]);
+  }, [projects, isLoading, error, currentProject, setCurrentProject, setCurrentMediaById]);
   
   const handleFolderUpload = async () => {
-    // Show custom styled confirmation before browser dialog
-    showNotification('בחר תיקייה להעלאה. כל קבצי המדיה בתיקייה ייטענו לפרויקט', 'info', 4000);
-    // Small delay to let user see the message
-    setTimeout(() => {
-      folderInputRef.current?.click();
-    }, 500);
+    // Directly open the folder selection dialog
+    folderInputRef.current?.click();
   };
   
   // Helper functions for statistics
@@ -194,14 +236,14 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       });
       
       if (response.ok) {
-        showNotification('הפרויקט נמחק בהצלחה', 'success');
+        showSidebarNotification('הפרויקט נמחק בהצלחה', 'success');
         await loadProjects();
       } else {
-        showNotification('שגיאה במחיקת הפרויקט', 'error');
+        showSidebarNotification('שגיאה במחיקת הפרויקט', 'error');
       }
     } catch (error) {
       console.error('Failed to delete project:', error);
-      showNotification('שגיאה במחיקת הפרויקט', 'error');
+      showSidebarNotification('שגיאה במחיקת הפרויקט', 'error');
     }
   };
   
@@ -221,14 +263,14 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       });
       
       if (response.ok) {
-        showNotification('קובץ המדיה נמחק בהצלחה', 'success');
+        showSidebarNotification('קובץ המדיה נמחק בהצלחה', 'success');
         await loadProjects();
       } else {
-        showNotification('שגיאה במחיקת קובץ המדיה', 'error');
+        showSidebarNotification('שגיאה במחיקת קובץ המדיה', 'error');
       }
     } catch (error) {
       console.error('Failed to delete media:', error);
-      showNotification('שגיאה במחיקת קובץ המדיה', 'error');
+      showSidebarNotification('שגיאה במחיקת קובץ המדיה', 'error');
     }
   };
   
@@ -253,7 +295,7 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
       );
       
       if (mediaFiles.length === 0) {
-        showNotification('לא נמצאו קבצי מדיה בתיקייה שנבחרה', 'warning');
+        showSidebarNotification('לא נמצאו קבצי מדיה בתיקייה שנבחרה', 'error');
         return;
       }
       
@@ -278,13 +320,23 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
         formData.append('files', file);
       });
       
+      // Show loading notification
+      setIsUploading(true);
+      showSidebarNotification('טוען פרויקט...', 'loading', false);
+      
       // Use the store method to create project
       console.log('[TranscriptionSidebar] About to call createProjectFromFolder with formData:', formData);
       const newProject = await createProjectFromFolder(formData);
       console.log('[TranscriptionSidebar] createProjectFromFolder returned:', newProject);
       
-      if (newProject) {
-        showNotification(`הפרויקט "${folderName}" נוצר בהצלחה עם ${mediaFiles.length} קבצי מדיה`, 'success');
+      // Check if it's an error response
+      if (newProject && newProject.error === 'storage_limit' && newProject.storageDetails) {
+        const { currentUsedMB, limitMB, requestedMB } = newProject.storageDetails;
+        const message = `אין מספיק מקום אחסון. השתמשת ב-${currentUsedMB}MB מתוך ${limitMB}MB. נדרש ${requestedMB}MB נוסף`;
+        showSidebarNotification(message, 'info');
+        console.log('[TranscriptionSidebar] Storage limit reached:', newProject.storageDetails);
+      } else if (newProject && !newProject.error) {
+        showSidebarNotification(`הפרויקט "${folderName}" נוצר בהצלחה`, 'success');
         console.log('[TranscriptionSidebar] Project created successfully:', newProject);
         
         // Auto-select the new project and its first media
@@ -297,16 +349,26 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
           await setCurrentMediaById(newProject.projectId, firstMediaId);
         }
       } else {
-        showNotification('שגיאה ביצירת הפרויקט', 'error');
+        // Generic error - check store error for more details
+        const storeError = error || 'שגיאה ביצירת הפרויקט';
+        showSidebarNotification(storeError, 'info');
+        console.log('[TranscriptionSidebar] Project creation failed');
       }
       
-    } catch (error) {
-      console.error('Upload failed:', error);
-      showNotification(`שגיאה בהעלאת הפרויקט: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    } catch (error: any) {
+      // This should rarely happen now since we're not throwing in the store
+      console.log('[TranscriptionSidebar] Unexpected error:', error.message);
+      showSidebarNotification('שגיאה לא צפויה', 'info');
     } finally {
+      setIsUploading(false);
       // Reset input
       if (event.target) {
         event.target.value = '';
+      }
+      
+      // Hide loading notification after a delay if still showing
+      if (sidebarNotification?.type === 'loading') {
+        setTimeout(() => hideSidebarNotification(), 500);
       }
     }
   };
@@ -387,25 +449,31 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
         </div>
       )}
       
+      {/* Inline Notification Area */}
+      {sidebarNotification && (
+        <div className={`sidebar-notification sidebar-notification-${sidebarNotification.type}`}>
+          {sidebarNotification.type === 'loading' && (
+            <div className="notification-progress-bar">
+              <div className="notification-progress-fill" />
+            </div>
+          )}
+          <div className="notification-message">
+            {sidebarNotification.message}
+          </div>
+        </div>
+      )}
+      
       <div className="project-list">
-        {isLoading ? (
-          <div className="loading-projects">
-            <p>טוען פרויקטים...</p>
-          </div>
-        ) : error ? (
-          <div className="error-projects">
-            <p>שגיאה בטעינת פרויקטים</p>
-            <p className="error-message">{error}</p>
-            <button onClick={() => { setError(null); loadProjects(); }}>נסה שוב</button>
-          </div>
-        ) : projects.length === 0 ? (
+        {projects.length === 0 && !isLoading ? (
           <div className="empty-projects">
             <p>אין פרויקטים</p>
             <p className="hint">העלה תיקייה עם קבצי מדיה כדי ליצור פרויקט חדש</p>
           </div>
         ) : (
           <div className="projects-list">
-            <h3 className="projects-title">פרויקטים ({projects.length})</h3>
+            {projects.length > 0 && (
+              <h3 className="projects-title">פרויקטים ({projects.length})</h3>
+            )}
             {projects.map(project => (
               <div 
                 key={project.projectId} 
@@ -471,15 +539,6 @@ export default function TranscriptionSidebar(props: TranscriptionSidebarProps) {
         style={{ display: 'none' }}
       />
       </div>
-      
-      {/* Notification Modal */}
-      <NotificationModal
-        message={notification.message}
-        type={notification.type}
-        duration={notification.duration}
-        isOpen={notification.isOpen}
-        onClose={hideNotification}
-      />
     </>
   );
 }

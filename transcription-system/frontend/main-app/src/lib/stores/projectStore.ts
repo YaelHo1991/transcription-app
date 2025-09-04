@@ -318,7 +318,49 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           });
           
           if (!response.ok) {
-            throw new Error('Failed to create project');
+            // Try to parse error response for storage limit errors
+            let errorData: any = {};
+            try {
+              errorData = await response.json();
+            } catch (parseError) {
+              // If response is not JSON, just use status text
+              console.error('Failed to parse error response:', parseError);
+              throw new Error(response.statusText || 'Failed to create project');
+            }
+            
+            // Check if it's a storage limit error (413 status)
+            if (response.status === 413 && errorData.error === 'Storage limit exceeded') {
+              // Don't throw error, return null with error info attached
+              console.log('[ProjectStore] Storage limit exceeded:', errorData);
+              set({ 
+                error: 'storage_limit',
+                isLoading: false 
+              });
+              
+              // Return null with storage details attached
+              const result = null as any;
+              if (result !== null) {
+                result.isStorageLimit = true;
+                result.storageDetails = {
+                  currentUsedMB: errorData.currentUsedMB,
+                  limitMB: errorData.limitMB,
+                  availableMB: errorData.availableMB,
+                  requestedMB: errorData.requestedMB
+                };
+              }
+              return { 
+                error: 'storage_limit', 
+                storageDetails: errorData 
+              } as any;
+            }
+            
+            // For other errors, log but don't throw
+            console.log('[ProjectStore] Project creation failed:', errorData.error || errorData.message);
+            set({ 
+              error: errorData.error || errorData.message || 'Failed to create project',
+              isLoading: false 
+            });
+            return null;
           }
           
           const result = await response.json();

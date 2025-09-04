@@ -303,7 +303,15 @@ export class StorageService {
       // Determine user storage directory - use the actual location where projects are stored
       const userStorageDir = process.env.NODE_ENV === 'production' 
         ? path.join('/var/app/transcription-system/transcription-system/backend/user_data/users', userId)
-        : path.join(process.cwd(), 'user_data', 'users', userId);
+        : path.join(__dirname, '..', '..', 'user_data', 'users', userId);
+
+      // Check if directory exists first
+      try {
+        await fs.access(userStorageDir);
+      } catch (accessError) {
+        console.log(`[StorageService] User directory doesn't exist yet: ${userStorageDir}`);
+        return 0;
+      }
 
       // Calculate directory size recursively
       const totalSize = await this.getDirectorySize(userStorageDir);

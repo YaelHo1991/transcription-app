@@ -433,8 +433,8 @@ router.get('/list', verifyUser, async (req: Request, res: Response) => {
     const userId = (req as any).user?.id || 'unknown';
     console.log(`[ProjectList] Loading projects for user: ${userId}`);
     
-    // Queue background storage calculation (non-blocking)
-    backgroundJobService.queueStorageCalculation(userId);
+    // Don't queue storage calculation on every project list request - it's too expensive
+    // backgroundJobService.queueStorageCalculation(userId);
     
     // Load projects using the new project service method (fast now)
     const projects = await projectService.listProjects(userId);
