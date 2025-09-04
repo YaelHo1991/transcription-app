@@ -50,7 +50,9 @@
       "Bash(npx kill-port:*)",
       "Bash(NODE_ENV=production npm run build)",
       "Bash(set NODE_ENV=production)",
-      "Bash(./deploy-frontend-fast.sh)"
+      "Bash(./deploy-frontend-fast.sh)",
+      "Bash(npx next build:*)",
+      "Read(C:\\Users\\ayelh\\.ssh/**)"
     ],
     "deny": [],
     "ask": [],

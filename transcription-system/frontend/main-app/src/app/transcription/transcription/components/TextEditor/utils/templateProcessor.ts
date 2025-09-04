@@ -1,12 +1,13 @@
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
 import { BlockData, WordDocumentGenerator } from './WordDocumentGenerator';
-import { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType } from 'docx';
 import { extractBodyXML, injectFormattedXML } from './xmlMerger';
-// @ts-ignore - docx-merger doesn't have TypeScript definitions
-import DocxMerger from 'docx-merger';
 import { buildApiUrl } from '@/utils/api';
+
+// Dynamic imports for heavy libraries
+type PizZipType = typeof import('pizzip').default;
+type DocxtemplaterType = typeof import('docxtemplater').default;
+type DocxModule = typeof import('docx');
+type DocxMergerType = any; // No TypeScript definitions
 
 interface TemplateData {
   fileName: string;
@@ -192,6 +193,12 @@ export class TemplateProcessor {
     }
 
     try {
+      // Dynamic imports for heavy libraries
+      const [PizZip, Docxtemplater] = await Promise.all([
+        import('pizzip').then(m => m.default),
+        import('docxtemplater').then(m => m.default)
+      ]);
+
       // Step 1: Process the template with docxtemplater for metadata
       const zip = new PizZip(this.templateBuffer);
       const doc = new Docxtemplater(zip, {
@@ -235,6 +242,9 @@ export class TemplateProcessor {
       const templateBinary = this.arrayBufferToBinaryString(templateProcessed);
       const bodyBinary = this.arrayBufferToBinaryString(bodyBuffer);
 
+      // Dynamic import for DocxMerger
+      const DocxMerger = (await import('docx-merger')).default;
+      
       // Create merger and merge documents
       const merger = new DocxMerger({}, [templateBinary, bodyBinary]);
 
@@ -285,6 +295,12 @@ export class TemplateProcessor {
     try {
       // Step 1: Generate the perfectly formatted body content
       const formattedBody = await this.generateFormattedBody(blocks, speakers, includeTimestamps);
+      
+      // Dynamic imports for heavy libraries
+      const [PizZip, Docxtemplater] = await Promise.all([
+        import('pizzip').then(m => m.default),
+        import('docxtemplater').then(m => m.default)
+      ]);
       
       // Step 2: Process the template with placeholders
       const zip = new PizZip(this.templateBuffer);
@@ -388,8 +404,11 @@ export class TemplateProcessor {
     blocks: BlockData[],
     speakers: Map<string, string>,
     includeTimestamps: boolean
-  ): Promise<Paragraph[]> {
-    const paragraphs: Paragraph[] = [];
+  ): Promise<any[]> {
+    // Dynamic import of docx components
+    const { Paragraph, TextRun, AlignmentType, TabStopType } = await import('docx');
+    
+    const paragraphs: any[] = [];
     
     blocks.forEach(block => {
       if (!block.speaker && !block.text) return;
@@ -653,6 +672,12 @@ export class TemplateProcessor {
     }
 
     try {
+      // Dynamic imports for heavy libraries
+      const [PizZip, Docxtemplater] = await Promise.all([
+        import('pizzip').then(m => m.default),
+        import('docxtemplater').then(m => m.default)
+      ]);
+
       // Process the template with docxtemplater
       const zip = new PizZip(this.templateBuffer);
       const doc = new Docxtemplater(zip, {
@@ -748,6 +773,12 @@ export class TemplateProcessor {
     }
 
     try {
+      // Dynamic imports for heavy libraries
+      const [PizZip, Docxtemplater] = await Promise.all([
+        import('pizzip').then(m => m.default),
+        import('docxtemplater').then(m => m.default)
+      ]);
+
       // First process the template normally
       const zip = new PizZip(this.templateBuffer);
       const doc = new Docxtemplater(zip, {
