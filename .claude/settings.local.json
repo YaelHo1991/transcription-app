@@ -298,7 +298,9 @@
       "Read(/C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\app\\transcription\\transcription\\components\\ProjectManagementModal/**)",
       "Read(/C:\\Users\\ayelh\\.ssh/**)",
       "Read(/C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\lib\\stores/**)",
-      "Read(/C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\utils/**)"
+      "Read(/C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\utils/**)",
+      "Read(/C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\app\\transcription\\transcription\\components\\ProjectManagementModal/**)",
+      "Read(/C:\\Users\\ayelh\\Documents\\Projects\\Transcription\\transcription-system\\frontend\\main-app\\src\\app\\transcription\\transcription\\components\\ProjectManagementModal/**)"
     ],
     "deny": [],
     "ask": [],

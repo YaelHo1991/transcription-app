@@ -57,7 +57,7 @@ export default function ProjectManagementModal({
   const loadArchivedTranscriptions = async () => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-      const response = await fetch('http://localhost:5000/api/projects/orphaned/transcriptions', {
+      const response = await fetch('/api/projects/orphaned/transcriptions', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +136,7 @@ export default function ProjectManagementModal({
     console.log(`Exporting transcription ${transcriptionId} as ${format}`);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-      const response = await fetch(`http://localhost:5000/api/projects/orphaned/export`, {
+      const response = await fetch(`/api/projects/orphaned/export`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -199,7 +199,7 @@ export default function ProjectManagementModal({
       const encodedId = encodeURIComponent(transcriptionId);
       console.log(`[Frontend] Encoded ID: ${encodedId}`);
       
-      const response = await fetch(`http://localhost:5000/api/projects/orphaned/${encodedId}`, {
+      const response = await fetch(`/api/projects/orphaned/${encodedId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
