@@ -3,10 +3,10 @@
  * This centralizes API URL configuration and handles both localhost and production
  */
 export function getApiUrl(): string {
-  // In production (Digital Ocean), use direct backend URL on port 5000
+  // In production (Digital Ocean), use relative /api path which nginx will proxy
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    // Production backend URL - direct connection to backend on port 5000
-    return `http://${window.location.hostname}:5000`;
+    // Production: Use relative path - nginx will proxy /api/* to backend port 5000
+    return '';
   }
   
   // Use environment variables with fallback for localhost

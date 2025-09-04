@@ -39,6 +39,7 @@ export interface Project {
   lastModified: string;
   mediaInfo?: MediaInfo[]; // Detailed info for each media file
   size?: number; // Total project size in bytes
+  mediaDurations?: Record<string, number>; // Map of mediaId to duration in seconds
 }
 
 export interface MediaMetadata {

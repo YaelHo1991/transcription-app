@@ -527,11 +527,13 @@ export default function ProjectManagementModal({
                         ) : (
                           project.mediaFiles.map((mediaId, index) => {
                             const mediaName = typeof mediaId === 'string' ? mediaId : `Media ${index + 1}`;
+                            // Try to get duration from project.mediaDurations if available
+                            const duration = project.mediaDurations?.[mediaId] || 0;
                             return (
                               <div key={mediaId} className="media-duration-item">
                                 <div className="media-icon-small">🎵</div>
                                 <span className="media-name">{mediaName}</span>
-                                <span className="duration">00:00:00</span>
+                                <span className="duration">{formatDuration(duration)}</span>
                               </div>
                             );
                           })
