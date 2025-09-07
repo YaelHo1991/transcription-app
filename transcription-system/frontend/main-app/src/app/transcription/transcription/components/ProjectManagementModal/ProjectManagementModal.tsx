@@ -44,6 +44,13 @@ export default function ProjectManagementModal({
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Multi-select states
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
+  const [selectedTranscriptions, setSelectedTranscriptions] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleteType, setBulkDeleteType] = useState<'projects' | 'media' | 'transcriptions' | null>(null);
 
   useEffect(() => {
     setCurrentTab(activeTab);
@@ -116,6 +123,8 @@ export default function ProjectManagementModal({
         setShowSuccessModal(true);
       } else if (deleteTarget.type === 'media' && deleteTarget.mediaId && onMediaDelete) {
         await onMediaDelete(deleteTarget.id, deleteTarget.mediaId, deleteTranscriptions);
+        // Close the media panel after successful deletion
+        setSelectedProject(null);
         setSuccessMessage('המדיה נמחקה בהצלחה');
         setShowSuccessModal(true);
       } else if (deleteTarget.type === 'orphaned') {
@@ -131,6 +140,78 @@ export default function ProjectManagementModal({
     } finally {
       setLoading(false);
     }
+  };
+  
+  const confirmBulkDelete = async () => {
+    setShowBulkDeleteConfirm(false);
+    setLoading(true);
+    
+    try {
+      if (bulkDeleteType === 'projects' && onProjectDelete) {
+        for (const projectId of selectedProjects) {
+          await onProjectDelete(projectId, deleteTranscriptions);
+        }
+        setSuccessMessage(`${selectedProjects.size} פרויקטים נמחקו בהצלחה`);
+        setSelectedProjects(new Set());
+      } else if (bulkDeleteType === 'media' && onMediaDelete && selectedProject) {
+        for (const mediaId of selectedMedia) {
+          await onMediaDelete(selectedProject, mediaId, deleteTranscriptions);
+        }
+        setSuccessMessage(`${selectedMedia.size} קבצי מדיה נמחקו בהצלחה`);
+        setSelectedMedia(new Set());
+        // Close the media panel after bulk deletion
+        setSelectedProject(null);
+      } else if (bulkDeleteType === 'transcriptions') {
+        for (const transcriptionId of selectedTranscriptions) {
+          await executeOrphanedDelete(transcriptionId);
+        }
+        setSuccessMessage(`${selectedTranscriptions.size} תמלולים נמחקו בהצלחה`);
+        setSelectedTranscriptions(new Set());
+      }
+      
+      setShowSuccessModal(true);
+      setBulkDeleteType(null);
+      setDeleteTranscriptions(false);
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+      setErrorMessage('שגיאה במחיקה המרובה. אנא נסה שנית.');
+      setShowErrorModal(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const toggleProjectSelection = (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelection = new Set(selectedProjects);
+    if (newSelection.has(projectId)) {
+      newSelection.delete(projectId);
+    } else {
+      newSelection.add(projectId);
+    }
+    setSelectedProjects(newSelection);
+  };
+  
+  const toggleMediaSelection = (mediaId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelection = new Set(selectedMedia);
+    if (newSelection.has(mediaId)) {
+      newSelection.delete(mediaId);
+    } else {
+      newSelection.add(mediaId);
+    }
+    setSelectedMedia(newSelection);
+  };
+  
+  const toggleTranscriptionSelection = (transcriptionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelection = new Set(selectedTranscriptions);
+    if (newSelection.has(transcriptionId)) {
+      newSelection.delete(transcriptionId);
+    } else {
+      newSelection.add(transcriptionId);
+    }
+    setSelectedTranscriptions(newSelection);
   };
 
   const exportTranscription = async (transcriptionId: string, format: 'word' | 'json') => {
@@ -321,6 +402,17 @@ export default function ProjectManagementModal({
                 <span>סה"כ פרויקטים: {projects.length}</span>
                 <span>נפח כולל: {formatSize(calculateTotalSize())}</span>
                 <span>משך כולל: {formatDuration(calculateTotalDuration())}</span>
+                {selectedProjects.size > 0 && (
+                  <button 
+                    className="bulk-delete-btn"
+                    onClick={() => {
+                      setBulkDeleteType('projects');
+                      setShowBulkDeleteConfirm(true);
+                    }}
+                  >
+                    🗑️ מחק {selectedProjects.size} פרויקטים
+                  </button>
+                )}
               </div>
               <div className="projects-grid">
                 {projects.map(project => {
@@ -328,17 +420,26 @@ export default function ProjectManagementModal({
                   return (
                     <div 
                       key={project.projectId} 
-                      className={`project-grid-item ${selectedProject === project.projectId ? 'selected' : ''}`}
+                      className={`project-grid-item ${selectedProject === project.projectId ? 'selected' : ''} ${selectedProjects.has(project.projectId) ? 'checkbox-selected' : ''}`}
                       onClick={() => setSelectedProject(selectedProject === project.projectId ? null : project.projectId)}
                     >
+                      <div className="project-date-corner">
+                        {new Date(project.lastModified).toLocaleDateString('he-IL')}
+                      </div>
+                      
+                      <input 
+                        type="checkbox"
+                        className="project-checkbox"
+                        checked={selectedProjects.has(project.projectId)}
+                        onClick={(e) => toggleProjectSelection(project.projectId, e)}
+                        onChange={() => {}}
+                      />
+                      
                       <div className="project-icon">📁</div>
                       <div className="project-name">{project.displayName}</div>
                       <div className="project-stats">
-                        <span>{project.totalMedia} קבצים</span>
+                        <span>{project.mediaInfo ? project.mediaInfo.length : (project.mediaFiles?.length || 0)} קבצים</span>
                         <span>{formatSize(projectSize)}</span>
-                      </div>
-                      <div className="project-date">
-                        {new Date(project.lastModified).toLocaleDateString('he-IL')}
                       </div>
                       
                       <div className="project-hover-actions">
@@ -369,11 +470,31 @@ export default function ProjectManagementModal({
                       if (!project) return null;
                       return (
                         <>
-                          <h4>קבצי מדיה - {project.displayName}</h4>
+                          <div className="media-panel-header">
+                            <h4>קבצי מדיה - {project.displayName}</h4>
+                            {selectedMedia.size > 0 && (
+                              <button 
+                                className="bulk-delete-media-btn"
+                                onClick={() => {
+                                  setBulkDeleteType('media');
+                                  setShowBulkDeleteConfirm(true);
+                                }}
+                              >
+                                🗑️ מחק {selectedMedia.size} קבצים
+                              </button>
+                            )}
+                          </div>
                           <div className="media-list-detailed">
                             {project.mediaInfo && project.mediaInfo.length > 0 ? (
                               project.mediaInfo.map((media) => (
-                                <div key={media.mediaId} className="media-detail-item">
+                                <div key={media.mediaId} className={`media-detail-item ${selectedMedia.has(media.mediaId) ? 'checkbox-selected' : ''}`}>
+                                  <input 
+                                    type="checkbox"
+                                    className="media-checkbox"
+                                    checked={selectedMedia.has(media.mediaId)}
+                                    onClick={(e) => toggleMediaSelection(media.mediaId, e)}
+                                    onChange={() => {}}
+                                  />
                                   <div className="media-icon">🎵</div>
                                   <div className="media-info">
                                     <div className="media-name">{media.name}</div>
@@ -399,7 +520,14 @@ export default function ProjectManagementModal({
                                 // Try to get media name from mediaInfo if we somehow missed it
                                 const mediaName = typeof mediaId === 'string' ? mediaId : `Media ${index + 1}`;
                                 return (
-                                  <div key={mediaId} className="media-detail-item">
+                                  <div key={mediaId} className={`media-detail-item ${selectedMedia.has(mediaId) ? 'checkbox-selected' : ''}`}>
+                                    <input 
+                                      type="checkbox"
+                                      className="media-checkbox"
+                                      checked={selectedMedia.has(mediaId)}
+                                      onClick={(e) => toggleMediaSelection(mediaId, e)}
+                                      onChange={() => {}}
+                                    />
                                     <div className="media-icon">🎵</div>
                                     <div className="media-info">
                                       <div className="media-name">{mediaName}</div>
@@ -434,13 +562,33 @@ export default function ProjectManagementModal({
           {/* Transcriptions Tab */}
           {currentTab === 'transcriptions' && (
             <div className="transcriptions-tab">
-              <h3>תמלולים בארכיון</h3>
+              <div className="transcriptions-header">
+                <h3>תמלולים בארכיון</h3>
+                {selectedTranscriptions.size > 0 && (
+                  <button 
+                    className="bulk-delete-btn"
+                    onClick={() => {
+                      setBulkDeleteType('transcriptions');
+                      setShowBulkDeleteConfirm(true);
+                    }}
+                  >
+                    🗑️ מחק {selectedTranscriptions.size} תמלולים
+                  </button>
+                )}
+              </div>
               <div className="archived-transcriptions-list">
                 {archivedTranscriptions.length === 0 ? (
                   <p className="no-archived">אין תמלולים בארכיון</p>
                 ) : (
                   archivedTranscriptions.map(transcription => (
-                    <div key={transcription.id} className="archived-transcription-item">
+                    <div key={transcription.id} className={`archived-transcription-item ${selectedTranscriptions.has(transcription.id) ? 'checkbox-selected' : ''}`}>
+                      <input 
+                        type="checkbox"
+                        className="transcription-checkbox"
+                        checked={selectedTranscriptions.has(transcription.id)}
+                        onClick={(e) => toggleTranscriptionSelection(transcription.id, e)}
+                        onChange={() => {}}
+                      />
                       <div className="transcription-info">
                         <h4>{transcription.originalProjectName} / {transcription.originalMediaName}</h4>
                         <div className="transcription-meta">
@@ -557,6 +705,83 @@ export default function ProjectManagementModal({
             </div>
           )}
         </div>
+        
+        {/* Bulk Delete Confirmation Modal */}
+        {showBulkDeleteConfirm && (
+          <div className="modal-overlay" onClick={(e) => {
+            if ((e.target as HTMLElement).classList.contains('modal-overlay') && !loading) {
+              setShowBulkDeleteConfirm(false);
+              setBulkDeleteType(null);
+              setDeleteTranscriptions(false);
+            }
+          }}>
+            <div className="modal-container small error-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3 className="modal-title">אישור מחיקה מרובה</h3>
+                {!loading && (
+                  <button className="modal-close" onClick={() => {
+                    setShowBulkDeleteConfirm(false);
+                    setBulkDeleteType(null);
+                    setDeleteTranscriptions(false);
+                  }}>×</button>
+                )}
+              </div>
+              
+              <div className="modal-body">
+                <div className="confirmation-icon">⚠️</div>
+                <div className="confirmation-message">
+                  {bulkDeleteType === 'projects' 
+                    ? `האם אתה בטוח שברצונך למחוק ${selectedProjects.size} פרויקטים?` 
+                    : bulkDeleteType === 'media'
+                    ? `האם אתה בטוח שברצונך למחוק ${selectedMedia.size} קבצי מדיה?`
+                    : `האם אתה בטוח שברצונך למחוק ${selectedTranscriptions.size} תמלולים לצמיתות?`}
+                </div>
+                
+                {/* Checkbox for delete transcriptions option */}
+                {bulkDeleteType !== 'transcriptions' && (
+                  <div className="delete-options" style={{ marginTop: '15px', textAlign: 'right' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', cursor: 'pointer' }}>
+                      <span style={{ marginLeft: '8px' }}>מחק גם את התמלולים המשויכים</span>
+                      <input 
+                        type="checkbox" 
+                        checked={deleteTranscriptions}
+                        onChange={(e) => setDeleteTranscriptions(e.target.checked)}
+                        disabled={loading}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </label>
+                    {!deleteTranscriptions && (
+                      <p className="confirmation-submessage" style={{ marginTop: '8px', fontSize: '0.9em', color: '#666' }}>
+                        התמלולים יועברו לארכיון ויהיו זמינים בלשונית "תמלולים"
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  className={'modal-btn modal-btn-danger' + (loading ? ' loading' : '')}
+                  onClick={confirmBulkDelete}
+                  disabled={loading}
+                >
+                  {loading ? '' : 'מחק'}
+                </button>
+                <button
+                  className="modal-btn modal-btn-secondary"
+                  onClick={() => {
+                    setShowBulkDeleteConfirm(false);
+                    setBulkDeleteType(null);
+                    setDeleteTranscriptions(false);
+                  }}
+                  disabled={loading}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Custom Delete Confirmation Modal */}
         {showConfirmDialog && (
