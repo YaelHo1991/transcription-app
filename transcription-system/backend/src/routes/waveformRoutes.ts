@@ -216,7 +216,12 @@ router.get('/status/:fileId', async (req: Request, res: Response) => {
       res.json({
         status: 'completed',
         fileId,
-        ready: true
+        ready: true,
+        data: {
+          duration: waveform.duration,
+          peaks: waveform.peaks,
+          peakCount: waveform.peakCount
+        }
       });
     } else {
       res.json({

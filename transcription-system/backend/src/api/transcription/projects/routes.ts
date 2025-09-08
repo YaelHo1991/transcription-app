@@ -5,14 +5,339 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const router = Router();
+
+/**
+ * Helper function to get audio duration using FFprobe
+ */
+async function getAudioDuration(filePath: string): Promise<number> {
+  try {
+    // Normalize the path for Windows
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    
+    // Use different command format based on platform
+    const command = process.platform === 'win32'
+      ? `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${normalizedPath}"`
+      : `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
+    
+    console.log('[getAudioDuration] Running command:', command);
+    const { stdout, stderr } = await execAsync(command);
+    
+    if (stderr) {
+      console.error('[getAudioDuration] FFprobe stderr:', stderr);
+    }
+    
+    const duration = parseFloat(stdout.trim());
+    console.log(`[getAudioDuration] Duration for ${path.basename(filePath)}: ${duration} seconds`);
+    
+    return isNaN(duration) ? 0 : duration;
+  } catch (error: any) {
+    console.error('[getAudioDuration] Failed to get duration:', error.message);
+    console.error('[getAudioDuration] File path was:', filePath);
+    return 0; // Return 0 if duration calculation fails
+  }
+}
 
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 500 * 1024 * 1024 // 500MB max per file
+  }
+});
+
+// Add media to existing project
+router.post('/:projectId/add-media', authenticateToken, upload.array('files'), async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { force, fileNames } = req.body;
+    const userId = (req as any).user?.id || 'dev-user';
+    const files = req.files as Express.Multer.File[];
+    
+    console.log('[Add Media] Request received:', { 
+      projectId,
+      filesCount: files?.length,
+      userId,
+      force: force === 'true'
+    });
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' });
+    }
+    
+    // Load existing project - use user_data structure
+    const userDataPath = path.join(__dirname, '../../../../user_data');
+    const userPath = path.join(userDataPath, 'users', userId, 'projects', projectId);
+    const projectMetaPath = path.join(userPath, 'project.json');
+    
+    // Check if project exists
+    try {
+      await fs.access(projectMetaPath);
+    } catch {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    // Load project metadata
+    const projectData = JSON.parse(await fs.readFile(projectMetaPath, 'utf-8'));
+    
+    // Parse file names if provided as JSON string
+    let parsedFileNames: string[] = [];
+    if (fileNames) {
+      try {
+        parsedFileNames = JSON.parse(fileNames);
+      } catch (e) {
+        console.error('Failed to parse fileNames:', e);
+      }
+    }
+    
+    // Check for duplicates if not forced - check ALL files, not just single uploads
+    if (force !== 'true') {
+      console.log('[Add Media] Checking for duplicates...');
+      console.log('[Add Media] Existing media files:', projectData.mediaFiles);
+      
+      // Load existing media metadata to check for duplicates
+      const mediaPath = path.join(userPath, 'media');
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const originalName = parsedFileNames[i] || file.originalname;
+        
+        console.log(`[Add Media] Checking file ${i}: ${originalName}, size: ${file.size}`);
+        
+        // Check against all existing media
+        for (const existingMediaId of projectData.mediaFiles || []) {
+          try {
+            const existingMediaPath = path.join(mediaPath, existingMediaId);
+            
+            // Read metadata to get original name and size
+            try {
+              const metadataPath = path.join(existingMediaPath, 'metadata.json');
+              const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
+              
+              console.log(`[Add Media] Comparing with ${existingMediaId}: name="${metadata.originalName}" vs "${originalName}", size=${metadata.size} vs ${file.size}`);
+              
+              // Check if it's a duplicate (same original name and size)
+              if (metadata.originalName === originalName && metadata.size === file.size) {
+                console.log('[Add Media] Duplicate detected:', originalName);
+                
+                return res.json({
+                  isDuplicate: true,
+                  existingMedia: {
+                    mediaId: existingMediaId,
+                    name: originalName,
+                    size: metadata.size,
+                    duration: metadata.duration || 0
+                  }
+                });
+              }
+            } catch (e) {
+              console.log(`[Add Media] No metadata for ${existingMediaId}, checking file directly`);
+              
+              // If no metadata, try checking the actual file
+              const existingFiles = await fs.readdir(existingMediaPath);
+              const existingMediaFile = existingFiles.find(f => f.startsWith('media.'));
+              
+              if (existingMediaFile) {
+                const existingFilePath = path.join(existingMediaPath, existingMediaFile);
+                const existingStats = await fs.stat(existingFilePath);
+                
+                console.log(`[Add Media] File stats for ${existingMediaId}: size=${existingStats.size}`);
+                
+                // For older files without metadata, just check size
+                if (existingStats.size === file.size) {
+                  console.log('[Add Media] Possible duplicate detected by size:', originalName);
+                  
+                  return res.json({
+                    isDuplicate: true,
+                    existingMedia: {
+                      mediaId: existingMediaId,
+                      name: originalName,
+                      size: existingStats.size,
+                      duration: 0
+                    }
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`Error checking media ${existingMediaId}:`, e);
+          }
+        }
+      }
+      
+      console.log('[Add Media] No duplicates found, proceeding to add media');
+    } else {
+      console.log('[Add Media] Force flag is true, skipping duplicate check');
+    }
+    
+    // Add new media files - use correct path
+    const mediaPath = path.join(userPath, 'media');
+    
+    // Ensure directories exist
+    await fs.mkdir(mediaPath, { recursive: true });
+    
+    const newMediaIds: string[] = [];
+    
+    // Load or create media index
+    const mediaIndexPath = path.join(userPath, 'media-index.json');
+    let mediaIndex;
+    
+    try {
+      mediaIndex = JSON.parse(await fs.readFile(mediaIndexPath, 'utf-8'));
+      console.log('[Add Media] Loaded media index:', mediaIndex);
+    } catch (error) {
+      // Create new index if it doesn't exist
+      console.log('[Add Media] Creating new media index');
+      const existingMediaIds = new Set<string>(projectData.mediaFiles || []);
+      const existingNumbers = new Set<number>();
+      let highestNumber = 0;
+      
+      existingMediaIds.forEach(id => {
+        const num = parseInt(id.replace('media-', ''));
+        if (!isNaN(num)) {
+          existingNumbers.add(num);
+          if (num > highestNumber) highestNumber = num;
+        }
+      });
+      
+      // Find gaps
+      const availableNumbers: number[] = [];
+      for (let i = 1; i < highestNumber; i++) {
+        if (!existingNumbers.has(i)) {
+          availableNumbers.push(i);
+        }
+      }
+      
+      mediaIndex = {
+        nextMediaNumber: highestNumber + 1,
+        availableNumbers: availableNumbers,
+        activeMediaIds: Array.from(existingMediaIds).sort(),
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const originalName = parsedFileNames[i] || file.originalname;
+      
+      // Get next media ID from index
+      let mediaNumber: number;
+      if (mediaIndex.availableNumbers && mediaIndex.availableNumbers.length > 0) {
+        // Use available gap
+        mediaNumber = mediaIndex.availableNumbers.shift();
+        console.log(`[Add Media] Using gap: media-${mediaNumber} for file: ${originalName}`);
+      } else {
+        // Use next number
+        mediaNumber = mediaIndex.nextMediaNumber;
+        mediaIndex.nextMediaNumber++;
+        console.log(`[Add Media] Using next: media-${mediaNumber} for file: ${originalName}`);
+      }
+      
+      const mediaId = `media-${mediaNumber}`;
+      
+      // Create media directory structure to match existing format
+      const mediaDir = path.join(mediaPath, mediaId);
+      const backupsDir = path.join(mediaDir, 'backups');
+      const transcriptionDir = path.join(mediaDir, 'transcription');
+      
+      // Create directories
+      await fs.mkdir(mediaDir, { recursive: true });
+      await fs.mkdir(backupsDir, { recursive: true });
+      await fs.mkdir(transcriptionDir, { recursive: true });
+      
+      // Get file extension
+      const fileExtension = path.extname(originalName).toLowerCase();
+      
+      // Save media file with standard name
+      const mediaFileName = `media${fileExtension}`;
+      const mediaFilePath = path.join(mediaDir, mediaFileName);
+      await fs.writeFile(mediaFilePath, file.buffer);
+      
+      // Calculate audio duration
+      console.log(`[Add Media] Calculating duration for: ${mediaFilePath}`);
+      const duration = await getAudioDuration(mediaFilePath);
+      console.log(`[Add Media] Calculated duration: ${duration} seconds for ${originalName}`);
+      
+      // Create metadata.json
+      const metadataContent = {
+        mediaId,
+        fileName: mediaFileName,
+        originalName,
+        mimeType: file.mimetype,
+        size: file.size,
+        duration,
+        stage: 'transcription',
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      };
+      
+      await fs.writeFile(
+        path.join(mediaDir, 'metadata.json'),
+        JSON.stringify(metadataContent, null, 2)
+      );
+      
+      // Create empty transcription data
+      const transcriptionData = {
+        blocks: [],
+        speakerAssignments: {},
+        remarks: [],
+        version: '1.0.0',
+        lastSaved: new Date().toISOString()
+      };
+      
+      await fs.writeFile(
+        path.join(transcriptionDir, 'data.json'),
+        JSON.stringify(transcriptionData, null, 2)
+      );
+      
+      // Create empty speakers.json
+      const speakersData = {
+        speakers: [],
+        lastModified: new Date().toISOString()
+      };
+      
+      await fs.writeFile(
+        path.join(mediaDir, 'speakers.json'),
+        JSON.stringify(speakersData, null, 2)
+      );
+      
+      newMediaIds.push(mediaId);
+    }
+    
+    // Update project metadata
+    projectData.mediaFiles = [...(projectData.mediaFiles || []), ...newMediaIds];
+    projectData.totalMedia = projectData.mediaFiles.length;
+    projectData.lastModified = new Date().toISOString();
+    
+    await fs.writeFile(projectMetaPath, JSON.stringify(projectData, null, 2));
+    
+    // Update and save media index
+    mediaIndex.activeMediaIds = [...(mediaIndex.activeMediaIds || []), ...newMediaIds].sort();
+    mediaIndex.lastUpdated = new Date().toISOString();
+    
+    await fs.writeFile(mediaIndexPath, JSON.stringify(mediaIndex, null, 2));
+    console.log('[Add Media] Updated media index with new media IDs:', newMediaIds);
+    
+    console.log('[Add Media] Media added successfully to project:', projectId);
+    
+    res.json({
+      success: true,
+      projectId,
+      newMediaIds,
+      project: projectData
+    });
+    
+  } catch (error) {
+    console.error('[Add Media] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to add media to project',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

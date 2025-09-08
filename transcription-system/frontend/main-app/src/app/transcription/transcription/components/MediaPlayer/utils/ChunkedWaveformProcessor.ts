@@ -67,6 +67,7 @@ export class ChunkedWaveformProcessor {
       const chunks = Math.ceil(fileSize / this.chunkSize);
       const allPeaks: number[] = [];
       let totalDuration = 0;
+      let failedChunks = 0;
       
       console.log('Processing ' + chunks + ' chunks of ' + this.formatBytes(this.chunkSize) + ' each');
       
@@ -96,11 +97,23 @@ export class ChunkedWaveformProcessor {
         
         // Process chunk
         const chunkPeaks = await this.processChunk(chunkData, i === 0);
-        allPeaks.push(...chunkPeaks.peaks);
+        
+        // Track failed chunks
+        if (!chunkPeaks.peaks || chunkPeaks.peaks.length === 0) {
+          failedChunks++;
+          // Silently track failed chunks
+        } else {
+          allPeaks.push(...chunkPeaks.peaks);
+        }
         
         // Update duration (only from first chunk)
         if (i === 0 && chunkPeaks.duration) {
           totalDuration = this.estimateTotalDuration(chunkPeaks.duration, this.chunkSize, fileSize);
+        }
+        
+        // If too many chunks fail, throw an error to trigger fallback
+        if (failedChunks > chunks * 0.5) {
+          throw new Error(`Too many chunks failed to decode (${failedChunks}/${chunks}). File format may not be supported for chunked processing.`);
         }
         
         // Report progress
@@ -120,6 +133,11 @@ export class ChunkedWaveformProcessor {
       if (this.audioContext) {
         await this.audioContext.close();
         this.audioContext = null;
+      }
+      
+      // Check if we have any valid peaks
+      if (allPeaks.length === 0) {
+        throw new Error('No valid audio data could be extracted. File format may not be supported.');
       }
       
       // Normalize and downsample peaks if needed
@@ -181,7 +199,7 @@ export class ChunkedWaveformProcessor {
       
       return { peaks, duration };
     } catch (error) {
-      console.warn('Failed to decode chunk, skipping:', error);
+      // Silently skip chunks that can't be decoded - this is expected for some formats
       // Return empty peaks for failed chunks
       return { peaks: [] };
     }
@@ -416,7 +434,7 @@ export class ChunkedWaveformProcessor {
         
       } catch (chunkError) {
         // Skip chunks that can't be decoded (might be at audio boundaries)
-        console.warn('Skipping chunk ' + i + 1 + '/' + chunks + ' due to decode error:', chunkError);
+        // Silently skip chunks that can't be decoded (might be at audio boundaries)
       }
       
       // Report progress

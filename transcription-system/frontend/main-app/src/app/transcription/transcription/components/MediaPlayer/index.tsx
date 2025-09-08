@@ -703,15 +703,8 @@ export default function MediaPlayer({
       
       let strategy = getWaveformStrategy(fileSize || 1); // Use 1 byte if 0 to get client strategy
       
-      // Override to chunked processing for blob URLs that would normally use server
-      if (isBlobUrl && strategy.method === WaveformMethod.SERVER) {
-        strategy = { 
-          method: WaveformMethod.CHUNKED, 
-          threshold: fileSize || 0,
-          message: 'מעבד קובץ גדול מקומית (blob URL)'
-        };
-        console.log('Using chunked processing for blob URL (server processing not available for blobs)');
-      }
+      // Note: We'll let blob URLs try server processing if chunked fails
+      // The server can handle extracting the actual media path
       
       console.log('File size: ' + (fileSize ? formatFileSize(fileSize) : 'Unknown') + ', using ' + strategy.method + ' method');
       console.log('Waveform strategy details:', strategy);
@@ -723,8 +716,12 @@ export default function MediaPlayer({
       const startTime = Date.now();
       const startMemory = (await resourceMonitor.getStatus()).memoryUsed;
       
-      switch (strategy.method) {
-        case WaveformMethod.CLIENT:
+      // Try processing with the selected method
+      let processingMethod = strategy.method;
+      
+      processWaveform: while (true) {
+        switch (processingMethod) {
+          case WaveformMethod.CLIENT:
           // Small files: Original client-side processing
           if (!workerManagerRef.current) return;
           
@@ -743,7 +740,7 @@ export default function MediaPlayer({
           audioContext.close();
 
           workerManagerRef.current.analyzeWaveform(channelData.buffer as ArrayBuffer, decodedData.sampleRate, duration);
-          break;
+          break processWaveform;
           
         case WaveformMethod.CHUNKED:
           // Medium files: Process in chunks
@@ -769,77 +766,82 @@ export default function MediaPlayer({
               console.log('Chunked processing progress: ' + progress.toFixed(1) + '%');
               setWaveformProgress(progress);
             },
-            onError: (error) => console.error('Chunked processing error:', error),
+            // Don't log error here as it will be caught in the try-catch
+            onError: (error) => console.log('Chunked processing issue:', error),
             signal // Pass abort signal to processor
           });
           
-          const chunkedResult = await chunkedProcessor.processLargeFile(url);
-          console.log('Chunked processing complete:', chunkedResult);
-          setWaveformData(chunkedResult);
-          setWaveformLoading(false);
-          setWaveformProgress(100);
-          // Force re-render by updating a dummy state if needed
-          if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
-            console.log('Waveform data set successfully, peaks:', chunkedResult.peaks.length);
-            // Cache the result
-            try {
-              await waveformCache.set(url, chunkedResult, fileSize || undefined);
-            } catch (cacheError) {
-              console.warn('Failed to cache waveform data:', cacheError);
-            }
-          }
-          break;
-          
-        case WaveformMethod.SERVER:
-          // Large files: Request from server (only for HTTP URLs)
-          if (isBlobUrl) {
-            console.error('Server processing not available for blob URLs, falling back to chunked processing');
-            // This shouldn't happen due to our earlier override, but just in case
-            const fallbackProcessor = new ChunkedWaveformProcessor({
-              onProgress: (progress) => setWaveformProgress(progress),
-              onError: (error) => console.error('Fallback chunked processing error:', error)
-            });
-            const fallbackResult = await fallbackProcessor.processLargeFile(url);
-            setWaveformData(fallbackResult);
+          try {
+            const chunkedResult = await chunkedProcessor.processLargeFile(url);
+            console.log('Chunked processing complete:', chunkedResult);
+            console.log('Setting waveform data:', chunkedResult);
+            setWaveformData(chunkedResult);
             setWaveformLoading(false);
             setWaveformProgress(100);
-            if (fallbackResult && fallbackResult.peaks && fallbackResult.peaks.length > 0) {
+            // Force re-render by updating a dummy state if needed
+            if (chunkedResult && chunkedResult.peaks && chunkedResult.peaks.length > 0) {
+              console.log('Waveform data set successfully, peaks:', chunkedResult.peaks.length);
+              console.log('waveformLoading after set:', false);
+              console.log('waveformData after set:', chunkedResult);
+              // Cache the result
               try {
-                await waveformCache.set(url, fallbackResult, fileSize || undefined);
+                await waveformCache.set(url, chunkedResult, fileSize || undefined);
               } catch (cacheError) {
-                console.warn('Failed to cache fallback waveform:', cacheError);
+                // Silently ignore cache errors - caching is optional
               }
+              break processWaveform; // Success, exit while loop
+            } else {
+              throw new Error('No peaks generated from chunked processing');
             }
-            break;
+          } catch (chunkedError) {
+            // Chunked processing failed - this is expected for some formats
+            console.log('Chunked processing not supported for this format, using server-side processing');
+            
+            // Reset progress for server processing
+            setWaveformProgress(10);
+            
+            // Switch to server method and continue loop
+            processingMethod = WaveformMethod.SERVER;
+            continue processWaveform;
           }
+          
+        case WaveformMethod.SERVER:
+          // Large files: Request from server
+          // Note: Server can handle blob URLs by extracting the actual media path
+          console.log('Starting server-side waveform generation for', isBlobUrl ? 'blob URL' : 'regular URL');
           
           const fileId = generateFileId(url);
           
-          // First, check if waveform already exists on server
+          // First, check if waveform already exists on server using status endpoint (no 404 errors!)
           try {
-            const existingResponse = await fetch(buildApiUrl(`/api/waveform/${fileId}`));
-            if (existingResponse.ok) {
-              console.log('Using existing server-side waveform');
-              const data = await existingResponse.json();
-              const waveformData = {
-                peaks: data.peaks,
-                duration: data.duration,
-                sampleRate: data.sampleRate || 44100,
-                resolution: data.resolution || 10
-              };
-              setWaveformData(waveformData);
-              setWaveformLoading(false);
-              setWaveformProgress(100);
-              // Cache the server waveform locally too
-              try {
-                await waveformCache.set(url, waveformData, fileSize || undefined);
-              } catch (cacheError) {
-                console.warn('Failed to cache server waveform:', cacheError);
+            const statusResponse = await fetch(buildApiUrl(`/api/waveform/status/${fileId}`));
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              if (statusData.ready && statusData.data) {
+                console.log('Using existing server-side waveform');
+                const waveformData = {
+                  peaks: statusData.data.peaks,
+                  duration: statusData.data.duration,
+                  sampleRate: 44100,
+                  resolution: 10
+                };
+                setWaveformData(waveformData);
+                setWaveformLoading(false);
+                setWaveformProgress(100);
+                // Cache the server waveform locally too (silently fail if caching doesn't work)
+                try {
+                  await waveformCache.set(url, waveformData, fileSize || undefined);
+                } catch (cacheError) {
+                  // Silently ignore cache errors - caching is optional
+                }
+                break processWaveform;
+              } else {
+                console.log('No existing waveform, generating new one');
               }
-              break;
             }
           } catch (existingError) {
-            console.log('No existing server waveform, generating new one');
+            // Network error - continue to generation
+            console.log('Could not check for existing waveform, generating new one');
           }
           
           // If not found, trigger generation on server
@@ -888,7 +890,7 @@ export default function MediaPlayer({
                   try {
                     await waveformCache.set(url, waveformData, fileSize || undefined);
                   } catch (cacheError) {
-                    console.warn('Failed to cache server waveform:', cacheError);
+                    // Silently ignore cache errors - caching is optional
                   }
                   break;
                 }
@@ -918,18 +920,23 @@ export default function MediaPlayer({
               setWaveformData(waveformData);
               setWaveformLoading(false);
               setWaveformProgress(100);
-              // Cache the server-generated waveform
+              // Cache the server-generated waveform (silently fail if caching doesn't work)
               try {
                 await waveformCache.set(url, waveformData, fileSize || undefined);
               } catch (cacheError) {
-                console.warn('Failed to cache server waveform:', cacheError);
+                // Silently ignore cache errors - caching is optional
               }
             } else {
               throw new Error('Failed to retrieve waveform data');
             }
           }
-          break;
-      }
+          break processWaveform;
+          
+        default:
+          console.error('Unknown waveform processing method:', processingMethod);
+          break processWaveform;
+        }
+      } // End of while loop
       
       // Log operation completion for metrics
       const endMemory = (await resourceMonitor.getStatus()).memoryUsed;
@@ -1107,6 +1114,16 @@ export default function MediaPlayer({
   
   // Track previous media URL to detect changes
   const previousMediaUrlRef = useRef<string | null>(null);
+  
+  // Debug waveform state
+  useEffect(() => {
+    console.log('Waveform state changed:', {
+      waveformEnabled,
+      waveformLoading,
+      waveformData: waveformData ? { hasPeaks: !!waveformData.peaks, peaksLength: waveformData.peaks?.length } : null,
+      waveformProgress
+    });
+  }, [waveformEnabled, waveformLoading, waveformData, waveformProgress]);
   
   // Analyze waveform when enabled and media is available or changes
   useEffect(() => {
@@ -1516,7 +1533,7 @@ export default function MediaPlayer({
           try {
             await waveformCache.set(url, data, fileSize);
           } catch (cacheError) {
-            console.warn('Failed to cache waveform data:', cacheError);
+            // Silently ignore cache errors - caching is optional
           }
         }
       });
@@ -1865,7 +1882,7 @@ export default function MediaPlayer({
                   className="waveform-progress-wrapper" 
                   style={{ flex: 1 }}
                 >
-                  {waveformLoading || waveformProgress > 0 ? (
+                  {waveformLoading ? (
                     <div className="waveform-loading-container" style={{ 
                       width: '100%', 
                       position: 'relative',

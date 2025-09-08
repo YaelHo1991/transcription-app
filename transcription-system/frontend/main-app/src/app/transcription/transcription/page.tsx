@@ -175,7 +175,8 @@ export default function TranscriptionWorkPage() {
     currentTranscriptionData,
     navigateMedia,
     setCurrentProject,
-    setCurrentMediaById
+    setCurrentMediaById,
+    loadProjects
   } = useProjectStore();
   
   // Log when projects change
@@ -215,6 +216,15 @@ export default function TranscriptionWorkPage() {
     
     // Authentication error callback removed - projectService deleted
   }, []);
+  
+  // Load projects on mount
+  useEffect(() => {
+    console.log('[TranscriptionPage] Loading projects on mount');
+    const timer = setTimeout(() => {
+      loadProjects();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Store project remarks to pass to RemarksProvider
   const [projectRemarks, setProjectRemarks] = useState<any[]>([]);
@@ -775,6 +785,7 @@ export default function TranscriptionWorkPage() {
   const handleProjectDelete = async (projectId: string, deleteTranscriptions: boolean) => {
     try {
       const apiUrl = getApiUrl(); // Use the proper API URL function
+      console.log('[DELETE] Sending DELETE request for project:', projectId, 'deleteTranscriptions:', deleteTranscriptions);
       const response = await fetch(`${apiUrl}/api/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
@@ -784,11 +795,14 @@ export default function TranscriptionWorkPage() {
         body: JSON.stringify({ deleteTranscription: deleteTranscriptions })
       });
       
+      console.log('[DELETE] Response status:', response.status, response.statusText);
+      
       if (!response.ok) {
         console.error('Delete project failed with status:', response.status);
         const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('[DELETE] Error response:', errorText);
         alert(`שגיאה במחיקת הפרויקט: ${errorText}`);
-        return;
+        throw new Error(`Failed to delete project: ${response.status} ${errorText}`);
       }
       
       // Get current state from the store
@@ -805,39 +819,54 @@ export default function TranscriptionWorkPage() {
       // Clear localStorage entries for this project
       clearMediaLocalStorage(projectId);
       
-      // Check if the deleted project is the current one
+      // Reload projects first to get updated list
+      await loadProjects();
+      
+      // Refresh storage info in sidebar after deletion
+      // Add multiple refresh attempts to ensure storage updates
+      setTimeout(() => {
+        if ((window as any).refreshSidebarStorage) {
+          (window as any).refreshSidebarStorage();
+        }
+      }, 1500);
+      
+      // Second refresh attempt after a longer delay
+      setTimeout(() => {
+        if ((window as any).refreshSidebarStorage) {
+          (window as any).refreshSidebarStorage();
+        }
+      }, 3000);
+      
+      // Third refresh attempt
+      setTimeout(() => {
+        if ((window as any).refreshSidebarStorage) {
+          (window as any).refreshSidebarStorage();
+        }
+      }, 5000);
+      
+      // Get updated projects after reload
+      const updatedState = useProjectStore.getState();
+      
+      // Check if the deleted project was the current one
       if (currentProject?.projectId === projectId) {
         // Clear current selection and transcription data
         setCurrentProject(null);
         clearCurrentTranscription();
-        // Also clear the IDs that TextEditor uses
-        await setCurrentMediaById('', '');
+        setActualMediaDuration(0);
         
-        // Reload projects
-        await loadProjects();
-        
-        // Get updated projects after reload
-        const updatedState = useProjectStore.getState();
-        
-        // Switch to the first available project
+        // Switch to the first available project if any exist
         if (updatedState.projects.length > 0) {
           const nextProject = updatedState.projects[0];
           setCurrentProject(nextProject);
           
-          // Load first media of the new project
+          // Load first media of the new project if available
           if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
             await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
           }
-        } else {
-          // No projects left - ensure everything is cleared
-          clearCurrentTranscription();
-          await setCurrentMediaById('', ''); // Clear IDs to prevent TextEditor from loading
-          setActualMediaDuration(0); // Clear media duration
         }
-      } else {
-        // Just reload if it wasn't the current project
-        await loadProjects();
+        // If no projects left, everything is already cleared
       }
+      // No need to reload again if it wasn't the current project
     } catch (error) {
       console.error('Failed to delete project - network error:', error);
       alert('שגיאת רשת במחיקת הפרויקט. אנא ודא שהשרת פועל.');
@@ -913,7 +942,8 @@ export default function TranscriptionWorkPage() {
         } else {
           // No projects left - ensure everything is cleared
           clearCurrentTranscription();
-          await setCurrentMediaById('', ''); // Clear IDs to prevent TextEditor from loading
+          setCurrentProject(null); // Clear current project
+          await setCurrentMediaById('', ''); // Clear current media
           setActualMediaDuration(0); // Clear media duration
         }
       } else if (currentProject?.projectId === projectId && currentMediaId === mediaId) {
@@ -957,6 +987,55 @@ export default function TranscriptionWorkPage() {
     } catch (error) {
       console.error('Failed to delete media - network error:', error);
       alert('שגיאת רשת במחיקת המדיה. אנא ודא שהשרת פועל.');
+    }
+  };
+  
+  // Handler for transcription restoration
+  const handleTranscriptionRestored = async (projectId: string, mediaId: string) => {
+    console.log('[TranscriptionRestored] Loading restored transcription:', projectId, mediaId);
+    
+    // Don't close the modal immediately - wait for transcription to load
+    try {
+      // First, reload projects to get the updated data
+      await loadProjects();
+      
+      // Find the project in the updated projects list
+      const updatedProjects = useProjectStore.getState().projects;
+      const targetProject = updatedProjects.find(p => p.projectId === projectId);
+      
+      if (targetProject) {
+        // Set the current project first
+        setCurrentProject(targetProject);
+        
+        // Wait for project to be set in state
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Then set the current media which will trigger the TextEditor to load the transcription
+        await setCurrentMediaById(projectId, mediaId);
+        
+        // Force a state update to ensure TextEditor re-renders
+        const currentState = useProjectStore.getState();
+        if (currentState.currentMediaId === mediaId) {
+          // Trigger a re-render by quickly toggling the media
+          await setCurrentMediaById(projectId, '');
+          await new Promise(resolve => setTimeout(resolve, 50));
+          await setCurrentMediaById(projectId, mediaId);
+        }
+        
+        // Wait longer to ensure transcription loads
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Only close modal after everything is loaded
+        setShowManagementModal(false);
+      } else {
+        console.error('[TranscriptionRestored] Project not found after reload:', projectId);
+        alert('שגיאה: הפרויקט לא נמצא');
+        setShowManagementModal(false);
+      }
+    } catch (error) {
+      console.error('[TranscriptionRestored] Error loading transcription:', error);
+      alert('שגיאה בטעינת התמלול');
+      setShowManagementModal(false);
     }
   };
 
@@ -1076,7 +1155,11 @@ export default function TranscriptionWorkPage() {
               onDurationChange={(duration) => {
                 setActualMediaDuration(duration);
               }}
-              currentProject={currentProject ? projects.indexOf(currentProject) + 1 : (projects.length > 0 ? 1 : 0)}
+              currentProject={(() => {
+                if (!currentProject) return projects.length > 0 ? 1 : 0;
+                const index = projects.findIndex(p => p.projectId === currentProject.projectId);
+                return index >= 0 ? index + 1 : 1;
+              })()}
               totalProjects={projects.length}
               currentMedia={currentProject && currentMediaId ? currentProject.mediaFiles.indexOf(currentMediaId) + 1 : (currentProject?.mediaFiles.length > 0 ? 1 : 0)}
               totalMedia={currentProject?.mediaFiles.length || 0}
@@ -1514,6 +1597,7 @@ export default function TranscriptionWorkPage() {
         projects={projects}
         onProjectDelete={handleProjectDelete}
         onMediaDelete={handleMediaDelete}
+        onTranscriptionRestored={handleTranscriptionRestored}
       />
     </HoveringBarsLayout>
   );

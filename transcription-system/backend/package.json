@@ -17,6 +17,7 @@
   "description": "",
   "dependencies": {
     "@sendgrid/mail": "^8.1.5",
+    "@types/fs-extra": "^11.0.4",
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.1",
     "@types/pg": "^8.15.5",
@@ -29,6 +30,7 @@
     "express": "^5.1.0",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.0.1",
+    "fs-extra": "^11.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",

@@ -1147,20 +1147,19 @@ export default function TextEditor({
   // Load transcription data when project or media changes
   useEffect(() => {
     const loadTranscriptionForMedia = async () => {
+      // Stop autosave immediately when media changes to prevent cross-contamination
+      console.log('[TextEditor] Media change detected, stopping autosave');
+      backupService.stopAutoSave();
+      
       if (!currentProjectId || !currentMediaId) {
-        console.log('[TextEditor] No project or media ID, using default empty block');
-        // Initialize with a single empty block
-        const initialBlock: TextBlockData = {
-          id: 'block-' + Date.now(),
-          speaker: '',
-          text: '',
-          placeholder: currentMediaFileName || 'הקלד טקסט כאן...'
-        };
-        blockManagerRef.current.setBlocks([initialBlock]);
-        setBlocks([initialBlock]);
-        setActiveBlockId(initialBlock.id);
+        console.log('[TextEditor] No project or media ID, skipping load');
+        // Don't create any blocks - wait for user to select a project/media
+        blockManagerRef.current.setBlocks([]);
+        setBlocks([]);
+        setActiveBlockId(null);
         // Reset transition flag
         isTransitioningRef.current = false;
+        // CRITICAL: Don't start autosave when there's no project/media
         return;
       }
       
@@ -1292,10 +1291,23 @@ export default function TextEditor({
     };
     
     loadTranscriptionForMedia();
+    
+    // Cleanup function to stop autosave when component unmounts or media changes
+    return () => {
+      console.log('[TextEditor] Cleanup - stopping autosave due to media change');
+      backupService.stopAutoSave();
+    };
   }, [currentProjectId, currentMediaId]);
   
   // Initialize auto-save
   useEffect(() => {
+    console.log('[AutoSave] Check conditions:', {
+      autoSaveEnabled,
+      currentProjectId,
+      currentMediaId,
+      shouldInit: autoSaveEnabled && currentProjectId && currentMediaId
+    });
+    
     if (autoSaveEnabled && currentProjectId && currentMediaId) {
       console.log('[AutoSave] Initializing for project:', currentProjectId, 'media:', currentMediaId);
       
@@ -2680,7 +2692,15 @@ export default function TextEditor({
                        currentText.substring(firstResult.endIndex);
         
         blockManagerRef.current.updateBlock(firstResult.blockId, field, newText);
-        setBlocks([...blockManagerRef.current.getBlocks()]);
+        
+        // Force React to re-render by creating new block objects
+        const updatedBlocks = blockManagerRef.current.getBlocks().map(b => {
+          if (b.id === firstResult.blockId) {
+            return { ...b, [field]: newText };
+          }
+          return { ...b };
+        });
+        setBlocks(updatedBlocks);
         showFeedback('הוחלף בהצלחה');
       }
     }
@@ -2726,7 +2746,9 @@ export default function TextEditor({
     });
     
     if (replacedCount > 0) {
-      setBlocks([...blockManagerRef.current.getBlocks()]);
+      // Force React to re-render by creating new block objects
+      const updatedBlocks = blockManagerRef.current.getBlocks().map(b => ({ ...b }));
+      setBlocks(updatedBlocks);
       showFeedback('הוחלפו ' + replacedCount + ' מופעים');
     } else {
       showFeedback('לא נמצאו מופעים להחלפה');

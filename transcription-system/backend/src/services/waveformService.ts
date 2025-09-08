@@ -51,10 +51,35 @@ class WaveformService {
         return existing;
       }
 
-      // Download file to temp location if it's a URL
+      // Handle different types of file inputs
       let inputPath: string;
       if (fileUrl.startsWith('http')) {
-        inputPath = await this.downloadFile(fileUrl, fileId);
+        // Try to download the file if it's a URL
+        try {
+          inputPath = await this.downloadFile(fileUrl, fileId);
+        } catch (error) {
+          console.error('Failed to download file from URL, trying as local path:', error.message);
+          // If download fails, it might be a local file path disguised as URL
+          // Extract the path from the URL if it's a local media serve URL
+          const match = fileUrl.match(/\/api\/projects\/media\/serve\/([^\/]+)\/([^\/]+)\/([^\/]+)/);
+          if (match) {
+            const [, userId, projectId, mediaId] = match;
+            const localPath = path.join(
+              __dirname, '../../user_data/users', userId, 'projects', projectId, 'media', mediaId
+            );
+            // Find the actual media file
+            const files = await fsPromises.readdir(localPath);
+            const mediaFile = files.find(f => f.startsWith('media.'));
+            if (mediaFile) {
+              inputPath = path.join(localPath, mediaFile);
+              console.log('Using local file path:', inputPath);
+            } else {
+              throw new Error('Media file not found in local directory');
+            }
+          } else {
+            throw error;
+          }
+        }
       } else {
         inputPath = fileUrl;
       }
@@ -199,24 +224,42 @@ class WaveformService {
     const tempDataPath = path.join(this.tempDir, `${Date.now()}_peaks.dat`);
     
     try {
-      // Calculate sample rate to get desired number of peaks
-      // We want targetPeaks samples for the entire duration
-      const sampleRate = Math.round(targetPeaks / duration);
+      // Extract audio info and generate waveform data
+      // For long files, use a lower resolution approach
+      const originalSampleRate = 44100; // Standard sample rate
+      const downsampleFactor = Math.max(1, Math.floor((duration * originalSampleRate) / (targetPeaks * 100)));
       
-      // Extract raw PCM data at reduced sample rate
-      await execAsync(
-        `ffmpeg -i "${inputPath}" -ac 1 -filter:a aresample=${sampleRate} -map 0:a -c:a pcm_s16le -f s16le "${tempDataPath}"`
-      );
+      // Use ffmpeg to extract downsampled peaks
+      const ffmpegCommand = `ffmpeg -i "${inputPath}" -ac 1 -filter:a "aresample=8000,asetnsamples=n=256" -map 0:a -c:a pcm_s16le -f s16le "${tempDataPath}"`;
+      
+      await execAsync(ffmpegCommand);
 
       // Read and process the raw PCM data
       const buffer = await fsPromises.readFile(tempDataPath);
-      const peaks: number[] = [];
+      const samples: number[] = [];
       
       // Process PCM data (16-bit signed little-endian)
       for (let i = 0; i < buffer.length - 1; i += 2) {
         const sample = buffer.readInt16LE(i);
         const normalized = Math.abs(sample) / 32768; // Normalize to 0-1
-        peaks.push(normalized);
+        samples.push(normalized);
+      }
+      
+      // Downsample to target peaks
+      const peaks: number[] = [];
+      const samplesPerPeak = Math.max(1, Math.floor(samples.length / targetPeaks));
+      
+      for (let i = 0; i < targetPeaks && i * samplesPerPeak < samples.length; i++) {
+        const start = i * samplesPerPeak;
+        const end = Math.min(start + samplesPerPeak, samples.length);
+        
+        // Get max value in this range
+        let maxPeak = 0;
+        for (let j = start; j < end; j++) {
+          maxPeak = Math.max(maxPeak, samples[j]);
+        }
+        
+        peaks.push(maxPeak);
       }
 
       // Clean up temp file

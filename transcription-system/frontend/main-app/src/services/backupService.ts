@@ -88,6 +88,19 @@ class BackupService {
     dataCallback: () => BackupData,
     intervalMs: number = 60000 // 1 minute default
   ): void {
+    // CRITICAL: Stop any existing auto-save first to prevent cross-contamination
+    console.log('[BackupService] Initializing auto-save for:', { projectId, mediaId });
+    console.log('[BackupService] Previous IDs:', { 
+      prevProjectId: this.currentProjectId, 
+      prevMediaId: this.currentMediaId 
+    });
+    
+    // Stop existing auto-save if media has changed
+    if (this.currentMediaId && this.currentMediaId !== mediaId) {
+      console.log('[BackupService] Media changed, stopping previous auto-save');
+      this.stopAutoSave();
+    }
+    
     this.currentProjectId = projectId;
     this.currentMediaId = mediaId;
     this.dataCallback = dataCallback;
@@ -109,20 +122,31 @@ class BackupService {
    * Stop auto-save
    */
   stopAutoSave(): void {
+    console.log('[BackupService] Stopping auto-save for:', {
+      projectId: this.currentProjectId,
+      mediaId: this.currentMediaId
+    });
+    
     if (this.autoSaveInterval) {
       clearInterval(this.autoSaveInterval);
       this.autoSaveInterval = null;
     }
+    
+    // Clear all references to prevent stale data
     this.currentProjectId = null;
     this.currentMediaId = null;
     this.dataCallback = null;
-    console.log('Auto-save stopped');
+    this.hasChanges = false;
+    this.isBackingUp = false;
+    
+    console.log('[BackupService] Auto-save stopped and references cleared');
   }
 
   /**
    * Mark that changes have been made
    */
   markChanges(): void {
+    console.log('[BackupService] markChanges called - marking that content has changed');
     this.hasChanges = true;
     this.notifyStatusListeners();
   }
@@ -131,6 +155,14 @@ class BackupService {
    * Check if backup is needed and perform it
    */
   private async checkAndSave(): Promise<void> {
+    console.log('[BackupService] checkAndSave called', {
+      hasChanges: this.hasChanges,
+      isBackingUp: this.isBackingUp,
+      projectId: this.currentProjectId,
+      mediaId: this.currentMediaId,
+      timeSinceLastSave: Date.now() - this.lastSaveTime
+    });
+    
     // Skip if no changes or already backing up
     if (!this.hasChanges || this.isBackingUp || !this.currentProjectId || !this.currentMediaId) {
       return;
@@ -140,11 +172,17 @@ class BackupService {
     
     // Only save if enough time has passed (60 seconds) and there are changes
     if (timeSinceLastSave >= 60000 && this.hasChanges) {
+      console.log('[BackupService] Creating backup - 60 seconds passed with changes');
       // Get the latest data from the editor via callback
       const backupData = this.dataCallback?.();
       if (backupData) {
         await this.createBackup(backupData);
       }
+    } else {
+      console.log('[BackupService] Not backing up yet', {
+        timeSinceLastSave,
+        needsMoreTime: 60000 - timeSinceLastSave
+      });
     }
   }
 
@@ -163,6 +201,16 @@ class BackupService {
    */
   private async createBackup(data: BackupData): Promise<void> {
     if (this.isBackingUp || !this.currentProjectId || !this.currentMediaId) {
+      return;
+    }
+
+    // CRITICAL: Validate that the data's mediaId matches our current mediaId
+    if (data.metadata?.mediaId && data.metadata.mediaId !== this.currentMediaId) {
+      console.error('[BackupService] CRITICAL: Media ID mismatch!', {
+        dataMediaId: data.metadata.mediaId,
+        currentMediaId: this.currentMediaId
+      });
+      // Prevent saving to wrong media
       return;
     }
 
@@ -188,18 +236,21 @@ class BackupService {
       };
       
       // Use project backup endpoint with fetch instead of axios to avoid interceptor conflicts
-      response = await fetch(
-        buildApiUrl(`/api/projects/${this.currentProjectId}/media/${this.currentMediaId}/backup`),
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'X-Background-Request': 'true'
-          },
-          body: JSON.stringify(backupPayload)
-        }
-      );
+      const url = buildApiUrl(`/api/projects/${this.currentProjectId}/media/${this.currentMediaId}/backup`);
+      
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Background-Request': 'true'
+        },
+        body: JSON.stringify(backupPayload)
+      }).catch(error => {
+        // Network error or other fetch failures
+        console.error('Backup fetch error:', error);
+        throw error;
+      });
 
       const responseData = await response.json();
       
@@ -299,7 +350,7 @@ class BackupService {
         ];
       }
       
-      const API_URL = getApiUrl();
+      const API_URL = buildApiUrl('').replace('/api', '');
       const response = await fetch(
         API_URL + '/api/transcription/backups/history/' + transcriptionId + '?' + new URLSearchParams({ limit: limit.toString() }),
         {
@@ -346,7 +397,7 @@ class BackupService {
         return null;
       }
       
-      const API_URL = getApiUrl();
+      const API_URL = buildApiUrl('').replace('/api', '');
       const response = await fetch(
         API_URL + '/api/transcription/backups/preview/' + backupId,
         {
@@ -396,7 +447,7 @@ class BackupService {
         return null;
       }
       
-      const API_URL = getApiUrl();
+      const API_URL = buildApiUrl('').replace('/api', '');
       const response = await fetch(
         API_URL + '/api/transcription/backups/restore/' + backupId,
         {

@@ -563,7 +563,7 @@ const MarksManager = forwardRef(function MarksManager({
                   boxShadow: editingMarkId === mark.id ? '0 0 8px ' + color.primary : '0 0 4px ' + color.primary
                 }}
                 onMouseDown={(e) => handleBarMouseDown(e, mark.id, 'start')}
-                title={(mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew) + ': ${formatTime(mark.time)} - ${formatTime(mark.endTime || mark.time)}'}
+                title={`${mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime || mark.time)}`}
               >
                 {/* Timestamp label */}
                 <div
@@ -606,7 +606,7 @@ const MarksManager = forwardRef(function MarksManager({
                     boxShadow: editingMarkId === mark.id ? '0 0 8px ' + color.primary : '0 0 4px ' + color.primary
                   }}
                   onMouseDown={(e) => handleBarMouseDown(e, mark.id, 'end')}
-                  title={(mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew) + ': ${formatTime(mark.time)} - ${formatTime(mark.endTime)}'}
+                  title={`${mark.type === MarkType.CUSTOM && mark.customName ? mark.customName : color.nameHebrew}: ${formatTime(mark.time)} - ${formatTime(mark.endTime)}`}
                 >
                   {/* Timestamp label */}
                   <div
@@ -854,5 +854,5 @@ export default MarksManager;
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return (mins.toString().padStart(2, '0')) + ':${secs.toString().padStart(2, \'0\')}';
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }

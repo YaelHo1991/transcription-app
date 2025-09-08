@@ -452,7 +452,7 @@ export default function WaveformCanvas({
     // Format time for tooltip
     const minutes = Math.floor(hoverTime / 60);
     const seconds = Math.floor(hoverTime % 60);
-    const timeStr = (minutes.toString().padStart(2, '0')) + ':${seconds.toString().padStart(2, \'0\')}';
+    const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
     // Update cursor
     canvas.style.cursor = isDragging ? 'grabbing' : (zoomLevel > 1 ? 'grab' : 'pointer');

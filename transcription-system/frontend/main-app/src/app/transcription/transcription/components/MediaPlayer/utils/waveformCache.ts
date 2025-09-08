@@ -76,7 +76,7 @@ export class WaveformCache {
     // For blob URLs, include size in the key since the same blob URL 
     // might be reused for different files
     if (url.startsWith('blob:') && fileSize) {
-      return url + '_${fileSize}';
+      return `${url}_${fileSize}`;
     }
     return url;
   }
@@ -143,10 +143,22 @@ export class WaveformCache {
    */
   async set(url: string, data: WaveformData, fileSize?: number): Promise<boolean> {
     try {
+      // Validate inputs
+      if (!url || !data) {
+        console.warn('WaveformCache: Invalid inputs for caching');
+        return false;
+      }
+      
       await this.initDB();
       if (!this.db) return false;
 
       const key = this.getCacheKey(url, fileSize);
+      
+      // Ensure key is valid
+      if (!key) {
+        console.warn('WaveformCache: Invalid cache key');
+        return false;
+      }
       
       const cached: CachedWaveform = {
         url: key,
@@ -167,12 +179,12 @@ export class WaveformCache {
         };
 
         request.onerror = () => {
-          console.error('WaveformCache: Failed to cache data:', request.error);
+          // Silently fail - caching is optional
           resolve(false);
         };
       });
     } catch (error) {
-      console.error('WaveformCache: Error caching data:', error);
+      // Silently fail - caching is optional
       return false;
     }
   }

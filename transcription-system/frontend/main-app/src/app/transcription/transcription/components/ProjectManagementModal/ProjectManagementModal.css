@@ -50,7 +50,7 @@
 }
 
 /* Modal Header */
-.modal-header {
+.orphan-preview-header {
   padding: 20px 30px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
@@ -58,7 +58,7 @@
   align-items: center;
 }
 
-.modal-header h2 {
+.orphan-preview-header h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
@@ -238,11 +238,11 @@
 
 .project-checkbox,
 .media-checkbox {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 18px;
-  height: 18px;
+  position: absolute !important;
+  top: 10px !important;
+  left: 10px !important;
+  width: 24px;
+  height: 24px;
   cursor: pointer;
   z-index: 2;
   accent-color: #20c997;
@@ -274,7 +274,6 @@
 .transcription-checkbox:checked {
   background: #20c997;
   border-color: #20c997;
-  position: relative;
 }
 
 .project-checkbox:checked::after,
@@ -282,8 +281,8 @@
 .transcription-checkbox:checked::after {
   content: '✓';
   position: absolute;
-  top: -2px;
-  left: 2px;
+  top: 1px;
+  left: 4px;
   color: white;
   font-size: 14px;
   font-weight: bold;
@@ -347,24 +346,6 @@
   left: auto !important;
 }
 
-.delete-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.delete-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
 
 .project-info h3 {
   margin: 0 0 10px 0;
@@ -384,24 +365,6 @@
   gap: 10px;
 }
 
-.delete-project-btn,
-.delete-media-btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-}
-
-.delete-project-btn:hover,
-.delete-media-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
 
 .media-details-overlay {
   position: fixed;
@@ -493,9 +456,9 @@
 }
 
 .media-checkbox {
-  position: absolute;
-  left: 10px;
-  top: 50%;
+  position: absolute !important;
+  left: 15px !important;
+  top: 50% !important;
   transform: translateY(-50%);
 }
 
@@ -601,8 +564,7 @@
 
 .preview-btn,
 .export-word-btn,
-.export-json-btn,
-.delete-transcription-btn {
+.export-json-btn {
   padding: 8px 16px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -620,15 +582,6 @@
   transform: translateY(-2px);
 }
 
-.delete-transcription-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.delete-transcription-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
 
 /* Duration Tab */
 .duration-tab {
@@ -878,4 +831,659 @@
 .archived-transcriptions-list::-webkit-scrollbar-thumb:hover,
 .media-details-panel::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
+}
+
+/* Orphan Preview Dialog - Unique classes to avoid conflicts */
+.orphan-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orphan-preview-dialog {
+  max-width: 900px;
+  width: 90%;
+  max-height: 85vh;
+  height: auto;
+  background: linear-gradient(145deg, rgba(10, 20, 30, 0.98) 0%, rgba(25, 45, 60, 0.98) 100%);
+  border: 2px solid rgba(32, 201, 151, 0.4);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 
+              0 0 100px rgba(32, 201, 151, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  overflow: visible !important;
+  margin: 10px;
+}
+
+.orphan-preview-dialog .orphan-preview-header {
+  background: linear-gradient(to right, rgba(32, 201, 151, 0.15), rgba(32, 201, 151, 0.05));
+  border-bottom: 2px solid rgba(32, 201, 151, 0.3);
+  padding: 24px 28px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.orphan-preview-dialog .orphan-preview-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(32, 201, 151, 0.5), transparent);
+}
+
+.orphan-preview-dialog .orphan-preview-header h2 {
+  color: #20c997;
+  margin: 0;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.orphan-preview-dialog .orphan-preview-close-btn {
+  position: absolute;
+  top: 24px;
+  left: 28px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.orphan-preview-dialog .orphan-preview-close-btn:hover {
+  background: rgba(255, 71, 87, 0.2);
+  border-color: rgba(255, 71, 87, 0.4);
+  color: #ff4757;
+  transform: rotate(90deg);
+}
+
+.orphan-preview-dialog .orphan-preview-body {
+  padding: 0 !important;
+  margin: 0 !important;
+  color: white;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  max-height: 600px;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.orphan-preview-dialog .orphan-preview-metadata {
+  margin: 0;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(32, 201, 151, 0.08), rgba(32, 201, 151, 0.02));
+  border: none;
+  border-top: 2px solid rgba(32, 201, 151, 0.25);
+  border-radius: 0;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.orphan-preview-dialog .orphan-preview-metadata::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.orphan-preview-dialog .orphan-preview-metadata h3 {
+  color: #20c997;
+  margin: 0 0 18px 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  opacity: 0.9;
+}
+
+.orphan-preview-dialog .orphan-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.orphan-preview-dialog .orphan-metadata-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.orphan-preview-dialog .orphan-metadata-item:last-child {
+  border-bottom: none;
+}
+
+.orphan-preview-dialog .orphan-metadata-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 100px;
+}
+
+.orphan-preview-dialog .orphan-metadata-value {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.orphan-preview-dialog .orphan-preview-content-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: flex-start !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Section title removed - no longer needed */
+
+.orphan-preview-dialog .orphan-preview-content {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(10, 20, 30, 0.3));
+  border: none;
+  border-radius: 0;
+  padding: 0 20px 15px 20px !important;
+  padding-top: 0 !important;
+  margin: 0 !important;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  max-height: 500px;
+  min-height: 200px;
+}
+
+.orphan-preview-dialog .orphan-preview-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+}
+
+.orphan-preview-dialog .orphan-preview-content pre {
+  margin: 0 !important;
+  margin-top: 0 !important;
+  padding: 0 !important;
+  padding-top: 0 !important;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Arial', sans-serif !important;
+  font-size: 15px;
+  line-height: 1.7;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  text-align: start;
+  direction: rtl;
+  display: block;
+}
+
+/* Ensure unique styles with high specificity */
+.orphan-preview-dialog .orphan-preview-body {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Force all text in preview to use same font as header */
+.orphan-preview-dialog .orphan-preview-content,
+.orphan-preview-dialog .orphan-preview-content * {
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Arial', sans-serif !important;
+}
+
+.orphan-preview-dialog .orphan-preview-content {
+  padding-top: 10px !important;
+  padding-bottom: 15px !important;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+}
+
+.orphan-preview-dialog .orphan-preview-content pre {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Arial', sans-serif !important;
+}
+
+/* Virtual scrolling optimization */
+.orphan-preview-dialog .orphan-preview-content {
+  scroll-behavior: smooth;
+  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar for preview content */
+.orphan-preview-dialog .orphan-preview-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.orphan-preview-dialog .orphan-preview-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+}
+
+.orphan-preview-dialog .orphan-preview-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(32, 201, 151, 0.5), rgba(32, 201, 151, 0.3));
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.orphan-preview-dialog .orphan-preview-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(32, 201, 151, 0.7), rgba(32, 201, 151, 0.5));
+}
+
+.orphan-preview-dialog .orphan-preview-content::-webkit-scrollbar-thumb:active {
+  background: rgba(32, 201, 151, 0.8);
+}
+
+.orphan-preview-dialog .orphan-preview-footer {
+  padding: 20px 28px;
+  border-top: 2px solid rgba(32, 201, 151, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.orphan-preview-dialog .orphan-preview-footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(32, 201, 151, 0.3), transparent);
+}
+
+.orphan-preview-dialog .orphan-preview-btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(32, 201, 151, 0.4);
+  background: linear-gradient(135deg, rgba(32, 201, 151, 0.15), rgba(32, 201, 151, 0.05));
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  letter-spacing: 0.5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.orphan-preview-dialog .orphan-preview-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.orphan-preview-dialog .orphan-preview-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(32, 201, 151, 0.25), rgba(32, 201, 151, 0.1));
+  border-color: rgba(32, 201, 151, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.2);
+}
+
+.orphan-preview-dialog .orphan-preview-btn:hover:not(:disabled)::before {
+  width: 300px;
+  height: 300px;
+}
+
+.orphan-preview-dialog .orphan-preview-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Restoration Dialog */
+.restoration-dialog {
+  max-width: 600px;
+  width: 90%;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(20, 40, 50, 0.95) 100%);
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 12px;
+}
+
+.restoration-dialog .orphan-preview-header {
+  background: rgba(32, 201, 151, 0.1);
+  border-bottom: 1px solid rgba(32, 201, 151, 0.2);
+  padding: 20px;
+}
+
+.restoration-dialog .orphan-preview-header h2 {
+  color: #20c997;
+  margin: 0;
+}
+
+.restoration-dialog .orphan-preview-body {
+  padding: 20px;
+  color: white;
+}
+
+.restoration-dialog .no-matching-media {
+  text-align: center;
+  padding: 20px;
+}
+
+.restoration-dialog .no-matching-media p {
+  margin: 10px 0;
+  color: white;
+}
+
+.restoration-dialog .no-matching-media .help-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9em;
+}
+
+.restoration-dialog .matching-media-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 15px 0;
+}
+
+.restoration-dialog .matching-media-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 6px;
+  background-color: rgba(32, 201, 151, 0.1);
+}
+
+.restoration-dialog .matching-media-item .media-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.restoration-dialog .matching-media-item .project-name {
+  font-weight: 600;
+  color: #20c997;
+}
+
+.restoration-dialog .matching-media-item .media-name {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9em;
+}
+
+.restoration-dialog .matching-media-item .restore-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.restoration-dialog .orphan-preview-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.restoration-dialog .orphan-preview-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.restoration-dialog .orphan-preview-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.restoration-dialog .orphan-preview-btn-primary {
+  background: rgba(32, 201, 151, 0.2);
+  border-color: rgba(32, 201, 151, 0.5);
+}
+
+.restoration-dialog .orphan-preview-btn-primary:hover:not(:disabled) {
+  background: rgba(32, 201, 151, 0.3);
+}
+
+.restoration-dialog .orphan-preview-footer {
+  padding: 15px 20px;
+  border-top: 1px solid rgba(32, 201, 151, 0.2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.transcription-actions .restore-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.transcription-actions .restore-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Restoration Dialog Styles with unique prefixes */
+.orphan-restore-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orphan-restore-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 10002;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.orphan-restore-header {
+  padding: 20px;
+  background: #26a69a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.orphan-restore-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.orphan-restore-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.orphan-restore-close:hover {
+  opacity: 0.8;
+}
+
+.orphan-restore-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.orphan-restore-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  background: #f8f9fa;
+}
+
+.orphan-restore-body p {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.orphan-restore-body .no-matching-media {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.orphan-restore-body .no-matching-media p {
+  margin: 10px 0;
+  color: #666;
+}
+
+.orphan-restore-body .no-matching-media .help-text {
+  font-size: 14px;
+  color: #999;
+}
+
+.orphan-restore-body .matching-media-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orphan-restore-body .matching-media-item {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.orphan-restore-body .media-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orphan-restore-body .project-name {
+  font-weight: 600;
+  color: #00897b;
+  font-size: 14px;
+}
+
+.orphan-restore-body .media-name {
+  color: #666;
+  font-size: 13px;
+}
+
+.orphan-restore-body .restore-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.orphan-restore-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.orphan-restore-btn-primary {
+  background: #26a69a;
+  color: white;
+}
+
+.orphan-restore-btn-primary:hover:not(:disabled) {
+  background: #00897b;
+}
+
+.orphan-restore-btn-secondary {
+  background: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.orphan-restore-btn-secondary:hover:not(:disabled) {
+  background: #e8f5f3;
+  color: #26a69a;
+  border-color: #26a69a;
+}
+
+.orphan-restore-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

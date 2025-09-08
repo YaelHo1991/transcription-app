@@ -203,7 +203,6 @@
   gap: 8px !important;
   align-items: center !important;
   flex-shrink: 0 !important;
-  border: 2px solid red !important; /* Debug border */
 }
 
 .autocorrect-modal .action-buttons {

@@ -23,6 +23,7 @@ interface ProjectManagementModalProps {
   projects: Project[];
   onProjectDelete?: (projectId: string, deleteTranscriptions: boolean) => Promise<void>;
   onMediaDelete?: (projectId: string, mediaId: string, deleteTranscriptions: boolean) => Promise<void>;
+  onTranscriptionRestored?: (projectId: string, mediaId: string) => void;
 }
 
 export default function ProjectManagementModal({
@@ -31,7 +32,8 @@ export default function ProjectManagementModal({
   activeTab = 'projects',
   projects,
   onProjectDelete,
-  onMediaDelete
+  onMediaDelete,
+  onTranscriptionRestored
 }: ProjectManagementModalProps) {
   const [currentTab, setCurrentTab] = useState(activeTab);
   const [archivedTranscriptions, setArchivedTranscriptions] = useState<ArchivedTranscription[]>([]);
@@ -51,14 +53,39 @@ export default function ProjectManagementModal({
   const [selectedTranscriptions, setSelectedTranscriptions] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkDeleteType, setBulkDeleteType] = useState<'projects' | 'media' | 'transcriptions' | null>(null);
+  
+  // Restoration state
+  const [restorationDialog, setRestorationDialog] = useState<{
+    transcription: ArchivedTranscription;
+    matchingMedia: { projectId: string; projectName: string; mediaId: string; mediaName: string; }[];
+    mode?: 'override' | 'append';
+    showPositionDialog?: boolean;
+    pendingTarget?: { projectId: string; mediaId: string };
+  } | null>(null);
+  
+  // Preview state
+  const [previewDialog, setPreviewDialog] = useState<{
+    transcriptionId: string;
+    content: string;
+    metadata?: any;
+  } | null>(null);
 
   useEffect(() => {
     setCurrentTab(activeTab);
   }, [activeTab]);
 
   useEffect(() => {
-    if (isOpen && currentTab === 'transcriptions') {
-      loadArchivedTranscriptions();
+    if (isOpen) {
+      // Clear success and error messages when modal is opened
+      setSuccessMessage('');
+      setShowSuccessModal(false);
+      setErrorMessage('');
+      setShowErrorModal(false);
+      
+      // Load archived transcriptions if on transcriptions tab
+      if (currentTab === 'transcriptions') {
+        loadArchivedTranscriptions();
+      }
     }
   }, [isOpen, currentTab]);
 
@@ -146,30 +173,63 @@ export default function ProjectManagementModal({
     setShowBulkDeleteConfirm(false);
     setLoading(true);
     
+    let successCount = 0;
+    let failedCount = 0;
+    
     try {
       if (bulkDeleteType === 'projects' && onProjectDelete) {
         for (const projectId of selectedProjects) {
-          await onProjectDelete(projectId, deleteTranscriptions);
+          try {
+            await onProjectDelete(projectId, deleteTranscriptions);
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to delete project ${projectId}:`, error);
+            failedCount++;
+          }
         }
-        setSuccessMessage(`${selectedProjects.size} פרויקטים נמחקו בהצלחה`);
-        setSelectedProjects(new Set());
+        if (successCount > 0) {
+          setSuccessMessage(`${successCount} פרויקטים נמחקו בהצלחה${failedCount > 0 ? ` (${failedCount} נכשלו)` : ''}`);
+          setSelectedProjects(new Set());
+        }
       } else if (bulkDeleteType === 'media' && onMediaDelete && selectedProject) {
         for (const mediaId of selectedMedia) {
-          await onMediaDelete(selectedProject, mediaId, deleteTranscriptions);
+          try {
+            await onMediaDelete(selectedProject, mediaId, deleteTranscriptions);
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to delete media ${mediaId}:`, error);
+            failedCount++;
+          }
         }
-        setSuccessMessage(`${selectedMedia.size} קבצי מדיה נמחקו בהצלחה`);
-        setSelectedMedia(new Set());
-        // Close the media panel after bulk deletion
-        setSelectedProject(null);
+        if (successCount > 0) {
+          setSuccessMessage(`${successCount} קבצי מדיה נמחקו בהצלחה${failedCount > 0 ? ` (${failedCount} נכשלו)` : ''}`);
+          setSelectedMedia(new Set());
+          // Close the media panel after bulk deletion
+          setSelectedProject(null);
+        }
       } else if (bulkDeleteType === 'transcriptions') {
         for (const transcriptionId of selectedTranscriptions) {
-          await executeOrphanedDelete(transcriptionId);
+          try {
+            await executeOrphanedDelete(transcriptionId);
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to delete transcription ${transcriptionId}:`, error);
+            failedCount++;
+          }
         }
-        setSuccessMessage(`${selectedTranscriptions.size} תמלולים נמחקו בהצלחה`);
-        setSelectedTranscriptions(new Set());
+        if (successCount > 0) {
+          setSuccessMessage(`${successCount} תמלולים נמחקו בהצלחה${failedCount > 0 ? ` (${failedCount} נכשלו)` : ''}`);
+          setSelectedTranscriptions(new Set());
+        }
       }
       
-      setShowSuccessModal(true);
+      if (successCount > 0) {
+        setShowSuccessModal(true);
+      } else if (failedCount > 0) {
+        setErrorMessage('כל הפריטים נכשלו במחיקה. אנא נסה שנית.');
+        setShowErrorModal(true);
+      }
+      
       setBulkDeleteType(null);
       setDeleteTranscriptions(false);
     } catch (error) {
@@ -212,6 +272,224 @@ export default function ProjectManagementModal({
       newSelection.add(transcriptionId);
     }
     setSelectedTranscriptions(newSelection);
+  };
+  
+  const handleRestoreClick = (transcription: ArchivedTranscription) => {
+    console.log('[Restore] Looking for media matching:', transcription.originalMediaName);
+    
+    // Find all media files with matching names across all projects
+    const matchingMedia: { projectId: string; projectName: string; mediaId: string; mediaName: string; }[] = [];
+    
+    projects.forEach(project => {
+      if (project.mediaInfo && project.mediaInfo.length > 0) {
+        project.mediaInfo.forEach(media => {
+          console.log(`[Restore] Checking media: "${media.name}" vs "${transcription.originalMediaName}" - Match: ${media.name === transcription.originalMediaName}`);
+          
+          // Check if media name matches the archived transcription's original media name
+          // Use exact match to avoid confusion between similar names
+          if (media.name === transcription.originalMediaName) {
+            // Check if this exact combination is already in the list to avoid duplicates
+            const isDuplicate = matchingMedia.some(
+              m => m.projectId === project.projectId && m.mediaId === media.mediaId
+            );
+            
+            if (!isDuplicate) {
+              console.log(`[Restore] Found match: Project ${project.displayName || project.name}, Media ${media.name} (${media.mediaId})`);
+              matchingMedia.push({
+                projectId: project.projectId,
+                projectName: project.displayName || project.name, // Use displayName for clarity
+                mediaId: media.mediaId,
+                mediaName: media.name
+              });
+            }
+          }
+        });
+      }
+    });
+    
+    console.log('[Restore] Total matches found:', matchingMedia.length);
+    
+    // Show restoration dialog with matching media
+    setRestorationDialog({
+      transcription,
+      matchingMedia
+    });
+  };
+  
+  const handleRestoreConfirm = async (targetProjectId: string, targetMediaId: string, mode: 'override' | 'append', position?: 'before' | 'after') => {
+    if (!restorationDialog) return;
+    
+    console.log('[Restore] Confirming restore:', {
+      transcriptionId: restorationDialog.transcription.id,
+      targetProjectId,
+      targetMediaId,
+      mode,
+      position: position || 'after'
+    });
+    
+    // CRITICAL: Stop any autosave before restore to prevent contamination
+    try {
+      const backupService = (await import('@/services/backupService')).default;
+      if (backupService) {
+        console.log('[Restore] Stopping autosave before restore operation');
+        backupService.stopAutoSave();
+      } else {
+        console.warn('[Restore] Could not access backup service');
+      }
+    } catch (error) {
+      console.error('[Restore] Error stopping autosave:', error);
+    }
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      
+      const response = await fetch(buildApiUrl('/api/projects/orphaned/restore-to-media'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          transcriptionId: restorationDialog.transcription.id,
+          targetProjectId,
+          targetMediaId,
+          mode,
+          position: position || 'after' // Default to 'after' for backward compatibility
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setSuccessMessage(result.message || 'התמלול שוחזר בהצלחה');
+        setShowSuccessModal(true);
+        
+        // Close restoration dialog FIRST
+        setRestorationDialog(null);
+        
+        // Then reload archived transcriptions
+        await loadArchivedTranscriptions();
+        
+        // CRITICAL: If we restored to the currently loaded media, reload it
+        // This prevents showing stale data
+        try {
+          const useProjectStore = (await import('@/lib/stores/projectStore')).default;
+          const projectStore = useProjectStore.getState();
+          const currentProjectId = projectStore.currentProject?.projectId;
+          const currentMediaId = projectStore.currentMediaId;
+        
+          console.log('[Restore] Checking if need to reload current media:', {
+            targetProjectId,
+            targetMediaId,
+            currentProjectId,
+            currentMediaId,
+            needsReload: targetProjectId === currentProjectId && targetMediaId === currentMediaId
+          });
+        
+          if (targetProjectId === currentProjectId && targetMediaId === currentMediaId) {
+            console.log('[Restore] Reloading current media after restore');
+            // Force reload the current media to show the restored content
+            await projectStore.setCurrentMediaById(targetProjectId, targetMediaId);
+          }
+        } catch (error) {
+          console.error('[Restore] Error reloading current media:', error);
+        }
+        
+        // Call the callback to load the restored transcription
+        if (onTranscriptionRestored) {
+          onTranscriptionRestored(targetProjectId, targetMediaId);
+        }
+      } else {
+        const error = await response.json();
+        setErrorMessage(error.error || 'שגיאה בשחזור התמלול');
+        setShowErrorModal(true);
+        // Close restoration dialog on error too
+        setRestorationDialog(null);
+      }
+    } catch (error) {
+      console.error('Restore failed:', error);
+      setErrorMessage('שגיאה בשחזור התמלול');
+      setShowErrorModal(true);
+      // Close restoration dialog on error
+      setRestorationDialog(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const previewTranscription = async (transcriptionId: string) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const response = await fetch(buildApiUrl(`/api/projects/orphaned/preview/${transcriptionId}`), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Parse the content properly
+        let formattedContent = '';
+        let metadata = {};
+        
+        if (data.content) {
+          if (typeof data.content === 'string') {
+            // Try to parse as JSON first
+            try {
+              const parsed = JSON.parse(data.content);
+              metadata = parsed.metadata || {};
+              
+              // Format blocks into readable text
+              if (parsed.blocks && Array.isArray(parsed.blocks)) {
+                formattedContent = parsed.blocks.map((block: any) => {
+                  if (block.speaker) {
+                    return `[${block.speaker}]\n${block.text || ''}`;
+                  }
+                  return block.text || '';
+                }).join('\n\n');
+              } else {
+                formattedContent = JSON.stringify(parsed, null, 2);
+              }
+            } catch {
+              // If not JSON, use as is
+              formattedContent = data.content;
+            }
+          } else if (typeof data.content === 'object') {
+            metadata = data.content.metadata || {};
+            
+            // Format blocks
+            if (data.content.blocks && Array.isArray(data.content.blocks)) {
+              formattedContent = data.content.blocks.map((block: any) => {
+                if (block.speaker) {
+                  return `[${block.speaker}]\n${block.text || ''}`;
+                }
+                return block.text || '';
+              }).join('\n\n');
+            } else {
+              formattedContent = JSON.stringify(data.content, null, 2);
+            }
+          }
+        }
+        
+        // Set the preview dialog state
+        setPreviewDialog({
+          transcriptionId,
+          content: formattedContent || 'אין תוכן להצגה',
+          metadata
+        });
+      } else {
+        setErrorMessage('שגיאה בטעינת תצוגה מקדימה');
+        setShowErrorModal(true);
+      }
+    } catch (error) {
+      console.error('Preview error:', error);
+      setErrorMessage('שגיאה בטעינת תצוגה מקדימה');
+      setShowErrorModal(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const exportTranscription = async (transcriptionId: string, format: 'word' | 'json') => {
@@ -442,18 +720,6 @@ export default function ProjectManagementModal({
                         <span>{formatSize(projectSize)}</span>
                       </div>
                       
-                      <div className="project-hover-actions">
-                        <button 
-                          className="delete-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick('project', project.projectId);
-                          }}
-                          title="מחק פרויקט"
-                        >
-                          🗑️
-                        </button>
-                      </div>
                     </div>
                   );
                 })}
@@ -486,8 +752,10 @@ export default function ProjectManagementModal({
                           </div>
                           <div className="media-list-detailed">
                             {project.mediaInfo && project.mediaInfo.length > 0 ? (
-                              project.mediaInfo.map((media) => (
-                                <div key={media.mediaId} className={`media-detail-item ${selectedMedia.has(media.mediaId) ? 'checkbox-selected' : ''}`}>
+                              project.mediaInfo.map((media, index) => {
+                                console.log(`[ProjectModal] Rendering media ${index}: ${media.name} with mediaId: ${media.mediaId}`);
+                                return (
+                                <div key={`media-detail-${project.projectId}-${media.mediaId}-${index}`} className={`media-detail-item ${selectedMedia.has(media.mediaId) ? 'checkbox-selected' : ''}`}>
                                   <input 
                                     type="checkbox"
                                     className="media-checkbox"
@@ -503,24 +771,15 @@ export default function ProjectManagementModal({
                                       <span>{formatDuration(media.duration)}</span>
                                     </div>
                                   </div>
-                                  <button 
-                                    className="delete-media-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick('media', project.projectId, media.mediaId);
-                                    }}
-                                    title="מחק מדיה"
-                                  >
-                                    🗑️
-                                  </button>
                                 </div>
-                              ))
+                                );
+                              })
                             ) : (
                               project.mediaFiles.map((mediaId, index) => {
                                 // Try to get media name from mediaInfo if we somehow missed it
                                 const mediaName = typeof mediaId === 'string' ? mediaId : `Media ${index + 1}`;
                                 return (
-                                  <div key={mediaId} className={`media-detail-item ${selectedMedia.has(mediaId) ? 'checkbox-selected' : ''}`}>
+                                  <div key={`media-detail-${project.projectId}-${mediaId}-${index}`} className={`media-detail-item ${selectedMedia.has(mediaId) ? 'checkbox-selected' : ''}`}>
                                     <input 
                                       type="checkbox"
                                       className="media-checkbox"
@@ -535,16 +794,6 @@ export default function ProjectManagementModal({
                                         <span className="media-id">0 B</span>
                                       </div>
                                     </div>
-                                  <button 
-                                    className="delete-media-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick('media', project.projectId, mediaId);
-                                    }}
-                                    title="מחק מדיה"
-                                  >
-                                    🗑️
-                                  </button>
                                 </div>
                               );
                             })
@@ -602,7 +851,10 @@ export default function ProjectManagementModal({
                       <div className="transcription-actions">
                         <button 
                           className="preview-btn"
-                          onClick={() => {/* TODO: Implement preview */}}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            previewTranscription(transcription.id);
+                          }}
                         >
                           👁️ תצוגה מקדימה
                         </button>
@@ -625,13 +877,14 @@ export default function ProjectManagementModal({
                           💾 JSON
                         </button>
                         <button 
-                          className="delete-transcription-btn"
+                          className="restore-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteTranscription(transcription.id);
+                            handleRestoreClick(transcription);
                           }}
+                          title="שחזר תמלול למדיה"
                         >
-                          🗑️
+                          🔄
                         </button>
                       </div>
                     </div>
@@ -666,8 +919,9 @@ export default function ProjectManagementModal({
                       </div>
                       <div className="media-duration-list">
                         {project.mediaInfo && project.mediaInfo.length > 0 ? (
-                          project.mediaInfo.map((media) => (
-                            <div key={media.mediaId} className="media-duration-item">
+                          // Deduplicate media items by mediaId to avoid duplicate key warnings
+                          Array.from(new Map(project.mediaInfo.map(m => [m.mediaId, m])).values()).map((media, index) => (
+                            <div key={`media-duration-${project.projectId}-${media.mediaId}-${index}`} className="media-duration-item">
                               <div className="media-icon-small">🎵</div>
                               <span className="media-name">{media.name}</span>
                               <span className="duration">{formatDuration(media.duration)}</span>
@@ -679,7 +933,7 @@ export default function ProjectManagementModal({
                             // Try to get duration from project.mediaDurations if available
                             const duration = project.mediaDurations?.[mediaId] || 0;
                             return (
-                              <div key={mediaId} className="media-duration-item">
+                              <div key={`media-duration-${project.projectId}-${mediaId}-${index}`} className="media-duration-item">
                                 <div className="media-icon-small">🎵</div>
                                 <span className="media-name">{mediaName}</span>
                                 <span className="duration">{formatDuration(duration)}</span>
@@ -891,6 +1145,218 @@ export default function ProjectManagementModal({
           type="danger"
           showIcon={true}
         />
+        
+        {/* Preview Dialog */}
+        {previewDialog && (
+          <div className="orphan-preview-overlay" onClick={(e) => {
+            if ((e.target as HTMLElement).classList.contains('orphan-preview-overlay') && !loading) {
+              setPreviewDialog(null);
+            }
+          }}>
+            <div className="orphan-preview-dialog" onClick={(e) => e.stopPropagation()}>
+              <div className="orphan-preview-header">
+                <h2>תצוגה מקדימה של תמלול</h2>
+                <button 
+                  className="orphan-preview-close-btn"
+                  onClick={() => setPreviewDialog(null)}
+                  disabled={loading}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="orphan-preview-body">
+                {/* Content section - moved to top */}
+                <div className="orphan-preview-content-section">
+                  <div className="orphan-preview-content">
+                    <pre>{previewDialog.content}</pre>
+                  </div>
+                </div>
+                
+                {/* Metadata section - moved to bottom */}
+                {previewDialog.metadata && Object.keys(previewDialog.metadata).length > 0 && (
+                  <div className="orphan-preview-metadata">
+                    <h3>פרטי התמלול</h3>
+                    <div className="orphan-metadata-grid">
+                      {previewDialog.metadata.fileName && (
+                        <div className="orphan-metadata-item">
+                          <span className="orphan-metadata-label">שם קובץ:</span>
+                          <span className="orphan-metadata-value">{previewDialog.metadata.fileName}</span>
+                        </div>
+                      )}
+                      {previewDialog.metadata.duration && (
+                        <div className="orphan-metadata-item">
+                          <span className="orphan-metadata-label">משך:</span>
+                          <span className="orphan-metadata-value">
+                            {Math.floor(previewDialog.metadata.duration / 60)}:{String(Math.floor(previewDialog.metadata.duration % 60)).padStart(2, '0')}
+                          </span>
+                        </div>
+                      )}
+                      {previewDialog.metadata.createdAt && (
+                        <div className="orphan-metadata-item">
+                          <span className="orphan-metadata-label">נוצר בתאריך:</span>
+                          <span className="orphan-metadata-value">
+                            {new Date(previewDialog.metadata.createdAt).toLocaleDateString('he-IL')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="orphan-preview-footer">
+                <button
+                  className="orphan-preview-btn orphan-preview-btn-secondary"
+                  onClick={() => setPreviewDialog(null)}
+                  disabled={loading}
+                >
+                  סגור
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Restoration Dialog */}
+        {restorationDialog && !restorationDialog.showPositionDialog && (
+          <div className="orphan-restore-overlay">
+            <div className="orphan-restore-dialog">
+              <div className="orphan-restore-header">
+                <h2>שחזור תמלול</h2>
+                <button 
+                  className="orphan-restore-close"
+                  onClick={() => setRestorationDialog(null)}
+                  disabled={loading}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="orphan-restore-body">
+                {restorationDialog.matchingMedia.length === 0 ? (
+                  <div className="no-matching-media">
+                    <p>לא נמצאו קבצי מדיה תואמים לשם "{restorationDialog.transcription.originalMediaName}"</p>
+                    <p className="help-text">העלה את הקובץ לפרויקט כדי לשחזר את התמלול</p>
+                  </div>
+                ) : (
+                  <>
+                    <p>בחר את המדיה שאליה תרצה לשחזר את התמלול:</p>
+                    <div className="matching-media-list">
+                      {restorationDialog.matchingMedia.map((media, index) => (
+                        <div key={index} className="matching-media-item">
+                          <div className="media-info">
+                            <span className="project-name">{media.projectName}</span>
+                            <span className="media-name">{media.mediaName}</span>
+                          </div>
+                          <div className="restore-actions">
+                            <button
+                              className="orphan-restore-btn orphan-restore-btn-primary"
+                              onClick={() => {
+                                // Check if target has existing transcription
+                                setRestorationDialog({ ...restorationDialog, mode: 'override' });
+                                handleRestoreConfirm(media.projectId, media.mediaId, 'override');
+                              }}
+                              disabled={loading}
+                            >
+                              החלף תמלול קיים
+                            </button>
+                            <button
+                              className="orphan-restore-btn orphan-restore-btn-secondary"
+                              onClick={() => {
+                                setRestorationDialog({ 
+                                  ...restorationDialog, 
+                                  mode: 'append',
+                                  showPositionDialog: true,
+                                  pendingTarget: { projectId: media.projectId, mediaId: media.mediaId }
+                                });
+                              }}
+                              disabled={loading}
+                            >
+                              הוסף לתמלול קיים
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  className="modal-btn modal-btn-secondary"
+                  onClick={() => setRestorationDialog(null)}
+                  disabled={loading}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Position Selection Dialog for Append Mode */}
+        {restorationDialog && restorationDialog.showPositionDialog && restorationDialog.pendingTarget && (
+          <div className="orphan-restore-overlay">
+            <div className="orphan-restore-dialog" style={{ maxWidth: '400px' }}>
+              <div className="orphan-restore-header">
+                <h2>בחר מיקום להוספת התמלול</h2>
+                <button 
+                  className="orphan-restore-close"
+                  onClick={() => setRestorationDialog(null)}
+                  disabled={loading}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="orphan-restore-body" style={{ textAlign: 'center', padding: '20px' }}>
+                <p style={{ marginBottom: '20px', fontSize: '16px' }}>
+                  איפה ברצונך להוסיף את התמלול השמור?
+                </p>
+                
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <button
+                    className="orphan-restore-btn orphan-restore-btn-primary"
+                    onClick={() => {
+                      const { pendingTarget } = restorationDialog;
+                      setRestorationDialog({ ...restorationDialog, showPositionDialog: false });
+                      handleRestoreConfirm(pendingTarget.projectId, pendingTarget.mediaId, 'append', 'before');
+                    }}
+                    disabled={loading}
+                    style={{ minWidth: '120px' }}
+                  >
+                    בתחילת התמלול
+                  </button>
+                  
+                  <button
+                    className="orphan-restore-btn orphan-restore-btn-primary"
+                    onClick={() => {
+                      const { pendingTarget } = restorationDialog;
+                      setRestorationDialog({ ...restorationDialog, showPositionDialog: false });
+                      handleRestoreConfirm(pendingTarget.projectId, pendingTarget.mediaId, 'append', 'after');
+                    }}
+                    disabled={loading}
+                    style={{ minWidth: '120px' }}
+                  >
+                    בסוף התמלול
+                  </button>
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  className="modal-btn modal-btn-secondary"
+                  onClick={() => setRestorationDialog(null)}
+                  disabled={loading}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

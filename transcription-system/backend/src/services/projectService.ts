@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { OrphanedIndexService } from './orphanedIndexService';
+
 let mm: any;
 try {
   mm = require('music-metadata');
@@ -62,9 +64,43 @@ export class ProjectService {
   }
   
   /**
+   * Get user-specific orphaned directory
+   */
+  private getUserOrphanedDir(userId: string): string {
+    const safeUserId = userId.toString().replace(/[^a-zA-Z0-9-_]/g, '_');
+    return path.join(this.baseDir, 'users', safeUserId, 'orphaned');
+  }
+  
+  /**
+   * Ensure user directories exist (projects and orphaned)
+   */
+  async ensureUserDirectories(userId: string): Promise<void> {
+    const userDir = this.getUserDir(userId);
+    const orphanedDir = this.getUserOrphanedDir(userId);
+    
+    // Create both directories
+    await fs.mkdir(userDir, { recursive: true });
+    await fs.mkdir(orphanedDir, { recursive: true });
+    
+    // Initialize orphaned index if needed
+    const indexService = new OrphanedIndexService(userId, this.baseDir);
+    await indexService.initialize();
+  }
+  
+  /**
+   * Get orphaned index service for a user
+   */
+  getOrphanedIndexService(userId: string): OrphanedIndexService {
+    return new OrphanedIndexService(userId, this.baseDir);
+  }
+  
+  /**
    * Create a new project
    */
   async createProject(mediaFileName: string, projectName?: string, userId: string = 'default'): Promise<string> {
+    // Ensure user directories exist
+    await this.ensureUserDirectories(userId);
+    
     const projectId = this.generateProjectId();
     const userDir = this.getUserDir(userId);
     const projectDir = path.join(userDir, projectId);
@@ -99,6 +135,9 @@ export class ProjectService {
    * Create a new multi-media project from folder
    */
   async createMultiMediaProject(folderName: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
+    // Ensure user directories exist
+    await this.ensureUserDirectories(userId);
+    
     const projectId = this.generateProjectId();
     const userDir = this.getUserDir(userId);
     const projectDir = path.join(userDir, projectId);
@@ -179,6 +218,20 @@ export class ProjectService {
     await fs.writeFile(
       path.join(projectDir, 'project.json'),
       JSON.stringify(projectMetadata, null, 2),
+      'utf8'
+    );
+    
+    // Create media index
+    const mediaIndex = {
+      nextMediaNumber: mediaFiles.length + 1,
+      availableNumbers: [],
+      activeMediaIds: mediaIds,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    await fs.writeFile(
+      path.join(projectDir, 'media-index.json'),
+      JSON.stringify(mediaIndex, null, 2),
       'utf8'
     );
     
@@ -685,6 +738,7 @@ export class ProjectService {
                 }
               }
               
+              console.log(`[ProjectService] Adding project ${projectId} with ${mediaInfo.length} media files`);
               projects.push({
                 ...projectData,
                 mediaInfo: mediaInfo,

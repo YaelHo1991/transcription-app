@@ -399,3 +399,130 @@
     transform: translateX(400%);
   }
 }
+
+/* Add Media Button Styles */
+.media-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.media-info .separator {
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0 2px;
+}
+
+/* Ensure media-name in sidebar stays white, overriding any modal styles */
+.theme-transcription .project-item .media-name {
+  color: white !important;
+  font-weight: 500;
+}
+
+.add-media-btn {
+  padding: 0;
+  margin-right: 8px;
+  font-size: 11px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 400;
+  text-decoration: none;
+  outline: none;
+}
+
+.add-media-btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
+}
+
+.add-media-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Duplicate Confirmation Dialog */
+.duplicate-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.duplicate-confirm-dialog {
+  background: #1a1a1a;
+  border: 1px solid rgba(32, 201, 151, 0.3);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.duplicate-confirm-dialog h3 {
+  color: #20c997;
+  margin: 0 0 16px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.duplicate-confirm-dialog p {
+  color: #e0e0e0;
+  margin: 12px 0;
+  line-height: 1.5;
+  text-align: right;
+  direction: rtl;
+}
+
+.duplicate-confirm-dialog strong {
+  color: #20c997;
+}
+
+.duplicate-confirm-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  align-items: stretch;
+}
+
+.duplicate-confirm-buttons button {
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  width: 100%;
+}
+
+.duplicate-confirm-buttons .confirm-btn {
+  background: #1a5d5d;
+  color: #ffffff;
+}
+
+.duplicate-confirm-buttons .confirm-btn:hover {
+  background: #0f4c4c;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 93, 93, 0.3);
+}
+
+.duplicate-confirm-buttons .cancel-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.duplicate-confirm-buttons .cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}

@@ -81,9 +81,11 @@ interface ProjectState {
   updateMediaStage: (projectId: string, mediaId: string, stage: 'transcription' | 'proofreading' | 'export') => Promise<boolean>;
   navigateMedia: (direction: 'next' | 'previous') => void;
   createProjectFromFolder: (formData: FormData) => Promise<Project | null>;
+  addMediaToProject: (projectId: string, formData: FormData, force?: boolean) => Promise<{ success: boolean; isDuplicate?: boolean; existingMedia?: any; newMediaIds?: string[] } | null>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearCurrentTranscription: () => void;
+  restoreArchivedTranscriptions: (transcriptionIds: string[], projectId: string, mediaIds: string[]) => Promise<boolean>;
 }
 
 const useProjectStore = create<ProjectState>()((set, get) => ({
@@ -159,6 +161,18 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
       // Set current media by ID and load its data
       setCurrentMediaById: async (projectId, mediaId) => {
         console.log('[ProjectStore] setCurrentMediaById called:', { projectId, mediaId });
+        
+        // If IDs are empty, just clear the current media
+        if (!projectId || !mediaId) {
+          console.log('[ProjectStore] Empty IDs provided, clearing current media');
+          set({ 
+            currentMediaId: null,
+            currentTranscriptionData: null,
+            isLoading: false 
+          });
+          return;
+        }
+        
         const { loadMediaData } = get();
         set({ currentMediaId: mediaId, isLoading: true });
         
@@ -383,6 +397,20 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           const result = await response.json();
           console.log('[ProjectStore] Project creation result:', result);
           
+          // Check if archived transcriptions were found
+          if (result.hasArchivedTranscriptions) {
+            console.log('[ProjectStore] Archived transcriptions found:', result);
+            set({ isLoading: false });
+            return result; // Return the archived info to the component
+          }
+          
+          // Check if it's a duplicate project detection
+          if (result.isDuplicateProject) {
+            console.log('[ProjectStore] Duplicate project detected:', result);
+            set({ isLoading: false });
+            return result; // Return the duplicate info to the component
+          }
+          
           // Check if creation was successful
           if (!result.success || !result.projectId) {
             throw new Error(result.message || 'Failed to create project');
@@ -430,6 +458,80 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
         }
       },
 
+      // Add media to existing project
+      addMediaToProject: async (projectId, formData, force = false) => {
+        console.log('[ProjectStore] Adding media to project:', projectId, 'force:', force);
+        
+        try {
+          const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+          
+          // Add force parameter to formData if needed
+          if (force) {
+            formData.append('force', 'true');
+          }
+          
+          const response = await fetch(buildApiUrl(`/api/transcription/projects/${projectId}/add-media`), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[ProjectStore] Add media error:', errorText);
+            
+            // Try to parse error response
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: errorText };
+            }
+            
+            set({ 
+              error: errorData.error || 'Failed to add media',
+              isLoading: false 
+            });
+            return null;
+          }
+          
+          const result = await response.json();
+          console.log('[ProjectStore] Add media result:', result);
+          
+          // Check if it's a duplicate detection response
+          if (result.isDuplicate) {
+            return {
+              success: false,
+              isDuplicate: true,
+              existingMedia: result.existingMedia
+            };
+          }
+          
+          // Check if media was added successfully
+          if (result.success) {
+            // Reload projects to get updated metadata
+            await get().loadProjects();
+            
+            return {
+              success: true,
+              newMediaIds: result.newMediaIds
+            };
+          }
+          
+          return null;
+          
+        } catch (error) {
+          console.error('[ProjectStore] Error adding media:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to add media',
+            isLoading: false 
+          });
+          return null;
+        }
+      },
+
       // Set loading state
       setLoading: (loading) => {
         set({ isLoading: loading });
@@ -447,6 +549,40 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           currentMediaId: null,
           currentMedia: null
         });
+      },
+      
+      // Restore archived transcriptions
+      restoreArchivedTranscriptions: async (transcriptionIds, projectId, mediaIds) => {
+        set({ isLoading: true, error: null });
+        
+        try {
+          const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+          const response = await fetch(buildApiUrl('/api/projects/restore-archived'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ transcriptionIds, projectId, mediaIds })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to restore archived transcriptions');
+          }
+          
+          const result = await response.json();
+          console.log('[ProjectStore] Restore result:', result);
+          
+          set({ isLoading: false });
+          return true;
+        } catch (error) {
+          console.error('[ProjectStore] Error restoring archived transcriptions:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to restore archived transcriptions',
+            isLoading: false 
+          });
+          return false;
+        }
       }
 }));
 

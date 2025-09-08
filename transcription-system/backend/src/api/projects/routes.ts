@@ -2,11 +2,16 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { projectService } from '../../services/projectService';
 import storageService from '../../services/storageService';
 import { backgroundJobService } from '../../services/backgroundJobs';
+import { OrphanedIndexService } from '../../services/orphanedIndexService';
 import path from 'path';
 import fs, { createReadStream } from 'fs';
 import fs_promises from 'fs/promises';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -34,7 +39,8 @@ const verifyUser = (req: Request, res: Response, next: NextFunction) => {
     
     // In dev mode, accept any token starting with 'dev-'
     if (isDev && token && token.startsWith('dev-')) {
-      const userId = token.substring(4) || 'dev-user-default';
+      // Use the actual user ID for dev-anonymous token
+      const userId = token === 'dev-anonymous' ? 'bfc0ba9a-daae-46e2-acb9-5984d1adef9f' : (token.substring(4) || 'dev-user-default');
       (req as any).user = { id: userId, username: userId };
       return next();
     }
@@ -61,6 +67,36 @@ const verifyUser = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
+/**
+ * Helper function to get audio duration using FFprobe
+ */
+async function getAudioDuration(filePath: string): Promise<number> {
+  try {
+    // Normalize the path for Windows
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    
+    // Build the ffprobe command with proper escaping
+    const command = process.platform === 'win32' 
+      ? `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${normalizedPath}"`
+      : `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
+    
+    console.log('[getAudioDuration] Running command:', command);
+    const { stdout, stderr } = await execAsync(command);
+    
+    if (stderr) {
+      console.error('[getAudioDuration] FFprobe stderr:', stderr);
+    }
+    
+    const duration = parseFloat(stdout.trim());
+    console.log(`[getAudioDuration] Duration for ${path.basename(filePath)}: ${duration} seconds`);
+    
+    return isNaN(duration) ? 0 : duration;
+  } catch (error: any) {
+    console.error('[getAudioDuration] Failed to get duration:', error.message);
+    console.error('[getAudioDuration] File path was:', filePath);
+    return 0; // Return 0 if duration calculation fails
+  }
+}
 
 /**
  * Save project data
@@ -351,7 +387,7 @@ router.get('/:projectId/media/:mediaId/backups/:backupFile', verifyUser, async (
  */
 router.post('/create-from-folder', verifyUser, upload.array('files'), async (req: Request, res: Response) => {
   try {
-    const { folderName, computerId, computerName } = req.body;
+    const { folderName, computerId, computerName, force } = req.body;
     const files = req.files as Express.Multer.File[];
     
     if (!files || files.length === 0) {
@@ -359,7 +395,7 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
     }
     
     const userId = (req as any).user?.id || 'unknown';
-    console.log(`[FolderUpload] Creating project from folder: ${folderName} with ${files.length} files for user: ${userId}`);
+    console.log(`[FolderUpload] Creating project from folder: ${folderName} with ${files.length} files for user: ${userId}, force: ${force}`);
     
     // Filter for media files only
     const mediaFiles = files.filter(file => 
@@ -404,10 +440,251 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
       mimeType: file.mimetype
     }));
     
+    // Check for duplicate projects first if not forced
+    let duplicateInfo = null;
+    if (force !== 'true') {
+      console.log('[FolderUpload] Checking for duplicate projects...');
+      
+      // Load all existing projects for the user
+      const projects = await projectService.listProjects(userId);
+      console.log('[FolderUpload] Loaded projects:', projects.length);
+      console.log('[FolderUpload] Projects with mediaInfo:', projects.filter(p => p.mediaInfo && p.mediaInfo.length > 0).length);
+      
+      // Debug: log first project's mediaInfo if exists
+      if (projects.length > 0) {
+        console.log('[FolderUpload] First project mediaInfo:', projects[0].mediaInfo);
+      }
+      
+      // Create a map of uploaded files for comparison
+      const uploadedFilesMap = new Map();
+      console.log(`[FolderUpload] Uploaded files:`);
+      mediaFilesData.forEach(file => {
+        console.log(`[FolderUpload]   - "${file.name}" (size: ${file.buffer.length})`);
+        uploadedFilesMap.set(file.name, {
+          name: file.name,
+          size: file.buffer.length
+        });
+      });
+      
+      // Check each existing project for duplicates
+      for (const project of projects) {
+        console.log(`[FolderUpload] Checking project ${project.projectId}: mediaInfo exists = ${!!project.mediaInfo}, length = ${project.mediaInfo?.length || 0}`);
+        if (!project.mediaInfo || project.mediaInfo.length === 0) {
+          console.log(`[FolderUpload] Skipping project ${project.projectId} - no mediaInfo`);
+          continue;
+        }
+        
+        // Create a map of existing project's media files
+        const existingFilesMap = new Map();
+        let allMatch = true;
+        let missingInUpload: string[] = [];
+        let missingInProject: string[] = [];
+        
+        // Check existing project media
+        console.log(`[FolderUpload] Project ${project.projectId} has ${project.mediaInfo.length} media files`);
+        for (const media of project.mediaInfo) {
+          console.log(`[FolderUpload]   - Existing media: "${media.name}" (size: ${media.size})`);
+          existingFilesMap.set(media.name, {
+            name: media.name,
+            size: media.size,
+            mediaId: media.mediaId
+          });
+          
+          // Check if this file exists in upload
+          const uploadedFile = uploadedFilesMap.get(media.name);
+          console.log(`[FolderUpload]     Checking "${media.name}" against uploaded:`);
+          console.log(`[FolderUpload]       - Found: ${!!uploadedFile}`);
+          console.log(`[FolderUpload]       - Size match: ${uploadedFile?.size === media.size}`);
+          console.log(`[FolderUpload]       - Uploaded files available:`, Array.from(uploadedFilesMap.keys()));
+          
+          if (!uploadedFile) {
+            console.log(`[FolderUpload]     ❌ MISSING: "${media.name}" not found in upload`);
+          }
+          if (!uploadedFile || uploadedFile.size !== media.size) {
+            if (!uploadedFile) {
+              missingInUpload.push(media.name);
+            }
+            allMatch = false;
+          }
+        }
+        
+        // Check uploaded files that don't exist in project
+        for (const [fileName, fileData] of uploadedFilesMap) {
+          if (!existingFilesMap.has(fileName)) {
+            missingInProject.push(fileName);
+            allMatch = false;
+          }
+        }
+        
+        // If we found a potential duplicate
+        if (allMatch && uploadedFilesMap.size === existingFilesMap.size) {
+          // Exact duplicate - all files match
+          console.log('[FolderUpload] Exact duplicate project found:', project.projectId);
+          duplicateInfo = {
+            isDuplicateProject: true,
+            duplicateType: 'exact',
+            existingProject: {
+              projectId: project.projectId,
+              name: project.name,
+              displayName: project.displayName,
+              totalMedia: project.totalMedia,
+              createdAt: project.createdAt
+            },
+            message: 'פרויקט עם אותם קבצים כבר קיים'
+          };
+          break; // Found duplicate, stop checking
+        } else if (missingInUpload.length === 0 && missingInProject.length > 0) {
+          // Partial duplicate - upload has additional files
+          console.log('[FolderUpload] Partial duplicate found - upload has additional files');
+          duplicateInfo = {
+            isDuplicateProject: true,
+            duplicateType: 'partial',
+            existingProject: {
+              projectId: project.projectId,
+              name: project.name,
+              displayName: project.displayName,
+              totalMedia: project.totalMedia,
+              createdAt: project.createdAt
+            },
+            missingInProject: missingInProject,
+            message: `הפרויקט הקיים חסר ${missingInProject.length} קבצים`
+          };
+          break; // Found duplicate, stop checking
+        }
+      }
+      
+      console.log('[FolderUpload] Duplicate check result:', duplicateInfo ? 'Found duplicate' : 'No duplicate found');
+    }
+    
+    // Now check for archived transcriptions
+    const orphanedIndex = projectService.getOrphanedIndexService(userId);
+    const mediaNames = mediaFilesData.map(m => m.name);
+    const archivedTranscriptions = await orphanedIndex.findOrphanedTranscriptionsForMultipleMedia(mediaNames);
+    const hasArchivedTranscriptions = Object.keys(archivedTranscriptions).length > 0;
+    
+    // If we have both duplicate and archived transcriptions, return both
+    if (duplicateInfo && hasArchivedTranscriptions && !force) {
+      console.log('[FolderUpload] Found both duplicate and archived transcriptions');
+      return res.json({
+        ...duplicateInfo,
+        hasArchivedTranscriptions: true,
+        archivedTranscriptions,
+        mediaFiles: mediaFilesData.map(m => m.name)
+      });
+    }
+    
+    // If only duplicate found, return duplicate info
+    if (duplicateInfo && !force) {
+      console.log('[FolderUpload] Returning duplicate info only');
+      return res.json(duplicateInfo);
+    }
+    
+    // If only archived transcriptions found, return them for user choice
+    if (hasArchivedTranscriptions && !force) {
+      console.log(`[FolderUpload] Found ${Object.keys(archivedTranscriptions).length} archived transcriptions`);
+      return res.json({
+        hasArchivedTranscriptions: true,
+        archivedTranscriptions,
+        mediaFiles: mediaFilesData.map(m => m.name),
+        message: 'נמצאו תמלולים קיימים עבור חלק מהקבצים. האם ברצונך לשחזר אותם?'
+      });
+    }
+    
     // Create the project
     const result = await projectService.createMultiMediaProject(folderName, mediaFilesData, userId);
     
     console.log(`[FolderUpload] Project created successfully: ${result.projectId} with ${result.mediaIds.length} media files`);
+    
+    // Check if we should restore archived transcriptions
+    const restoreArchived = req.body.restoreArchived === 'true';
+    const selectedTranscriptionIds = req.body.selectedTranscriptionIds ? 
+      JSON.parse(req.body.selectedTranscriptionIds) : null;
+      
+    if (restoreArchived && archivedTranscriptions) {
+      console.log('[FolderUpload] Restoring archived transcriptions...');
+      
+      // Prepare transcription IDs to restore
+      const transcriptionIds: string[] = [];
+      const mediaIdsToRestore: string[] = [];
+      
+      for (const [mediaName, transcriptions] of Object.entries(archivedTranscriptions)) {
+        // Find the corresponding media ID in the new project
+        const mediaIndex = mediaFilesData.findIndex(m => m.name === mediaName);
+        if (mediaIndex >= 0 && result.mediaIds[mediaIndex]) {
+          const mediaId = result.mediaIds[mediaIndex];
+          
+          // Filter transcriptions based on selection if provided
+          const transcriptionsToRestore = selectedTranscriptionIds ?
+            transcriptions.filter((t: any) => selectedTranscriptionIds.includes(t.transcriptionId)) :
+            transcriptions;
+          
+          // Add selected transcription IDs for this media
+          transcriptionsToRestore.forEach((t: any) => {
+            transcriptionIds.push(t.transcriptionId);
+            mediaIdsToRestore.push(mediaId);
+          });
+        }
+      }
+      
+      if (transcriptionIds.length > 0) {
+        try {
+          // Call the restore endpoint logic directly
+          const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+          const orphanedIndex = projectService.getOrphanedIndexService(userId);
+          let restored = 0;
+          
+          for (let i = 0; i < transcriptionIds.length; i++) {
+            const transcriptionId = transcriptionIds[i];
+            const mediaId = mediaIdsToRestore[i];
+            
+            try {
+              // Find the orphaned transcription folder
+              const orphanedFolders = await fs_promises.readdir(orphanedPath);
+              const orphanedFolder = orphanedFolders.find(f => f.includes(transcriptionId.split('_')[0]));
+              
+              if (orphanedFolder) {
+                const orphanedTranscriptionPath = path.join(orphanedPath, orphanedFolder, 'transcription');
+                const targetTranscriptionPath = path.join(
+                  process.cwd(), 'user_data', 'users', userId, 'projects', 
+                  result.projectId, 'media', mediaId, 'transcription'
+                );
+                
+                // Ensure target directory exists
+                await fs_promises.mkdir(targetTranscriptionPath, { recursive: true });
+                
+                // Copy transcription data
+                if (await fs_promises.access(orphanedTranscriptionPath).then(() => true).catch(() => false)) {
+                  // Copy all files from orphaned transcription to new location
+                  const files = await fs_promises.readdir(orphanedTranscriptionPath);
+                  for (const file of files) {
+                    await fs_promises.copyFile(
+                      path.join(orphanedTranscriptionPath, file),
+                      path.join(targetTranscriptionPath, file)
+                    );
+                  }
+                  
+                  // Remove from orphaned index
+                  await orphanedIndex.removeOrphanedTranscription(transcriptionId);
+                  
+                  // Delete orphaned folder
+                  await fs_promises.rm(path.join(orphanedPath, orphanedFolder), { recursive: true, force: true });
+                  
+                  restored++;
+                  console.log(`[FolderUpload] Restored transcription for media ${mediaId}`);
+                }
+              }
+            } catch (error) {
+              console.error(`[FolderUpload] Failed to restore transcription ${transcriptionId}:`, error);
+            }
+          }
+          
+          console.log(`[FolderUpload] Restored ${restored} transcriptions`);
+        } catch (error) {
+          console.error('[FolderUpload] Error restoring transcriptions:', error);
+          // Don't fail the whole request, project is already created
+        }
+      }
+    }
     
     // Update user's storage usage after successful upload
     await storageService.incrementUsedStorage(userId, totalSize);
@@ -422,6 +699,298 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
   } catch (error: any) {
     console.error('Error creating project from folder:', error);
     res.status(500).json({ error: error.message || 'Failed to create project from folder' });
+  }
+});
+
+/**
+ * Add missing media files to existing project
+ */
+router.post('/:projectId/add-missing-media', verifyUser, upload.array('files'), async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { fileNames, missingFiles } = req.body;
+    const files = req.files as Express.Multer.File[];
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log('[AddMissingMedia] Adding missing media to project:', projectId);
+    console.log('[AddMissingMedia] Missing files:', missingFiles);
+    
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' });
+    }
+    
+    // Parse file names and missing files list
+    let parsedFileNames: string[] = [];
+    let parsedMissingFiles: string[] = [];
+    try {
+      if (fileNames) parsedFileNames = JSON.parse(fileNames);
+      if (missingFiles) parsedMissingFiles = JSON.parse(missingFiles);
+    } catch (e) {
+      console.error('[AddMissingMedia] Failed to parse file info:', e);
+    }
+    
+    // Filter to only add the missing files with enhanced validation
+    const filesToAdd: Express.Multer.File[] = [];
+    const namesToAdd: string[] = [];
+    const processedNames = new Set<string>(); // Prevent duplicate names within this upload
+    
+    console.log('[AddMissingMedia] Filtering files:');
+    console.log('[AddMissingMedia] - Received files:', files.map(f => f.originalname));
+    console.log('[AddMissingMedia] - Parsed file names:', parsedFileNames);
+    console.log('[AddMissingMedia] - Missing files list:', parsedMissingFiles);
+    
+    files.forEach((file, index) => {
+      const fileName = parsedFileNames[index] || file.originalname;
+      
+      // Only add if it's in the missing files list AND we haven't already processed this name
+      if (parsedMissingFiles.includes(fileName) && !processedNames.has(fileName)) {
+        filesToAdd.push(file);
+        namesToAdd.push(fileName);
+        processedNames.add(fileName);
+        console.log(`[AddMissingMedia] - Adding file: "${fileName}"`);
+      } else {
+        console.log(`[AddMissingMedia] - Skipping file: "${fileName}" (not missing: ${!parsedMissingFiles.includes(fileName)}, duplicate: ${processedNames.has(fileName)})`);
+      }
+    });
+    
+    if (filesToAdd.length === 0) {
+      console.log('[AddMissingMedia] No missing files found in upload after filtering');
+      return res.status(400).json({ error: 'No missing files found in upload' });
+    }
+    
+    console.log(`[AddMissingMedia] Filtered to ${filesToAdd.length} files to add:`, namesToAdd);
+    
+    // Load project metadata
+    const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
+    const projectMetaPath = path.join(projectPath, 'project.json');
+    
+    try {
+      await fs_promises.access(projectMetaPath);
+    } catch {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    const projectData = JSON.parse(await fs_promises.readFile(projectMetaPath, 'utf-8'));
+    const mediaPath = path.join(projectPath, 'media');
+    
+    // Get existing media file names to avoid duplicates
+    const existingMediaNames = new Set<string>();
+    if (projectData.mediaFiles) {
+      for (const mediaId of projectData.mediaFiles) {
+        try {
+          const mediaMetaPath = path.join(mediaPath, mediaId, 'metadata.json');
+          const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetaPath, 'utf-8'));
+          existingMediaNames.add(mediaMetadata.originalName);
+        } catch (error) {
+          // Ignore error, media may not have metadata
+        }
+      }
+    }
+    
+    // Check for duplicates and prepare lists
+    const duplicateFiles: string[] = [];
+    const finalFilesToAdd: Express.Multer.File[] = [];
+    const finalNamesToAdd: string[] = [];
+    
+    filesToAdd.forEach((file, index) => {
+      const fileName = namesToAdd[index];
+      if (!existingMediaNames.has(fileName)) {
+        finalFilesToAdd.push(file);
+        finalNamesToAdd.push(fileName);
+      } else {
+        duplicateFiles.push(fileName);
+        console.log(`[AddMissingMedia] Found duplicate file: ${fileName}`);
+      }
+    });
+    
+    // If there are duplicates and user hasn't confirmed, return warning
+    if (duplicateFiles.length > 0 && req.body.confirmDuplicates !== 'true') {
+      console.log('[AddMissingMedia] Duplicates found, requesting confirmation');
+      return res.status(409).json({
+        duplicatesFound: true,
+        duplicateFiles,
+        message: duplicateFiles.length === 1 
+          ? `הקובץ "${duplicateFiles[0]}" כבר קיים בפרויקט. האם להמשיך?`
+          : `${duplicateFiles.length} קבצים כבר קיימים בפרויקט. האם להמשיך?`
+      });
+    }
+    
+    if (finalFilesToAdd.length === 0) {
+      console.log('[AddMissingMedia] No new files to add (all already exist)');
+      return res.json({
+        success: true,
+        newMediaIds: [],
+        totalMedia: projectData.totalMedia,
+        message: 'כל הקבצים כבר קיימים בפרויקט'
+      });
+    }
+    
+    console.log(`[AddMissingMedia] Adding ${finalFilesToAdd.length} new files (filtered from ${filesToAdd.length})`);
+    
+    // Add each missing file
+    const newMediaIds: string[] = [];
+    
+    // Load or create media index
+    const mediaIndexPath = path.join(projectPath, 'media-index.json');
+    let mediaIndex;
+    
+    try {
+      mediaIndex = JSON.parse(await fs_promises.readFile(mediaIndexPath, 'utf-8'));
+      console.log('[AddMissingMedia] Loaded media index:', mediaIndex);
+    } catch (error) {
+      // Create new index if it doesn't exist
+      console.log('[AddMissingMedia] Creating new media index');
+      const existingMediaIds = new Set<string>(projectData.mediaFiles || []);
+      const existingNumbers = new Set<number>();
+      let highestNumber = 0;
+      
+      existingMediaIds.forEach(id => {
+        const num = parseInt(id.replace('media-', ''));
+        if (!isNaN(num)) {
+          existingNumbers.add(num);
+          if (num > highestNumber) highestNumber = num;
+        }
+      });
+      
+      // Find gaps
+      const availableNumbers: number[] = [];
+      for (let i = 1; i < highestNumber; i++) {
+        if (!existingNumbers.has(i)) {
+          availableNumbers.push(i);
+        }
+      }
+      
+      mediaIndex = {
+        nextMediaNumber: highestNumber + 1,
+        availableNumbers: availableNumbers,
+        activeMediaIds: Array.from(existingMediaIds).sort(),
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    
+    for (let i = 0; i < finalFilesToAdd.length; i++) {
+      const file = finalFilesToAdd[i];
+      const fileName = finalNamesToAdd[i];
+      
+      // Get next media ID from index
+      let mediaNumber: number;
+      if (mediaIndex.availableNumbers && mediaIndex.availableNumbers.length > 0) {
+        // Use available gap
+        mediaNumber = mediaIndex.availableNumbers.shift();
+        console.log(`[AddMissingMedia] Using gap: media-${mediaNumber} for file: ${fileName}`);
+      } else {
+        // Use next number
+        mediaNumber = mediaIndex.nextMediaNumber;
+        mediaIndex.nextMediaNumber++;
+        console.log(`[AddMissingMedia] Using next: media-${mediaNumber} for file: ${fileName}`);
+      }
+      
+      const mediaId = `media-${mediaNumber}`;
+      
+      // Update media index
+      if (!mediaIndex.activeMediaIds.includes(mediaId)) {
+        mediaIndex.activeMediaIds.push(mediaId);
+        mediaIndex.activeMediaIds.sort();
+      }
+      
+      // Create media directory structure
+      const mediaDir = path.join(mediaPath, mediaId);
+      const backupsDir = path.join(mediaDir, 'backups');
+      const transcriptionDir = path.join(mediaDir, 'transcription');
+      
+      await fs_promises.mkdir(mediaDir, { recursive: true });
+      await fs_promises.mkdir(backupsDir, { recursive: true });
+      await fs_promises.mkdir(transcriptionDir, { recursive: true });
+      
+      // Save media file
+      const fileExtension = path.extname(fileName).toLowerCase();
+      const mediaFileName = `media${fileExtension}`;
+      const mediaFilePath = path.join(mediaDir, mediaFileName);
+      await fs_promises.writeFile(mediaFilePath, file.buffer);
+      
+      // Calculate audio duration
+      console.log(`[AddMissingMedia] Calculating duration for: ${mediaFilePath}`);
+      const duration = await getAudioDuration(mediaFilePath);
+      console.log(`[AddMissingMedia] Calculated duration: ${duration} seconds for ${fileName}`);
+      
+      // Create metadata
+      const metadataContent = {
+        mediaId,
+        fileName: mediaFileName,
+        originalName: fileName,
+        mimeType: file.mimetype,
+        size: file.size,
+        duration,
+        stage: 'transcription',
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      };
+      
+      await fs_promises.writeFile(
+        path.join(mediaDir, 'metadata.json'),
+        JSON.stringify(metadataContent, null, 2)
+      );
+      
+      // Create empty transcription data
+      const transcriptionData = {
+        blocks: [],
+        lastSaved: new Date().toISOString()
+      };
+      
+      await fs_promises.writeFile(
+        path.join(transcriptionDir, 'data.json'),
+        JSON.stringify(transcriptionData, null, 2)
+      );
+      
+      // Create empty speakers and remarks files
+      await fs_promises.writeFile(
+        path.join(mediaDir, 'speakers.json'),
+        JSON.stringify({ speakers: [] }, null, 2)
+      );
+      
+      await fs_promises.writeFile(
+        path.join(mediaDir, 'remarks.json'),
+        JSON.stringify({ remarks: [] }, null, 2)
+      );
+      
+      newMediaIds.push(mediaId);
+      
+      // Update media index's active media list
+      if (!mediaIndex.activeMediaIds.includes(mediaId)) {
+        mediaIndex.activeMediaIds.push(mediaId);
+      }
+    }
+    
+    // Sort activeMediaIds and update lastUpdated
+    mediaIndex.activeMediaIds.sort();
+    mediaIndex.lastUpdated = new Date().toISOString();
+    
+    // Update project metadata - ensure no duplicates using Set
+    const allMediaIds = new Set([...(projectData.mediaFiles || []), ...newMediaIds]);
+    projectData.mediaFiles = Array.from(allMediaIds);
+    projectData.totalMedia = projectData.mediaFiles.length;
+    
+    console.log(`[AddMissingMedia] Updated mediaFiles array:`, projectData.mediaFiles);
+    projectData.lastModified = new Date().toISOString();
+    
+    await fs_promises.writeFile(projectMetaPath, JSON.stringify(projectData, null, 2));
+    
+    // Save updated media index
+    await fs_promises.writeFile(mediaIndexPath, JSON.stringify(mediaIndex, null, 2));
+    console.log('[AddMissingMedia] Updated media index:', mediaIndex);
+    
+    console.log('[AddMissingMedia] Successfully added', newMediaIds.length, 'missing media files');
+    
+    res.json({
+      success: true,
+      newMediaIds,
+      totalMedia: projectData.totalMedia,
+      message: `נוספו ${newMediaIds.length} קבצים חסרים לפרויקט`
+    });
+    
+  } catch (error: any) {
+    console.error('[AddMissingMedia] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to add missing media' });
   }
 });
 
@@ -988,6 +1557,361 @@ router.delete('/orphaned/:transcriptionId', verifyUser, async (req: Request, res
 });
 
 /**
+ * Restore orphaned transcription to a specific media file
+ */
+router.post('/orphaned/restore-to-media', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { transcriptionId, targetProjectId, targetMediaId, mode, position } = req.body;
+    const userId = (req as any).user?.id || 'bfc0ba9a-daae-46e2-acb9-5984d1adef9f';
+    
+    if (!transcriptionId || !targetProjectId || !targetMediaId || !mode) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    if (mode !== 'override' && mode !== 'append') {
+      return res.status(400).json({ error: 'Mode must be either "override" or "append"' });
+    }
+    
+    // Validate position parameter if mode is append
+    const appendPosition = mode === 'append' ? (position || 'after') : null;
+    if (mode === 'append' && appendPosition !== 'before' && appendPosition !== 'after') {
+      return res.status(400).json({ error: 'Position must be either "before" or "after" for append mode' });
+    }
+    
+    console.log(`[RestoreToMedia] Restoring ${transcriptionId} to project ${targetProjectId}, media ${targetMediaId}, mode: ${mode}, position: ${appendPosition}`);
+    
+    // Get paths
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', targetProjectId);
+    const mediaPath = path.join(projectPath, 'media', targetMediaId);
+    const targetTranscriptionPath = path.join(mediaPath, 'transcription', 'data.json');
+    
+    // Ensure target directory exists
+    await fs_promises.mkdir(path.join(mediaPath, 'transcription'), { recursive: true });
+    
+    // Find the transcription directly from filesystem instead of using the index
+    let archivePath: string | null = null;
+    let orphanedFolderName: string | null = null;
+    
+    // Check if transcriptionId contains media suffix (e.g., "_media-1")
+    const mediaMatch = transcriptionId.match(/^(.+)_(media-\d+)$/);
+    
+    if (mediaMatch) {
+      // Handle subfolder structure: orphan_xxx/media-N/transcription/data.json
+      const [, baseFolder, mediaFolder] = mediaMatch;
+      const subfolderPath = path.join(orphanedPath, baseFolder, mediaFolder, 'transcription', 'data.json');
+      
+      try {
+        await fs_promises.access(subfolderPath);
+        archivePath = subfolderPath;
+        orphanedFolderName = baseFolder; // Use the base folder for cleanup
+        console.log(`[RestoreToMedia] Found transcription at subfolder path: ${subfolderPath}`);
+      } catch {
+        console.log(`[RestoreToMedia] Subfolder path not found: ${subfolderPath}`);
+      }
+    }
+    
+    // If not found with subfolder structure, try direct path
+    if (!archivePath) {
+      const directPath = path.join(orphanedPath, transcriptionId, 'transcription', 'data.json');
+      
+      try {
+        await fs_promises.access(directPath);
+        archivePath = directPath;
+        orphanedFolderName = transcriptionId;
+        console.log(`[RestoreToMedia] Found transcription at direct path: ${directPath}`);
+      } catch {
+        // If still not found, search through orphaned folders
+        try {
+          const folders = await fs_promises.readdir(orphanedPath);
+          for (const folder of folders) {
+            if (folder === 'orphaned-index.json') continue;
+            
+            // Check if this folder matches or contains the transcriptionId
+            const transcriptionBase = transcriptionId.replace(/_media-\d+$/, '');
+            
+            if (folder === transcriptionId || 
+                folder === transcriptionBase ||
+                folder.includes(transcriptionId) || 
+                transcriptionId.includes(folder) ||
+                folder.includes(transcriptionBase)) {
+              const testPath = path.join(orphanedPath, folder, 'transcription', 'data.json');
+              try {
+                await fs_promises.access(testPath);
+                archivePath = testPath;
+                orphanedFolderName = folder;
+                console.log(`[RestoreToMedia] Found transcription at: ${testPath}`);
+                break;
+              } catch {
+                // Continue searching
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[RestoreToMedia] Error searching orphaned folders:', error);
+        }
+      }
+    }
+    
+    if (!archivePath || !orphanedFolderName) {
+      console.log('[RestoreToMedia] Transcription not found for ID:', transcriptionId);
+      return res.status(404).json({ error: 'Transcription not found' });
+    }
+    
+    // For testing: Simply copy the content from archived to target
+    console.log(`[RestoreToMedia] Reading archived data from: ${archivePath}`);
+    console.log(`[RestoreToMedia] Will write to: ${targetTranscriptionPath}`);
+    
+    let archivedData: any;
+    try {
+      // Read the archived transcription content
+      const archivedContent = await fs_promises.readFile(archivePath, 'utf-8');
+      
+      // Parse to verify it's valid JSON
+      archivedData = JSON.parse(archivedContent);
+      
+      if (mode === 'append') {
+        // For append mode, merge with existing content
+        let existingData: any = { blocks: [], version: '1.0.0' };
+        try {
+          const existingContent = await fs_promises.readFile(targetTranscriptionPath, 'utf-8');
+          existingData = JSON.parse(existingContent);
+        } catch (e) {
+          // No existing transcription or invalid JSON, that's okay
+        }
+        
+        // Mark existing blocks as original
+        const originalBlocks = (existingData.blocks || []).map((block: any, index: number) => ({
+          ...block,
+          _source: 'original',
+          _blockIndex: index
+        }));
+        
+        // Mark archived blocks as restored and ensure unique IDs
+        const restoredBlocks = (archivedData.blocks || []).map((block: any, index: number) => {
+          // Generate new unique ID for restored blocks to avoid duplicates
+          const newBlockId = block.id ? `${block.id}-restored-${Date.now()}-${index}` : `block-restored-${Date.now()}-${index}`;
+          return {
+            ...block,
+            id: newBlockId,
+            _source: 'restored',
+            _sourceId: transcriptionId,
+            _restoredAt: new Date().toISOString(),
+            _blockIndex: index,
+            _originalId: block.id // Keep track of original ID
+          };
+        });
+        
+        // Merge blocks based on position
+        let mergedBlocks;
+        let originalIndices: number[];
+        let restoredIndices: number[];
+        
+        if (appendPosition === 'before') {
+          mergedBlocks = [...restoredBlocks, ...originalBlocks];
+          originalIndices = Array.from({ length: originalBlocks.length }, (_, i) => restoredBlocks.length + i);
+          restoredIndices = Array.from({ length: restoredBlocks.length }, (_, i) => i);
+        } else {
+          mergedBlocks = [...originalBlocks, ...restoredBlocks];
+          originalIndices = Array.from({ length: originalBlocks.length }, (_, i) => i);
+          restoredIndices = Array.from({ length: restoredBlocks.length }, (_, i) => originalBlocks.length + i);
+        }
+        
+        // Create merge history entry
+        const mergeHistoryEntry = {
+          timestamp: new Date().toISOString(),
+          operation: 'append',
+          position: appendPosition,
+          originalBlockIndices: originalIndices,
+          restoredBlockIndices: restoredIndices,
+          restoredFrom: transcriptionId,
+          restoredMediaName: archivedData.metadata?.originalName || 'Unknown'
+        };
+        
+        // Merge all data with metadata tracking
+        const mergedData = {
+          blocks: mergedBlocks,
+          version: '1.0.0',
+          lastSaved: new Date().toISOString(),
+          metadata: archivedData.metadata || existingData.metadata || {},
+          speakers: archivedData.speakers || existingData.speakers || [],
+          remarks: archivedData.remarks || existingData.remarks || [],
+          mergeHistory: [...(existingData.mergeHistory || []), mergeHistoryEntry]
+        };
+        
+        // Write merged content
+        await fs_promises.writeFile(targetTranscriptionPath, JSON.stringify(mergedData, null, 2));
+        console.log(`[RestoreToMedia] Successfully appended ${archivedData.blocks?.length || 0} blocks`);
+      } else {
+        // Override mode - simply copy the entire content
+        await fs_promises.writeFile(targetTranscriptionPath, archivedContent);
+        console.log(`[RestoreToMedia] Successfully copied archived content to target`);
+        
+        // Also update speakers.json if present
+        if (archivedData.speakers) {
+          const speakersPath = path.join(mediaPath, 'speakers.json');
+          await fs_promises.writeFile(speakersPath, JSON.stringify(archivedData.speakers, null, 2));
+          console.log(`[RestoreToMedia] Updated speakers.json`);
+        }
+      }
+    } catch (error) {
+      console.error(`[RestoreToMedia] Error copying content:`, error);
+      return res.status(500).json({ error: 'Failed to restore transcription content' });
+    }
+    
+    // Delete the orphaned folder - TEMPORARILY COMMENTED OUT FOR TESTING
+    // const orphanedFolderPath = path.join(orphanedPath, orphanedFolderName);
+    // try {
+    //   await fs_promises.rm(orphanedFolderPath, { recursive: true, force: true });
+    //   console.log(`[RestoreToMedia] Deleted orphaned folder: ${orphanedFolderName}`);
+    // } catch (error) {
+    //   console.error(`[RestoreToMedia] Failed to delete orphaned folder:`, error);
+    // }
+    console.log(`[RestoreToMedia] SKIPPING deletion of orphaned folder: ${orphanedFolderName} (temporarily disabled for testing)`)
+    
+    // Update orphaned index if it exists (but don't fail if it doesn't)
+    try {
+      const orphanedIndexPath = path.join(orphanedPath, 'orphaned-index.json');
+      const orphanedIndex = JSON.parse(await fs_promises.readFile(orphanedIndexPath, 'utf-8'));
+      
+      if (orphanedIndex.transcriptions) {
+        for (const [mediaName, transcriptions] of Object.entries(orphanedIndex.transcriptions)) {
+          const index = (transcriptions as any[]).findIndex(t => 
+            t.id === transcriptionId || 
+            t.transcriptionId === transcriptionId ||
+            t.originalProjectFolder === orphanedFolderName
+          );
+          if (index >= 0) {
+            (transcriptions as any[]).splice(index, 1);
+            if ((transcriptions as any[]).length === 0) {
+              delete orphanedIndex.transcriptions[mediaName];
+            }
+            break;
+          }
+        }
+        orphanedIndex.lastUpdated = new Date().toISOString();
+        await fs_promises.writeFile(orphanedIndexPath, JSON.stringify(orphanedIndex, null, 2));
+      }
+    } catch (e) {
+      // Index update failed, but restoration can continue
+      console.log('[RestoreToMedia] Could not update orphaned index, but restoration continues');
+    }
+    
+    // Return success response
+    // Note: archivedData was already parsed earlier at line 1664
+    let successMessage = 'התמלול שוחזר בהצלחה';
+    if (mode === 'append') {
+      if (appendPosition === 'before') {
+        successMessage = 'התמלול נוסף בהצלחה בתחילת התמלול הקיים';
+      } else {
+        successMessage = 'התמלול נוסף בהצלחה בסוף התמלול הקיים';
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: successMessage,
+      blocksRestored: archivedData.blocks?.length || 0
+    });
+    
+  } catch (error: any) {
+    console.error('[RestoreToMedia] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to restore transcription' });
+  }
+});
+
+/**
+ * Preview orphaned transcription content
+ */
+router.get('/orphaned/preview/:transcriptionId', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { transcriptionId } = req.params;
+    const userId = (req as any).user?.id || 'bfc0ba9a-daae-46e2-acb9-5984d1adef9f';
+    
+    console.log(`[OrphanedPreview] Previewing transcription ${transcriptionId} for user ${userId}`);
+    
+    // Read directly from filesystem instead of using the index
+    const baseDir = process.cwd().endsWith('backend') ? process.cwd() : path.join(process.cwd(), 'backend');
+    const orphanedDir = path.join(baseDir, 'user_data', 'users', userId, 'orphaned');
+    
+    // The transcriptionId from frontend is the folder name (e.g., "orphan_1757235196891_2026772" or "orphaned_2025-09-07_23-18-09_001_media-2_1757314865945")
+    let dataPath: string | null = null;
+    
+    // First, try direct folder with transcription subfolder
+    const directPath = path.join(orphanedDir, transcriptionId, 'transcription', 'data.json');
+    
+    try {
+      await fs_promises.access(directPath);
+      dataPath = directPath;
+      console.log(`[OrphanedPreview] Found transcription at direct path: ${directPath}`);
+    } catch {
+      // If not found, check if it's a subfolder pattern (for project-level orphans)
+      const parts = transcriptionId.split('_');
+      if (parts.length > 1) {
+        // Try to find the parent folder
+        const folders = await fs_promises.readdir(orphanedDir);
+        for (const folder of folders) {
+          if (folder.includes(transcriptionId) || transcriptionId.includes(folder)) {
+            const testPath = path.join(orphanedDir, folder, 'transcription', 'data.json');
+            try {
+              await fs_promises.access(testPath);
+              dataPath = testPath;
+              console.log(`[OrphanedPreview] Found transcription at: ${testPath}`);
+              break;
+            } catch {
+              // Check for media subfolders
+              const subfolderPath = path.join(orphanedDir, folder, parts[parts.length - 1], 'transcription', 'data.json');
+              try {
+                await fs_promises.access(subfolderPath);
+                dataPath = subfolderPath;
+                console.log(`[OrphanedPreview] Found transcription at subfolder: ${subfolderPath}`);
+                break;
+              } catch {
+                // Continue searching
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    if (!dataPath) {
+      console.log(`[OrphanedPreview] Transcription not found for ID: ${transcriptionId}`);
+      return res.status(404).json({ error: 'Transcription not found' });
+    }
+    
+    console.log(`[OrphanedPreview] Reading from: ${dataPath}`);
+    
+    if (!fs.existsSync(dataPath)) {
+      console.log(`[OrphanedPreview] File not found at path`);
+      return res.status(404).json({ error: 'Transcription file not found' });
+    }
+    
+    const data = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+    
+    // Extract text content for preview
+    let content = '';
+    if (data.blocks && Array.isArray(data.blocks)) {
+      content = data.blocks.map((block: any) => block.text || '').join('\n');
+    } else if (typeof data === 'string') {
+      content = data;
+    } else {
+      content = JSON.stringify(data, null, 2);
+    }
+    
+    res.json({
+      content: content.substring(0, 1000), // Limit preview to 1000 characters
+      totalLength: content.length,
+      transcriptionId: transcriptionId
+    });
+    
+  } catch (error) {
+    console.error('[OrphanedPreview] Error:', error);
+    res.status(500).json({ error: 'Failed to preview transcription' });
+  }
+});
+
+/**
  * Delete a project with option to preserve transcriptions
  */
 router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => {
@@ -1019,17 +1943,23 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
         // Create the project folder in orphaned
         await fs_promises.mkdir(orphanedProjectPath, { recursive: true });
         
+        // Initialize orphaned index service
+        const orphanedIndex = projectService.getOrphanedIndexService(userId);
+        await orphanedIndex.initialize();
+        
         // Move each media's transcription folder
         if (projectData.mediaFiles) {
           for (const mediaId of projectData.mediaFiles) {
             // Check for multi-media project structure first
-            let transcriptionPath = path.join(projectPath, 'media', mediaId, 'transcription');
+            let mediaPath = path.join(projectPath, 'media', mediaId);
+            let transcriptionPath = path.join(mediaPath, 'transcription');
             
             // If not found, try old structure
             try {
               await fs_promises.access(transcriptionPath);
             } catch {
-              transcriptionPath = path.join(projectPath, mediaId, 'transcription');
+              mediaPath = path.join(projectPath, mediaId);
+              transcriptionPath = path.join(mediaPath, 'transcription');
             }
             
             try {
@@ -1043,18 +1973,61 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
               const targetPath = path.join(targetMediaPath, 'transcription');
               await fs_promises.rename(transcriptionPath, targetPath);
               
+              // Read media metadata if available
+              let mediaDuration: number | undefined;
+              let mediaSize: number | undefined;
+              let mediaName = mediaId;
+              
+              try {
+                const metadataPath = path.join(mediaPath, 'metadata.json');
+                const mediaMetadata = JSON.parse(await fs_promises.readFile(metadataPath, 'utf-8'));
+                mediaName = mediaMetadata.originalName || mediaMetadata.fileName || mediaId;
+                mediaDuration = mediaMetadata.duration;
+                mediaSize = mediaMetadata.size;
+              } catch {
+                // No metadata file, try to get from transcription data
+              }
+              
               // Update metadata to indicate when it was moved
               const dataPath = path.join(targetPath, 'data.json');
               try {
                 const data = JSON.parse(await fs_promises.readFile(dataPath, 'utf-8'));
+                
+                // Get media name from transcription if not found
+                if (!mediaName || mediaName === mediaId) {
+                  mediaName = data.metadata?.originalName || data.metadata?.fileName || mediaId;
+                }
+                
+                // Try to get duration from transcription metadata if not found
+                if (!mediaDuration && data.metadata?.duration) {
+                  mediaDuration = data.metadata.duration;
+                }
+                
                 data.orphanedFrom = {
                   projectId,
                   projectName,
+                  projectFolder: orphanedProjectFolder,
                   mediaId: mediaId,
-                  mediaName: data.metadata?.originalName || data.metadata?.fileName || mediaId,
+                  mediaName,
+                  mediaDuration,
+                  mediaSize,
                   orphanedAt: new Date().toISOString()
                 };
                 await fs_promises.writeFile(dataPath, JSON.stringify(data, null, 2));
+                
+                // Add to orphaned index
+                await orphanedIndex.addOrphanedTranscription({
+                  transcriptionId: `${projectId}_${mediaId}_${timestamp}`,
+                  originalProjectId: projectId,
+                  originalProjectName: projectName,
+                  originalProjectFolder: orphanedProjectFolder,
+                  originalMediaId: mediaId,
+                  originalMediaName: mediaName,
+                  mediaDuration,
+                  mediaSize,
+                  archivedPath: targetPath,
+                  fileSize: (await fs_promises.stat(dataPath)).size
+                });
               } catch (error) {
                 console.error('Failed to update orphaned transcription metadata:', error);
               }
@@ -1068,17 +2041,136 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
       }
     }
     
-    // Now delete the project
-    const success = await projectService.deleteProject(projectId, userId);
+    // Now delete the remaining project folder
+    const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
     
-    if (success) {
+    // First verify the folder exists before trying to delete
+    try {
+      await fs_promises.access(projectPath);
+      console.log(`[ProjectDelete] Project folder exists, attempting deletion: ${projectPath}`);
+    } catch {
+      console.log(`[ProjectDelete] Project folder doesn't exist: ${projectPath}`);
+      res.json({
+        success: true,
+        message: `Project ${projectId} already deleted`,
+        transcriptionsPreserved: !deleteTranscription
+      });
+      return;
+    }
+    
+    // Add a small delay to ensure files are released
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Try multiple deletion methods for Windows compatibility
+    let deletionSuccessful = false;
+    
+    // Method 1: Try standard fs.rm first
+    try {
+      console.log(`[ProjectDelete] Attempting fs.rm deletion...`);
+      await fs_promises.rm(projectPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+      
+      // Check if deletion worked
+      try {
+        await fs_promises.access(projectPath);
+        console.log(`[ProjectDelete] fs.rm failed, folder still exists`);
+      } catch {
+        deletionSuccessful = true;
+        console.log(`[ProjectDelete] fs.rm succeeded`);
+      }
+    } catch (error: any) {
+      console.log(`[ProjectDelete] fs.rm error: ${error.message}`);
+    }
+    
+    // Method 2: If fs.rm failed, try Windows rmdir command
+    if (!deletionSuccessful && process.platform === 'win32') {
+      try {
+        console.log(`[ProjectDelete] Attempting Windows rmdir deletion...`);
+        const { exec } = require('child_process');
+        const { promisify } = require('util');
+        const execAsync = promisify(exec);
+        
+        // Use Windows rmdir command with /S (recursive) and /Q (quiet)
+        await execAsync(`rmdir /S /Q "${projectPath}"`, { 
+          windowsHide: true,
+          timeout: 10000 
+        });
+        
+        // Check if deletion worked
+        try {
+          await fs_promises.access(projectPath);
+          console.log(`[ProjectDelete] rmdir failed, folder still exists`);
+        } catch {
+          deletionSuccessful = true;
+          console.log(`[ProjectDelete] rmdir succeeded`);
+        }
+      } catch (error: any) {
+        console.log(`[ProjectDelete] rmdir error: ${error.message}`);
+      }
+    }
+    
+    // Method 3: If still not deleted, try PowerShell Remove-Item
+    if (!deletionSuccessful && process.platform === 'win32') {
+      try {
+        console.log(`[ProjectDelete] Attempting PowerShell deletion...`);
+        const { exec } = require('child_process');
+        const { promisify } = require('util');
+        const execAsync = promisify(exec);
+        
+        // Use PowerShell Remove-Item with -Recurse and -Force
+        await execAsync(`powershell -Command "Remove-Item -Path '${projectPath}' -Recurse -Force -ErrorAction SilentlyContinue"`, {
+          windowsHide: true,
+          timeout: 10000
+        });
+        
+        // Check if deletion worked
+        try {
+          await fs_promises.access(projectPath);
+          console.log(`[ProjectDelete] PowerShell failed, folder still exists`);
+        } catch {
+          deletionSuccessful = true;
+          console.log(`[ProjectDelete] PowerShell succeeded`);
+        }
+      } catch (error: any) {
+        console.log(`[ProjectDelete] PowerShell error: ${error.message}`);
+      }
+    }
+    
+    // Final verification
+    try {
+      await fs_promises.access(projectPath);
+      // If we can still access it, all deletion methods failed
+      console.error(`[ProjectDelete] ERROR: All deletion methods failed. Folder still exists: ${projectPath}`);
+      
+      // Try to list what's preventing deletion
+      try {
+        const contents = await fs_promises.readdir(projectPath, { withFileTypes: true });
+        console.error(`[ProjectDelete] Remaining contents: ${contents.map(c => c.name).join(', ')}`);
+      } catch (e) {
+        console.error(`[ProjectDelete] Could not list remaining contents`);
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to delete project folder. Directory still exists after all deletion attempts.',
+        projectPath: projectPath,
+        platform: process.platform
+      });
+    } catch {
+      // Good! Folder is gone
+      console.log(`[ProjectDelete] Successfully deleted project: ${projectId}`);
+      
+      // Force refresh storage calculation for this user
+      const storageService = require('../../services/storageService').default;
+      storageService.forceRefreshUserStorage(userId).then(() => {
+        console.log(`[ProjectDelete] Storage refreshed for user: ${userId}`);
+      }).catch((err: any) => {
+        console.error(`[ProjectDelete] Failed to refresh storage:`, err);
+      });
+      
       res.json({
         success: true,
         message: `Project ${projectId} deleted successfully`,
         transcriptionsPreserved: !deleteTranscription
       });
-    } else {
-      res.status(404).json({ error: 'Project not found' });
     }
   } catch (error: any) {
     console.error('Error deleting project:', error);
@@ -1089,6 +2181,232 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
 /**
  * Delete a specific media file from a project
  */
+/**
+ * Restore archived transcriptions
+ */
+/**
+ * Get archived transcription content for preview
+ */
+router.post('/preview-archived', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { archivedTranscriptions } = req.body;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log('[PreviewArchived] Fetching content for archived transcriptions');
+    console.log('[PreviewArchived] Received data:', JSON.stringify(archivedTranscriptions, null, 2));
+    
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    const transcriptionsWithContent: any[] = [];
+    
+    // For each media file and its transcriptions
+    for (const [mediaName, transcriptions] of Object.entries(archivedTranscriptions)) {
+      const mediaTranscriptions = [];
+      
+      for (const transcription of (transcriptions as any[])) {
+        try {
+          // Read transcription content from the archived folder structure
+          let transcriptionData = null;
+          
+          // Build the correct path to the data file
+          let dataFilePath: string;
+          if (transcription.originalProjectFolder) {
+            // Use the folder name stored in the index
+            dataFilePath = path.join(orphanedPath, transcription.originalProjectFolder, 'transcription', 'data.json');
+          } else {
+            // Fallback to parsing the archivedPath
+            const archivedPath = transcription.archivedPath;
+            const pathParts = archivedPath.split(/[\\\/]/);
+            const folderName = pathParts.find((p: string) => p.startsWith('orphan_') || p.startsWith('orphaned_'));
+            if (folderName) {
+              dataFilePath = path.join(orphanedPath, folderName, 'transcription', 'data.json');
+            } else {
+              // Final fallback - try direct path construction
+              dataFilePath = path.join(process.cwd(), 'user_data', 'users', userId, archivedPath);
+              if (archivedPath.endsWith('transcription')) {
+                dataFilePath = path.join(dataFilePath, 'data.json');
+              } else if (!archivedPath.endsWith('.json')) {
+                dataFilePath = path.join(dataFilePath, 'transcription', 'data.json');
+              }
+            }
+          }
+          
+          // Read the transcription data
+          try {
+            await fs_promises.access(dataFilePath);
+            transcriptionData = JSON.parse(await fs_promises.readFile(dataFilePath, 'utf-8'));
+          } catch (error) {
+            console.log(`[PreviewArchived] Could not read transcription data for ${transcription.transcriptionId} at ${dataFilePath}:`, error);
+            continue;
+          }
+          
+          if (transcriptionData) {
+            // Extract text content from blocks
+            let textContent = '';
+            let previewBlocks = [];
+            let totalWords = 0;
+            
+            if (transcriptionData.blocks && Array.isArray(transcriptionData.blocks)) {
+              // Get first 3 blocks for preview
+              previewBlocks = transcriptionData.blocks.slice(0, 3).map((block: any) => ({
+                text: block.text || '',
+                speaker: block.speaker,
+                timestamp: block.timestamp
+              }));
+              
+              // Calculate total words
+              totalWords = transcriptionData.blocks.reduce((sum: number, block: any) => {
+                const words = (block.text || '').split(/\s+/).filter((w: string) => w.length > 0).length;
+                return sum + words;
+              }, 0);
+              
+              textContent = transcriptionData.blocks
+                .map((block: any) => block.text || '')
+                .join(' ')
+                .substring(0, 500); // Limit preview to 500 chars
+            }
+            
+            mediaTranscriptions.push({
+              ...transcription,
+              content: textContent,
+              blockCount: transcriptionData.blocks?.length || 0,
+              lastModified: transcriptionData.lastModified,
+              totalDuration: transcriptionData.metadata?.duration,
+              preview: {
+                blocks: previewBlocks,
+                totalBlocks: transcriptionData.blocks?.length || 0,
+                totalWords: totalWords
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`[PreviewArchived] Error reading transcription ${transcription.transcriptionId}:`, error);
+        }
+      }
+      
+      if (mediaTranscriptions.length > 0) {
+        transcriptionsWithContent.push({
+          mediaName,
+          transcriptions: mediaTranscriptions
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      transcriptions: transcriptionsWithContent
+    });
+    
+  } catch (error) {
+    console.error('[PreviewArchived] Error:', error);
+    res.status(500).json({ error: 'Failed to preview archived transcriptions' });
+  }
+});
+
+router.post('/restore-archived', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { transcriptionIds, projectId, mediaIds } = req.body;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    console.log(`[RestoreArchived] Restoring ${transcriptionIds.length} transcriptions to project ${projectId}`);
+    
+    const orphanedIndex = projectService.getOrphanedIndexService(userId);
+    await orphanedIndex.initialize();
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
+    
+    const restored: string[] = [];
+    const failed: string[] = [];
+    
+    for (let i = 0; i < transcriptionIds.length; i++) {
+      const transcriptionId = transcriptionIds[i];
+      const mediaId = mediaIds[i];
+      
+      try {
+        // Find the orphaned folder
+        const folders = await fs_promises.readdir(orphanedPath);
+        const orphanedFolder = folders.find(f => f.includes(transcriptionId) || 
+                                               (f.includes(projectId) && f.includes(mediaId)));
+        
+        if (!orphanedFolder) {
+          console.error(`[RestoreArchived] Orphaned folder not found for ${transcriptionId}`);
+          failed.push(transcriptionId);
+          continue;
+        }
+        
+        // Path to orphaned transcription
+        const orphanedTranscriptionPath = path.join(orphanedPath, orphanedFolder, 'transcription');
+        
+        // Check if it's a folder structure or old single file
+        let archivedData;
+        let isFolder = false;
+        
+        try {
+          // Try to read as folder structure first
+          const dataPath = path.join(orphanedTranscriptionPath, 'data.json');
+          archivedData = JSON.parse(await fs_promises.readFile(dataPath, 'utf-8'));
+          isFolder = true;
+        } catch {
+          // Fall back to old single JSON file format
+          const archivePath = path.join(orphanedPath, orphanedFolder);
+          archivedData = JSON.parse(await fs_promises.readFile(archivePath, 'utf-8'));
+        }
+        
+        // Create media transcription directory
+        const mediaPath = path.join(projectPath, 'media', mediaId);
+        const transcriptionPath = path.join(mediaPath, 'transcription');
+        await fs_promises.mkdir(transcriptionPath, { recursive: true });
+        
+        // Remove orphaned metadata
+        delete archivedData.orphanedFrom;
+        
+        if (isFolder) {
+          // Move entire transcription folder back
+          await fs_promises.rename(orphanedTranscriptionPath, transcriptionPath);
+          
+          // Update data.json to remove orphaned metadata
+          const restoredDataPath = path.join(transcriptionPath, 'data.json');
+          const restoredData = JSON.parse(await fs_promises.readFile(restoredDataPath, 'utf-8'));
+          delete restoredData.orphanedFrom;
+          await fs_promises.writeFile(restoredDataPath, JSON.stringify(restoredData, null, 2));
+          
+          // Delete the orphaned folder
+          await fs_promises.rm(path.join(orphanedPath, orphanedFolder), { recursive: true, force: true });
+        } else {
+          // Old format: single JSON file
+          await fs_promises.writeFile(
+            path.join(transcriptionPath, 'data.json'),
+            JSON.stringify(archivedData, null, 2)
+          );
+          
+          // Delete archived file
+          await fs_promises.unlink(path.join(orphanedPath, orphanedFolder));
+        }
+        
+        // Remove from orphaned index
+        await orphanedIndex.removeOrphanedTranscription(transcriptionId);
+        
+        restored.push(mediaId);
+        console.log(`[RestoreArchived] Restored transcription for media ${mediaId}`);
+        
+      } catch (error) {
+        console.error(`[RestoreArchived] Failed to restore ${transcriptionId}:`, error);
+        failed.push(transcriptionId);
+      }
+    }
+    
+    res.json({
+      success: true,
+      restored,
+      failed,
+      message: `שוחזרו ${restored.length} תמלולים בהצלחה`
+    });
+    
+  } catch (error) {
+    console.error('[RestoreArchived] Error:', error);
+    res.status(500).json({ error: 'Failed to restore archived transcriptions' });
+  }
+});
+
 router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId, mediaId } = req.params;
@@ -1134,46 +2452,74 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
           // Use projectId if can't read project data
         }
         
-        // Create folder for this media's transcription
+        // Create unique folder for orphaned transcription
         const timestamp = Date.now();
-        const orphanFolder = `orphan_${timestamp}_${mediaId.substring(0, 8)}`;
-        const targetPath = path.join(orphanedPath, orphanFolder, 'transcription');
+        const orphanedFolderName = `orphaned_${projectId}_${mediaId}_${timestamp}`;
+        const orphanedMediaPath = path.join(orphanedPath, orphanedFolderName);
+        await fs_promises.mkdir(orphanedMediaPath, { recursive: true });
         
-        // Create the target directory
-        await fs_promises.mkdir(path.dirname(targetPath), { recursive: true });
+        // Target path for the transcription folder
+        const targetPath = path.join(orphanedMediaPath, 'transcription');
         
-        // Move the transcription folder
+        // Move the entire transcription folder
         await fs_promises.rename(transcriptionPath, targetPath);
         
-        // Update metadata
+        // Load transcription data from new location
         const dataPath = path.join(targetPath, 'data.json');
+        const data = JSON.parse(await fs_promises.readFile(dataPath, 'utf-8'));
+        
+        // Try to get the media name and metadata
+        let mediaName = mediaId;
+        let mediaDuration: number | undefined;
+        let mediaSize: number | undefined;
+        
         try {
-          const data = JSON.parse(await fs_promises.readFile(dataPath, 'utf-8'));
-          
-          // Try to get the media name from metadata
-          let mediaName = mediaId;
-          try {
-            const mediaMetadataPath = path.join(mediaPath, '..', 'metadata.json');
-            const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetadataPath, 'utf-8'));
-            mediaName = mediaMetadata.originalName || mediaMetadata.fileName || mediaId;
-          } catch {
-            // If no metadata.json, use the name from transcription metadata if available
-            mediaName = data.metadata?.originalName || data.metadata?.fileName || mediaId;
+          const mediaMetadataPath = path.join(mediaPath, 'metadata.json');
+          const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetadataPath, 'utf-8'));
+          mediaName = mediaMetadata.originalName || mediaMetadata.fileName || mediaId;
+          mediaDuration = mediaMetadata.duration;
+          mediaSize = mediaMetadata.size;
+        } catch {
+          // If no metadata.json, use the name from transcription metadata if available
+          mediaName = data.metadata?.originalName || data.metadata?.fileName || mediaId;
+          if (data.metadata?.duration) {
+            mediaDuration = data.metadata.duration;
           }
-          
-          data.orphanedFrom = {
-            projectId,
-            projectName,
-            mediaId,
-            mediaName,
-            orphanedAt: new Date().toISOString()
-          };
-          await fs_promises.writeFile(dataPath, JSON.stringify(data, null, 2));
-        } catch (error) {
-          console.error('Failed to update orphaned transcription metadata:', error);
         }
-      } catch {
-        // Transcription doesn't exist, skip
+        
+        // Add orphaned metadata
+        data.orphanedFrom = {
+          projectId,
+          projectName,
+          mediaId,
+          mediaName,
+          mediaDuration,
+          mediaSize,
+          orphanedAt: new Date().toISOString()
+        };
+        
+        // Update the data.json with orphaned metadata
+        await fs_promises.writeFile(dataPath, JSON.stringify(data, null, 2));
+        
+        // Update the orphaned index
+        const indexService = projectService.getOrphanedIndexService(userId);
+        await indexService.initialize();
+        await indexService.addOrphanedTranscription({
+          transcriptionId: `${projectId}_${mediaId}_${timestamp}`,
+          originalProjectId: projectId,
+          originalProjectName: projectName,
+          originalMediaId: mediaId,
+          originalMediaName: mediaName,
+          mediaDuration,
+          mediaSize,
+          archivedPath: targetPath,
+          fileSize: (await fs_promises.stat(targetPath)).size
+        });
+        
+        console.log(`Moved transcription to orphaned: ${orphanedFolderName}`);
+      } catch (error) {
+        // Transcription doesn't exist or error moving to orphaned, skip
+        console.error('Error moving transcription to orphaned:', error);
       }
     }
     
@@ -1208,7 +2554,34 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
         } else {
           // Update the project file if there are remaining media files
           projectData.updatedAt = new Date().toISOString();
+          projectData.totalMedia = projectData.mediaFiles.length;
           await fs_promises.writeFile(projectFile, JSON.stringify(projectData, null, 2));
+          
+          // Update media index
+          const mediaIndexPath = path.join(projectPath, 'media-index.json');
+          try {
+            const mediaIndex = JSON.parse(await fs_promises.readFile(mediaIndexPath, 'utf-8'));
+            
+            // Remove from activeMediaIds
+            mediaIndex.activeMediaIds = mediaIndex.activeMediaIds.filter((id: string) => id !== mediaId);
+            
+            // Extract number from mediaId (e.g., "media-3" -> 3)
+            const mediaNumber = parseInt(mediaId.replace('media-', ''));
+            if (!isNaN(mediaNumber)) {
+              // Add this number to availableNumbers for reuse
+              if (!mediaIndex.availableNumbers.includes(mediaNumber)) {
+                mediaIndex.availableNumbers.push(mediaNumber);
+                mediaIndex.availableNumbers.sort((a: number, b: number) => a - b);
+              }
+            }
+            
+            mediaIndex.lastUpdated = new Date().toISOString();
+            await fs_promises.writeFile(mediaIndexPath, JSON.stringify(mediaIndex, null, 2));
+            console.log(`[MediaDelete] Updated media index after removing ${mediaId}`);
+          } catch (error) {
+            console.error('[MediaDelete] Failed to update media index:', error);
+            // Continue even if index update fails
+          }
         }
       }
     } catch (error) {
@@ -1236,6 +2609,12 @@ router.put('/:projectId/media/:mediaId/transcription', verifyUser, async (req: R
     const userId = (req as any).user?.id || 'unknown';
     
     console.log('[Save] Saving transcription:', { projectId, mediaId, userId, blocksCount: blocks?.length });
+    
+    // CRITICAL: Validate mediaId to prevent cross-contamination
+    if (!mediaId || !projectId) {
+      console.error('[Save] Missing mediaId or projectId, rejecting save to prevent corruption');
+      return res.status(400).json({ error: 'Missing mediaId or projectId' });
+    }
     
     // Debug: Check if blocks have speakerTime
     if (blocks && blocks.length > 0) {
@@ -1875,6 +3254,191 @@ router.get('/:projectId/media/:filename', async (req: Request, res: Response) =>
   } catch (error: any) {
     console.error('Error serving media file:', error);
     res.status(500).json({ error: error.message || 'Failed to serve media file' });
+  }
+});
+
+// Restore archived transcriptions to existing project
+router.post('/:projectId/restore-transcriptions', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const { selectedTranscriptionIds } = req.body;
+    const userId = (req as any).user?.id || 'unknown';
+    
+    if (!selectedTranscriptionIds || !Array.isArray(selectedTranscriptionIds) || selectedTranscriptionIds.length === 0) {
+      return res.status(400).json({ error: 'No transcriptions selected' });
+    }
+    
+    console.log(`[restore-transcriptions] Restoring ${selectedTranscriptionIds.length} transcriptions to project ${projectId}`);
+    
+    // Get project path
+    const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    
+    // Check if project exists
+    if (!await fs_promises.access(projectPath).then(() => true).catch(() => false)) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    // Load project metadata
+    const projectMetaPath = path.join(projectPath, 'project.json');
+    const projectData = JSON.parse(await fs_promises.readFile(projectMetaPath, 'utf-8'));
+    
+    let restoredCount = 0;
+    const errors: string[] = [];
+    
+    // Get the orphaned index to find archive paths
+    const orphanedIndexPath = path.join(orphanedPath, 'orphaned-index.json');
+    let orphanedIndex: any = {};
+    try {
+      orphanedIndex = JSON.parse(await fs_promises.readFile(orphanedIndexPath, 'utf-8'));
+    } catch (e) {
+      console.log('[restore-transcriptions] Could not read orphaned index');
+    }
+    
+    // Process each selected transcription
+    for (const transcriptionId of selectedTranscriptionIds) {
+      try {
+        // Find the transcription in the index
+        let transcriptionInfo: any = null;
+        for (const [mediaName, transcriptions] of Object.entries(orphanedIndex.transcriptions || {})) {
+          const found = (transcriptions as any[]).find(t => t.transcriptionId === transcriptionId);
+          if (found) {
+            transcriptionInfo = found;
+            break;
+          }
+        }
+        
+        if (!transcriptionInfo) {
+          errors.push(`Transcription not found in index: ${transcriptionId}`);
+          continue;
+        }
+        
+        // Build the actual path to the archived transcription data
+        // The archivedPath is relative to the user folder, so we need to handle it properly
+        let archivePath: string;
+        if (transcriptionInfo.originalProjectFolder) {
+          // Use the folder name stored in the index
+          archivePath = path.join(orphanedPath, transcriptionInfo.originalProjectFolder, 'transcription', 'data.json');
+        } else {
+          // Fallback to parsing the archivedPath
+          const pathParts = transcriptionInfo.archivedPath.split(/[\\\/]/);
+          const folderName = pathParts.find((p: string) => p.startsWith('orphan_') || p.startsWith('orphaned_'));
+          if (folderName) {
+            archivePath = path.join(orphanedPath, folderName, 'transcription', 'data.json');
+          } else {
+            archivePath = path.join(orphanedPath, transcriptionInfo.archivedPath, 'data.json');
+          }
+        }
+        
+        // Check if archive file exists
+        if (!await fs_promises.access(archivePath).then(() => true).catch(() => false)) {
+          errors.push(`Archive file not found: ${archivePath}`);
+          continue;
+        }
+        
+        // Read the archived transcription
+        const archivedData = JSON.parse(await fs_promises.readFile(archivePath, 'utf-8'));
+        
+        // Find matching media in current project by name
+        const originalMediaName = transcriptionInfo.originalMediaName;
+        let targetMediaId: string | null = null;
+        
+        // Check project metadata for media files
+        if (projectData.mediaFiles && Array.isArray(projectData.mediaFiles)) {
+          // Try to find media with matching name
+          for (const mediaId of projectData.mediaFiles) {
+            try {
+              const mediaMetadataPath = path.join(projectPath, 'media', mediaId, 'metadata.json');
+              const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetadataPath, 'utf-8'));
+              if (mediaMetadata.originalName === originalMediaName) {
+                targetMediaId = mediaId;
+                break;
+              }
+            } catch (e) {
+              // Continue if metadata not found
+            }
+          }
+          
+          // If no match found, use the first media file
+          if (!targetMediaId && projectData.mediaFiles.length > 0) {
+            targetMediaId = projectData.mediaFiles[0];
+          }
+        }
+        
+        if (!targetMediaId) {
+          errors.push(`No media file to restore transcription for: ${originalMediaName}`);
+          continue;
+        }
+        
+        // Create transcription file path - should be transcription.json in media folder
+        const transcriptionPath = path.join(projectPath, 'media', targetMediaId, 'transcription.json');
+        
+        // Restore the transcription data (only the blocks and metadata, not orphanedFrom)
+        const restoredData = {
+          blocks: archivedData.blocks || [],
+          version: '1.0.0',
+          lastSaved: new Date().toISOString()
+        };
+        await fs_promises.writeFile(transcriptionPath, JSON.stringify(restoredData, null, 2));
+        
+        // Also restore speakers if present
+        if (archivedData.speakers) {
+          const speakersPath = path.join(projectPath, 'media', targetMediaId, 'speakers.json');
+          await fs_promises.writeFile(speakersPath, JSON.stringify(archivedData.speakers, null, 2));
+        }
+        
+        // Delete the orphaned folder after successful restoration
+        const orphanedFolderPath = path.join(orphanedPath, transcriptionInfo.originalProjectFolder || '');
+        if (orphanedFolderPath && transcriptionInfo.originalProjectFolder) {
+          try {
+            await fs_promises.rm(orphanedFolderPath, { recursive: true, force: true });
+            console.log(`[restore-transcriptions] Deleted orphaned folder: ${transcriptionInfo.originalProjectFolder}`);
+          } catch (error) {
+            console.error(`[restore-transcriptions] Failed to delete orphaned folder: ${error}`);
+          }
+        }
+        
+        // Remove the transcription from the orphaned index
+        if (orphanedIndex.transcriptions) {
+          for (const [mediaName, transcriptions] of Object.entries(orphanedIndex.transcriptions)) {
+            const index = (transcriptions as any[]).findIndex(t => t.transcriptionId === transcriptionId);
+            if (index >= 0) {
+              (transcriptions as any[]).splice(index, 1);
+              if ((transcriptions as any[]).length === 0) {
+                delete orphanedIndex.transcriptions[mediaName];
+              }
+              break;
+            }
+          }
+          orphanedIndex.lastUpdated = new Date().toISOString();
+          await fs_promises.writeFile(orphanedIndexPath, JSON.stringify(orphanedIndex, null, 2));
+        }
+        
+        restoredCount++;
+        console.log(`[restore-transcriptions] Restored transcription for media ${targetMediaId} from ${transcriptionInfo.archivedPath}`);
+        
+      } catch (error: any) {
+        console.error(`[restore-transcriptions] Error restoring ${transcriptionId}:`, error);
+        errors.push(`Failed to restore ${transcriptionId}: ${error.message}`);
+      }
+    }
+    
+    // Update project metadata
+    projectData.lastModified = new Date().toISOString();
+    await fs_promises.writeFile(projectMetaPath, JSON.stringify(projectData, null, 2));
+    
+    // Return updated project
+    res.json({
+      success: true,
+      project: projectData,
+      restoredCount,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `שוחזרו ${restoredCount} תמלולים מתוך ${selectedTranscriptionIds.length}`
+    });
+    
+  } catch (error: any) {
+    console.error('[restore-transcriptions] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to restore transcriptions' });
   }
 });
 
