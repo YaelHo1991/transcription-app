@@ -21,6 +21,7 @@ router.get('/users', asyncHandler(async (req: AuthRequest, res) => {
     const users = await db.query(
       `SELECT 
         u.id, 
+        u.username,
         u.email, 
         u.full_name, 
         u.permissions, 

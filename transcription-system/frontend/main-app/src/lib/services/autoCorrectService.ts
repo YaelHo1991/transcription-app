@@ -2,7 +2,7 @@ import { AutoCorrectSettings } from '@/app/transcription/transcription/component
 
 class AutoCorrectService {
   private baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://your-domain.com/api' 
+    ? 'https://ylbh.co.il/api' 
     : 'http://localhost:5000/api';
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {

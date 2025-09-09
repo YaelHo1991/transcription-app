@@ -4,7 +4,16 @@ import { OrphanedIndexService } from './orphanedIndexService';
 
 let mm: any;
 try {
-  mm = require('music-metadata');
+  // Use dynamic import for ES module compatibility
+  (async () => {
+    try {
+      const musicMetadata = await import('music-metadata');
+      mm = musicMetadata;
+      console.log('[ProjectService] music-metadata loaded successfully');
+    } catch (importError) {
+      console.log('[ProjectService] Failed to import music-metadata:', importError.message);
+    }
+  })();
 } catch (error) {
   console.log('[ProjectService] music-metadata not available, duration extraction disabled');
 }
@@ -168,12 +177,14 @@ export class ProjectService {
       // Extract duration from audio file
       let duration = 0;
       try {
-        if (mm && mm.parseFile) {
-          const metadata = await mm.parseFile(mediaFilePath);
+        // Check both mm.parseFile and mm.default.parseFile for ES module compatibility
+        const parseFile = mm?.parseFile || mm?.default?.parseFile || mm?.parseBuffer;
+        if (parseFile) {
+          const metadata = await parseFile(mediaFilePath);
           duration = metadata.format.duration || 0;
           console.log(`[ProjectService] Extracted duration for ${mediaId}: ${duration} seconds`);
         } else {
-          console.log(`[ProjectService] music-metadata not available, skipping duration extraction for ${mediaId}`);
+          console.log(`[ProjectService] music-metadata not available or parseFile not found, skipping duration extraction for ${mediaId}`);
         }
       } catch (error) {
         console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, error);
@@ -642,9 +653,10 @@ export class ProjectService {
                           f.endsWith('.ogg') || f.endsWith('.flac')
                         );
                         
-                        if (audioFile && mm && mm.parseFile) {
+                        const parseFile = mm?.parseFile || mm?.default?.parseFile || mm?.parseBuffer;
+                        if (audioFile && parseFile) {
                           const audioPath = path.join(mediaDir, audioFile);
-                          const metadata = await mm.parseFile(audioPath);
+                          const metadata = await parseFile(audioPath);
                           duration = metadata.format.duration || 0;
                           
                           // Update the metadata file with the extracted duration
@@ -682,8 +694,9 @@ export class ProjectService {
                         
                         // Try to extract duration for missing metadata
                         try {
-                          if (mm && mm.parseFile) {
-                            const metadata = await mm.parseFile(audioPath);
+                          const parseFile = mm?.parseFile || mm?.default?.parseFile || mm?.parseBuffer;
+                        if (parseFile) {
+                            const metadata = await parseFile(audioPath);
                             duration = metadata.format.duration || 0;
                             console.log(`[ProjectService] Extracted duration for ${mediaId} (no metadata.json): ${duration} seconds`);
                             
@@ -938,6 +951,57 @@ export class ProjectService {
     } catch (error) {
       console.error(`Error updating stage for media ${mediaId}:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Rename a project (both directory and internal metadata)
+   */
+  async renameProject(userId: string, projectId: string, newName: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const userDir = this.getUserDir(userId);
+      const projectDir = path.join(userDir, projectId);
+      
+      // Check if project exists
+      const projectExists = await fs.access(projectDir).then(() => true).catch(() => false);
+      if (!projectExists) {
+        return { success: false, error: 'הפרויקט לא נמצא' };
+      }
+
+      // Check if another project with the same name already exists
+      const existingProjects = await this.listProjects(userId);
+      const duplicateProject = existingProjects.find(p => 
+        p.displayName.toLowerCase() === newName.toLowerCase() && p.projectId !== projectId
+      );
+      
+      if (duplicateProject) {
+        return { success: false, error: 'פרויקט עם השם הזה כבר קיים' };
+      }
+
+      // Update project metadata
+      const metadataPath = path.join(projectDir, 'project.json');
+      try {
+        const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
+        
+        // Update both name and displayName
+        const oldName = metadata.displayName || metadata.name;
+        metadata.name = newName;
+        metadata.displayName = newName;
+        metadata.lastModified = new Date().toISOString();
+        
+        await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+        
+        console.log(`[ProjectService] Successfully renamed project "${oldName}" to "${newName}" for user ${userId}`);
+        return { success: true };
+        
+      } catch (metadataError) {
+        console.error('[ProjectService] Error updating project metadata:', metadataError);
+        return { success: false, error: 'שגיאה בעדכון מטאדטא של הפרויקט' };
+      }
+      
+    } catch (error: any) {
+      console.error('[ProjectService] Error renaming project:', error);
+      return { success: false, error: error.message || 'שגיאה בשינוי שם הפרויקט' };
     }
   }
 }

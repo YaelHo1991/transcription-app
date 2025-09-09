@@ -11,7 +11,7 @@ interface LoginPopupProps {
 }
 
 export default function LoginPopup({ isOpen, onClose, onLoginSuccess }: LoginPopupProps) {
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState(''); // Can be email or username
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,21 +41,37 @@ export default function LoginPopup({ isOpen, onClose, onLoginSuccess }: LoginPop
     setIsLoading(true);
 
     try {
+      // Determine if loginId is email or username
+      const isEmail = loginId.includes('@');
+      const requestBody = isEmail 
+        ? { email: loginId, password }
+        : { username: loginId, password };
+
       const response = await fetch(buildApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Store token and user data
+        // Clear any existing invalid tokens first
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        
+        // Store new token and user data (matching main login page format)
         localStorage.setItem('token', data.token);
         localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('userId', data.user.id);
+        localStorage.setItem('userEmail', data.user.email);
+        localStorage.setItem('userFullName', data.user.full_name || '');
+        localStorage.setItem('permissions', data.user.permissions || '');
+        localStorage.setItem('userCompany', data.user.personal_company || '');
+        localStorage.setItem('transcriberCode', data.user.transcriber_code || '');
         
         // Call success callback
         onLoginSuccess();
@@ -93,10 +109,10 @@ export default function LoginPopup({ isOpen, onClose, onLoginSuccess }: LoginPop
         <form onSubmit={handleLogin}>
           <div className="login-popup-field">
             <input
-              type="email"
-              placeholder="דוא״ל"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              placeholder="שם משתמש או דוא״ל"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
               required
               disabled={isLoading}
             />

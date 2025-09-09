@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid static caching issues
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -11,15 +14,18 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const system = searchParams.get('system') || 'transcription';
   
+  // Force dynamic rendering by accessing current timestamp
+  const [renderTime] = useState(() => Date.now());
+  
   const [formData, setFormData] = useState({
-    email: '',
+    loginId: '', // Can be email or username  
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordUsername, setForgotPasswordUsername] = useState('');
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   
@@ -37,13 +43,20 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      console.log('Attempting login with:', formData.email);
+      console.log('Attempting login with:', formData.loginId);
+      
+      // Determine if loginId is email or username
+      const isEmail = formData.loginId.includes('@');
+      const requestBody = isEmail 
+        ? { email: formData.loginId, password: formData.password }
+        : { username: formData.loginId, password: formData.password };
+
       const response = await fetch(buildApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -89,8 +102,8 @@ function LoginContent() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!forgotPasswordEmail) {
-      setForgotPasswordMessage('אנא הזן כתובת אימייל');
+    if (!forgotPasswordUsername) {
+      setForgotPasswordMessage('אנא הזן שם משתמש בשדה ההתחברות');
       return;
     }
 
@@ -103,17 +116,17 @@ function LoginContent() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: forgotPasswordEmail }),
+        body: JSON.stringify({ username: forgotPasswordUsername }),
       });
 
       const data = await response.json();
       
       if (response.ok) {
-        setForgotPasswordMessage('אם כתובת האימייל קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה');
-        // Clear the email field after success
+        setForgotPasswordMessage('קישור לאיפוס הסיסמה נשלח לכתובת האימייל הרשומה במערכת');
+        // Close modal after success
         setTimeout(() => {
           setShowForgotPassword(false);
-          setForgotPasswordEmail('');
+          setForgotPasswordUsername('');
           setForgotPasswordMessage('');
         }, 3000);
       } else {
@@ -157,14 +170,14 @@ function LoginContent() {
             )}
             
             <div className="form-group">
-              <label htmlFor="email">כתובת אימייל</label>
+              <label htmlFor="loginId">שם משתמש או דוא״ל</label>
               <input
-                type="email"
-                id="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                type="text"
+                id="loginId"
+                value={formData.loginId}
+                onChange={(e) => setFormData({ ...formData, loginId: e.target.value })}
                 required
-                placeholder="הזן את כתובת האימייל שלך"
+                placeholder="הזן את שם המשתמש או כתובת האימייל שלך"
                 dir="ltr"
               />
             </div>
@@ -177,7 +190,7 @@ function LoginContent() {
                   className="forgot-password-link"
                   onClick={() => {
                     setShowForgotPassword(true);
-                    setForgotPasswordEmail(formData.email);
+                    setForgotPasswordUsername(formData.loginId);
                   }}
                   style={{ color: themeColor }}
                 >
@@ -237,23 +250,12 @@ function LoginContent() {
                 </button>
               </div>
               <form onSubmit={handleForgotPassword} className="modal-form">
-                <p>הזן את כתובת האימייל שלך ונשלח אליך קישור לאיפוס הסיסמה.</p>
-                
-                <div className="form-group">
-                  <label htmlFor="forgot-email">כתובת אימייל</label>
-                  <input
-                    type="email"
-                    id="forgot-email"
-                    value={forgotPasswordEmail}
-                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                    required
-                    placeholder="הזן את כתובת האימייל שלך"
-                    dir="ltr"
-                  />
-                </div>
+                <p style={{ marginBottom: '20px', fontSize: '16px', lineHeight: '1.5' }}>
+                  קישור לאיפוס הסיסמה יישלח לכתובת האימייל הרשומה במערכת.
+                </p>
 
                 {forgotPasswordMessage && (
-                  <div className={`message ${forgotPasswordMessage.includes('שגיאה') ? 'error' : 'success'}`}>
+                  <div className={`message ${forgotPasswordMessage.includes('שגיאה') ? 'error' : 'success'}`} style={{ marginBottom: '20px' }}>
                     {forgotPasswordMessage}
                   </div>
                 )}

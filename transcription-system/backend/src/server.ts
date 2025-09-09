@@ -45,6 +45,10 @@ const corsOptions = {
       'http://127.0.0.1:3002',
       'http://yalitranscription.duckdns.org',
       'https://yalitranscription.duckdns.org',
+      'http://ylbh.co.il',
+      'https://ylbh.co.il',
+      'http://www.ylbh.co.il',
+      'https://www.ylbh.co.il',
       'http://146.190.57.51',
       'http://146.190.57.51:3002'
     ];

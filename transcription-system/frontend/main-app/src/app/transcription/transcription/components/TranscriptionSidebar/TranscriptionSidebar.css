@@ -605,6 +605,86 @@
   transition: all 0.2s ease;
 }
 
+/* Project Edit Styles */
+.project-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  min-height: 24px;
+}
+
+.project-name-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.project-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: white;
+  flex: 1;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.edit-project-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  text-decoration: underline;
+}
+
+.project-name-display:hover .edit-project-btn {
+  opacity: 1;
+}
+
+.edit-project-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  transform: scale(1.1);
+}
+
+.project-name-edit {
+  flex: 1;
+}
+
+.project-name-input {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.project-name-input:focus {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: white;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.project-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* Drop indicator for empty area */
 .transcription-sidebar-content.dragging-over .projects-list {
   position: relative;

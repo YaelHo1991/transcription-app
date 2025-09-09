@@ -17,6 +17,7 @@ const ADMIN_USER_IDS = [
 
 interface User {
   id: string;
+  username: string;
   email: string;
   full_name: string;
   permissions: string;
@@ -540,6 +541,12 @@ export default function UsersManagement() {
                     {expandedColumns.has('name') && 'שם מלא'}
                   </span>
                 </th>
+                <th className={`collapsible-header ${!expandedColumns.has('username') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('username')}>
+                  <span className="header-content">
+                    <span className="collapse-arrow">{expandedColumns.has('username') ? '▼' : '▶'}</span>
+                    {expandedColumns.has('username') && 'שם משתמש'}
+                  </span>
+                </th>
                 <th className={`collapsible-header ${!expandedColumns.has('email') ? 'collapsed' : ''}`} onClick={() => toggleColumnExpansion('email')}>
                   <span className="header-content">
                     <span className="collapse-arrow">{expandedColumns.has('email') ? '▼' : '▶'}</span>
@@ -604,6 +611,11 @@ export default function UsersManagement() {
                     <td className={`collapsible-cell ${!expandedColumns.has('name') ? 'collapsed' : ''}`}>
                       {expandedColumns.has('name') && (
                         <span className="user-name">{user.full_name || '-'}</span>
+                      )}
+                    </td>
+                    <td className={`collapsible-cell ${!expandedColumns.has('username') ? 'collapsed' : ''}`}>
+                      {expandedColumns.has('username') && (
+                        <span className="username">{user.username || '-'}</span>
                       )}
                     </td>
                     <td className={`collapsible-cell ${!expandedColumns.has('email') ? 'collapsed' : ''}`}>
@@ -969,56 +981,62 @@ export default function UsersManagement() {
           min-width: 200px !important;
         }
 
-        .collapsible-table th:nth-child(2):not(.collapsed), /* Email */
+        .collapsible-table th:nth-child(2):not(.collapsed), /* Username */
         .collapsible-table td:nth-child(2):not(.collapsed) {
+          width: 150px !important;
+          min-width: 150px !important;
+        }
+
+        .collapsible-table th:nth-child(3):not(.collapsed), /* Email */
+        .collapsible-table td:nth-child(3):not(.collapsed) {
           width: 250px !important;
           min-width: 250px !important;
         }
 
-        .collapsible-table th:nth-child(3):not(.collapsed), /* Password */
-        .collapsible-table td:nth-child(3):not(.collapsed) {
+        .collapsible-table th:nth-child(4):not(.collapsed), /* Password */
+        .collapsible-table td:nth-child(4):not(.collapsed) {
           width: 500px !important;
           min-width: 500px !important;
         }
 
-        .collapsible-table th:nth-child(4):not(.collapsed), /* Permissions */
-        .collapsible-table td:nth-child(4):not(.collapsed) {
+        .collapsible-table th:nth-child(5):not(.collapsed), /* Permissions */
+        .collapsible-table td:nth-child(5):not(.collapsed) {
           width: 120px !important;
           min-width: 120px !important;
         }
 
-        .collapsible-table th:nth-child(5):not(.collapsed), /* Transcriber Code */
-        .collapsible-table td:nth-child(5):not(.collapsed) {
+        .collapsible-table th:nth-child(6):not(.collapsed), /* Transcriber Code */
+        .collapsible-table td:nth-child(6):not(.collapsed) {
           width: 100px !important;
           min-width: 100px !important;
         }
 
-        .collapsible-table th:nth-child(6):not(.collapsed), /* Storage */
-        .collapsible-table td:nth-child(6):not(.collapsed) {
+        .collapsible-table th:nth-child(7):not(.collapsed), /* Storage */
+        .collapsible-table td:nth-child(7):not(.collapsed) {
           width: 180px !important;
           min-width: 180px !important;
         }
 
-        .collapsible-table th:nth-child(7):not(.collapsed), /* Auto Export */
-        .collapsible-table td:nth-child(7):not(.collapsed) {
+        .collapsible-table th:nth-child(8):not(.collapsed), /* Auto Export */
+        .collapsible-table td:nth-child(8):not(.collapsed) {
           width: 120px !important;
           min-width: 120px !important;
         }
 
-        .collapsible-table th:nth-child(8):not(.collapsed), /* Admin */
-        .collapsible-table td:nth-child(8):not(.collapsed) {
+        .collapsible-table th:nth-child(9):not(.collapsed), /* Admin */
+        .collapsible-table td:nth-child(9):not(.collapsed) {
           width: 100px !important;
           min-width: 100px !important;
         }
 
-        .collapsible-table th:nth-child(9):not(.collapsed), /* Dates */
-        .collapsible-table td:nth-child(9):not(.collapsed) {
+        .collapsible-table th:nth-child(10):not(.collapsed), /* Dates */
+        .collapsible-table td:nth-child(10):not(.collapsed) {
           width: 140px !important;
           min-width: 140px !important;
         }
 
-        .collapsible-table th:nth-child(10):not(.collapsed), /* Actions */
-        .collapsible-table td:nth-child(10):not(.collapsed) {
+        .collapsible-table th:nth-child(11):not(.collapsed), /* Actions */
+        .collapsible-table td:nth-child(11):not(.collapsed) {
           width: 180px !important;
           min-width: 180px !important;
         }
@@ -1065,6 +1083,16 @@ export default function UsersManagement() {
         .user-name {
           font-weight: 500;
           color: #201e20;
+        }
+
+        .username {
+          font-weight: 500;
+          color: #5a4a3a;
+          font-family: monospace;
+          background: #f8f9fa;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 13px;
         }
 
         .permissions {

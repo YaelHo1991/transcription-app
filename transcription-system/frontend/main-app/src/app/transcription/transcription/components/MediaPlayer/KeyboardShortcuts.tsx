@@ -73,7 +73,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
         (activeElement instanceof HTMLTextAreaElement && !activeElement.closest('.transcription-textarea'));
       
       // Check if it's an F-key, Numpad key, or combination key FIRST
-      const isFKey = e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2;
+      const isFKey = e.key && e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2;
       const isNumpadKey = e.code && e.code.startsWith('Numpad');
       const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
       
@@ -195,7 +195,7 @@ export default function KeyboardShortcuts({ shortcuts, enabled, onAction }: Keyb
       let key = e.key;
       
       // Convert to lowercase for letter keys (to handle capital letters)
-      if (key.length === 1 && /[A-Z]/.test(key)) {
+      if (key && key.length === 1 && /[A-Z]/.test(key)) {
         key = key.toLowerCase();
       }
       

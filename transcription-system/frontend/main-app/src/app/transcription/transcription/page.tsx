@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '@/utils/api';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import dynamic from 'next/dynamic';
+
 import HoveringBarsLayout from '../shared/components/HoveringBarsLayout';
 import HoveringHeader from '../components/HoveringHeader';
 import TranscriptionSidebar from './components/TranscriptionSidebar/TranscriptionSidebar';
@@ -27,8 +28,7 @@ const TextEditor = dynamic(
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-gray-500">טוען עורך טקסט...</div>
       </div>
-    ),
-    ssr: false
+    )
   }
 );
 
@@ -39,8 +39,7 @@ const MediaPlayer = dynamic(
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-gray-500">טוען נגן מדיה...</div>
       </div>
-    ),
-    ssr: false
+    )
   }
 );
 
@@ -51,8 +50,7 @@ const SimpleSpeaker = dynamic(
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-gray-500">טוען פאנל דוברים...</div>
       </div>
-    ),
-    ssr: false
+    )
   }
 ) as React.ComponentType<{
   ref?: React.RefObject<SimpleSpeakerHandle>;
@@ -109,6 +107,11 @@ const createDefaultTranscription = () => ({
 
 // Helper function to get current user ID from token or localStorage
 const getCurrentUserId = (): string | null => {
+  // Check if we're in the browser
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
   try {
     // Try to get from localStorage
     const userId = localStorage.getItem('userId');
@@ -132,6 +135,11 @@ const getCurrentUserId = (): string | null => {
 
 // Helper function to clear all media-related localStorage entries
 const clearMediaLocalStorage = (projectId?: string, mediaId?: string) => {
+  // Check if we're in the browser
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
   const keysToRemove: string[] = [];
   
   // Find all media-related keys
@@ -1105,8 +1113,7 @@ export default function TranscriptionWorkPage() {
               document.dispatchEvent(event);
             }}>
             <MediaPlayer 
-              key={`${currentProject?.projectId}-${currentMediaId}`}
-              initialMedia={(() => {
+              initialMedia={useMemo(() => {
                 console.log('[MediaPlayer] Integration check:', {
                   hasCurrentProject: !!currentProject,
                   currentProjectId: currentProject?.projectId || 'none',
@@ -1142,7 +1149,7 @@ export default function TranscriptionWorkPage() {
                 console.log('[MediaPlayer] Cannot create media object - missing required data');
                 return undefined;
               }
-              })()}
+              }, [currentProject?.projectId, currentMediaId, currentTranscriptionData?.metadata?.originalName, currentTranscriptionData?.metadata?.fileName])}
               onTimeUpdate={(time) => {
                 // TEMPORARILY DISABLED - this causes playback issues
                 // TextEditor gets time updates via mediaTimeUpdate events instead

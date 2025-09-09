@@ -71,6 +71,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
   const [enhancedSecondDelay, setEnhancedSecondDelay] = useState(1.5);
   const [enhancedResumeDelay, setEnhancedResumeDelay] = useState(2.0);
   
+  
   // Initialize settings from props (parent component now manages localStorage)
   useEffect(() => {
     // Get settings from parent component props instead of localStorage
@@ -93,6 +94,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSettingsCha
     if (settings.enhancedFirstDelay !== undefined) setEnhancedFirstDelay(settings.enhancedFirstDelay);
     if (settings.enhancedSecondDelay !== undefined) setEnhancedSecondDelay(settings.enhancedSecondDelay);
     if (settings.enhancedResumeDelay !== undefined) setEnhancedResumeDelay(settings.enhancedResumeDelay);
+    
   }, [settings]);
   
   // Notify parent component when settings change (parent handles localStorage)

@@ -41,8 +41,8 @@
   width: 800px;
 }
 
-/* Modal Header */
-.modal-header {
+/* Modal Header - Specific to confirmation modals */
+.confirmation-modal .modal-header {
   padding: 20px 24px;
   background: linear-gradient(135deg, #3a9595 0%, #2f8383 100%);
   color: white;

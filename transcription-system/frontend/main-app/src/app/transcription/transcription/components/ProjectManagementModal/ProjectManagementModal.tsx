@@ -7,6 +7,19 @@ import { ConfirmationModal } from '../TextEditor/components/ConfirmationModal';
 import { buildApiUrl } from '@/utils/api';
 import './ProjectManagementModal.css';
 
+// Extend Window interface for storage preferences
+declare global {
+  interface Window {
+    storagePreferences?: {
+      defaultStorageType: 'local' | 'server' | 'server_chunked';
+      autoChunk: boolean;
+      migrationThreshold: number;
+      useLocalCache: boolean;
+      compressionLevel: number;
+    };
+  }
+}
+
 interface ArchivedTranscription {
   id: string;
   originalProjectName: string;
@@ -17,10 +30,27 @@ interface ArchivedTranscription {
   speakersCount: number;
 }
 
+// Helper function to decode Hebrew filenames
+const decodeHebrewFilename = (name: string): string => {
+  try {
+    if (name.includes('%') || name.includes('\\x')) {
+      return decodeURIComponent(name);
+    }
+    if (/[\u0080-\u00FF]/.test(name)) {
+      const bytes = new Uint8Array(name.split('').map(c => c.charCodeAt(0)));
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+    return name;
+  } catch (e) {
+    console.error('Error decoding filename:', e);
+    return name;
+  }
+};
+
 interface ProjectManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab?: 'projects' | 'transcriptions' | 'duration' | 'progress';
+  activeTab?: 'projects' | 'transcriptions' | 'duration' | 'progress' | 'storage';
   projects: Project[];
   onProjectDelete?: (projectId: string, deleteTranscriptions: boolean) => Promise<void>;
   onMediaDelete?: (projectId: string, mediaId: string, deleteTranscriptions: boolean) => Promise<void>;
@@ -75,9 +105,34 @@ export default function ProjectManagementModal({
     metadata?: any;
   } | null>(null);
 
+  // Storage preferences state
+  const [storagePreferences, setStoragePreferences] = useState(() => {
+    // Load preferences from localStorage on component mount
+    const saved = localStorage.getItem('storagePreferences');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse stored preferences:', e);
+      }
+    }
+    return {
+      defaultStorageType: 'server' as 'local' | 'server' | 'server_chunked',
+      autoChunk: false,
+      migrationThreshold: 100, // MB
+      useLocalCache: true,
+      compressionLevel: 5
+    };
+  });
+
   useEffect(() => {
     setCurrentTab(activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    // Set preferences globally when component mounts or preferences change
+    window.storagePreferences = storagePreferences;
+  }, [storagePreferences]);
 
   useEffect(() => {
     if (isOpen) {
@@ -681,6 +736,12 @@ export default function ProjectManagementModal({
           >
             התקדמות
           </button>
+          <button 
+            className={`tab ${currentTab === 'storage' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('storage')}
+          >
+            אחסון
+          </button>
         </div>
 
         <div className="modal-content">
@@ -995,6 +1056,168 @@ export default function ProjectManagementModal({
               <p className="placeholder-message">
                 תכונה זו עדיין בפיתוח
               </p>
+            </div>
+          )}
+
+          {/* Storage Tab */}
+          {currentTab === 'storage' && (
+            <div className="storage-tab">
+              <h3>הגדרות אחסון</h3>
+              
+              {/* Default Storage Type */}
+              <div className="storage-preference-group">
+                <h4>סוג אחסון ברירת מחדל</h4>
+                <div className="storage-option-group">
+                  <label className="storage-option-label">
+                    <input
+                      type="radio"
+                      name="defaultStorageType"
+                      value="local"
+                      checked={storagePreferences.defaultStorageType === 'local'}
+                      onChange={(e) => setStoragePreferences(prev => ({ ...prev, defaultStorageType: e.target.value as any }))}
+                    />
+                    <span>💻 מקומי - קבצים נשמרים במחשב שלך</span>
+                  </label>
+                  <label className="storage-option-label">
+                    <input
+                      type="radio"
+                      name="defaultStorageType"
+                      value="server"
+                      checked={storagePreferences.defaultStorageType === 'server'}
+                      onChange={(e) => setStoragePreferences(prev => ({ ...prev, defaultStorageType: e.target.value as any }))}
+                    />
+                    <span>☁️ שרת - גישה מכל מקום</span>
+                  </label>
+                  <label className="storage-option-label">
+                    <input
+                      type="radio"
+                      name="defaultStorageType"
+                      value="server_chunked"
+                      checked={storagePreferences.defaultStorageType === 'server_chunked'}
+                      onChange={(e) => setStoragePreferences(prev => ({ ...prev, defaultStorageType: e.target.value as any }))}
+                    />
+                    <span>📦 שרת מקטע - לקבצים גדולים</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Auto Chunk Setting */}
+              <div className="storage-preference-group">
+                <h4>הגדרות מתקדמות</h4>
+                <div className="storage-checkbox-group">
+                  <label className="storage-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={storagePreferences.autoChunk}
+                      onChange={(e) => setStoragePreferences(prev => ({ ...prev, autoChunk: e.target.checked }))}
+                    />
+                    <span>חלק אוטומטית קבצים גדולים מ-100MB</span>
+                  </label>
+                  <label className="storage-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={storagePreferences.useLocalCache}
+                      onChange={(e) => setStoragePreferences(prev => ({ ...prev, useLocalCache: e.target.checked }))}
+                    />
+                    <span>השתמש במטמון מקומי לביצועים טובים יותר</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Migration Threshold */}
+              <div className="storage-preference-group">
+                <h4>סף העברה אוטומטית לשרת</h4>
+                <div className="storage-slider-container">
+                  <input
+                    type="range"
+                    min="10"
+                    max="500"
+                    value={storagePreferences.migrationThreshold}
+                    onChange={(e) => setStoragePreferences(prev => ({ ...prev, migrationThreshold: parseInt(e.target.value) }))}
+                    className="storage-slider"
+                  />
+                  <span className="storage-slider-value">{storagePreferences.migrationThreshold} MB</span>
+                </div>
+                <p className="storage-help-text">
+                  קבצים מעל גודל זה יועברו אוטומטית לשרת
+                </p>
+              </div>
+
+              {/* Compression Level */}
+              <div className="storage-preference-group">
+                <h4>רמת דחיסה</h4>
+                <div className="storage-slider-container">
+                  <input
+                    type="range"
+                    min="1"
+                    max="9"
+                    value={storagePreferences.compressionLevel}
+                    onChange={(e) => setStoragePreferences(prev => ({ ...prev, compressionLevel: parseInt(e.target.value) }))}
+                    className="storage-slider"
+                  />
+                  <span className="storage-slider-value">רמה {storagePreferences.compressionLevel}</span>
+                </div>
+                <p className="storage-help-text">
+                  רמת דחיסה גבוהה יותר = קבצים קטנים יותר אבל זמן עיבוד ארוך יותר
+                </p>
+              </div>
+
+              {/* Save Button */}
+              <div className="storage-actions">
+                <button 
+                  className="save-storage-preferences"
+                  onClick={() => {
+                    // Save preferences to localStorage
+                    localStorage.setItem('storagePreferences', JSON.stringify(storagePreferences));
+                    
+                    // Apply chunking logic globally
+                    window.storagePreferences = storagePreferences;
+                    
+                    // Log the settings for demonstration
+                    console.log('🔧 Storage Preferences Saved:', {
+                      defaultType: storagePreferences.defaultStorageType,
+                      autoChunk: storagePreferences.autoChunk,
+                      threshold: `${storagePreferences.migrationThreshold}MB`,
+                      compression: `Level ${storagePreferences.compressionLevel}`,
+                      useCache: storagePreferences.useLocalCache
+                    });
+                    
+                    setSuccessMessage('הגדרות האחסון נשמרו בהצלחה');
+                    setShowSuccessModal(true);
+                  }}
+                >
+                  שמור הגדרות
+                </button>
+              </div>
+              
+              {/* Storage Status Display */}
+              <div className="storage-preference-group" style={{ marginTop: '30px' }}>
+                <h4>סטטוס אחסון נוכחי</h4>
+                <div style={{ 
+                  background: 'rgba(32, 201, 151, 0.1)', 
+                  padding: '15px', 
+                  borderRadius: '8px',
+                  border: '1px solid rgba(32, 201, 151, 0.3)'
+                }}>
+                  <div style={{ marginBottom: '10px', color: 'white' }}>
+                    📊 <strong>סך הכל פרויקטים:</strong> {projects.length}
+                  </div>
+                  <div style={{ marginBottom: '10px', color: 'white' }}>
+                    💾 <strong>גודל כולל:</strong> {(calculateTotalSize() / (1024 * 1024)).toFixed(2)} MB
+                  </div>
+                  <div style={{ marginBottom: '10px', color: 'white' }}>
+                    🎯 <strong>קבצים שיחולקו אוטומטית:</strong> {
+                      projects.filter(p => {
+                        const size = calculateProjectSize(p);
+                        return size > storagePreferences.migrationThreshold * 1024 * 1024;
+                      }).length
+                    } פרויקטים
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px', marginTop: '15px' }}>
+                    💡 טיפ: העלה קובץ גדול מ-{storagePreferences.migrationThreshold}MB כדי לראות את המערכת מחלקת אותו אוטומטית לחלקים
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

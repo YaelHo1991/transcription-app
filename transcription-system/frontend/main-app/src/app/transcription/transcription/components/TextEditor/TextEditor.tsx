@@ -820,11 +820,27 @@ export default function TextEditor({
   
   // Update media file name when it changes
   useEffect(() => {
+    // Helper function to decode Hebrew filenames
+    const decodeHebrewFilename = (name: string): string => {
+      try {
+        if (name.includes('%') || name.includes('\\x')) {
+          return decodeURIComponent(name);
+        }
+        if (/[\u0080-\u00FF]/.test(name)) {
+          const bytes = new Uint8Array(name.split('').map(c => c.charCodeAt(0)));
+          return new TextDecoder('utf-8').decode(bytes);
+        }
+        return name;
+      } catch (e) {
+        return name;
+      }
+    };
+    
     // Prefer mediaName (original name) over mediaFileName
     if (mediaName) {
-      setCurrentMediaFileName(mediaName);
+      setCurrentMediaFileName(decodeHebrewFilename(mediaName));
     } else if (mediaFileName) {
-      setCurrentMediaFileName(mediaFileName);
+      setCurrentMediaFileName(decodeHebrewFilename(mediaFileName));
     } else {
       // Clear the filename if both are empty
       setCurrentMediaFileName('');

@@ -147,25 +147,32 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
   }, [pedalMappings, continuousEnabled, continuousInterval, rewindOnPause]);
   
   useEffect(() => {
-    // Check if we're on HTTPS or localhost (which is also secure)
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1' ||
-                        window.location.hostname === '[::1]';
-    const isSecure = window.location.protocol === 'https:' || isLocalhost;
-    setIsHttps(isSecure);
-    
-    // Try to auto-reconnect to previously connected pedal after a longer delay
-    // to ensure all components are mounted and any other operations are complete
-    if (isSecure) {
-      setTimeout(() => {
-        if (autoReconnectPedalRef.current && !isConnected && !isConnecting) {
-          // console.log('Starting auto-reconnect attempt...');
-          autoReconnectPedalRef.current().catch((error) => {
-            console.error('Auto-reconnect failed:', error);
-            // Silently fail auto-reconnect - user can manually connect
-          });
-        }
-      }, 2000); // Increased delay further to avoid conflicts
+    // Check if we're in the browser before accessing window
+    if (typeof window !== 'undefined') {
+      // Check if we're on HTTPS or localhost (which is also secure)
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' ||
+                          window.location.hostname === '[::1]';
+      const isYlbh = window.location.hostname === 'ylbh.co.il' || 
+                     window.location.hostname === 'www.ylbh.co.il';
+      const isDuckDns = window.location.hostname === 'yalitranscription.duckdns.org' ||
+                        window.location.hostname === 'www.yalitranscription.duckdns.org';
+      const isSecure = window.location.protocol === 'https:' || isLocalhost;
+      setIsHttps(isSecure);
+      
+      // Try to auto-reconnect to previously connected pedal after a longer delay
+      // to ensure all components are mounted and any other operations are complete
+      if (isSecure) {
+        setTimeout(() => {
+          if (autoReconnectPedalRef.current && !isConnected && !isConnecting) {
+            // console.log('Starting auto-reconnect attempt...');
+            autoReconnectPedalRef.current().catch((error) => {
+              console.error('Auto-reconnect failed:', error);
+              // Silently fail auto-reconnect - user can manually connect
+            });
+          }
+        }, 2000); // Increased delay further to avoid conflicts
+      }
     }
   }, []);
 
@@ -346,9 +353,11 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
       
       if (currentContinuousEnabled && continuousActions.includes(action)) {
         // Start continuous action
-        continuousPressInterval.current = window.setInterval(() => {
-          onPedalAction(action);
-        }, currentContinuousInterval * 1000);
+        if (typeof window !== 'undefined') {
+          continuousPressInterval.current = window.setInterval(() => {
+            onPedalAction(action);
+          }, currentContinuousInterval * 1000);
+        }
       }
     }
   };
@@ -664,7 +673,7 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
         </div>
       </div>
 
-      {/* HTTPS Warning for HTTP connections */}
+      {/* HTTPS Warning for HTTP connections - SSR safe */}
       {!isHttps && (
         <div className="pedal-https-warning">
           <span className="warning-icon">⚠️</span>
@@ -672,9 +681,29 @@ export default function PedalTab({ pedalEnabled, onPedalEnabledChange, onPedalAc
             <p className="warning-title">נדרש חיבור מאובטח (HTTPS)</p>
             <p className="warning-text">
               לשימוש בדוושת USB, יש לגשת לאתר דרך חיבור מאובטח.
-              בקר בכתובת: <a href="https://146.190.57.51" target="_blank" rel="noopener noreferrer">
-                https://146.190.57.51
-              </a>
+              {typeof window !== 'undefined' && window.location.hostname.includes('ylbh.co.il') ? (
+                <>
+                  בקר בכתובת: <a href="https://ylbh.co.il" target="_blank" rel="noopener noreferrer">
+                    https://ylbh.co.il
+                  </a>
+                </>
+              ) : typeof window !== 'undefined' && window.location.hostname.includes('duckdns.org') ? (
+                <>
+                  בקר בכתובת: <a href="https://yalitranscription.duckdns.org" target="_blank" rel="noopener noreferrer">
+                    https://yalitranscription.duckdns.org
+                  </a>
+                </>
+              ) : (
+                <>
+                  בקר באחת מהכתובות: <br />
+                  <a href="https://ylbh.co.il" target="_blank" rel="noopener noreferrer">
+                    https://ylbh.co.il
+                  </a> או{' '}
+                  <a href="https://yalitranscription.duckdns.org" target="_blank" rel="noopener noreferrer">
+                    https://yalitranscription.duckdns.org
+                  </a>
+                </>
+              )}
             </p>
           </div>
         </div>

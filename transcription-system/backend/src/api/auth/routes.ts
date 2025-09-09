@@ -234,32 +234,23 @@ router.get('/me', async (req, res) => {
 // POST /api/auth/forgot-password - Request password reset
 router.post('/forgot-password', loginRateLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
+    const { username } = req.body;
 
-    if (!email) {
+    if (!username) {
       return res.status(400).json({
         success: false,
-        message: 'נדרש כתובת אימייל'
+        message: 'נדרש שם משתמש'
       });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'כתובת אימייל לא תקינה'
-      });
-    }
-
-    // Find user by email
-    const user = await UserModel.findByEmail(email);
+    // Find user by username
+    const user = await UserModel.findByUsername(username);
     
     if (!user) {
-      // Always return success to prevent email enumeration
+      // Always return success to prevent username enumeration
       return res.json({
         success: true,
-        message: 'אם כתובת האימייל קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה'
+        message: 'אם שם המשתמש קיים במערכת, נשלח קישור לאיפוס סיסמה לכתובת האימייל הרשומה'
       });
     }
 
@@ -267,19 +258,19 @@ router.post('/forgot-password', loginRateLimiter, async (req, res) => {
     const resetToken = UserModel.generateResetToken();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    // Save token to database
-    await UserModel.setResetToken(email, resetToken, expiresAt);
+    // Save token to database - using the user's email from database
+    await UserModel.setResetToken(user.email, resetToken, expiresAt);
 
     // Send reset email
     await emailService.sendPasswordResetEmail({
-      to: email,
+      to: user.email,
       fullName: user.full_name || user.username,
       resetToken
     });
 
     res.json({
       success: true,
-      message: 'אם כתובת האימייל קיימת במערכת, נשלח אליך קישור לאיפוס סיסמה'
+      message: 'אם שם המשתמש קיים במערכת, נשלח קישור לאיפוס סיסמה לכתובת האימייל הרשומה'
     });
 
   } catch (error) {

@@ -79,6 +79,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     setCurrentMediaById,
     createProjectFromFolder,
     addMediaToProject,
+    renameProject,
     setError
   } = useProjectStore();
   
@@ -360,10 +361,14 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     if (!duplicateProjectConfirm) return;
     
     const { existingProject } = duplicateProjectConfirm;
+    const confirmData = duplicateProjectConfirm; // Store data before clearing
+    
+    // Immediately clear the modal to ensure it closes
+    setDuplicateProjectConfirm(null);
     
     if (action === 'create') {
       // Create anyway with force flag
-      const { files, folderName } = duplicateProjectConfirm;
+      const { files, folderName } = confirmData;
       
       const formData = new FormData();
       const computerId = localStorage.getItem('computerId') || generateComputerId();
@@ -388,6 +393,10 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       
       if (newProject && !newProject.error) {
         showSidebarNotification(`הפרויקט "${folderName}" נוצר בהצלחה`, 'success');
+        
+        // Refresh project list to get complete metadata (file sizes, names, etc.)
+        await loadProjects();
+        
         setCurrentProject(newProject);
         
         if (newProject.mediaFiles && newProject.mediaFiles.length > 0) {
@@ -398,11 +407,10 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       }
       
       setIsUploading(false);
-      setDuplicateProjectConfirm(null);
       
-    } else if (action === 'addMissing' && duplicateProjectConfirm.type === 'partial') {
+    } else if (action === 'addMissing' && confirmData.type === 'partial') {
       // Add only missing files to existing project
-      const { existingProject, missingInProject, files, folderName } = duplicateProjectConfirm;
+      const { existingProject, missingInProject, files, folderName } = confirmData;
       
       // Filter to only include files that are actually missing - declare here for broader scope
       const missingFiles = files.filter(file => missingInProject.includes(file.name));
@@ -454,13 +462,11 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       }
       
       setIsUploading(false);
-      setDuplicateProjectConfirm(null);
     } else if (action === 'useExisting') {
       // Use existing project (for complete duplicates)
-      if (duplicateProjectConfirm.hasArchivedTranscriptions && duplicateProjectConfirm.archivedTranscriptions && existingProject) {
-        setDuplicateProjectConfirm(null);
+      if (confirmData.hasArchivedTranscriptions && confirmData.archivedTranscriptions && existingProject) {
         
-        const { files, folderName } = duplicateProjectConfirm;
+        const { files, folderName } = confirmData;
         const formData = new FormData();
         formData.append('folderName', folderName || existingProject.name);
         
@@ -480,11 +486,6 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         }
         showSidebarNotification('משתמש בפרויקט הקיים', 'success');
       }
-    }
-    
-    // Clear duplicate project confirmation state (unless we're showing archived dialog)
-    if (!duplicateProjectConfirm.hasArchivedTranscriptions || action === 'cancel') {
-      setDuplicateProjectConfirm(null);
     }
   };
   
@@ -633,6 +634,10 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       
       if (newResult && !newResult.error) {
         showSidebarNotification(`הפרויקט "${folderName}" נוצר בהצלחה עם התמלולים המשוחזרים`, 'success');
+        
+        // Refresh project list to get complete metadata (file sizes, names, etc.)
+        await loadProjects();
+        
         setCurrentProject(newResult);
         if (newResult.mediaFiles && newResult.mediaFiles.length > 0) {
           await setCurrentMediaById(newResult.projectId, newResult.mediaFiles[0]);
@@ -655,9 +660,13 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   const handleDuplicateConfirm = async (confirm: boolean) => {
     if (!duplicateConfirm) return;
     
+    // Clear duplicate confirmation state immediately to close modal
+    const confirmData = duplicateConfirm;
+    setDuplicateConfirm(null);
+    
     if (confirm) {
       // Re-submit with force flag
-      const { projectId, files } = duplicateConfirm;
+      const { projectId, files } = confirmData;
       
       // Recreate FormData
       const formData = new FormData();
@@ -698,9 +707,6 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       
       setIsUploading(false);
     }
-    
-    // Clear duplicate confirmation state
-    setDuplicateConfirm(null);
   };
   
   // Helper functions for statistics
@@ -932,6 +938,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       } else if (result && !result.error) {
         showSidebarNotification(`הפרויקט "${folderName}" נוצר בהצלחה`, 'success');
         console.log('[TranscriptionSidebar] Project created successfully:', result);
+        
+        // Refresh project list to get complete metadata (file sizes, names, etc.)
+        await loadProjects();
         
         // Auto-select the new project and its first media
         console.log('[TranscriptionSidebar] Auto-selecting new project:', result.projectId);
@@ -1195,6 +1204,58 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     // Add media to existing project
     await handleAddMediaToProject(projectId, mediaFiles);
   };
+
+  // Project Edit Handlers
+  const handleStartEditProject = (projectId: string, currentName: string) => {
+    setEditingProjectId(projectId);
+    setEditingProjectName(currentName);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent, projectId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveProjectName(projectId);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProjectId(null);
+    setEditingProjectName('');
+  };
+
+  const handleSaveProjectName = async (projectId: string) => {
+    const newName = editingProjectName.trim();
+    
+    // Don't save if name is empty
+    if (!newName) {
+      handleCancelEdit();
+      return;
+    }
+    
+    // Don't save if name hasn't changed
+    const currentProject = projects.find(p => p.projectId === projectId);
+    if (currentProject && currentProject.displayName === newName) {
+      handleCancelEdit();
+      return;
+    }
+    
+    try {
+      // Call rename function from store (to be implemented)
+      const success = await renameProject(projectId, newName);
+      if (success) {
+        showSidebarNotification(`שם הפרויקט שונה בהצלחה ל-"${newName}"`, 'success');
+        handleCancelEdit();
+      } else {
+        showSidebarNotification('שגיאה בשינוי שם הפרויקט', 'error');
+      }
+    } catch (error) {
+      console.error('Error renaming project:', error);
+      showSidebarNotification('שגיאה בשינוי שם הפרויקט', 'error');
+    }
+  };
   
   const handleFolderDrop = async (folderEntry: any) => {
     showSidebarNotification('קורא תיקייה...', 'loading', false);
@@ -1239,9 +1300,33 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     });
     
     try {
-      await createProjectFromFolder(formData);
-      showSidebarNotification(`פרויקט "${folderName}" נוצר בהצלחה`, 'success');
-      await loadProjects();
+      const result = await createProjectFromFolder(formData);
+      
+      // Check if it's a duplicate project response
+      if (result && result.isDuplicateProject) {
+        setDuplicateProjectConfirm({
+          type: result.duplicateType,
+          existingProject: result.existingProject,
+          missingInProject: result.missingInProject,
+          files: files,
+          folderName,
+          hasArchivedTranscriptions: result.hasArchivedTranscriptions || false,
+          archivedTranscriptions: result.archivedTranscriptions
+        });
+        return;
+      }
+      
+      // Check if it's an error response
+      if (result && result.error === 'storage_limit') {
+        const { currentUsedMB, limitMB, requestedMB } = result.storageDetails || {};
+        const message = `אין מספיק מקום אחסון. השתמשת ב-${currentUsedMB}MB מתוך ${limitMB}MB. נדרש ${requestedMB}MB נוסף`;
+        showSidebarNotification(message, 'error');
+      } else if (result && result.projectId) {
+        showSidebarNotification(`פרויקט "${folderName}" נוצר בהצלחה`, 'success');
+        await loadProjects();
+      } else {
+        showSidebarNotification('שגיאה ביצירת פרויקט', 'error');
+      }
     } catch (error) {
       showSidebarNotification('שגיאה ביצירת פרויקט', 'error');
     }
@@ -1269,9 +1354,34 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     
     try {
       showSidebarNotification('מעלה קבצים...', 'loading', false);
-      await createProjectFromFolder(formData);
-      showSidebarNotification(`פרויקט נוצר בהצלחה`, 'success');
-      await loadProjects();
+      const result = await createProjectFromFolder(formData);
+      
+      // Check if it's a duplicate project response
+      if (result && result.isDuplicateProject) {
+        hideSidebarNotification();
+        setDuplicateProjectConfirm({
+          type: result.duplicateType,
+          existingProject: result.existingProject,
+          missingInProject: result.missingInProject,
+          files: files,
+          folderName,
+          hasArchivedTranscriptions: result.hasArchivedTranscriptions || false,
+          archivedTranscriptions: result.archivedTranscriptions
+        });
+        return;
+      }
+      
+      // Check if it's an error response
+      if (result && result.error === 'storage_limit') {
+        const { currentUsedMB, limitMB, requestedMB } = result.storageDetails || {};
+        const message = `אין מספיק מקום אחסון. השתמשת ב-${currentUsedMB}MB מתוך ${limitMB}MB. נדרש ${requestedMB}MB נוסף`;
+        showSidebarNotification(message, 'error');
+      } else if (result && result.projectId) {
+        showSidebarNotification(`פרויקט נוצר בהצלחה`, 'success');
+        await loadProjects();
+      } else {
+        showSidebarNotification('שגיאה ביצירת פרויקט', 'error');
+      }
     } catch (error) {
       showSidebarNotification('שגיאה ביצירת פרויקט', 'error');
     }
@@ -1427,12 +1537,37 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                 onDrop={(e) => handleProjectDrop(e, project.projectId)}
               >
                 <div className="project-header">
-                  <span className="project-name">{project.displayName}</span>
+                  {editingProjectId === project.projectId ? (
+                    <div className="project-name-edit">
+                      <input
+                        type="text"
+                        value={editingProjectName}
+                        onChange={(e) => setEditingProjectName(e.target.value)}
+                        onKeyDown={(e) => handleEditKeyDown(e, project.projectId)}
+                        onBlur={() => handleSaveProjectName(project.projectId)}
+                        className="project-name-input"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  ) : (
+                    <div className="project-name-display">
+                      <span className="project-name">{project.displayName}</span>
+                      <button
+                        className="edit-project-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditProject(project.projectId, project.displayName);
+                        }}
+                        title="ערוך שם פרויקט"
+                      >
+                        ערוך
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="project-meta">
                   <div className="media-info">
-                    <span className="media-count">{project.totalMedia} קבצים</span>
-                    <span className="separator">·</span>
                     <button 
                       className="add-media-btn"
                       onClick={(e) => {
@@ -1444,6 +1579,8 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                     >
                       הוסף קובץ
                     </button>
+                    <span className="separator">·</span>
+                    <span className="media-count">{project.totalMedia} קבצים</span>
                   </div>
                   <span className="project-date">
                     {new Date(project.lastModified).toLocaleDateString('he-IL')}
@@ -1566,12 +1703,32 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                   <button 
                     className="confirm-btn"
                     onClick={() => handleDuplicateProjectConfirm('useExisting')}
+                    style={{ 
+                      background: '#20c997',
+                      color: 'white'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#17a085';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#20c997';
+                    }}
                   >
                     השתמש בפרויקט הקיים
                   </button>
                   <button 
                     className="confirm-btn"
                     onClick={() => handleDuplicateProjectConfirm('create')}
+                    style={{ 
+                      background: '#20c997',
+                      color: 'white'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#17a085';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#20c997';
+                    }}
                   >
                     צור פרויקט חדש בכל זאת
                   </button>
@@ -1619,14 +1776,34 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                   <button 
                     className="confirm-btn"
                     onClick={() => handleDuplicateProjectConfirm('addMissing')}
-                    style={{ fontSize: '13px' }}
+                    style={{ 
+                      fontSize: '13px',
+                      background: '#20c997',
+                      color: 'white'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#17a085';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#20c997';
+                    }}
                   >
                     הוסף רק קבצים חסרים
                   </button>
                   <button 
                     className="confirm-btn"
                     onClick={() => handleDuplicateProjectConfirm('create')}
-                    style={{ fontSize: '13px' }}
+                    style={{ 
+                      fontSize: '13px',
+                      background: '#20c997',
+                      color: 'white'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#17a085';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#20c997';
+                    }}
                   >
                     צור פרויקט חדש
                   </button>

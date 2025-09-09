@@ -10,6 +10,22 @@ interface HoveringBarsState {
   toggleSidebarLocked: () => void;
 }
 
+// Create a safe storage adapter that checks for browser environment
+const safeLocalStorage = {
+  getItem: (name: string) => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(name, value);
+  },
+  removeItem: (name: string) => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(name);
+  },
+};
+
 const useHoveringBarsStore = create<HoveringBarsState>()(
   persist(
     (set, get) => ({
@@ -27,7 +43,7 @@ const useHoveringBarsStore = create<HoveringBarsState>()(
     }),
     {
       name: 'hovering-bars-state', // localStorage key
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       // Only persist the lock states, not the functions
       partialize: (state) => ({
         headerLocked: state.headerLocked,

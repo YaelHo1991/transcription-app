@@ -2227,7 +2227,21 @@ const TextBlock = React.memo(function TextBlock({
               checkTimestampHover(textarea.selectionStart, textarea.value);
             }, 10);
           }}
-          placeholder={isFirstBlock ? (mediaName ? `תמלול עבור ${mediaName}...` : "הקלד טקסט כאן...") : ""}
+          placeholder={isFirstBlock ? (mediaName ? `תמלול עבור ${(() => {
+            // Decode Hebrew filename if needed
+            try {
+              if (mediaName.includes('%') || mediaName.includes('\\x')) {
+                return decodeURIComponent(mediaName);
+              }
+              if (/[\u0080-\u00FF]/.test(mediaName)) {
+                const bytes = new Uint8Array(mediaName.split('').map(c => c.charCodeAt(0)));
+                return new TextDecoder('utf-8').decode(bytes);
+              }
+              return mediaName;
+            } catch (e) {
+              return mediaName;
+            }
+          })()}...` : "הקלד טקסט כאן...") : ""}
           dir="rtl"
           style={{ 
             direction: 'rtl',

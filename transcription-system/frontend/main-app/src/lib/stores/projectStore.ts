@@ -79,6 +79,7 @@ interface ProjectState {
   loadMediaData: (projectId: string, mediaId: string) => Promise<TranscriptionData | null>;
   saveMediaData: (projectId: string, mediaId: string, data: Partial<TranscriptionData>) => Promise<boolean>;
   updateMediaStage: (projectId: string, mediaId: string, stage: 'transcription' | 'proofreading' | 'export') => Promise<boolean>;
+  renameProject: (projectId: string, newName: string) => Promise<boolean>;
   navigateMedia: (direction: 'next' | 'previous') => void;
   createProjectFromFolder: (formData: FormData) => Promise<Project | null>;
   addMediaToProject: (projectId: string, formData: FormData, force?: boolean) => Promise<{ success: boolean; isDuplicate?: boolean; existingMedia?: any; newMediaIds?: string[] } | null>;
@@ -305,6 +306,41 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
         }
       },
 
+      // Rename project
+      renameProject: async (projectId, newName) => {
+        try {
+          const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+          const response = await fetch(buildApiUrl(`/api/projects/${projectId}/rename`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ newName })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to rename project' }));
+            throw new Error(errorData.error || 'Failed to rename project');
+          }
+          
+          // Update the project in local state
+          const { projects } = get();
+          const updatedProjects = projects.map(project => 
+            project.projectId === projectId 
+              ? { ...project, displayName: newName, name: newName }
+              : project
+          );
+          
+          set({ projects: updatedProjects });
+          return true;
+        } catch (error) {
+          console.error('Error renaming project:', error);
+          set({ error: error instanceof Error ? error.message : 'Failed to rename project' });
+          return false;
+        }
+      },
+
       // Navigate between media files
       navigateMedia: async (direction) => {
         const { currentProject } = get();
@@ -340,7 +376,21 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
         
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-          const response = await fetch(buildApiUrl('/api/projects/create-from-folder'), {
+          const url = buildApiUrl('/api/projects/create-from-folder');
+          
+          console.log('[ProjectStore] Creating project from folder...');
+          console.log('[ProjectStore] URL:', url);
+          console.log('[ProjectStore] Token:', token);
+          console.log('[ProjectStore] FormData entries:');
+          for (let [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              console.log(`  ${key}: File(${value.name}, ${value.size} bytes)`);
+            } else {
+              console.log(`  ${key}: ${value}`);
+            }
+          }
+          
+          const response = await fetch(url, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -396,6 +446,8 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           
           const result = await response.json();
           console.log('[ProjectStore] Project creation result:', result);
+          console.log('[ProjectStore] Result success:', result.success);
+          console.log('[ProjectStore] Result projectId:', result.projectId);
           
           // Check if archived transcriptions were found
           if (result.hasArchivedTranscriptions) {
@@ -413,6 +465,8 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           
           // Check if creation was successful
           if (!result.success || !result.projectId) {
+            console.error('[ProjectStore] Project creation failed - success:', result.success, 'projectId:', result.projectId);
+            console.error('[ProjectStore] Full result:', JSON.stringify(result));
             throw new Error(result.message || 'Failed to create project');
           }
           
@@ -449,7 +503,15 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           
           return constructedProject;
         } catch (error) {
-          console.error('Error creating project:', error);
+          console.error('[ProjectStore] Error creating project:', error);
+          console.error('[ProjectStore] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+          console.error('[ProjectStore] Error message:', error instanceof Error ? error.message : String(error));
+          
+          // Check if it's a network error
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            console.error('[ProjectStore] Network error - backend might be down');
+          }
+          
           set({ 
             error: error instanceof Error ? error.message : 'Failed to create project',
             isLoading: false 

@@ -1,0 +1,227 @@
+/* Storage Selector Component */
+.storage-selector {
+  direction: rtl;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  margin-bottom: 16px;
+}
+
+.storage-selector-file-info {
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.file-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.storage-selector-label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #495057;
+}
+
+.storage-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.storage-option {
+  display: block;
+  cursor: pointer;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  background: white;
+  padding: 0;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.storage-option:hover:not(.disabled) {
+  border-color: #007bff;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+}
+
+.storage-option.selected {
+  border-color: #007bff;
+  background: #e7f3ff;
+}
+
+.storage-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.storage-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.storage-option-content {
+  padding: 16px;
+}
+
+.storage-option-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.storage-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.storage-title {
+  font-weight: 600;
+  font-size: 16px;
+  flex: 1;
+}
+
+.storage-recommendation {
+  background: #28a745;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.storage-description {
+  font-size: 14px;
+  color: #495057;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.storage-pros-cons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.storage-pros {
+  font-size: 12px;
+  color: #28a745;
+  line-height: 1.3;
+}
+
+.storage-cons {
+  font-size: 12px;
+  color: #dc3545;
+  line-height: 1.3;
+}
+
+/* Storage Warning */
+.storage-warning {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #856404;
+  line-height: 1.4;
+}
+
+/* Selected state indicator */
+.storage-option.selected::before {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 20px;
+  background: #007bff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .storage-selector {
+    padding: 12px;
+  }
+  
+  .storage-option-content {
+    padding: 12px;
+  }
+  
+  .storage-option-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .storage-recommendation {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    margin-top: 4px;
+  }
+  
+  .storage-pros-cons {
+    font-size: 11px;
+  }
+}
+
+/* Dark mode support (if applicable) */
+@media (prefers-color-scheme: dark) {
+  .storage-selector {
+    background: #343a40;
+    border-color: #495057;
+  }
+  
+  .storage-selector-file-info {
+    background: #495057;
+    border-color: #6c757d;
+  }
+  
+  .storage-selector-label {
+    color: #f8f9fa;
+  }
+  
+  .storage-option {
+    background: #495057;
+    border-color: #6c757d;
+  }
+  
+  .storage-option.selected {
+    background: #1a2b3d;
+  }
+  
+  .storage-description {
+    color: #dee2e6;
+  }
+  
+  .file-name {
+    color: #f8f9fa;
+  }
+  
+  .file-size {
+    color: #adb5bd;
+  }
+}
