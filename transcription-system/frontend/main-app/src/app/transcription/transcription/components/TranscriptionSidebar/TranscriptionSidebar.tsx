@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, us
 import useProjectStore from '@/lib/stores/projectStore';
 import './TranscriptionSidebar.css';
 import { buildApiUrl } from '@/utils/api';
-import { SingleMediaUploadModal } from './SingleMediaUploadModal';
 
 export interface TranscriptionSidebarProps {
   onOpenManagementModal?: (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => void;
@@ -58,8 +57,14 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     files: File[];
   } | null>(null);
   
-  // Single media upload modal state
-  const [showSingleMediaModal, setShowSingleMediaModal] = useState(false);
+  // Editing state for project names
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState<string>('');
+  
+  // Drag & Drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOverProject, setDragOverProject] = useState<string | null>(null);
+  const dragCounter = useRef(0);
   
   const { 
     projects,
@@ -81,6 +86,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const singleMediaInputRef = useRef<HTMLInputElement>(null);
   const addMediaInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   
   // Helper function to show sidebar notifications
@@ -972,87 +978,361 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     return btoa(fingerprint).substring(0, 16);
   };
   
-  const handleSingleMediaUpload = async (file: File, projectName: string) => {
-    console.log('[TranscriptionSidebar] handleSingleMediaUpload called with:', file.name, projectName);
+  const handleSingleMediaClick = () => {
+    // Open the file browser
+    if (singleMediaInputRef.current) {
+      singleMediaInputRef.current.click();
+    }
+  };
+
+  const handleSingleMediaSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    // Generate unique timestamp-based folder name with full timestamp
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    // Always use full timestamp to ensure uniqueness
+    const folderName = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+    
+    console.log(`[TranscriptionSidebar] ${files.length} media file(s) selected`);
     
     try {
-      // Show loading notification
-      showSidebarNotification('מעלה קובץ מדיה...', 'loading');
+      // Show loading notification with file count
+      const loadingMessage = files.length === 1 
+        ? 'מעלה קובץ מדיה...' 
+        : `מעלה ${files.length} קבצי מדיה...`;
+      showSidebarNotification(loadingMessage, 'loading');
       
       // Create FormData
       const formData = new FormData();
       const computerId = localStorage.getItem('computerId') || generateComputerId();
-      const computerName = localStorage.getItem('computerName') || 'Web Single Upload';
+      const computerName = localStorage.getItem('computerName') || 'Web Multi Upload';
       
       if (!localStorage.getItem('computerId')) {
         localStorage.setItem('computerId', computerId);
       }
       
-      // Add the single file to FormData
-      formData.append('files', file);
-      formData.append('folderName', projectName);
+      // Add all files to FormData
+      Array.from(files).forEach(file => {
+        formData.append('files', file);
+      });
+      formData.append('folderName', folderName);
       formData.append('computerId', computerId);
       formData.append('computerName', computerName);
       
       // Use existing createProjectFromFolder method
       const response = await createProjectFromFolder(formData);
       
-      if (response.success) {
-        console.log('[TranscriptionSidebar] Single media project created:', response.projectId);
-        showSidebarNotification(`פרויקט "${projectName}" נוצר בהצלחה`, 'success');
+      // Handle duplicate project detection
+      if (response && response.isDuplicateProject) {
+        console.log('[TranscriptionSidebar] Duplicate project detected:', response);
+        showSidebarNotification('הפרויקט כבר קיים - נבחר אותו', 'info');
+        
+        // Select the existing project
+        if (response.existingProject) {
+          setCurrentProject(response.existingProject);
+          if (response.existingProject.mediaFiles && response.existingProject.mediaFiles.length > 0) {
+            await setCurrentMediaById(response.existingProject.projectId, response.existingProject.mediaFiles[0]);
+          }
+        }
+        
+        // Reset the file input
+        if (singleMediaInputRef.current) {
+          singleMediaInputRef.current.value = '';
+        }
+        return;
+      }
+      
+      // Handle successful project creation
+      if (response && response.projectId) {
+        console.log('[TranscriptionSidebar] Media project created:', response.projectId);
+        const successMessage = files.length === 1 
+          ? 'פרויקט נוצר בהצלחה' 
+          : `פרויקט נוצר בהצלחה עם ${files.length} קבצים`;
+        showSidebarNotification(successMessage, 'success');
         
         // Refresh project list
-        await fetchProjects();
+        await loadProjects();
+        
+        // Set the new project for editing
+        setEditingProjectId(response.projectId);
+        setEditingProjectName(folderName);
         
         // Auto-select the new project
-        const newProject = projects.find(p => p.projectId === response.projectId);
-        if (newProject) {
-          setCurrentProject(newProject);
-        }
+        setTimeout(() => {
+          const newProject = projects.find(p => p.projectId === response.projectId);
+          if (newProject) {
+            setCurrentProject(newProject);
+          }
+        }, 100);
+      } else if (response && response.error === 'storage_limit' && response.storageDetails) {
+        // Handle storage limit error
+        const { currentUsedMB, limitMB, requestedMB } = response.storageDetails;
+        const message = `אין מספיק מקום אחסון. השתמשת ב-${currentUsedMB}MB מתוך ${limitMB}MB. נדרש ${requestedMB}MB נוסף`;
+        showSidebarNotification(message, 'error');
       } else {
-        throw new Error(response.message || 'Failed to create project');
+        // Handle other errors
+        const errorMessage = response?.error || response?.message || 'העלאה נכשלה. אנא נסה שנית.';
+        showSidebarNotification(errorMessage, 'error');
       }
     } catch (error: any) {
-      console.error('[TranscriptionSidebar] Single media upload error:', error);
+      console.error('[TranscriptionSidebar] Media upload error:', error);
+      showSidebarNotification(
+        error.message || 'שגיאה בהעלאת הקבצים',
+        'error'
+      );
+    }
+    
+    // Clear the input for next use
+    event.target.value = '';
+  };
+  
+  // Drag & Drop Handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+  
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+      setDragOverProject(null);
+    }
+  };
+  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dragCounter.current = 0;
+    setIsDragging(false);
+    setDragOverProject(null);
+    
+    const items = Array.from(e.dataTransfer.items);
+    if (items.length === 0) return;
+    
+    // Check if it's a folder drop
+    const entries = await Promise.all(
+      items.map(item => item.webkitGetAsEntry ? item.webkitGetAsEntry() : null)
+    );
+    
+    const hasFolder = entries.some(entry => entry && entry.isDirectory);
+    
+    if (hasFolder) {
+      // Handle folder drop
+      const folderEntry = entries.find(entry => entry && entry.isDirectory);
+      if (!folderEntry) return;
       
-      // Handle duplicate project error
-      if (error.response?.data?.isDuplicate) {
-        const existingProject = error.response.data.existingProject;
-        showSidebarNotification(
-          `פרויקט עם אותם קבצים כבר קיים: ${existingProject.name}`,
-          'error'
-        );
-      } else {
-        showSidebarNotification(
-          error.message || 'שגיאה בהעלאת הקובץ',
-          'error'
-        );
+      await handleFolderDrop(folderEntry);
+    } else {
+      // Handle file(s) drop
+      const files = Array.from(e.dataTransfer.files);
+      const mediaFiles = files.filter(file => 
+        file.type.startsWith('audio/') || file.type.startsWith('video/')
+      );
+      
+      if (mediaFiles.length === 0) {
+        showSidebarNotification('אנא גרור קבצי מדיה בלבד (אודיו או וידאו)', 'error');
+        return;
       }
-      throw error; // Re-throw to let modal handle it
+      
+      // Create new project with timestamp name
+      await handleMediaFilesDrop(mediaFiles);
+    }
+  };
+  
+  const handleProjectDragOver = (e: React.DragEvent, projectId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProject(projectId);
+  };
+  
+  const handleProjectDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverProject(null);
+  };
+  
+  const handleProjectDrop = async (e: React.DragEvent, projectId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dragCounter.current = 0;
+    setIsDragging(false);
+    setDragOverProject(null);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const mediaFiles = files.filter(file => 
+      file.type.startsWith('audio/') || file.type.startsWith('video/')
+    );
+    
+    if (mediaFiles.length === 0) {
+      showSidebarNotification('אנא גרור קבצי מדיה בלבד (אודיו או וידאו)', 'error');
+      return;
+    }
+    
+    // Add media to existing project
+    await handleAddMediaToProject(projectId, mediaFiles);
+  };
+  
+  const handleFolderDrop = async (folderEntry: any) => {
+    showSidebarNotification('קורא תיקייה...', 'loading', false);
+    
+    const files: File[] = [];
+    const readDirectory = async (dirEntry: any) => {
+      const reader = dirEntry.createReader();
+      const entries = await new Promise<any[]>((resolve) => {
+        reader.readEntries((entries: any[]) => resolve(entries));
+      });
+      
+      for (const entry of entries) {
+        if (entry.isFile) {
+          const file = await new Promise<File>((resolve) => {
+            entry.file((file: File) => resolve(file));
+          });
+          if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+            files.push(file);
+          }
+        } else if (entry.isDirectory) {
+          await readDirectory(entry);
+        }
+      }
+    };
+    
+    await readDirectory(folderEntry);
+    
+    if (files.length === 0) {
+      showSidebarNotification('לא נמצאו קבצי מדיה בתיקייה', 'error');
+      return;
+    }
+    
+    // Create project with folder name
+    const folderName = folderEntry.name;
+    const formData = new FormData();
+    formData.append('folderName', folderName);
+    formData.append('computerId', 'drag-drop');
+    formData.append('computerName', 'Drag & Drop');
+    
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    
+    try {
+      await createProjectFromFolder(formData);
+      showSidebarNotification(`פרויקט "${folderName}" נוצר בהצלחה`, 'success');
+      await loadProjects();
+    } catch (error) {
+      showSidebarNotification('שגיאה ביצירת פרויקט', 'error');
+    }
+  };
+  
+  const handleMediaFilesDrop = async (files: File[]) => {
+    // Generate timestamp name
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const folderName = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+    
+    const formData = new FormData();
+    formData.append('folderName', folderName);
+    formData.append('computerId', 'drag-drop');
+    formData.append('computerName', 'Drag & Drop');
+    
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    
+    try {
+      showSidebarNotification('מעלה קבצים...', 'loading', false);
+      await createProjectFromFolder(formData);
+      showSidebarNotification(`פרויקט נוצר בהצלחה`, 'success');
+      await loadProjects();
+    } catch (error) {
+      showSidebarNotification('שגיאה ביצירת פרויקט', 'error');
+    }
+  };
+  
+  const handleAddMediaToProject = async (projectId: string, files: File[]) => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    
+    try {
+      showSidebarNotification('מוסיף מדיה לפרויקט...', 'loading', false);
+      await addMediaToProject(projectId, formData);
+      
+      // Find the project name for the success message
+      const project = projects.find(p => p.projectId === projectId);
+      const projectName = project?.displayName || 'הפרויקט';
+      
+      showSidebarNotification(`מדיה נוספה בהצלחה לפרויקט "${projectName}"`, 'success');
+      await loadProjects();
+    } catch (error) {
+      showSidebarNotification('שגיאה בהוספת מדיה', 'error');
     }
   };
   
   return (
     <>
-      <div className="transcription-sidebar-content">
+      <div 
+        className={`transcription-sidebar-content ${isDragging ? 'dragging-over' : ''}`}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}>
         {/* Upload button at top of sidebar */}
       <div className="sidebar-upload-section">
         <button 
           className="sidebar-upload-button"
           onClick={handleFolderUpload}
-          title="הוסף פרויקט חדש"
+          title="הוסף תיקיית פרויקט"
         >
           <span className="upload-plus">+</span>
-          <span className="upload-text">פרויקט חדש</span>
+          <span className="upload-text">תיקייה</span>
         </button>
         <button 
           className="sidebar-media-button"
-          onClick={() => setShowSingleMediaModal(true)}
-          title="הוסף מדיה בודדת"
+          onClick={handleSingleMediaClick}
+          title="הוסף קובץ מדיה בודד"
         >
-          <span className="media-icon">🎵</span>
-          <span className="media-text">הוסף מדיה</span>
+          <span className="media-icon">+</span>
+          <span className="media-text">מדיה</span>
         </button>
+        {/* Hidden file input for media (supports multiple files) */}
+        <input
+          ref={singleMediaInputRef}
+          type="file"
+          accept="audio/*,video/*"
+          multiple
+          onChange={handleSingleMediaSelected}
+          style={{ display: 'none' }}
+        />
       </div>
       
       <div className="sidebar-stats">
@@ -1132,7 +1412,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             {projects.map(project => (
               <div 
                 key={project.projectId} 
-                className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''}`}
+                className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''} ${dragOverProject === project.projectId ? 'drag-over-project' : ''}`}
                 onClick={async () => {
                   setCurrentProject(project);
                   // DISABLED: Auto-load first media causes issues after restoration
@@ -1142,6 +1422,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                   //   await setCurrentMediaById(project.projectId, firstMediaId);
                   // }
                 }}
+                onDragOver={(e) => handleProjectDragOver(e, project.projectId)}
+                onDragLeave={handleProjectDragLeave}
+                onDrop={(e) => handleProjectDrop(e, project.projectId)}
               >
                 <div className="project-header">
                   <span className="project-name">{project.displayName}</span>
@@ -1359,13 +1642,6 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           </div>
         </div>
       )}
-      
-      {/* Single Media Upload Modal */}
-      <SingleMediaUploadModal
-        isOpen={showSingleMediaModal}
-        onClose={() => setShowSingleMediaModal(false)}
-        onUpload={handleSingleMediaUpload}
-      />
       
     </>
   );

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Project, MediaInfo } from '@/lib/stores/projectStore';
+import useProjectStore from '@/lib/stores/projectStore';
 import { ConfirmationModal } from '../TextEditor/components/ConfirmationModal';
 import { buildApiUrl } from '@/utils/api';
 import './ProjectManagementModal.css';
@@ -30,11 +31,15 @@ export default function ProjectManagementModal({
   isOpen,
   onClose,
   activeTab = 'projects',
-  projects,
+  projects: propProjects,
   onProjectDelete,
   onMediaDelete,
   onTranscriptionRestored
 }: ProjectManagementModalProps) {
+  // Get fresh projects data from the store
+  const storeProjects = useProjectStore(state => state.projects);
+  const projects = storeProjects.length > 0 ? storeProjects : propProjects;
+  
   const [currentTab, setCurrentTab] = useState(activeTab);
   const [archivedTranscriptions, setArchivedTranscriptions] = useState<ArchivedTranscription[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
@@ -152,6 +157,9 @@ export default function ProjectManagementModal({
         await onMediaDelete(deleteTarget.id, deleteTarget.mediaId, deleteTranscriptions);
         // Close the media panel after successful deletion
         setSelectedProject(null);
+        // Reload projects to get updated counts
+        const { loadProjects } = useProjectStore.getState();
+        await loadProjects();
         setSuccessMessage('המדיה נמחקה בהצלחה');
         setShowSuccessModal(true);
       } else if (deleteTarget.type === 'orphaned') {
@@ -206,6 +214,9 @@ export default function ProjectManagementModal({
           setSelectedMedia(new Set());
           // Close the media panel after bulk deletion
           setSelectedProject(null);
+          // Reload projects to get updated counts
+          const { loadProjects } = useProjectStore.getState();
+          await loadProjects();
         }
       } else if (bulkDeleteType === 'transcriptions') {
         for (const transcriptionId of selectedTranscriptions) {
@@ -765,7 +776,21 @@ export default function ProjectManagementModal({
                                   />
                                   <div className="media-icon">🎵</div>
                                   <div className="media-info">
-                                    <div className="media-name">{media.name}</div>
+                                    <div className="media-name">{(() => {
+                                      // Decode Hebrew filename if needed
+                                      try {
+                                        if (media.name.includes('%') || media.name.includes('\\x')) {
+                                          return decodeURIComponent(media.name);
+                                        }
+                                        if (/[\u0080-\u00FF]/.test(media.name)) {
+                                          const bytes = new Uint8Array(media.name.split('').map(c => c.charCodeAt(0)));
+                                          return new TextDecoder('utf-8').decode(bytes);
+                                        }
+                                        return media.name;
+                                      } catch (e) {
+                                        return media.name;
+                                      }
+                                    })()}</div>
                                     <div className="media-meta">
                                       <span>{formatSize(media.size)}</span>
                                       <span>{formatDuration(media.duration)}</span>
@@ -923,7 +948,21 @@ export default function ProjectManagementModal({
                           Array.from(new Map(project.mediaInfo.map(m => [m.mediaId, m])).values()).map((media, index) => (
                             <div key={`media-duration-${project.projectId}-${media.mediaId}-${index}`} className="media-duration-item">
                               <div className="media-icon-small">🎵</div>
-                              <span className="media-name">{media.name}</span>
+                              <span className="media-name">{(() => {
+                                // Decode Hebrew filename if needed
+                                try {
+                                  if (media.name.includes('%') || media.name.includes('\\x')) {
+                                    return decodeURIComponent(media.name);
+                                  }
+                                  if (/[\u0080-\u00FF]/.test(media.name)) {
+                                    const bytes = new Uint8Array(media.name.split('').map(c => c.charCodeAt(0)));
+                                    return new TextDecoder('utf-8').decode(bytes);
+                                  }
+                                  return media.name;
+                                } catch (e) {
+                                  return media.name;
+                                }
+                              })()}</span>
                               <span className="duration">{formatDuration(media.duration)}</span>
                             </div>
                           ))

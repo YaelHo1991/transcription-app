@@ -7,75 +7,61 @@
 
 /* Upload Section Styles */
 .sidebar-upload-section {
-  padding: 10px;
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.sidebar-upload-button {
-  background: linear-gradient(135deg, #20c997 0%, #1ab385 100%);
-  border: none;
-  color: white;
   padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s;
-  flex: 1;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3);
+  gap: 10px;
+  margin: 0 0 15px 0;
+  justify-content: stretch;
 }
 
-.sidebar-upload-button:hover {
-  background: linear-gradient(135deg, #1ab385 0%, #16a678 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
-}
-
-.sidebar-upload-button .upload-plus {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.sidebar-upload-button .upload-text {
-  white-space: nowrap;
-}
-
+.sidebar-upload-button,
 .sidebar-media-button {
-  background: linear-gradient(135deg, #20c997 0%, #1ab385 100%);
-  border: none;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 12px;
+  border-radius: 12px;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s;
+  transition: all 0.2s;
   flex: 1;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(32, 201, 151, 0.3);
+  min-height: 50px;
+  backdrop-filter: blur(5px);
 }
 
+.sidebar-upload-button:hover,
 .sidebar-media-button:hover {
-  background: linear-gradient(135deg, #1ab385 0%, #16a678 100%);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
 }
 
+.sidebar-upload-button:active,
+.sidebar-media-button:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-upload-button .upload-plus,
 .sidebar-media-button .media-icon {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 400;
 }
 
+/* Text labels beneath icons */
+.sidebar-upload-button .upload-text,
 .sidebar-media-button .media-text {
-  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.95;
+  letter-spacing: 0.3px;
 }
 
 .theme-transcription .sidebar-header {
@@ -598,4 +584,44 @@
 
 .duplicate-confirm-buttons .cancel-btn:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* Drag & Drop Styles */
+.transcription-sidebar-content.dragging-over {
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
+}
+
+.transcription-sidebar-content.dragging-over .project-list {
+  opacity: 0.8;
+}
+
+.project-item.drag-over-project {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  transform: scale(1.02);
+  transition: all 0.2s ease;
+}
+
+/* Drop indicator for empty area */
+.transcription-sidebar-content.dragging-over .projects-list {
+  position: relative;
+}
+
+.transcription-sidebar-content.dragging-over .projects-list::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  height: 60px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }

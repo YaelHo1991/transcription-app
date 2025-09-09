@@ -169,7 +169,7 @@ export default function TranscriptionWorkPage() {
   
   // Project store for new project management
   const {
-    projects,
+    projects = [],
     currentProject,
     currentMediaId,
     currentTranscriptionData,
@@ -181,7 +181,7 @@ export default function TranscriptionWorkPage() {
   
   // Log when projects change
   useEffect(() => {
-    console.log('[TranscriptionPage] Projects updated:', projects.length, 'projects');
+    console.log('[TranscriptionPage] Projects updated:', projects ? projects.length : 0, 'projects');
     console.log('[TranscriptionPage] Current project:', currentProject?.projectId || 'none');
     console.log('[TranscriptionPage] Current media ID:', currentMediaId || 'none');
     console.log('[TranscriptionPage] Has transcription data:', !!currentTranscriptionData);
@@ -274,10 +274,10 @@ export default function TranscriptionWorkPage() {
   const [mediaProjectsMap, setMediaProjectsMap] = useState<Map<string, string>>(new Map()); // Maps media filename -> transcription projectId
   
   // Get current media collection and media info
-  const currentCollection = mediaCollections[currentCollectionIndex];
-  const currentMedia = currentCollection?.mediaItems[currentMediaIndex];
-  const hasCollections = mediaCollections.length > 0;
-  const hasMedia = currentCollection?.mediaItems.length > 0;
+  const currentCollection = mediaCollections ? mediaCollections[currentCollectionIndex] : undefined;
+  const currentMedia = currentCollection?.mediaItems ? currentCollection.mediaItems[currentMediaIndex] : undefined;
+  const hasCollections = mediaCollections && mediaCollections.length > 0;
+  const hasMedia = currentCollection?.mediaItems && currentCollection.mediaItems.length > 0;
   
   // Debug logging (removed to prevent render loops)
   
@@ -400,7 +400,7 @@ export default function TranscriptionWorkPage() {
   // Save session whenever media collections or indices change
   useEffect(() => {
     // Don't save while actively restoring to avoid overwriting
-    if (!isRestoringSession && (mediaCollections.length > 0 || mediaProjectsMap.size > 0)) {
+    if (!isRestoringSession && mediaCollections && (mediaCollections.length > 0 || mediaProjectsMap.size > 0)) {
       saveSessionState();
     }
   }, [mediaCollections, currentCollectionIndex, currentMediaIndex, currentTranscriptionIndex, mediaProjectsMap, saveSessionState, isRestoringSession]);
@@ -855,7 +855,7 @@ export default function TranscriptionWorkPage() {
         setActualMediaDuration(0);
         
         // Switch to the first available project if any exist
-        if (updatedState.projects.length > 0) {
+        if (updatedState.projects && updatedState.projects.length > 0) {
           const nextProject = updatedState.projects[0];
           setCurrentProject(nextProject);
           
@@ -931,7 +931,7 @@ export default function TranscriptionWorkPage() {
         const updatedState = useProjectStore.getState();
         
         // Switch to the first available project
-        if (updatedState.projects.length > 0) {
+        if (updatedState.projects && updatedState.projects.length > 0) {
           const nextProject = updatedState.projects[0];
           setCurrentProject(nextProject);
           
@@ -955,16 +955,16 @@ export default function TranscriptionWorkPage() {
         
         // Get updated project data
         const updatedState = useProjectStore.getState();
-        const updatedProject = updatedState.projects.find(p => p.projectId === projectId);
+        const updatedProject = updatedState.projects ? updatedState.projects.find(p => p.projectId === projectId) : undefined;
         
-        if (updatedProject && updatedProject.mediaFiles.length > 0) {
+        if (updatedProject && updatedProject.mediaFiles && updatedProject.mediaFiles.length > 0) {
           // Switch to the first available media in the same project
           const nextMediaId = updatedProject.mediaFiles[0];
           await setCurrentMediaById(projectId, nextMediaId);
         } else {
           // No media left in this project (shouldn't happen due to backend changes)
           // Switch to first available project
-          if (updatedState.projects.length > 0) {
+          if (updatedState.projects && updatedState.projects.length > 0) {
             const nextProject = updatedState.projects[0];
             setCurrentProject(nextProject);
             
@@ -1156,20 +1156,69 @@ export default function TranscriptionWorkPage() {
                 setActualMediaDuration(duration);
               }}
               currentProject={(() => {
-                if (!currentProject) return projects.length > 0 ? 1 : 0;
-                const index = projects.findIndex(p => p.projectId === currentProject.projectId);
+                if (!currentProject) return projects && projects.length > 0 ? 1 : 0;
+                const index = projects ? projects.findIndex(p => p.projectId === currentProject.projectId) : -1;
                 return index >= 0 ? index + 1 : 1;
               })()}
-              totalProjects={projects.length}
-              currentMedia={currentProject && currentMediaId ? currentProject.mediaFiles.indexOf(currentMediaId) + 1 : (currentProject?.mediaFiles.length > 0 ? 1 : 0)}
-              totalMedia={currentProject?.mediaFiles.length || 0}
-              mediaName={currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || 'אין מדיה'}
+              totalProjects={projects ? projects.length : 0}
+              currentMedia={currentProject && currentMediaId && currentProject.mediaFiles ? currentProject.mediaFiles.indexOf(currentMediaId) + 1 : (currentProject?.mediaFiles?.length > 0 ? 1 : 0)}
+              totalMedia={currentProject?.mediaFiles?.length || 0}
+              mediaName={(() => {
+                // Try to get media name from project's mediaInfo first
+                if (currentProject?.mediaInfo && currentMediaId) {
+                  const mediaInfo = currentProject.mediaInfo.find(m => m.mediaId === currentMediaId);
+                  if (mediaInfo?.name) {
+                    // Try to decode the name if it appears to be encoded
+                    try {
+                      // Check if the name contains encoded characters
+                      if (mediaInfo.name.includes('%') || mediaInfo.name.includes('\\x')) {
+                        return decodeURIComponent(mediaInfo.name);
+                      }
+                      // Check if it's UTF-8 encoded as Latin-1
+                      if (/[\u0080-\u00FF]/.test(mediaInfo.name)) {
+                        // Try to fix UTF-8 encoding issues
+                        const bytes = new Uint8Array(mediaInfo.name.split('').map(c => c.charCodeAt(0)));
+                        return new TextDecoder('utf-8').decode(bytes);
+                      }
+                      return mediaInfo.name;
+                    } catch (e) {
+                      // If decoding fails, return the original
+                      return mediaInfo.name;
+                    }
+                  }
+                }
+                // Fall back to transcription metadata
+                const fallbackName = currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || 'אין מדיה';
+                // Apply same decoding logic to fallback
+                try {
+                  if (fallbackName.includes('%') || fallbackName.includes('\\x')) {
+                    return decodeURIComponent(fallbackName);
+                  }
+                  if (/[\u0080-\u00FF]/.test(fallbackName)) {
+                    const bytes = new Uint8Array(fallbackName.split('').map(c => c.charCodeAt(0)));
+                    return new TextDecoder('utf-8').decode(bytes);
+                  }
+                  return fallbackName;
+                } catch (e) {
+                  return fallbackName;
+                }
+              })()}
               mediaDuration={mediaDuration}
-              mediaSize={currentTranscriptionData?.metadata.size ? `${(currentTranscriptionData.metadata.size / (1024 * 1024)).toFixed(1)} MB` : '0 MB'}
+              mediaSize={(() => {
+                // Try to get media size from project's mediaInfo first
+                if (currentProject?.mediaInfo && currentMediaId) {
+                  const mediaInfo = currentProject.mediaInfo.find(m => m.mediaId === currentMediaId);
+                  if (mediaInfo?.size) {
+                    return `${(mediaInfo.size / (1024 * 1024)).toFixed(1)} MB`;
+                  }
+                }
+                // Fall back to transcription metadata
+                return currentTranscriptionData?.metadata?.size ? `${(currentTranscriptionData.metadata.size / (1024 * 1024)).toFixed(1)} MB` : '0 MB';
+              })()}
               projectName={currentProject?.displayName || 'אין פרויקט'}
               onPreviousProject={async () => {
-                const currentIndex = currentProject ? projects.indexOf(currentProject) : -1;
-                if (currentIndex > 0) {
+                const currentIndex = currentProject && projects ? projects.indexOf(currentProject) : -1;
+                if (currentIndex > 0 && projects) {
                   // Trigger save before switching projects
                   console.log('[Page] Navigation: Previous project clicked');
                   const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
@@ -1194,8 +1243,8 @@ export default function TranscriptionWorkPage() {
                 }
               }}
               onNextProject={async () => {
-                const currentIndex = currentProject ? projects.indexOf(currentProject) : -1;
-                if (currentIndex < projects.length - 1) {
+                const currentIndex = currentProject && projects ? projects.indexOf(currentProject) : -1;
+                if (projects && currentIndex < projects.length - 1) {
                   // Trigger save before switching projects
                   console.log('[Page] Navigation: Next project clicked');
                   const saveEvent = new CustomEvent('autoSaveBeforeNavigation', {
@@ -1263,7 +1312,7 @@ export default function TranscriptionWorkPage() {
                 currentTime={currentTime}
                 mediaFileName={(() => {
                   // If there are transcriptions loaded, use the transcription's media name
-                  if (transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
+                  if (transcriptions && transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
                     const currentTranscription = transcriptions[currentTranscriptionIndex];
                     if (currentTranscription.mediaItems && currentTranscription.mediaItems[0]) {
                       return currentTranscription.mediaItems[0].name || '';
@@ -1532,14 +1581,14 @@ export default function TranscriptionWorkPage() {
               <HelperFiles 
                 isExpanded={helperFilesExpanded}
                 onToggle={() => setHelperFilesExpanded(!helperFilesExpanded)}
-                projects={mediaCollections.map((coll, idx) => ({
+                projects={mediaCollections ? mediaCollections.map((coll, idx) => ({
                   id: 'proj-' + idx,
                   name: coll.name,
-                  mediaItems: coll.mediaItems.map((media, mIdx) => ({
+                  mediaItems: coll.mediaItems ? coll.mediaItems.map((media, mIdx) => ({
                     id: 'media-' + idx + '-' + mIdx,
                     name: media.name
-                  }))
-                }))}
+                  })) : []
+                })) : []}
               />
             </div>
           </div>
