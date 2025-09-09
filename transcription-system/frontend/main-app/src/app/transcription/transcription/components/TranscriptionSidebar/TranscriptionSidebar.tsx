@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, us
 import useProjectStore from '@/lib/stores/projectStore';
 import './TranscriptionSidebar.css';
 import { buildApiUrl } from '@/utils/api';
+import { SingleMediaUploadModal } from './SingleMediaUploadModal';
 
 export interface TranscriptionSidebarProps {
   onOpenManagementModal?: (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => void;
@@ -56,6 +57,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     folderName: string;
     files: File[];
   } | null>(null);
+  
+  // Single media upload modal state
+  const [showSingleMediaModal, setShowSingleMediaModal] = useState(false);
   
   const { 
     projects,
@@ -968,6 +972,66 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     return btoa(fingerprint).substring(0, 16);
   };
   
+  const handleSingleMediaUpload = async (file: File, projectName: string) => {
+    console.log('[TranscriptionSidebar] handleSingleMediaUpload called with:', file.name, projectName);
+    
+    try {
+      // Show loading notification
+      showSidebarNotification('מעלה קובץ מדיה...', 'loading');
+      
+      // Create FormData
+      const formData = new FormData();
+      const computerId = localStorage.getItem('computerId') || generateComputerId();
+      const computerName = localStorage.getItem('computerName') || 'Web Single Upload';
+      
+      if (!localStorage.getItem('computerId')) {
+        localStorage.setItem('computerId', computerId);
+      }
+      
+      // Add the single file to FormData
+      formData.append('files', file);
+      formData.append('folderName', projectName);
+      formData.append('computerId', computerId);
+      formData.append('computerName', computerName);
+      
+      // Use existing createProjectFromFolder method
+      const response = await createProjectFromFolder(formData);
+      
+      if (response.success) {
+        console.log('[TranscriptionSidebar] Single media project created:', response.projectId);
+        showSidebarNotification(`פרויקט "${projectName}" נוצר בהצלחה`, 'success');
+        
+        // Refresh project list
+        await fetchProjects();
+        
+        // Auto-select the new project
+        const newProject = projects.find(p => p.projectId === response.projectId);
+        if (newProject) {
+          setCurrentProject(newProject);
+        }
+      } else {
+        throw new Error(response.message || 'Failed to create project');
+      }
+    } catch (error: any) {
+      console.error('[TranscriptionSidebar] Single media upload error:', error);
+      
+      // Handle duplicate project error
+      if (error.response?.data?.isDuplicate) {
+        const existingProject = error.response.data.existingProject;
+        showSidebarNotification(
+          `פרויקט עם אותם קבצים כבר קיים: ${existingProject.name}`,
+          'error'
+        );
+      } else {
+        showSidebarNotification(
+          error.message || 'שגיאה בהעלאת הקובץ',
+          'error'
+        );
+      }
+      throw error; // Re-throw to let modal handle it
+    }
+  };
+  
   return (
     <>
       <div className="transcription-sidebar-content">
@@ -981,7 +1045,14 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           <span className="upload-plus">+</span>
           <span className="upload-text">פרויקט חדש</span>
         </button>
-        {/* Debug button removed - project management disabled */}
+        <button 
+          className="sidebar-media-button"
+          onClick={() => setShowSingleMediaModal(true)}
+          title="הוסף מדיה בודדת"
+        >
+          <span className="media-icon">🎵</span>
+          <span className="media-text">הוסף מדיה</span>
+        </button>
       </div>
       
       <div className="sidebar-stats">
@@ -1288,6 +1359,13 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           </div>
         </div>
       )}
+      
+      {/* Single Media Upload Modal */}
+      <SingleMediaUploadModal
+        isOpen={showSingleMediaModal}
+        onClose={() => setShowSingleMediaModal(false)}
+        onUpload={handleSingleMediaUpload}
+      />
       
     </>
   );
