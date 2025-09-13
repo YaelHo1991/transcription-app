@@ -636,6 +636,26 @@ export class ProjectService {
               
               if (projectData.mediaFiles && Array.isArray(projectData.mediaFiles)) {
                 for (const mediaId of projectData.mediaFiles) {
+                  // First, try to load from media.json (URL downloads have correct name here)
+                  try {
+                    const mediaJsonPath = path.join(projectDir, 'media', mediaId, 'media.json');
+                    const mediaData = JSON.parse(await fs.readFile(mediaJsonPath, 'utf8'));
+                    
+                    mediaInfo.push({
+                      mediaId: mediaId,
+                      name: mediaData.name || mediaData.title || mediaData.filename,
+                      size: mediaData.size || 0,
+                      duration: mediaData.duration || 0,
+                      mimeType: mediaData.format ? `video/${mediaData.format}` : 'unknown'
+                    });
+                    totalSize += mediaData.size || 0;
+                    console.log(`[ProjectService] Loaded media info from media.json for ${mediaId}: ${mediaData.name}`);
+                    continue; // Skip to next media file
+                  } catch (mediaJsonError) {
+                    // media.json doesn't exist, fall back to metadata.json
+                  }
+                  
+                  // Fall back to metadata.json (regular uploads)
                   try {
                     const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
                     const mediaMetadata = JSON.parse(await fs.readFile(mediaMetadataPath, 'utf8'));
@@ -679,7 +699,7 @@ export class ProjectService {
                     
                     totalSize += mediaMetadata.size || 0;
                   } catch (error) {
-                    console.log(`[ProjectService] No metadata.json for ${mediaId}, using fallback file detection`);
+                    console.log(`[ProjectService] No metadata.json or media.json for ${mediaId}, using fallback file detection`);
                     // Try to at least get file info directly (without expensive audio parsing)
                     try {
                       const mediaFiles = await fs.readdir(path.join(projectDir, 'media', mediaId));
