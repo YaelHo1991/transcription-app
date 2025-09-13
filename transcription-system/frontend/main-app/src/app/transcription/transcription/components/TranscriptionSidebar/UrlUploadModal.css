@@ -1005,7 +1005,6 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 16px;
-  border-top: 1px solid rgba(32, 201, 151, 0.2);
   width: 100%;
 }
 

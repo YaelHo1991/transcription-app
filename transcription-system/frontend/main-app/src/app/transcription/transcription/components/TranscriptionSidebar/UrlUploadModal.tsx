@@ -30,7 +30,7 @@ interface UrlConfig {
 interface UrlUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (urls: UrlConfig[], downloadNow: boolean) => Promise<void>;
+  onSubmit: (urls: UrlConfig[], downloadNow: boolean, projectName: string) => Promise<void>;
   target: 'new' | string; // 'new' for new project, or projectId for existing
   projectName?: string; // Name of existing project if adding to existing
 }
@@ -48,6 +48,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   const [loadingButton, setLoadingButton] = useState<'download' | 'create' | null>(null);
   const [error, setError] = useState('');
   const [activeUrlId, setActiveUrlId] = useState<string | null>(null);
+  const [projectNameInput, setProjectNameInput] = useState('');
   
   const cookieInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const urlCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -55,6 +56,20 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   // Initialize with one empty URL config when modal opens
   useEffect(() => {
     if (isOpen && urls.length === 0) {
+      // Generate default project name with date
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('he-IL', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: '2-digit' 
+      }).replace(/\//g, '.');
+      const timeStr = now.toLocaleTimeString('he-IL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      setProjectNameInput(`YouTube - ${dateStr} ${timeStr}`);
+      
       const newId = `url-${Date.now()}`;
       const newUrlConfig: UrlConfig = {
         id: newId,
@@ -413,7 +428,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     
     // Pass the configured URLs to parent component without any error handling
     // Parent will handle the background download and show progress modal
-    await onSubmit(configuredUrls, downloadNow);
+    await onSubmit(configuredUrls, downloadNow, projectNameInput);
   };
 
   // Clean up timeout on unmount
@@ -441,6 +456,20 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
         </div>
         
         <div className="url-modal-form">
+          {/* Project name input (only for new projects) */}
+          {target === 'new' && (
+            <div className="url-input-group" style={{ marginBottom: '20px' }}>
+              <label>שם הפרויקט:</label>
+              <input
+                type="text"
+                className="url-input"
+                value={projectNameInput}
+                onChange={(e) => setProjectNameInput(e.target.value)}
+                placeholder="הכנס שם פרויקט"
+              />
+            </div>
+          )}
+          
           <div className="url-list">
             {urls.map((urlConfig, index) => (
               <div key={urlConfig.id} className={`url-item ${urlConfig.status}`}>

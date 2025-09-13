@@ -734,27 +734,23 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       console.log(`[BatchDownload] Processing URL: ${url}`);
       
       try {
-        // Get video info first
-        const videoInfo = await YtDlpService.getVideoInfo(url);
-        console.log(`[BatchDownload] Video info:`, videoInfo);
-        
-        // Generate temp file path
-        const tempFileName = `temp-${uuidv4()}.${videoInfo.format || 'mp4'}`;
-        const tempFilePath = path.join(process.cwd(), 'temp', tempFileName);
+        // Generate temp directory path
+        const tempDir = path.join(process.cwd(), 'temp', uuidv4());
         
         // Ensure temp directory exists
-        await fs_promises.mkdir(path.dirname(tempFilePath), { recursive: true });
+        await fs_promises.mkdir(tempDir, { recursive: true });
         
         // Download the video
-        await YtDlpService.download({
+        const videoInfo = await YtDlpService.downloadVideo({
           url,
-          outputPath: tempFilePath,
+          outputPath: tempDir,
           quality: urlInfo.quality || 'medium',
           downloadType: urlInfo.downloadType || 'video'
         });
         
         // Read the downloaded file
-        const fileBuffer = await fs_promises.readFile(tempFilePath);
+        const downloadedFilePath = path.join(tempDir, videoInfo.filename);
+        const fileBuffer = await fs_promises.readFile(downloadedFilePath);
         
         // Add to files array with the actual video title as name
         downloadedFiles.push({
@@ -763,8 +759,8 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
           mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
         });
         
-        // Clean up temp file
-        await fs_promises.unlink(tempFilePath);
+        // Clean up temp directory
+        await fs_promises.rm(tempDir, { recursive: true, force: true });
         
         console.log(`[BatchDownload] Successfully downloaded: ${videoInfo.title}`);
       } catch (error) {
@@ -824,6 +820,105 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
   } catch (error: any) {
     console.error('[BatchDownload] Error:', error);
     res.status(500).json({ error: error.message || 'Failed to process batch download' });
+  }
+});
+
+/**
+ * Get batch download progress (simulated - since downloads are synchronous)
+ */
+router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { batchId } = req.params;
+    
+    // Since downloads happen synchronously in batch-download endpoint,
+    // we always return completed status when this is called
+    res.json({
+      status: 'completed',
+      projectId: batchId, // Use batchId as projectId for now
+      totalFiles: 1,
+      completedFiles: 1,
+      progress: {
+        0: {
+          progress: 100,
+          status: 'completed'
+        }
+      },
+      mediaNames: {
+        0: 'Downloaded Media'
+      }
+    });
+  } catch (error: any) {
+    console.error('[BatchProgress] Error:', error);
+    res.status(500).json({ error: 'Failed to get progress' });
+  }
+});
+
+/**
+ * Check if URL is valid and can be downloaded
+ */
+router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    console.log('[CheckURL] Checking URL:', url);
+    
+    // Import YtDlpService
+    const { YtDlpService } = require('../../services/ytdlpService');
+    
+    try {
+      // Try to get video info to validate the URL
+      const videoInfo = await YtDlpService.getVideoInfo(url);
+      
+      console.log('[CheckURL] Video info retrieved:', {
+        title: videoInfo.title,
+        duration: videoInfo.duration,
+        hasVideo: videoInfo.hasVideo
+      });
+      
+      // Get quality options for the URL
+      const formats = await YtDlpService.getQualityOptions(url);
+      
+      res.json({
+        valid: true,
+        status: 'public', // Add status field
+        title: videoInfo.title,
+        duration: videoInfo.duration,
+        hasVideo: videoInfo.hasVideo,
+        formats: formats
+      });
+    } catch (error: any) {
+      console.error('[CheckURL] Failed to get video info:', error);
+      
+      // Parse error message for user-friendly response
+      let userMessage = 'לא ניתן לגשת לכתובת URL זו';
+      
+      if (error.message.includes('סרטון פרטי') || error.message.includes('Private video')) {
+        userMessage = 'סרטון פרטי - נדרש קובץ Cookies לאימות';
+      } else if (error.message.includes('סרטון למנויים') || error.message.includes('members-only')) {
+        userMessage = 'סרטון למנויים בלבד - נדרש קובץ Cookies';
+      } else if (error.message.includes('לא זמין') || error.message.includes('unavailable')) {
+        userMessage = 'הסרטון לא זמין או הוסר';
+      } else if (error.message.includes('כתובת URL לא נתמכת') || error.message.includes('Unsupported URL')) {
+        userMessage = 'כתובת URL לא נתמכת';
+      }
+      
+      res.status(400).json({
+        valid: false,
+        status: 'invalid', // Add status field for consistency
+        message: userMessage,
+        error: userMessage
+      });
+    }
+  } catch (error: any) {
+    console.error('[CheckURL] Error:', error);
+    res.status(500).json({ 
+      valid: false,
+      error: 'שגיאה בבדיקת הכתובת' 
+    });
   }
 });
 

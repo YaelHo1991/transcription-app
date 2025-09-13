@@ -127,7 +127,7 @@ export default function NewTranscriptionModal({ isOpen, onClose }: NewTranscript
     setShowUrlModal(true);
   };
 
-  const handleUrlSubmit = async (urls: any[], downloadNow: boolean) => {
+  const handleUrlSubmit = async (urls: any[], downloadNow: boolean, projectName: string) => {
     setShowUrlModal(false);
     
     if (!downloadNow) {
@@ -137,8 +137,6 @@ export default function NewTranscriptionModal({ isOpen, onClose }: NewTranscript
     
     // Start batch download
     try {
-      const projectName = urls[0]?.mediaName || 'URL Download Project';
-      
       const response = await fetch(buildApiUrl('/api/projects/batch-download'), {
         method: 'POST',
         headers: {

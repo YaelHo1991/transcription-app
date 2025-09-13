@@ -27,8 +27,10 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   // Inline notification state
   const [sidebarNotification, setSidebarNotification] = useState<{
     message: string;
-    type: 'info' | 'success' | 'error' | 'loading';
+    type: 'info' | 'success' | 'error' | 'loading' | 'download';
     progress?: number;
+    batchId?: string;
+    onClick?: () => void;
   } | null>(null);
   
   // URL modal state
@@ -38,6 +40,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   const [downloadProjectName, setDownloadProjectName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const downloadPollingRef = useRef<NodeJS.Timeout | null>(null);
   
   // Duplicate confirmation state for media
   const [duplicateConfirm, setDuplicateConfirm] = useState<{
@@ -206,6 +209,11 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     const intervalId = setInterval(loadStorageInfo, 30000);
     return () => {
       clearInterval(intervalId);
+      // Also clear download polling if active
+      if (downloadPollingRef.current) {
+        clearInterval(downloadPollingRef.current);
+        downloadPollingRef.current = null;
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
@@ -268,12 +276,115 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     }
   };
   
+  // Function to track download progress in sidebar notification
+  const startDownloadProgressTracking = (batchId: string, projectName: string) => {
+    // Clear any existing polling
+    if (downloadPollingRef.current) {
+      clearInterval(downloadPollingRef.current);
+      downloadPollingRef.current = null;
+    }
+
+    // Fetch progress function (reusing logic from DownloadProgressModal)
+    const fetchProgress = async () => {
+      try {
+        const response = await fetch(buildApiUrl(`/api/projects/batch-download/${batchId}/progress`), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token') || 'dev-anonymous'}`,
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch progress: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Calculate overall progress
+        let overallProgress = 0;
+        if (data && data.totalFiles > 0) {
+          let totalProgress = 0;
+          const mediaIndices = Object.keys(data.progress || {}).map(Number);
+          
+          for (const mediaIndex of mediaIndices) {
+            const mediaProgress = data.progress[mediaIndex];
+            if (mediaProgress.status === 'completed') {
+              totalProgress += 100;
+            } else if (mediaProgress.status === 'failed') {
+              totalProgress += 0;
+            } else {
+              totalProgress += mediaProgress.progress || 0;
+            }
+          }
+          
+          overallProgress = Math.round(totalProgress / data.totalFiles);
+        }
+
+        // Update notification based on status
+        if (data.status === 'completed') {
+          setSidebarNotification({
+            message: `ההורדה הושלמה: ${projectName}`,
+            type: 'success',
+            progress: 100
+          });
+          
+          // Clear polling
+          if (downloadPollingRef.current) {
+            clearInterval(downloadPollingRef.current);
+            downloadPollingRef.current = null;
+          }
+          
+          // Reload projects to show the new one
+          loadProjects();
+          
+          // Auto-hide after 3 seconds
+          setTimeout(() => {
+            hideSidebarNotification();
+          }, 3000);
+        } else if (data.status === 'failed') {
+          setSidebarNotification({
+            message: `ההורדה נכשלה: ${projectName}`,
+            type: 'error'
+          });
+          
+          // Clear polling
+          if (downloadPollingRef.current) {
+            clearInterval(downloadPollingRef.current);
+            downloadPollingRef.current = null;
+          }
+        } else {
+          // Still downloading
+          console.log('[Download Progress] Setting notification with progress:', overallProgress);
+          setSidebarNotification({
+            message: `מוריד: ${projectName} (${overallProgress}%)`,
+            type: 'download',
+            progress: overallProgress,
+            batchId,
+            onClick: () => {
+              setCurrentBatchId(batchId);
+              setDownloadProjectName(projectName);
+              setShowDownloadProgress(true);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('[Download Progress] Error fetching progress:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchProgress();
+    
+    // Poll every 2 seconds
+    downloadPollingRef.current = setInterval(fetchProgress, 2000);
+  };
+
   const handleUrlDownload = () => {
     console.log('[TranscriptionSidebar] Opening URL download modal');
     setShowUrlModal(true);
   };
   
-  const handleUrlSubmit = async (urls: any[], downloadNow: boolean) => {
+  const handleUrlSubmit = async (urls: any[], downloadNow: boolean, projectName: string) => {
     setShowUrlModal(false);
     
     if (!downloadNow) {
@@ -282,7 +393,14 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     
     // Always create new project for URL downloads
     const target = 'new';
-    const projectName = urls[0]?.mediaName || 'URL Download Project';
+    
+    // Show immediate notification that download is starting with progress and clickable link
+    setSidebarNotification({
+      message: `מתחיל הורדה: ${projectName}`,
+      type: 'download',
+      progress: 0,
+      onClick: () => setShowDownloadProgress(true)
+    });
     
     try {
       console.log('[handleUrlSubmit] Calling batch-download with:', { urls, projectName, target });
@@ -306,7 +424,25 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         console.log('[handleUrlSubmit] Got batchId:', batchId);
         setCurrentBatchId(batchId);
         setDownloadProjectName(projectName);
-        setShowDownloadProgress(true);
+        
+        // Update the notification with the batchId now that we have it
+        setSidebarNotification({
+          message: `מתחיל הורדה: ${projectName}`,
+          type: 'download',
+          progress: 0,
+          batchId,
+          onClick: () => {
+            setCurrentBatchId(batchId);
+            setDownloadProjectName(projectName);
+            setShowDownloadProgress(true);
+          }
+        });
+        
+        // Start tracking progress updates
+        startDownloadProgressTracking(batchId, projectName);
+        
+        // Don't open modal automatically - let user click notification to see details
+        // setShowDownloadProgress(true);
       } else {
         const errorText = await response.text();
         console.error('Failed to start batch download. Status:', response.status, 'Response:', errorText);
@@ -1562,14 +1698,25 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       
       {/* Inline Notification Area */}
       {sidebarNotification && (
-        <div className={`sidebar-notification sidebar-notification-${sidebarNotification.type}`}>
-          {sidebarNotification.type === 'loading' && (
+        <div 
+          className={`sidebar-notification sidebar-notification-${sidebarNotification.type} ${sidebarNotification.onClick ? 'clickable' : ''}`}
+          onClick={sidebarNotification.onClick}
+        >
+          {(sidebarNotification.type === 'loading' || sidebarNotification.type === 'download') && (
             <div className="notification-progress-bar">
-              <div className="notification-progress-fill" />
+              <div 
+                className="notification-progress-fill" 
+                style={{
+                  width: sidebarNotification.progress !== undefined ? `${sidebarNotification.progress}%` : '0%'
+                }}
+              />
             </div>
           )}
           <div className="notification-message">
             {sidebarNotification.message}
+            {sidebarNotification.type === 'download' && sidebarNotification.onClick && (
+              <span className="notification-link"> - לחץ לפרטים</span>
+            )}
           </div>
         </div>
       )}

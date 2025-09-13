@@ -446,9 +446,20 @@
 .sidebar-notification-loading,
 .sidebar-notification-success,
 .sidebar-notification-error,
-.sidebar-notification-info {
+.sidebar-notification-info,
+.sidebar-notification-download {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.15);
+}
+
+.sidebar-notification.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-notification.clickable:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .notification-message {
@@ -457,6 +468,13 @@
   text-align: right;
   direction: rtl;
   font-weight: 500;
+}
+
+.notification-link {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  text-decoration: underline;
+  margin-right: 8px;
 }
 
 /* Progress Bar for Loading Notification */
@@ -474,8 +492,8 @@
     rgba(255, 255, 255, 0.4) 0%,
     rgba(255, 255, 255, 0.8) 50%,
     rgba(255, 255, 255, 0.4) 100%);
-  width: 30%;
-  animation: progressAnimation 1.5s ease-in-out infinite;
+  width: 0%;
+  transition: width 0.3s ease;
 }
 
 @keyframes progressAnimation {
