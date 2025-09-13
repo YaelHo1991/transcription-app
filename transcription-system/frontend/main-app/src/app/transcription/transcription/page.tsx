@@ -1173,7 +1173,10 @@ export default function TranscriptionWorkPage() {
               mediaName={(() => {
                 // Try to get media name from project's mediaInfo first
                 if (currentProject?.mediaInfo && currentMediaId) {
+                  console.log('[MediaName] currentProject.mediaInfo:', currentProject.mediaInfo);
+                  console.log('[MediaName] Looking for mediaId:', currentMediaId);
                   const mediaInfo = currentProject.mediaInfo.find(m => m.mediaId === currentMediaId);
+                  console.log('[MediaName] Found mediaInfo:', mediaInfo);
                   if (mediaInfo?.name) {
                     // Try to decode the name if it appears to be encoded
                     try {

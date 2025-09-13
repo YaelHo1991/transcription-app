@@ -703,6 +703,131 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
 });
 
 /**
+ * Batch download from URLs (YouTube, etc.)
+ * Creates a project with proper structure matching regular uploads
+ */
+router.post('/batch-download', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { urls, projectName, target } = req.body;
+    const userId = (req as any).user?.id || 'dev-anonymous';
+    
+    console.log('[BatchDownload] Starting batch download for user:', userId);
+    console.log('[BatchDownload] URLs:', urls);
+    console.log('[BatchDownload] Project name:', projectName);
+    
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({ error: 'No URLs provided' });
+    }
+    
+    // Import YtDlpService
+    const { YtDlpService } = require('../../services/ytdlpService');
+    
+    // Generate batch ID for tracking
+    const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // For now, we'll download synchronously and create the project
+    // In production, this should be done in background with progress tracking
+    const downloadedFiles: Array<{name: string, buffer: Buffer, mimeType: string}> = [];
+    
+    for (const urlInfo of urls) {
+      const url = urlInfo.url || urlInfo;
+      console.log(`[BatchDownload] Processing URL: ${url}`);
+      
+      try {
+        // Get video info first
+        const videoInfo = await YtDlpService.getVideoInfo(url);
+        console.log(`[BatchDownload] Video info:`, videoInfo);
+        
+        // Generate temp file path
+        const tempFileName = `temp-${uuidv4()}.${videoInfo.format || 'mp4'}`;
+        const tempFilePath = path.join(process.cwd(), 'temp', tempFileName);
+        
+        // Ensure temp directory exists
+        await fs_promises.mkdir(path.dirname(tempFilePath), { recursive: true });
+        
+        // Download the video
+        await YtDlpService.download({
+          url,
+          outputPath: tempFilePath,
+          quality: urlInfo.quality || 'medium',
+          downloadType: urlInfo.downloadType || 'video'
+        });
+        
+        // Read the downloaded file
+        const fileBuffer = await fs_promises.readFile(tempFilePath);
+        
+        // Add to files array with the actual video title as name
+        downloadedFiles.push({
+          name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
+          buffer: fileBuffer,
+          mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
+        });
+        
+        // Clean up temp file
+        await fs_promises.unlink(tempFilePath);
+        
+        console.log(`[BatchDownload] Successfully downloaded: ${videoInfo.title}`);
+      } catch (error) {
+        console.error(`[BatchDownload] Failed to download ${url}:`, error);
+        // Continue with other URLs even if one fails
+      }
+    }
+    
+    if (downloadedFiles.length === 0) {
+      return res.status(400).json({ error: 'Failed to download any files' });
+    }
+    
+    // Create project using the standard createMultiMediaProject method
+    // This ensures the same structure as regular uploads
+    const result = await projectService.createMultiMediaProject(
+      projectName || 'Downloaded Media',
+      downloadedFiles,
+      userId
+    );
+    
+    // Additionally save URL metadata for each media
+    const userDir = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', result.projectId);
+    
+    for (let i = 0; i < Math.min(urls.length, result.mediaIds.length); i++) {
+      const mediaDir = path.join(userDir, 'media', result.mediaIds[i]);
+      const urlInfo = urls[i];
+      
+      // Save media.json with URL-specific information
+      const mediaJson = {
+        name: downloadedFiles[i].name.replace(/\.[^/.]+$/, ''), // Remove extension
+        filename: `media-${uuidv4()}.${downloadedFiles[i].name.split('.').pop()}`,
+        originalUrl: urlInfo.url || urlInfo,
+        quality: urlInfo.quality || 'medium',
+        downloadType: urlInfo.downloadType || 'video',
+        format: downloadedFiles[i].name.split('.').pop(),
+        hasVideo: downloadedFiles[i].mimeType.startsWith('video/'),
+        createdAt: new Date().toISOString()
+      };
+      
+      await fs_promises.writeFile(
+        path.join(mediaDir, 'media.json'),
+        JSON.stringify(mediaJson, null, 2),
+        'utf8'
+      );
+    }
+    
+    console.log(`[BatchDownload] Project created: ${result.projectId} with ${result.mediaIds.length} media files`);
+    
+    res.json({
+      success: true,
+      batchId,
+      projectId: result.projectId,
+      mediaIds: result.mediaIds,
+      message: `Downloaded ${downloadedFiles.length} files successfully`
+    });
+    
+  } catch (error: any) {
+    console.error('[BatchDownload] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to process batch download' });
+  }
+});
+
+/**
  * Add missing media files to existing project
  */
 router.post('/:projectId/add-missing-media', verifyUser, upload.array('files'), async (req: Request, res: Response) => {

@@ -80,6 +80,17 @@ export const mongoSanitization = mongoSanitize({
 
 // SQL injection protection middleware (preparation for when database is added)
 export const sqlInjectionProtection = (req: Request, res: Response, next: NextFunction) => {
+  // Skip protection for certain endpoints that handle URLs or media content
+  const skipPaths = [
+    '/api/projects/batch-download',
+    '/api/projects/quality-options',
+    '/api/projects/check-url'
+  ];
+  
+  if (skipPaths.some(path => req.path.includes(path))) {
+    return next();
+  }
+  
   const suspiciousPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|SCRIPT)\b)/gi,
     /(--|\||;|\/\*|\*\/|xp_|sp_|0x)/gi,

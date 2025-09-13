@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useProjectStore from '@/lib/stores/projectStore';
+import UrlUploadModal from '@/app/transcription/transcription/components/TranscriptionSidebar/UrlUploadModal';
+import DownloadProgressModal from '@/app/transcription/transcription/components/DownloadProgressModal/DownloadProgressModal';
+import { buildApiUrl } from '@/utils/api';
 import './NewTranscriptionModal.css';
 
 // Type extensions for webkit directory support
@@ -24,6 +27,10 @@ export default function NewTranscriptionModal({ isOpen, onClose }: NewTranscript
   const { createProjectFromFolder, addMediaToProject, setCurrentProject, setCurrentMediaById } = useProjectStore();
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showDownloadProgress, setShowDownloadProgress] = useState(false);
+  const [currentBatchId, setCurrentBatchId] = useState('');
+  const [downloadProjectName, setDownloadProjectName] = useState('');
 
   if (!isOpen) return null;
 
@@ -116,6 +123,49 @@ export default function NewTranscriptionModal({ isOpen, onClose }: NewTranscript
     onClose();
   };
 
+  const handleUrlDownload = () => {
+    setShowUrlModal(true);
+  };
+
+  const handleUrlSubmit = async (urls: any[], downloadNow: boolean) => {
+    setShowUrlModal(false);
+    
+    if (!downloadNow) {
+      // Just close for now if not downloading immediately
+      return;
+    }
+    
+    // Start batch download
+    try {
+      const projectName = urls[0]?.mediaName || 'URL Download Project';
+      
+      const response = await fetch(buildApiUrl('/api/projects/batch-download'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null || 'dev-anonymous'}`
+        },
+        body: JSON.stringify({
+          urls,
+          projectName,
+          target: 'new'
+        })
+      });
+      
+      if (response.ok) {
+        const { batchId } = await response.json();
+        setCurrentBatchId(batchId);
+        setDownloadProjectName(projectName);
+        setShowDownloadProgress(true);
+        onClose(); // Close the new transcription modal
+      } else {
+        console.error('Failed to start batch download');
+      }
+    } catch (error) {
+      console.error('Error starting batch download:', error);
+    }
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -152,66 +202,93 @@ export default function NewTranscriptionModal({ isOpen, onClose }: NewTranscript
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="new-transcription-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>תמלול חדש</h2>
-          <button className="close-button" onClick={onClose}>✕</button>
-        </div>
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="new-transcription-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>תמלול חדש</h2>
+            <button className="close-button" onClick={onClose}>✕</button>
+          </div>
 
-        <div className="modal-content">
-          {isUploading ? (
-            <div className="uploading-state">
-              <div className="spinner"></div>
-              <p>מעלה קבצים...</p>
-            </div>
-          ) : (
-            <>
-              <div 
-                className={`drop-zone ${dragActive ? 'active' : ''}`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <div className="drop-zone-content">
-                  <div className="drop-icon">📁</div>
-                  <p>גרור קבצים לכאן או בחר אפשרות מתחת</p>
+          <div className="modal-content">
+            {isUploading ? (
+              <div className="uploading-state">
+                <div className="spinner"></div>
+                <p>מעלה קבצים...</p>
+              </div>
+            ) : (
+              <>
+                <div 
+                  className={`drop-zone ${dragActive ? 'active' : ''}`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <div className="drop-zone-content">
+                    <div className="drop-icon">📁</div>
+                    <p>גרור קבצים לכאן או בחר אפשרות מתחת</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="options-grid">
-                <button 
-                  className="option-card single-media"
-                  onClick={handleSingleMediaUpload}
-                >
-                  <div className="option-icon">🎵</div>
-                  <div className="option-title">העלאה בודדת</div>
-                  <div className="option-description">העלה קובץ מדיה בודד</div>
-                </button>
+                <div className="options-grid">
+                  <button 
+                    className="option-card single-media"
+                    onClick={handleSingleMediaUpload}
+                  >
+                    <div className="option-icon">🎵</div>
+                    <div className="option-title">העלאה בודדת</div>
+                    <div className="option-description">העלה קובץ מדיה בודד</div>
+                  </button>
 
-                <button 
-                  className="option-card folder-upload"
-                  onClick={handleFolderUpload}
-                >
-                  <div className="option-icon">📂</div>
-                  <div className="option-title">העלאת תיקיה</div>
-                  <div className="option-description">העלה תיקיה עם מספר קבצים</div>
-                </button>
+                  <button 
+                    className="option-card folder-upload"
+                    onClick={handleFolderUpload}
+                  >
+                    <div className="option-icon">📂</div>
+                    <div className="option-title">העלאת תיקיה</div>
+                    <div className="option-description">העלה תיקיה עם מספר קבצים</div>
+                  </button>
 
-                <button 
-                  className="option-card empty-project"
-                  onClick={handleEmptyProject}
-                >
-                  <div className="option-icon">📄</div>
-                  <div className="option-title">פרויקט ריק</div>
-                  <div className="option-description">התחל פרויקט חדש ללא מדיה</div>
-                </button>
-              </div>
-            </>
-          )}
+                  <button 
+                    className="option-card url-download"
+                    onClick={handleUrlDownload}
+                  >
+                    <div className="option-icon">🌐</div>
+                    <div className="option-title">הורדה מ-URL</div>
+                    <div className="option-description">הורד מדיה מיוטיוב או אתרים אחרים</div>
+                  </button>
+
+                  <button 
+                    className="option-card empty-project"
+                    onClick={handleEmptyProject}
+                  >
+                    <div className="option-icon">📄</div>
+                    <div className="option-title">פרויקט ריק</div>
+                    <div className="option-description">התחל פרויקט חדש ללא מדיה</div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+      {showUrlModal && (
+        <UrlUploadModal
+          isOpen={showUrlModal}
+          onClose={() => setShowUrlModal(false)}
+          onSubmit={handleUrlSubmit}
+          target="new"
+        />
+      )}
+      {showDownloadProgress && (
+        <DownloadProgressModal
+          isOpen={showDownloadProgress}
+          onClose={() => setShowDownloadProgress(false)}
+          batchId={currentBatchId}
+          projectName={downloadProjectName}
+        />
+      )}
+    </>
   );
 }

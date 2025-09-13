@@ -409,7 +409,17 @@
       "Bash(start http://localhost:3002/login?system=transcription)",
       "Bash(start https://ylbh.co.il/login?system=transcription)",
       "Bash(start C:UsersayelhDocumentsProjectsTranscriptiontest-chunking-demo.html)",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(ping:*)",
+      "Bash(powershell:*)",
+      "Bash(rd:*)",
+      "Bash(pip install:*)",
+      "WebSearch",
+      "Bash(npx knex migrate:*)",
+      "Bash(npx next dev:*)",
+      "Bash(npx nodemon:*)",
+      "Bash(rs)",
+      "Bash(yt-dlp:*)"
     ],
     "deny": [],
     "ask": [],

@@ -14,7 +14,31 @@
   justify-content: stretch;
 }
 
+/* When sidebar is locked, center the buttons properly */
+.sidebar-locked .sidebar-upload-section {
+  padding: 10px 5px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-locked .sidebar-upload-button,
+.sidebar-locked .sidebar-url-button,
+.sidebar-locked .sidebar-media-button {
+  width: 50px;
+  height: 50px;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.sidebar-locked .sidebar-upload-button .upload-text,
+.sidebar-locked .sidebar-url-button .url-text,
+.sidebar-locked .sidebar-media-button .media-text {
+  display: none;
+}
+
 .sidebar-upload-button,
+.sidebar-url-button,
 .sidebar-media-button {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -36,6 +60,7 @@
 }
 
 .sidebar-upload-button:hover,
+.sidebar-url-button:hover,
 .sidebar-media-button:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
@@ -43,12 +68,14 @@
 }
 
 .sidebar-upload-button:active,
+.sidebar-url-button:active,
 .sidebar-media-button:active {
   transform: translateY(0);
   background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-upload-button .upload-plus,
+.sidebar-url-button .url-icon,
 .sidebar-media-button .media-icon {
   font-size: 18px;
   line-height: 1;
@@ -57,6 +84,7 @@
 
 /* Text labels beneath icons */
 .sidebar-upload-button .upload-text,
+.sidebar-url-button .url-text,
 .sidebar-media-button .media-text {
   font-size: 11px;
   font-weight: 500;

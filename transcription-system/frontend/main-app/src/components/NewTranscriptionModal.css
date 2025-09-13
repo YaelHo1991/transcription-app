@@ -164,6 +164,11 @@
   background: rgba(32, 201, 151, 0.02);
 }
 
+.option-card.url-download:hover {
+  border-color: #20c997;
+  background: rgba(32, 201, 151, 0.02);
+}
+
 .option-icon {
   font-size: 36px;
   margin-bottom: 8px;

@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, us
 import useProjectStore from '@/lib/stores/projectStore';
 import './TranscriptionSidebar.css';
 import { buildApiUrl } from '@/utils/api';
+import UrlUploadModal from './UrlUploadModal';
+import DownloadProgressModal from '../DownloadProgressModal/DownloadProgressModal';
 
 export interface TranscriptionSidebarProps {
   onOpenManagementModal?: (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => void;
@@ -28,6 +30,12 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     type: 'info' | 'success' | 'error' | 'loading';
     progress?: number;
   } | null>(null);
+  
+  // URL modal state
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showDownloadProgress, setShowDownloadProgress] = useState(false);
+  const [currentBatchId, setCurrentBatchId] = useState('');
+  const [downloadProjectName, setDownloadProjectName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -257,6 +265,56 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     } else {
       console.error('[TranscriptionSidebar] folderInputRef.current is null');
       showSidebarNotification('שגיאה בפתיחת חלון בחירת תיקייה', 'error');
+    }
+  };
+  
+  const handleUrlDownload = () => {
+    console.log('[TranscriptionSidebar] Opening URL download modal');
+    setShowUrlModal(true);
+  };
+  
+  const handleUrlSubmit = async (urls: any[], downloadNow: boolean) => {
+    setShowUrlModal(false);
+    
+    if (!downloadNow) {
+      return;
+    }
+    
+    // Always create new project for URL downloads
+    const target = 'new';
+    const projectName = urls[0]?.mediaName || 'URL Download Project';
+    
+    try {
+      console.log('[handleUrlSubmit] Calling batch-download with:', { urls, projectName, target });
+      const response = await fetch(buildApiUrl('/api/projects/batch-download'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null || 'dev-anonymous'}`
+        },
+        body: JSON.stringify({
+          urls,
+          projectName,
+          target
+        })
+      });
+      
+      console.log('[handleUrlSubmit] Response status:', response.status);
+      
+      if (response.ok) {
+        const { batchId } = await response.json();
+        console.log('[handleUrlSubmit] Got batchId:', batchId);
+        setCurrentBatchId(batchId);
+        setDownloadProjectName(projectName);
+        setShowDownloadProgress(true);
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to start batch download. Status:', response.status, 'Response:', errorText);
+        showSidebarNotification('שגיאה בהתחלת ההורדה', 'error');
+      }
+    } catch (error) {
+      console.error('Error starting batch download:', error);
+      showSidebarNotification('שגיאה בהתחלת ההורדה', 'error');
     }
   };
   
@@ -1427,6 +1485,14 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           <span className="upload-text">תיקייה</span>
         </button>
         <button 
+          className="sidebar-url-button"
+          onClick={handleUrlDownload}
+          title="הורד מ-URL"
+        >
+          <span className="url-icon">🌐</span>
+          <span className="url-text">URL</span>
+        </button>
+        <button 
           className="sidebar-media-button"
           onClick={handleSingleMediaClick}
           title="הוסף קובץ מדיה בודד"
@@ -1818,6 +1884,25 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             )}
           </div>
         </div>
+      )}
+      
+      {showUrlModal && (
+        <UrlUploadModal
+          isOpen={showUrlModal}
+          onClose={() => setShowUrlModal(false)}
+          onSubmit={handleUrlSubmit}
+          target="new"
+          projectName={undefined}
+        />
+      )}
+      
+      {showDownloadProgress && (
+        <DownloadProgressModal
+          isOpen={showDownloadProgress}
+          onClose={() => setShowDownloadProgress(false)}
+          batchId={currentBatchId}
+          projectName={downloadProjectName}
+        />
       )}
       
     </>

@@ -108,12 +108,14 @@ export default function ProjectManagementModal({
   // Storage preferences state
   const [storagePreferences, setStoragePreferences] = useState(() => {
     // Load preferences from localStorage on component mount
-    const saved = localStorage.getItem('storagePreferences');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse stored preferences:', e);
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('storagePreferences');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error('Failed to parse stored preferences:', e);
+        }
       }
     }
     return {
@@ -151,7 +153,8 @@ export default function ProjectManagementModal({
 
   const loadArchivedTranscriptions = async () => {
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const token = (typeof window !== 'undefined' ? 
+        (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
       const response = await fetch(buildApiUrl('/api/projects/orphaned/transcriptions'), {
         method: 'GET',
         headers: {
@@ -408,7 +411,8 @@ export default function ProjectManagementModal({
     
     try {
       setLoading(true);
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const token = (typeof window !== 'undefined' ? 
+        (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
       
       const response = await fetch(buildApiUrl('/api/projects/orphaned/restore-to-media'), {
         method: 'POST',
@@ -486,7 +490,8 @@ export default function ProjectManagementModal({
   const previewTranscription = async (transcriptionId: string) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const token = (typeof window !== 'undefined' ? 
+        (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
       const response = await fetch(buildApiUrl(`/api/projects/orphaned/preview/${transcriptionId}`), {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -561,7 +566,8 @@ export default function ProjectManagementModal({
   const exportTranscription = async (transcriptionId: string, format: 'word' | 'json') => {
     console.log(`Exporting transcription ${transcriptionId} as ${format}`);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const token = (typeof window !== 'undefined' ? 
+        (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
       const response = await fetch(buildApiUrl('/api/projects/orphaned/export'), {
         method: 'POST',
         headers: {
@@ -619,7 +625,8 @@ export default function ProjectManagementModal({
     console.log(`[Frontend] Deleting orphaned transcription: ${transcriptionId}`);
     
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const token = (typeof window !== 'undefined' ? 
+        (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
       
       // URL encode the transcriptionId to handle special characters
       const encodedId = encodeURIComponent(transcriptionId);
@@ -1168,7 +1175,9 @@ export default function ProjectManagementModal({
                   className="save-storage-preferences"
                   onClick={() => {
                     // Save preferences to localStorage
-                    localStorage.setItem('storagePreferences', JSON.stringify(storagePreferences));
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem('storagePreferences', JSON.stringify(storagePreferences));
+                    }
                     
                     // Apply chunking logic globally
                     window.storagePreferences = storagePreferences;
