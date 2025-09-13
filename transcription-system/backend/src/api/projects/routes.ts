@@ -708,7 +708,43 @@ router.post('/create-from-folder', verifyUser, upload.array('files'), async (req
  */
 router.post('/batch-download', verifyUser, async (req: Request, res: Response) => {
   try {
-    const { urls, projectName, target } = req.body;
+    // Handle both JSON and FormData
+    let urls, projectName, target;
+    const cookieFiles: { [index: string]: any } = {};
+    
+    if (req.headers['content-type']?.includes('multipart/form-data')) {
+      // Handle FormData with cookie files
+      const multer = require('multer');
+      const upload = multer({ dest: 'temp/cookies/' });
+      
+      // Process multipart data
+      await new Promise((resolve, reject) => {
+        const uploadHandler = upload.any();
+        uploadHandler(req, res, (err: any) => {
+          if (err) reject(err);
+          else resolve(true);
+        });
+      });
+      
+      // Extract data from form
+      urls = JSON.parse((req as any).body.urls || '[]');
+      projectName = (req as any).body.projectName;
+      target = (req as any).body.target;
+      
+      // Extract cookie files
+      const files = (req as any).files || [];
+      files.forEach((file: any) => {
+        if (file.fieldname.startsWith('cookieFile_')) {
+          const index = file.fieldname.replace('cookieFile_', '');
+          cookieFiles[index] = file.path; // Store file path for yt-dlp
+        }
+      });
+    } else {
+      // Handle JSON data (backward compatibility)
+      urls = req.body.urls;
+      projectName = req.body.projectName;
+      target = req.body.target;
+    }
     const userId = (req as any).user?.id || 'dev-anonymous';
     
     console.log('[BatchDownload] Starting batch download for user:', userId);
@@ -725,11 +761,24 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     // Generate batch ID for tracking
     const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // For now, we'll download synchronously and create the project
-    // In production, this should be done in background with progress tracking
-    const downloadedFiles: Array<{name: string, buffer: Buffer, mimeType: string}> = [];
+    // Register this download for progress tracking
+    downloadProgress[batchId] = {
+      startTime: Date.now(),
+      completed: false
+    };
     
-    for (const urlInfo of urls) {
+    // Return immediately with batchId so frontend can start showing progress
+    res.json({ batchId });
+    
+    // Continue downloading in background
+    (async () => {
+      try {
+        // For now, we'll download synchronously and create the project
+        // In production, this should be done in background with progress tracking
+        const downloadedFiles: Array<{name: string, buffer: Buffer, mimeType: string}> = [];
+    
+    for (let i = 0; i < urls.length; i++) {
+      const urlInfo = urls[i];
       const url = urlInfo.url || urlInfo;
       console.log(`[BatchDownload] Processing URL: ${url}`);
       
@@ -740,13 +789,21 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         // Ensure temp directory exists
         await fs_promises.mkdir(tempDir, { recursive: true });
         
-        // Download the video
-        const videoInfo = await YtDlpService.downloadVideo({
+        // Download the video with cookie file if available
+        const downloadOptions: any = {
           url,
           outputPath: tempDir,
           quality: urlInfo.quality || 'medium',
           downloadType: urlInfo.downloadType || 'video'
-        });
+        };
+        
+        // Add cookie file if present for this URL
+        if (cookieFiles[i.toString()]) {
+          downloadOptions.cookieFile = cookieFiles[i.toString()];
+          console.log(`[BatchDownload] Using cookie file for URL ${i}: ${cookieFiles[i.toString()]}`);
+        }
+        
+        const videoInfo = await YtDlpService.downloadVideo(downloadOptions);
         
         // Read the downloaded file
         const downloadedFilePath = path.join(tempDir, videoInfo.filename);
@@ -807,15 +864,39 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       );
     }
     
-    console.log(`[BatchDownload] Project created: ${result.projectId} with ${result.mediaIds.length} media files`);
-    
-    res.json({
-      success: true,
-      batchId,
-      projectId: result.projectId,
-      mediaIds: result.mediaIds,
-      message: `Downloaded ${downloadedFiles.length} files successfully`
-    });
+        console.log(`[BatchDownload] Project created: ${result.projectId} with ${result.mediaIds.length} media files`);
+        
+        // Mark download as completed
+        if (downloadProgress[batchId]) {
+          downloadProgress[batchId].completed = true;
+          // Clean up after 5 minutes
+          setTimeout(() => {
+            delete downloadProgress[batchId];
+          }, 5 * 60 * 1000);
+        }
+        
+        // Clean up cookie files after successful completion
+        Object.values(cookieFiles).forEach((cookieFilePath: string) => {
+          fs_promises.unlink(cookieFilePath).catch(err => {
+            console.log(`[BatchDownload] Failed to cleanup cookie file ${cookieFilePath}:`, err);
+          });
+        });
+        
+      } catch (error: any) {
+        console.error('[BatchDownload] Error:', error);
+        // Mark as completed even on error to stop progress tracking
+        if (downloadProgress[batchId]) {
+          downloadProgress[batchId].completed = true;
+        }
+        
+        // Clean up cookie files even on error
+        Object.values(cookieFiles).forEach((cookieFilePath: string) => {
+          fs_promises.unlink(cookieFilePath).catch(err => {
+            console.log(`[BatchDownload] Failed to cleanup cookie file ${cookieFilePath}:`, err);
+          });
+        });
+      }
+    })();
     
   } catch (error: any) {
     console.error('[BatchDownload] Error:', error);
@@ -823,30 +904,77 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
   }
 });
 
+// Track download progress for each batch
+const downloadProgress: { [batchId: string]: { startTime: number, completed: boolean } } = {};
+
 /**
- * Get batch download progress (simulated - since downloads are synchronous)
+ * Get batch download progress (simulated progress for UI feedback)
  */
 router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request, res: Response) => {
   try {
     const { batchId } = req.params;
     
-    // Since downloads happen synchronously in batch-download endpoint,
-    // we always return completed status when this is called
-    res.json({
-      status: 'completed',
-      projectId: batchId, // Use batchId as projectId for now
-      totalFiles: 1,
-      completedFiles: 1,
-      progress: {
-        0: {
-          progress: 100,
-          status: 'completed'
+    // Check if this batch is being tracked
+    if (!downloadProgress[batchId]) {
+      // Batch not found or already completed and cleaned up
+      return res.json({
+        status: 'completed',
+        projectId: batchId,
+        totalFiles: 1,
+        completedFiles: 1,
+        progress: {
+          0: {
+            progress: 100,
+            status: 'completed'
+          }
+        },
+        mediaNames: {
+          0: 'Downloaded Media'
         }
-      },
-      mediaNames: {
-        0: 'Downloaded Media'
-      }
-    });
+      });
+    }
+    
+    const batchInfo = downloadProgress[batchId];
+    const elapsedTime = Date.now() - batchInfo.startTime;
+    
+    if (batchInfo.completed) {
+      // Download is complete
+      return res.json({
+        status: 'completed',
+        projectId: batchId,
+        totalFiles: 1,
+        completedFiles: 1,
+        progress: {
+          0: {
+            progress: 100,
+            status: 'completed'
+          }
+        },
+        mediaNames: {
+          0: 'Downloaded Media'
+        }
+      });
+    } else {
+      // Simulate progress based on elapsed time
+      // Assume downloads take about 30 seconds on average
+      const progressPercent = Math.min(95, Math.floor((elapsedTime / 30000) * 100));
+      
+      return res.json({
+        status: 'downloading',
+        projectId: batchId,
+        totalFiles: 1,
+        completedFiles: 0,
+        progress: {
+          0: {
+            progress: progressPercent,
+            status: 'downloading'
+          }
+        },
+        mediaNames: {
+          0: 'Downloading Media'
+        }
+      });
+    }
   } catch (error: any) {
     console.error('[BatchProgress] Error:', error);
     res.status(500).json({ error: 'Failed to get progress' });
@@ -893,22 +1021,30 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
     } catch (error: any) {
       console.error('[CheckURL] Failed to get video info:', error);
       
-      // Parse error message for user-friendly response
+      // Parse error message and determine status
       let userMessage = 'לא ניתן לגשת לכתובת URL זו';
+      let status = 'invalid';
       
       if (error.message.includes('סרטון פרטי') || error.message.includes('Private video')) {
         userMessage = 'סרטון פרטי - נדרש קובץ Cookies לאימות';
+        status = 'protected';
       } else if (error.message.includes('סרטון למנויים') || error.message.includes('members-only')) {
         userMessage = 'סרטון למנויים בלבד - נדרש קובץ Cookies';
+        status = 'protected';
       } else if (error.message.includes('לא זמין') || error.message.includes('unavailable')) {
         userMessage = 'הסרטון לא זמין או הוסר';
+        status = 'invalid';
       } else if (error.message.includes('כתובת URL לא נתמכת') || error.message.includes('Unsupported URL')) {
         userMessage = 'כתובת URL לא נתמכת';
+        status = 'invalid';
       }
       
-      res.status(400).json({
-        valid: false,
-        status: 'invalid', // Add status field for consistency
+      // For protected content, return 200 instead of 400 so frontend can handle it
+      const responseStatus = status === 'protected' ? 200 : 400;
+      
+      res.status(responseStatus).json({
+        valid: status === 'protected', // Protected content is valid, just needs cookies
+        status: status,
         message: userMessage,
         error: userMessage
       });

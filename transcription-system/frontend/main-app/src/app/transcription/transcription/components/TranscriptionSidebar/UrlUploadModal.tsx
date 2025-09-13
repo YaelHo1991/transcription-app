@@ -363,7 +363,9 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     updateUrlConfig(id, { 
       cookieFile: file,
       cookieUploaded: true,
-      urlCheckMessage: '✓ קובץ Cookies הועלה בהצלחה'
+      urlCheckMessage: '✓ קובץ Cookies הועלה בהצלחה',
+      showQualityPanel: true,
+      showCookiePanel: false
     });
     
     const urlConfig = urls.find(u => u.id === id);

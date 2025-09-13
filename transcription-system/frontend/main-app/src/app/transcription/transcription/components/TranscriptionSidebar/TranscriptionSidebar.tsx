@@ -404,17 +404,37 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     
     try {
       console.log('[handleUrlSubmit] Calling batch-download with:', { urls, projectName, target });
+      
+      // Create FormData to handle cookie files
+      const formData = new FormData();
+      formData.append('projectName', projectName);
+      formData.append('target', target);
+      
+      // Add URLs and cookie files
+      const urlsData: any[] = [];
+      urls.forEach((url, index) => {
+        const urlData = {
+          url: url.url || url,
+          quality: url.quality,
+          downloadType: url.downloadType,
+          mediaName: url.mediaName
+        };
+        urlsData.push(urlData);
+        
+        // Add cookie file if present
+        if (url.cookieFile) {
+          formData.append(`cookieFile_${index}`, url.cookieFile);
+        }
+      });
+      
+      formData.append('urls', JSON.stringify(urlsData));
+      
       const response = await fetch(buildApiUrl('/api/projects/batch-download'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null || 'dev-anonymous'}`
         },
-        body: JSON.stringify({
-          urls,
-          projectName,
-          target
-        })
+        body: formData
       });
       
       console.log('[handleUrlSubmit] Response status:', response.status);
