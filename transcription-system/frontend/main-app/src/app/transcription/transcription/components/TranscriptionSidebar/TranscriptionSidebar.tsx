@@ -415,7 +415,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       urls.forEach((url, index) => {
         const urlData = {
           url: url.url || url,
-          quality: url.quality,
+          quality: url.selectedQuality || url.quality,
           downloadType: url.downloadType,
           mediaName: url.mediaName
         };

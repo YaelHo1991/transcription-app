@@ -479,13 +479,10 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   };
 
   // Handle playlist expansion
-  const handlePlaylistConfirm = (playlistUrlId: string) => {
+  const handlePlaylistConfirm = async (playlistUrlId: string) => {
     const playlistUrlConfig = urls.find(u => u.id === playlistUrlId);
     if (!playlistUrlConfig || !playlistUrlConfig.playlistInfo) return;
 
-    // Remove the original playlist URL config
-    const filteredUrls = urls.filter(u => u.id !== playlistUrlId);
-    
     // Create individual URL configs for each selected video in the playlist
     const videoConfigs: UrlConfig[] = playlistUrlConfig.playlistInfo.videos
       .filter(video => selectedPlaylistVideos.has(video.id))
@@ -519,13 +516,22 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
         };
       });
     
-    // Update the URLs array
-    setUrls([...filteredUrls, ...videoConfigs]);
+    // Use playlist title as project name
+    const playlistProjectName = `YouTube - ${playlistUrlConfig.playlistInfo.title}`;
+    
+    // Close the modal immediately
+    onClose();
+    
+    // Start download directly with playlist videos
+    await onSubmit(videoConfigs, true, playlistProjectName);
+    
+    // Reset state
     setShowPlaylistConfirmation(null);
     setActiveUrlId(null);
     setPlaylistInitialized(false);
     setSelectedPlaylistVideos(new Set());
     setPlaylistVideoQualities({});
+    setUrls([]);
   };
 
   const handlePlaylistCancel = (playlistUrlId: string) => {

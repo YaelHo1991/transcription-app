@@ -761,10 +761,24 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     // Generate batch ID for tracking
     const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
+    // Extract media names from URLs
+    const mediaNames: { [index: number]: string } = {};
+    const progressTracking: { [index: number]: { progress: number, status: string } } = {};
+    
+    urls.forEach((urlInfo: any, index: number) => {
+      // Use the mediaName if provided (from playlist), otherwise use a placeholder
+      mediaNames[index] = urlInfo.mediaName || `Media ${index + 1}`;
+      progressTracking[index] = { progress: 0, status: 'downloading' };
+    });
+    
     // Register this download for progress tracking
     downloadProgress[batchId] = {
       startTime: Date.now(),
-      completed: false
+      completed: false,
+      totalFiles: urls.length,
+      completedFiles: 0,
+      mediaNames: mediaNames,
+      progress: progressTracking
     };
     
     // Return immediately with batchId so frontend can start showing progress
@@ -781,6 +795,11 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       const urlInfo = urls[i];
       const url = urlInfo.url || urlInfo;
       console.log(`[BatchDownload] Processing URL: ${url}`);
+      
+      // Update progress to show downloading
+      if (downloadProgress[batchId]) {
+        downloadProgress[batchId].progress[i] = { progress: 10, status: 'downloading' };
+      }
       
       try {
         // Generate temp directory path
@@ -803,7 +822,17 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
           console.log(`[BatchDownload] Using cookie file for URL ${i}: ${cookieFiles[i.toString()]}`);
         }
         
+        // Update progress to show mid-download
+        if (downloadProgress[batchId]) {
+          downloadProgress[batchId].progress[i] = { progress: 50, status: 'downloading' };
+        }
+        
         const videoInfo = await YtDlpService.downloadVideo(downloadOptions);
+        
+        // Update the media name with actual title
+        if (downloadProgress[batchId]) {
+          downloadProgress[batchId].mediaNames[i] = videoInfo.title || urlInfo.mediaName || `Media ${i + 1}`;
+        }
         
         // Read the downloaded file
         const downloadedFilePath = path.join(tempDir, videoInfo.filename);
@@ -819,9 +848,25 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         // Clean up temp directory
         await fs_promises.rm(tempDir, { recursive: true, force: true });
         
+        // Update progress to completed for this file
+        if (downloadProgress[batchId]) {
+          downloadProgress[batchId].progress[i] = { progress: 100, status: 'completed' };
+          downloadProgress[batchId].completedFiles++;
+        }
+        
         console.log(`[BatchDownload] Successfully downloaded: ${videoInfo.title}`);
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[BatchDownload] Failed to download ${url}:`, error);
+        
+        // Update progress to failed for this file
+        if (downloadProgress[batchId]) {
+          downloadProgress[batchId].progress[i] = { 
+            progress: 0, 
+            status: 'failed',
+            error: error.message || 'Download failed'
+          };
+        }
+        
         // Continue with other URLs even if one fails
       }
     }
@@ -869,6 +914,15 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         // Mark download as completed
         if (downloadProgress[batchId]) {
           downloadProgress[batchId].completed = true;
+          downloadProgress[batchId].completedFiles = downloadProgress[batchId].totalFiles;
+          
+          // Mark all remaining items as completed
+          for (let i = 0; i < downloadProgress[batchId].totalFiles; i++) {
+            if (downloadProgress[batchId].progress[i].status !== 'failed') {
+              downloadProgress[batchId].progress[i] = { progress: 100, status: 'completed' };
+            }
+          }
+          
           // Clean up after 5 minutes
           setTimeout(() => {
             delete downloadProgress[batchId];
@@ -905,10 +959,19 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
 });
 
 // Track download progress for each batch
-const downloadProgress: { [batchId: string]: { startTime: number, completed: boolean } } = {};
+const downloadProgress: { 
+  [batchId: string]: { 
+    startTime: number, 
+    completed: boolean,
+    totalFiles: number,
+    completedFiles: number,
+    mediaNames: { [index: number]: string },
+    progress: { [index: number]: { progress: number, status: string, error?: string } }
+  } 
+} = {};
 
 /**
- * Get batch download progress (simulated progress for UI feedback)
+ * Get batch download progress
  */
 router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request, res: Response) => {
   try {
@@ -935,46 +998,26 @@ router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request,
     }
     
     const batchInfo = downloadProgress[batchId];
-    const elapsedTime = Date.now() - batchInfo.startTime;
     
+    // Determine overall status
+    let overallStatus = 'downloading';
     if (batchInfo.completed) {
-      // Download is complete
-      return res.json({
-        status: 'completed',
-        projectId: batchId,
-        totalFiles: 1,
-        completedFiles: 1,
-        progress: {
-          0: {
-            progress: 100,
-            status: 'completed'
-          }
-        },
-        mediaNames: {
-          0: 'Downloaded Media'
-        }
-      });
-    } else {
-      // Simulate progress based on elapsed time
-      // Assume downloads take about 30 seconds on average
-      const progressPercent = Math.min(95, Math.floor((elapsedTime / 30000) * 100));
-      
-      return res.json({
-        status: 'downloading',
-        projectId: batchId,
-        totalFiles: 1,
-        completedFiles: 0,
-        progress: {
-          0: {
-            progress: progressPercent,
-            status: 'downloading'
-          }
-        },
-        mediaNames: {
-          0: 'Downloading Media'
-        }
-      });
+      overallStatus = 'completed';
+    } else if (batchInfo.completedFiles === batchInfo.totalFiles) {
+      overallStatus = 'completed';
+      batchInfo.completed = true;
     }
+    
+    // Return the actual tracked progress
+    return res.json({
+      status: overallStatus,
+      projectId: batchId,
+      totalFiles: batchInfo.totalFiles,
+      completedFiles: batchInfo.completedFiles,
+      progress: batchInfo.progress,
+      mediaNames: batchInfo.mediaNames
+    });
+    
   } catch (error: any) {
     console.error('[BatchProgress] Error:', error);
     res.status(500).json({ error: 'Failed to get progress' });
