@@ -1168,7 +1168,19 @@ export default function TranscriptionWorkPage() {
                 return index >= 0 ? index + 1 : 1;
               })()}
               totalProjects={projects ? projects.length : 0}
-              currentMedia={currentProject && currentMediaId && currentProject.mediaFiles ? currentProject.mediaFiles.indexOf(currentMediaId) + 1 : (currentProject?.mediaFiles?.length > 0 ? 1 : 0)}
+              currentMedia={(() => {
+                if (!currentProject || !currentMediaId || !currentProject.mediaFiles) {
+                  return currentProject?.mediaFiles?.length > 0 ? 1 : 0;
+                }
+                const index = currentProject.mediaFiles.indexOf(currentMediaId);
+                console.log('[MediaPlayer] Media navigation:', {
+                  currentMediaId,
+                  mediaFiles: currentProject.mediaFiles,
+                  indexOf: index,
+                  calculatedCurrent: index + 1
+                });
+                return index >= 0 ? index + 1 : 1;
+              })()}
               totalMedia={currentProject?.mediaFiles?.length || 0}
               mediaName={(() => {
                 // Try to get media name from project's mediaInfo first

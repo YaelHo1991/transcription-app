@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { OrphanedIndexService } from './orphanedIndexService';
 
 let mm: any;
@@ -159,7 +160,7 @@ export class ProjectService {
     
     for (let i = 0; i < mediaFiles.length; i++) {
       const file = mediaFiles[i];
-      const mediaId = `media-${i + 1}`;
+      const mediaId = `media-${uuidv4()}`;
       mediaIds.push(mediaId);
       
       const mediaDir = path.join(projectDir, 'media', mediaId);
@@ -250,10 +251,160 @@ export class ProjectService {
   }
 
   /**
+   * Add media files to an existing project
+   */
+  async addMediaToProject(projectId: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
+    try {
+      // Ensure user directory exists
+      await this.ensureUserDirectories(userId);
+      
+      const projectDir = path.join(this.baseDir, 'users', userId, 'projects', projectId);
+      
+      // Check if project exists
+      if (!await fs.access(projectDir).then(() => true).catch(() => false)) {
+        throw new Error(`Project ${projectId} not found`);
+      }
+      
+      // Read existing project metadata
+      const projectJsonPath = path.join(projectDir, 'project.json');
+      const projectJson = JSON.parse(await fs.readFile(projectJsonPath, 'utf8'));
+      
+      const mediaIds: string[] = [];
+      const mediaInfoArray: any[] = projectJson.mediaInfo || [];
+      
+      // Save each media file to the project
+      for (const file of mediaFiles) {
+        const mediaId = `media-${uuidv4()}`;
+        mediaIds.push(mediaId);
+        
+        const mediaDir = path.join(projectDir, 'media', mediaId);
+        await fs.mkdir(mediaDir, { recursive: true });
+        
+        // Use simple filename matching the directory pattern (like working projects)
+        const fileExtension = file.mimeType.split('/')[1] || 'bin';
+        const mediaFileName = `media.${fileExtension}`;
+        const mediaFilePath = path.join(mediaDir, mediaFileName);
+        
+        // Save the media file
+        await fs.writeFile(mediaFilePath, file.buffer);
+        
+        // Save media metadata
+        const mediaMetadata = {
+          name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+          filename: mediaFileName,
+          originalName: file.name,
+          mimeType: file.mimeType,
+          size: file.buffer.length,
+          uploadedAt: new Date().toISOString(),
+          stage: 'transcription' as const
+        };
+        
+        await fs.writeFile(
+          path.join(mediaDir, 'media.json'),
+          JSON.stringify(mediaMetadata, null, 2),
+          'utf8'
+        );
+
+        // Create metadata.json (required for media player)
+        const metadataJson = {
+          mediaId,
+          fileName: mediaFileName,
+          originalName: file.name,
+          mimeType: file.mimeType,
+          size: file.buffer.length,
+          duration: 0, // Will be populated when media is analyzed
+          stage: 'transcription',
+          createdAt: new Date().toISOString(),
+          lastModified: new Date().toISOString()
+        };
+
+        await fs.writeFile(
+          path.join(mediaDir, 'metadata.json'),
+          JSON.stringify(metadataJson, null, 2),
+          'utf8'
+        );
+        
+        // Initialize empty transcription files for this media
+        await this.initializeMediaFiles(mediaDir);
+        
+        // Add to media info array
+        mediaInfoArray.push({
+          mediaId,
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          filename: mediaFileName,
+          size: file.buffer.length,
+          mimeType: file.mimeType,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+      
+      // Update project metadata with new media - properly merge without duplicates
+      const existingMediaIds = new Set(projectJson.mediaFiles || []);
+      const newMediaFiles = mediaIds.filter(id => !existingMediaIds.has(id));
+      
+      // Only add new media info entries that don't already exist
+      const existingMediaInfoIds = new Set((projectJson.mediaInfo || []).map((m: any) => m.mediaId));
+      const newMediaInfo = mediaInfoArray.filter(info => !existingMediaInfoIds.has(info.mediaId));
+      
+      projectJson.mediaInfo = [...(projectJson.mediaInfo || []), ...newMediaInfo];
+      projectJson.mediaFiles = [...(projectJson.mediaFiles || []), ...newMediaFiles];
+      projectJson.totalMedia = projectJson.mediaFiles.length;
+      projectJson.lastModified = new Date().toISOString();
+      
+      // Save updated project metadata
+      await fs.writeFile(projectJsonPath, JSON.stringify(projectJson, null, 2), 'utf8');
+      
+      // Update the media index
+      const mediaIndexPath = path.join(projectDir, 'media-index.json');
+      const mediaIndex = {
+        version: '1.0.0',
+        lastUpdated: new Date().toISOString(),
+        media: {} as { [key: string]: any }
+      };
+      
+      for (const mediaId of projectJson.mediaFiles) {
+        const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'media.json');
+        try {
+          const metadata = JSON.parse(await fs.readFile(mediaMetadataPath, 'utf8'));
+          mediaIndex.media[mediaId] = {
+            name: metadata.name || metadata.originalName || 'Unnamed Media',
+            stage: metadata.stage || 'transcription',
+            lastModified: metadata.uploadedAt || new Date().toISOString()
+          };
+        } catch (err) {
+          console.error(`Error reading media metadata for ${mediaId}:`, err);
+        }
+      }
+      
+      await fs.writeFile(
+        mediaIndexPath,
+        JSON.stringify(mediaIndex, null, 2),
+        'utf8'
+      );
+      
+      console.log(`[ProjectService] Successfully added ${mediaFiles.length} media files to project ${projectId}`);
+      return { projectId, mediaIds };
+      
+    } catch (error: any) {
+      console.error('[ProjectService] Error adding media to project:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Initialize empty media files for individual media
    */
   private async initializeMediaFiles(mediaDir: string) {
-    // Empty transcription
+    // Create required directories
+    const backupsDir = path.join(mediaDir, 'backups');
+    const transcriptionDir = path.join(mediaDir, 'transcription');
+    
+    await Promise.all([
+      fs.mkdir(backupsDir, { recursive: true }),
+      fs.mkdir(transcriptionDir, { recursive: true })
+    ]);
+    
+    // Empty transcription (root level)
     const transcription = {
       blocks: [],
       version: '1.0.0',
@@ -271,6 +422,35 @@ export class ProjectService {
       remarks: [],
       version: '1.0.0'
     };
+
+    // Transcription data.json (for text editor)
+    const transcriptionData = {
+      blocks: [
+        {
+          id: `block-${Date.now()}`,
+          speaker: "",
+          text: "",
+          speakerTime: 0
+        }
+      ],
+      speakers: [
+        {
+          id: "speaker-3",
+          code: "",
+          name: "",
+          description: "",
+          color: "#667eea",
+          count: 0
+        }
+      ],
+      remarks: [],
+      metadata: {
+        fileName: 'media.mp4',
+        originalName: '',
+        duration: 0
+      },
+      lastModified: new Date().toISOString()
+    };
     
     await Promise.all([
       fs.writeFile(
@@ -286,6 +466,11 @@ export class ProjectService {
       fs.writeFile(
         path.join(mediaDir, 'remarks.json'),
         JSON.stringify(remarks, null, 2),
+        'utf8'
+      ),
+      fs.writeFile(
+        path.join(transcriptionDir, 'data.json'),
+        JSON.stringify(transcriptionData, null, 2),
         'utf8'
       )
     ]);

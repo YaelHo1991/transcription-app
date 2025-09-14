@@ -52,6 +52,9 @@ interface UrlConfig {
   playlistVideoId?: string; // For individual videos from playlist
   isSelected?: boolean; // Whether this video is selected for download
   downloadStatus?: 'not-downloaded' | 'downloaded' | 'unavailable';
+  playlistIndex?: number; // Original index in playlist (1-based)
+  playlistUrl?: string; // Original playlist URL
+  totalVideosInPlaylist?: number; // Total videos in the playlist
 }
 
 interface UrlUploadModalProps {
@@ -60,6 +63,15 @@ interface UrlUploadModalProps {
   onSubmit: (urls: UrlConfig[], downloadNow: boolean, projectName: string) => Promise<void>;
   target: 'new' | string; // 'new' for new project, or projectId for existing
   projectName?: string; // Name of existing project if adding to existing
+  continuePlaylist?: { // Data for continuing a playlist download
+    projectId: string;
+    projectName: string;
+    playlistUrl: string;
+    playlistTitle: string;
+    downloadedIndices: number[];
+    totalVideos: number;
+    existingMediaIds: string[];
+  };
 }
 
 const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
@@ -67,7 +79,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   onClose,
   onSubmit,
   target,
-  projectName
+  projectName,
+  continuePlaylist
 }) => {
   const [urls, setUrls] = useState<UrlConfig[]>([]);
   const [currentUrl, setCurrentUrl] = useState('');
@@ -89,45 +102,74 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   // Initialize with one empty URL config when modal opens
   useEffect(() => {
     if (isOpen && urls.length === 0) {
-      // Generate default project name with date
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('he-IL', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: '2-digit' 
-      }).replace(/\//g, '.');
-      const timeStr = now.toLocaleTimeString('he-IL', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      setProjectNameInput(`YouTube - ${dateStr} ${timeStr}`);
-      
-      const newId = `url-${Date.now()}`;
-      const newUrlConfig: UrlConfig = {
-        id: newId,
-        url: '',
-        selectedQuality: 'high',
-        downloadType: 'video',
-        qualityOptions: [
-          { quality: 'high', resolution: 'מיטבית', estimatedSize: '200-500 MB', format: 'mp4' },
-          { quality: 'medium', resolution: '720p', estimatedSize: '100-250 MB', format: 'mp4' },
-          { quality: 'low', resolution: '480p', estimatedSize: '50-150 MB', format: 'mp4' },
-          { quality: 'audio' as 'high' | 'medium' | 'low', resolution: 'אודיו בלבד', estimatedSize: '10-30 MB', format: 'mp3' }
-        ],
-        status: 'editing',
-        urlStatus: 'unchecked',
-        urlCheckMessage: '',
-        isLoadingQuality: false,
-        requiresCookies: false,
-        cookieUploaded: false,
-        showQualityPanel: false,
-        showCookiePanel: false
-      };
-      setUrls([newUrlConfig]);
-      setActiveUrlId(newId);
+      // Check if we're in continue mode
+      if (continuePlaylist) {
+        // Set the project name from the existing project
+        setProjectNameInput(continuePlaylist.projectName);
+        
+        // Create a URL config for the playlist URL and trigger check
+        const playlistUrlId = `url-${Date.now()}`;
+        const playlistUrlConfig: UrlConfig = {
+          id: playlistUrlId,
+          url: continuePlaylist.playlistUrl,
+          selectedQuality: 'high',
+          downloadType: 'video',
+          qualityOptions: [],
+          status: 'editing',
+          urlStatus: 'checking',
+          urlCheckMessage: 'טוען מידע רשימה...',
+          isLoadingQuality: false,
+          requiresCookies: false,
+          cookieUploaded: false,
+          showQualityPanel: false,
+          showCookiePanel: false
+        };
+        setUrls([playlistUrlConfig]);
+        setActiveUrlId(playlistUrlId);
+        
+        // Automatically check the playlist URL to get video list
+        checkUrlStatus(playlistUrlConfig);
+      } else {
+        // Generate default project name with date
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('he-IL', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: '2-digit' 
+        }).replace(/\//g, '.');
+        const timeStr = now.toLocaleTimeString('he-IL', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        setProjectNameInput(`YouTube - ${dateStr} ${timeStr}`);
+        
+        const newId = `url-${Date.now()}`;
+        const newUrlConfig: UrlConfig = {
+          id: newId,
+          url: '',
+          selectedQuality: 'high',
+          downloadType: 'video',
+          qualityOptions: [
+            { quality: 'high', resolution: 'מיטבית', estimatedSize: '200-500 MB', format: 'mp4' },
+            { quality: 'medium', resolution: '720p', estimatedSize: '100-250 MB', format: 'mp4' },
+            { quality: 'low', resolution: '480p', estimatedSize: '50-150 MB', format: 'mp4' },
+            { quality: 'audio' as 'high' | 'medium' | 'low', resolution: 'אודיו בלבד', estimatedSize: '10-30 MB', format: 'mp3' }
+          ],
+          status: 'editing',
+          urlStatus: 'unchecked',
+          urlCheckMessage: '',
+          isLoadingQuality: false,
+          requiresCookies: false,
+          cookieUploaded: false,
+          showQualityPanel: false,
+          showCookiePanel: false
+        };
+        setUrls([newUrlConfig]);
+        setActiveUrlId(newId);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, continuePlaylist]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -485,13 +527,14 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
 
     // Create individual URL configs for each selected video in the playlist
     const videoConfigs: UrlConfig[] = playlistUrlConfig.playlistInfo.videos
-      .filter(video => selectedPlaylistVideos.has(video.id))
-      .map((video, index) => {
+      .map((video, originalIndex) => ({video, originalIndex: originalIndex + 1})) // Add 1-based index
+      .filter(({video}) => selectedPlaylistVideos.has(video.id))
+      .map(({video, originalIndex}, filteredIndex) => {
         const quality = playlistVideoQualities[video.id] || globalPlaylistQuality || 'high';
         const isAudio = quality === 'audio';
         
         return {
-          id: `${playlistUrlId}-video-${index}`,
+          id: `${playlistUrlId}-video-${filteredIndex}`,
           url: video.url,
           mediaName: video.title,
           cookieFile: playlistUrlConfig.cookieFile, // Inherit cookie file from playlist
@@ -506,6 +549,10 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           cookieUploaded: playlistUrlConfig.cookieUploaded,
           showQualityPanel: false,
           showCookiePanel: false,
+          // Add playlist-specific metadata
+          playlistIndex: originalIndex, // Original 1-based index in the playlist
+          playlistUrl: playlistUrlConfig.url, // Store the original playlist URL
+          totalVideosInPlaylist: playlistUrlConfig.playlistInfo.videos.length,
           
           // Playlist-specific fields
           isPlaylist: false,
@@ -590,14 +637,24 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     if (showPlaylistConfirmation && !playlistInitialized) {
       const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
       if (playlistUrl?.playlistInfo) {
-        setSelectedPlaylistVideos(new Set(playlistUrl.playlistInfo.videos.map(v => v.id)));
+        // If we're in continue mode, only select videos that haven't been downloaded
+        if (continuePlaylist && continuePlaylist.downloadedIndices) {
+          const downloadedSet = new Set(continuePlaylist.downloadedIndices);
+          const undownloadedVideos = playlistUrl.playlistInfo.videos
+            .filter((_, index) => !downloadedSet.has(index + 1)) // Use 1-based index
+            .map(v => v.id);
+          setSelectedPlaylistVideos(new Set(undownloadedVideos));
+        } else {
+          // Select all videos by default for new playlists
+          setSelectedPlaylistVideos(new Set(playlistUrl.playlistInfo.videos.map(v => v.id)));
+        }
         setPlaylistInitialized(true);
       }
     } else if (!showPlaylistConfirmation && playlistInitialized) {
       setPlaylistInitialized(false);
       setSelectedPlaylistVideos(new Set());
     }
-  }, [showPlaylistConfirmation, urls, playlistInitialized]);
+  }, [showPlaylistConfirmation, urls, playlistInitialized, continuePlaylist]);
 
   if (!isOpen) return null;
 
@@ -637,8 +694,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                   <div className="url-item-configured">
                     <div className="url-content-wrapper">
                       <div className="media-name-wrapper full-width">
-                        <span className="url-number">{index + 1}.</span>
-                        <span className="media-name">{urlConfig.mediaName || 'Media'}</span>
+                        <span className="media-name">{urlConfig.mediaName || `קובץ ${index + 1}`}</span>
                       </div>
                       
                       {/* Action buttons in new row below URL */}
@@ -939,14 +995,21 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                 </div>
                 
                 <div className="playlist-video-list">
-                  {playlistInfo.videos.map((video, index) => (
-                    <div key={video.id} className="playlist-video-item">
-                      <span className="video-number">{index + 1}.</span>
-                      <label htmlFor={`video-${video.id}`} className="video-label">
-                        <span className="video-title">{video.title || 'Unknown Video'}</span>
-                      </label>
+                  {playlistInfo.videos.map((video, index) => {
+                    const videoIndex = index + 1; // 1-based index
+                    const isDownloaded = continuePlaylist?.downloadedIndices?.includes(videoIndex);
+                    
+                    return (
+                      <div key={video.id} className={`playlist-video-item ${isDownloaded ? 'downloaded' : ''}`}>
+                        <span className="video-number">{videoIndex}.</span>
+                        <label htmlFor={`video-${video.id}`} className="video-label">
+                          <span className="video-title">
+                            {video.title || 'Unknown Video'}
+                            {isDownloaded && <span className="downloaded-badge"> ✓ הורד</span>}
+                          </span>
+                        </label>
                       
-                      {selectedPlaylistVideos.has(video.id) && (
+                      {selectedPlaylistVideos.has(video.id) && !isDownloaded && (
                         <div className="video-quality-selector">
                           <button
                             className="quality-icon"
@@ -980,15 +1043,18 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                         </div>
                       )}
                       
-                      <input 
-                        type="checkbox"
-                        id={`video-${video.id}`}
-                        checked={selectedPlaylistVideos.has(video.id)}
-                        onChange={(e) => handleVideoToggle(video.id, e.target.checked)}
-                        className="video-checkbox"
-                      />
-                    </div>
-                  ))}
+                        <input 
+                          type="checkbox"
+                          id={`video-${video.id}`}
+                          checked={isDownloaded ? false : selectedPlaylistVideos.has(video.id)}
+                          onChange={(e) => !isDownloaded && handleVideoToggle(video.id, e.target.checked)}
+                          disabled={isDownloaded}
+                          className="video-checkbox"
+                          title={isDownloaded ? 'הסרטון כבר הורד - מחק מהפרויקט כדי להוריד שוב' : ''}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
                 
                 <div className="playlist-confirm-buttons">
