@@ -38,6 +38,8 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
   const [batchData, setBatchData] = useState<BatchDownloadData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cookieFile, setCookieFile] = useState<File | null>(null);
+  const cookieInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Fetch progress data
   const fetchProgress = async () => {
@@ -107,9 +109,58 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
         setBatchData(null);
         setError('');
         setIsLoading(true);
+        setCookieFile(null);
       }, 300);
     }
   }, [isOpen]);
+
+  // Retry failed download with cookie
+  const handleRetryWithCookie = async (mediaIndex: number) => {
+    if (!cookieFile || !batchData) return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('batchId', batchId);
+      formData.append('mediaIndex', mediaIndex.toString());
+      formData.append('cookieFile', cookieFile);
+      
+      const response = await fetch(buildApiUrl('/api/projects/batch-download/retry'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || 'dev-anonymous'}`,
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        // Reset the error state for this media - mark as downloading
+        const updatedProgress = { ...batchData.progress };
+        updatedProgress[mediaIndex] = {
+          ...updatedProgress[mediaIndex],
+          status: 'downloading',
+          progress: 0,
+          error: undefined
+        };
+        
+        setBatchData({
+          ...batchData,
+          status: 'downloading', // Ensure overall status is downloading, not completed
+          progress: updatedProgress
+        });
+        
+        // Clear the cookie file after successful retry
+        setCookieFile(null);
+      }
+    } catch (error) {
+      console.error('Failed to retry download:', error);
+    }
+  };
+
+  // Check if an error is cookie-related
+  const isCookieRelatedError = (error: string): boolean => {
+    const cookieKeywords = ['cookie', 'Cookie', 'protected', 'bot detection', 'private', 'member', 'authentication', 'login'];
+    return cookieKeywords.some(keyword => error.toLowerCase().includes(keyword.toLowerCase()));
+  };
 
   const getOverallProgress = (): number => {
     if (!batchData || batchData.totalFiles === 0) return 0;
@@ -136,14 +187,20 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
   const getStatusText = (): string => {
     if (!batchData) return 'מתחבר...';
     
-    if (batchData.status === 'completed') {
+    // Check if any downloads failed
+    const hasFailures = Object.values(batchData.progress).some(p => p.status === 'failed');
+    
+    if (batchData.status === 'completed' && !hasFailures) {
       return 'ההורדה הושלמה בהצלחה!';
-    } else if (batchData.status === 'failed') {
+    } else if (batchData.status === 'failed' || hasFailures) {
       return 'ההורדה נכשלה';
-    } else {
+    } else if (batchData.status === 'downloading') {
       return `מוריד... (${batchData.completedFiles}/${batchData.totalFiles})`;
+    } else {
+      return 'ההורדה הושלמה עם שגיאות';
     }
   };
+  
 
   const getStatusIcon = (): string => {
     if (!batchData) return '⏳';
@@ -262,6 +319,87 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                           <div className="media-error">
                             <span className="error-icon">⚠️</span>
                             {mediaProgress.error}
+                            
+                            {/* Cookie upload for cookie-related errors */}
+                            {isCookieRelatedError(mediaProgress.error) && (
+                              <div className="cookie-retry-section" style={{ marginTop: '10px' }}>
+                                {!cookieFile ? (
+                                  <>
+                                    <p style={{ fontSize: '12px', color: '#ffc107', marginBottom: '8px' }}>
+                                      סרטון מוגן - נדרש קובץ Cookies
+                                    </p>
+                                    <input
+                                      ref={cookieInputRef}
+                                      type="file"
+                                      accept=".txt"
+                                      style={{ display: 'none' }}
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          setCookieFile(file);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => cookieInputRef.current?.click()}
+                                      style={{
+                                        padding: '6px 12px',
+                                        background: 'rgba(255, 193, 7, 0.1)',
+                                        border: '1px solid rgba(255, 193, 7, 0.3)',
+                                        color: '#ffc107',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        marginRight: '8px'
+                                      }}
+                                    >
+                                      📁 העלה קובץ Cookies
+                                    </button>
+                                    <div style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>
+                                      <strong>איך להשיג קובץ Cookies?</strong><br/>
+                                      1. התקן תוסף "Get cookies.txt LOCALLY" בדפדפן<br/>
+                                      2. התחבר לאתר עם התוכן המוגן<br/>
+                                      3. לחץ על התוסף ובחר "Export as cookies.txt"<br/>
+                                      4. העלה את הקובץ כאן
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ color: '#28a745', fontSize: '12px' }}>
+                                      ✓ קובץ Cookies: {cookieFile.name}
+                                    </span>
+                                    <button
+                                      onClick={() => handleRetryWithCookie(mediaIndex)}
+                                      style={{
+                                        padding: '6px 12px',
+                                        background: 'rgba(40, 167, 69, 0.1)',
+                                        border: '1px solid rgba(40, 167, 69, 0.3)',
+                                        color: '#28a745',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '12px'
+                                      }}
+                                    >
+                                      🔄 נסה שוב עם Cookies
+                                    </button>
+                                    <button
+                                      onClick={() => setCookieFile(null)}
+                                      style={{
+                                        padding: '4px 8px',
+                                        background: 'rgba(220, 53, 69, 0.1)',
+                                        border: '1px solid rgba(220, 53, 69, 0.3)',
+                                        color: '#dc3545',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '11px'
+                                      }}
+                                    >
+                                      הסר
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -270,7 +408,7 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                 }
               </div>
 
-              {batchData.status === 'completed' && (
+              {batchData.status === 'completed' && !Object.values(batchData.progress).some(p => p.status === 'failed') && (
                 <div className="completion-message">
                   <div className="completion-icon">🎉</div>
                   <div className="completion-text">

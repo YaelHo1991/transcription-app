@@ -710,6 +710,7 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
   try {
     // Handle both JSON and FormData
     let urls, projectName, target;
+    let playlistCookieFile: string | undefined;
     const cookieFiles: { [index: string]: any } = {};
     
     if (req.headers['content-type']?.includes('multipart/form-data')) {
@@ -734,7 +735,10 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       // Extract cookie files
       const files = (req as any).files || [];
       files.forEach((file: any) => {
-        if (file.fieldname.startsWith('cookieFile_')) {
+        if (file.fieldname === 'playlistCookieFile') {
+          // Single cookie file for entire playlist
+          playlistCookieFile = file.path;
+        } else if (file.fieldname.startsWith('cookieFile_')) {
           const index = file.fieldname.replace('cookieFile_', '');
           cookieFiles[index] = file.path; // Store file path for yt-dlp
         }
@@ -750,26 +754,43 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     console.log('[BatchDownload] Starting batch download for user:', userId);
     console.log('[BatchDownload] URLs:', urls);
     console.log('[BatchDownload] Project name:', projectName);
+    console.log('[BatchDownload] Target:', target);
     
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({ error: 'No URLs provided' });
     }
     
-    // Import YtDlpService
+    // Import YtDlpService and PlaylistService
     const { YtDlpService } = require('../../services/ytdlpService');
+    const { PlaylistService } = require('../../services/playlistService');
     
     // Generate batch ID for tracking
     const batchId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Extract media names from URLs
+    // Extract media names and playlist info from URLs
     const mediaNames: { [index: number]: string } = {};
     const progressTracking: { [index: number]: { progress: number, status: string } } = {};
+    let playlistMetadata: any = null;
+    
+    // Check if this is a playlist download (all URLs have playlistIndex)
+    const isPlaylistDownload = urls.every((urlInfo: any) => urlInfo.playlistIndex !== undefined);
     
     urls.forEach((urlInfo: any, index: number) => {
       // Use the mediaName if provided (from playlist), otherwise use a placeholder
       mediaNames[index] = urlInfo.mediaName || `Media ${index + 1}`;
       progressTracking[index] = { progress: 0, status: 'downloading' };
     });
+    
+    // Extract playlist metadata if this is a playlist download
+    if (isPlaylistDownload && projectName?.startsWith('YouTube - ')) {
+      playlistMetadata = {
+        isPlaylist: true,
+        playlistTitle: projectName.replace('YouTube - ', ''),
+        playlistUrl: urls[0].playlistUrl || '', // Store the original playlist URL if available
+        totalVideosInPlaylist: urls[0].totalVideosInPlaylist || urls.length,
+        downloadedIndices: urls.map((urlInfo: any) => urlInfo.playlistIndex).filter(idx => idx !== undefined)
+      };
+    }
     
     // Register this download for progress tracking
     downloadProgress[batchId] = {
@@ -778,7 +799,12 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       totalFiles: urls.length,
       completedFiles: 0,
       mediaNames: mediaNames,
-      progress: progressTracking
+      progress: progressTracking,
+      urls: urls, // Store URLs for retry functionality
+      userId: (req as any).user?.id || 'dev-anonymous',
+      projectId: target && target !== 'new' ? target : batchId, // Use target if adding to existing project
+      playlistCookieFile: playlistCookieFile, // Store cookie files for use in async function
+      cookieFiles: cookieFiles
     };
     
     // Return immediately with batchId so frontend can start showing progress
@@ -817,16 +843,17 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         };
         
         // Add cookie file if present for this URL
-        if (cookieFiles[i.toString()]) {
-          downloadOptions.cookieFile = cookieFiles[i.toString()];
-          console.log(`[BatchDownload] Using cookie file for URL ${i}: ${cookieFiles[i.toString()]}`);
+        // Use playlist cookie file for all URLs if it exists, otherwise use individual cookie file
+        const batchInfo = downloadProgress[batchId];
+        if (batchInfo) {
+          const cookieFile = batchInfo.playlistCookieFile || batchInfo.cookieFiles[i.toString()];
+          if (cookieFile) {
+            downloadOptions.cookieFile = cookieFile;
+            console.log(`[BatchDownload] Using cookie file for URL ${i}: ${cookieFile}`);
+          }
         }
         
-        // Update progress to show mid-download
-        if (downloadProgress[batchId]) {
-          downloadProgress[batchId].progress[i] = { progress: 50, status: 'downloading' };
-        }
-        
+        // Download with real progress tracking
         const videoInfo = await YtDlpService.downloadVideo(downloadOptions);
         
         // Update the media name with actual title
@@ -858,6 +885,38 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       } catch (error: any) {
         console.error(`[BatchDownload] Failed to download ${url}:`, error);
         
+        // Check if this is a bot detection error
+        if (error.message && (
+          error.message.includes('Sign in to confirm') ||
+          error.message.includes('not a bot')
+        )) {
+          // This is bot detection - treat as protected content
+          console.log('[BatchDownload] Bot detection triggered, treating as protected content');
+          
+          // Clean up the download progress
+          if (downloadProgress[batchId]) {
+            downloadProgress[batchId].completed = true;
+            downloadProgress[batchId].progress[i] = { 
+              progress: 0, 
+              status: 'failed',
+              error: 'Bot detection - cookies required'
+            };
+            
+            // Clean up after a short delay
+            setTimeout(() => {
+              delete downloadProgress[batchId];
+            }, 5000);
+          }
+          
+          // Return error response that will trigger cookie upload in frontend
+          return res.status(400).json({
+            status: 'protected',
+            requiresCookies: true,
+            message: 'YouTube דורש אימות - נדרש קובץ Cookies',
+            error: 'Bot detection triggered'
+          });
+        }
+        
         // Update progress to failed for this file
         if (downloadProgress[batchId]) {
           downloadProgress[batchId].progress[i] = { 
@@ -875,16 +934,64 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       return res.status(400).json({ error: 'Failed to download any files' });
     }
     
-    // Create project using the standard createMultiMediaProject method
-    // This ensures the same structure as regular uploads
-    const result = await projectService.createMultiMediaProject(
-      projectName || 'Downloaded Media',
-      downloadedFiles,
-      userId
-    );
+    // Check if we should add to existing project or create new one
+    let result: { projectId: string, mediaIds: string[] };
+    
+    if (target && target !== 'new') {
+      // Add to existing project
+      console.log(`[BatchDownload] Adding to existing project: ${target}`);
+      result = await projectService.addMediaToProject(
+        target,
+        downloadedFiles,
+        userId
+      );
+    } else {
+      // Create new project
+      console.log(`[BatchDownload] Creating new project`);
+      result = await projectService.createMultiMediaProject(
+        projectName || 'Downloaded Media',
+        downloadedFiles,
+        userId
+      );
+    }
     
     // Additionally save URL metadata for each media
     const userDir = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', result.projectId);
+    
+    // Save playlist metadata to project.json if this is a playlist
+    if (playlistMetadata) {
+      const projectJsonPath = path.join(userDir, 'project.json');
+      try {
+        // Read existing project.json
+        const projectJsonContent = await fs_promises.readFile(projectJsonPath, 'utf8');
+        const projectJson = JSON.parse(projectJsonContent);
+        
+        // If adding to existing project with playlist metadata, merge the indices
+        if (target && target !== 'new' && projectJson.playlistMetadata) {
+          // Merge downloaded indices
+          const existingIndices = projectJson.playlistMetadata.downloadedIndices || [];
+          const newIndices = playlistMetadata.downloadedIndices || [];
+          projectJson.playlistMetadata.downloadedIndices = [...new Set([...existingIndices, ...newIndices])];
+          
+          // Update total videos count if needed
+          if (playlistMetadata.totalVideosInPlaylist) {
+            projectJson.playlistMetadata.totalVideosInPlaylist = playlistMetadata.totalVideosInPlaylist;
+          }
+        } else {
+          // New project or first time adding playlist metadata
+          projectJson.playlistMetadata = playlistMetadata;
+        }
+        
+        // Write back updated project.json
+        await fs_promises.writeFile(
+          projectJsonPath,
+          JSON.stringify(projectJson, null, 2),
+          'utf8'
+        );
+      } catch (error) {
+        console.error('[BatchDownload] Failed to update project.json with playlist metadata:', error);
+      }
+    }
     
     for (let i = 0; i < Math.min(urls.length, result.mediaIds.length); i++) {
       const mediaDir = path.join(userDir, 'media', result.mediaIds[i]);
@@ -899,7 +1006,12 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         downloadType: urlInfo.downloadType || 'video',
         format: downloadedFiles[i].name.split('.').pop(),
         hasVideo: downloadedFiles[i].mimeType.startsWith('video/'),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        // Add playlist-specific metadata if available
+        ...(urlInfo.playlistIndex !== undefined && {
+          playlistIndex: urlInfo.playlistIndex,
+          playlistTitle: playlistMetadata?.playlistTitle
+        })
       };
       
       await fs_promises.writeFile(
@@ -907,12 +1019,56 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         JSON.stringify(mediaJson, null, 2),
         'utf8'
       );
+      
+      // Update playlist.json if this is a playlist download
+      if (urlInfo.playlistIndex !== undefined && playlistMetadata) {
+        await PlaylistService.updatePlaylistJson(
+          userDir,
+          result.mediaIds[i],
+          urlInfo.playlistIndex,
+          mediaJson.name,
+          urlInfo.url || urlInfo
+        );
+        console.log(`[BatchDownload] Updated playlist.json for media ${result.mediaIds[i]} at index ${urlInfo.playlistIndex}`);
+      }
+    }
+    
+    // If this is a playlist download, ensure playlist.json has the playlist URL and title
+    if (playlistMetadata && urls[0].playlistUrl) {
+      const playlistJsonPath = path.join(userDir, 'playlist.json');
+      try {
+        let playlistData = {
+          playlistUrl: '',
+          playlistTitle: '',
+          totalVideos: 0,
+          downloadedVideos: {}
+        };
+        
+        // Try to read existing playlist.json
+        try {
+          const existingData = await fs_promises.readFile(playlistJsonPath, 'utf8');
+          playlistData = JSON.parse(existingData);
+        } catch {
+          // File doesn't exist yet
+        }
+        
+        // Update playlist metadata
+        playlistData.playlistUrl = urls[0].playlistUrl || playlistData.playlistUrl;
+        playlistData.playlistTitle = playlistMetadata.playlistTitle || playlistData.playlistTitle;
+        playlistData.totalVideos = playlistMetadata.totalVideosInPlaylist || playlistData.totalVideos;
+        
+        // Write back the updated playlist.json
+        await fs_promises.writeFile(playlistJsonPath, JSON.stringify(playlistData, null, 2));
+      } catch (error) {
+        console.error('[BatchDownload] Failed to update playlist.json metadata:', error);
+      }
     }
     
         console.log(`[BatchDownload] Project created: ${result.projectId} with ${result.mediaIds.length} media files`);
         
-        // Mark download as completed
+        // Mark download as completed and store the actual projectId
         if (downloadProgress[batchId]) {
+          downloadProgress[batchId].projectId = result.projectId; // Store the actual project ID
           downloadProgress[batchId].completed = true;
           downloadProgress[batchId].completedFiles = downloadProgress[batchId].totalFiles;
           
@@ -966,7 +1122,12 @@ const downloadProgress: {
     totalFiles: number,
     completedFiles: number,
     mediaNames: { [index: number]: string },
-    progress: { [index: number]: { progress: number, status: string, error?: string } }
+    progress: { [index: number]: { progress: number, status: string, error?: string } },
+    urls?: any[], // Store URLs for retry functionality
+    userId?: string,
+    projectId?: string,
+    playlistCookieFile?: string, // Cookie file for entire playlist
+    cookieFiles?: { [index: string]: any } // Individual cookie files per URL
   } 
 } = {};
 
@@ -1011,7 +1172,7 @@ router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request,
     // Return the actual tracked progress
     return res.json({
       status: overallStatus,
-      projectId: batchId,
+      projectId: batchInfo.projectId || batchId,  // Use the actual projectId if available
       totalFiles: batchInfo.totalFiles,
       completedFiles: batchInfo.completedFiles,
       progress: batchInfo.progress,
@@ -1021,6 +1182,277 @@ router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request,
   } catch (error: any) {
     console.error('[BatchProgress] Error:', error);
     res.status(500).json({ error: 'Failed to get progress' });
+  }
+});
+
+/**
+ * Retry failed download with cookie file
+ */
+router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), async (req: Request, res: Response) => {
+  try {
+    const { batchId, mediaIndex } = req.body;
+    const cookieFile = (req as any).file;
+    
+    if (!batchId || mediaIndex === undefined) {
+      return res.status(400).json({ error: 'batchId and mediaIndex are required' });
+    }
+    
+    if (!cookieFile) {
+      return res.status(400).json({ error: 'Cookie file is required' });
+    }
+    
+    const mediaIdx = parseInt(mediaIndex);
+    
+    // Check if batch exists and has this media index
+    if (!downloadProgress[batchId]) {
+      return res.status(404).json({ error: 'Batch not found or already completed' });
+    }
+    
+    const batchInfo = downloadProgress[batchId];
+    
+    if (!batchInfo.progress[mediaIdx]) {
+      return res.status(404).json({ error: 'Media index not found in batch' });
+    }
+    
+    // Check if this media actually failed
+    if (batchInfo.progress[mediaIdx].status !== 'failed') {
+      return res.status(400).json({ error: 'Media did not fail, cannot retry' });
+    }
+    
+    console.log(`[BatchDownload Retry] Retrying download for batch ${batchId}, media ${mediaIdx} with cookie file`);
+    
+    // Save cookie file temporarily
+    const tempCookiePath = path.join(process.cwd(), 'temp', `cookie_${uuidv4()}.txt`);
+    await fs_promises.mkdir(path.dirname(tempCookiePath), { recursive: true });
+    await fs_promises.writeFile(tempCookiePath, cookieFile.buffer);
+    
+    // Reset the media status to downloading
+    batchInfo.progress[mediaIdx] = {
+      progress: 0,
+      status: 'downloading',
+      error: undefined
+    };
+    
+    // Get the original URL info from somewhere (we need to store this)
+    // For now, we'll need to track URLs in downloadProgress
+    const urlInfo = (batchInfo as any).urls?.[mediaIdx];
+    
+    if (!urlInfo) {
+      return res.status(400).json({ error: 'Cannot find original URL for retry' });
+    }
+    
+    // Start the retry in background
+    (async () => {
+      try {
+        // Import YtDlpService
+        const { YtDlpService } = require('../../services/ytdlpService');
+        
+        // Generate temp directory path
+        const tempDir = path.join(process.cwd(), 'temp', uuidv4());
+        await fs_promises.mkdir(tempDir, { recursive: true });
+        
+        // Download with cookie file
+        const downloadOptions: any = {
+          url: urlInfo.url || urlInfo,
+          outputPath: tempDir,
+          quality: urlInfo.quality || 'medium',
+          downloadType: urlInfo.downloadType || 'video',
+          cookieFile: tempCookiePath
+        };
+        
+        const videoInfo = await YtDlpService.downloadVideo(downloadOptions);
+        
+        // Update the media name
+        if (batchInfo.mediaNames) {
+          batchInfo.mediaNames[mediaIdx] = videoInfo.title || urlInfo.mediaName || `Media ${mediaIdx + 1}`;
+        }
+        
+        // Read the downloaded file
+        const downloadedFilePath = path.join(tempDir, videoInfo.filename);
+        const fileBuffer = await fs_promises.readFile(downloadedFilePath);
+        
+        // Now we need to add this to the existing project
+        // Get user ID and project ID from batch
+        const userId = (batchInfo as any).userId || 'dev-anonymous';
+        let projectId = (batchInfo as any).projectId;
+        
+        // Check if projectId is actually a batchId (starts with 'batch-')
+        if (projectId && projectId.startsWith('batch-')) {
+          console.log(`[BatchDownload Retry] Invalid projectId detected (${projectId}), will create new project`);
+          projectId = null;
+        }
+        
+        if (!projectId) {
+          console.log(`[BatchDownload Retry] No valid project found, creating new project for retry`);
+          // Create a new project for the retried media  
+          const { ProjectService } = require('../../services/projectService');
+          const projectServiceInstance = new ProjectService();
+          const result = await projectServiceInstance.createMultiMediaProject(
+            `Retried Download - ${new Date().toLocaleString('he-IL')}`,
+            [{
+              name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
+              buffer: fileBuffer,
+              mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
+            }],
+            userId
+          );
+          
+          console.log(`[BatchDownload Retry] Created new project: ${result.projectId}`);
+          
+          // Update the batch info with the new project ID for future retries
+          batchInfo.projectId = result.projectId;
+          
+        } else {
+          // Add media to existing project
+          const mediaResult = await projectService.addMediaToProject(
+            projectId,
+            [{
+              name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
+              buffer: fileBuffer,
+              mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
+            }],
+            userId
+          );
+          
+          console.log(`[BatchDownload Retry] Successfully added media to project: ${mediaResult.mediaIds?.[0] || 'unknown'}`);
+          
+          // Update media-index.json to include the new media
+          try {
+            const mediaIndexPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId, 'media-index.json');
+            const mediaIndex = JSON.parse(await fs_promises.readFile(mediaIndexPath, 'utf8'));
+            
+            // Add the new media to the index
+            const newMediaId = mediaResult.mediaIds[0];
+            if (newMediaId && !mediaIndex.activeMediaIds?.includes(newMediaId)) {
+              if (!mediaIndex.activeMediaIds) {
+                mediaIndex.activeMediaIds = [];
+              }
+              mediaIndex.activeMediaIds.push(newMediaId);
+              mediaIndex.lastUpdated = new Date().toISOString();
+              
+              await fs_promises.writeFile(mediaIndexPath, JSON.stringify(mediaIndex, null, 2), 'utf8');
+              console.log(`[BatchDownload Retry] Updated media-index.json with new media: ${newMediaId}`);
+            }
+          } catch (indexError) {
+            console.error('[BatchDownload Retry] Failed to update media-index.json:', indexError);
+          }
+          
+          // Update playlist.json if this is a playlist download
+          if (urlInfo.playlistIndex !== undefined) {
+            try {
+              const { PlaylistService } = require('../../services/playlistService');
+              const userDir = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
+              
+              await PlaylistService.updatePlaylistJson(
+                userDir,
+                mediaResult.mediaIds[0],
+                urlInfo.playlistIndex,
+                videoInfo.title,
+                urlInfo.url || urlInfo
+              );
+              console.log(`[BatchDownload Retry] Updated playlist.json for media ${mediaResult.mediaIds[0]} at index ${urlInfo.playlistIndex}`);
+            } catch (playlistError) {
+              console.error('[BatchDownload Retry] Failed to update playlist.json:', playlistError);
+            }
+          }
+        }
+        
+        // Clean up temp directory
+        await fs_promises.rm(tempDir, { recursive: true, force: true });
+        
+        // Clean up cookie file
+        await fs_promises.unlink(tempCookiePath).catch(() => {});
+        
+        // Update progress to completed
+        batchInfo.progress[mediaIdx] = {
+          progress: 100,
+          status: 'completed'
+        };
+        
+        // Increment completed files count
+        batchInfo.completedFiles++;
+        
+        console.log(`[BatchDownload Retry] Successfully downloaded: ${videoInfo.title}`);
+        
+      } catch (error: any) {
+        console.error(`[BatchDownload Retry] Failed to retry download:`, error);
+        
+        // Update progress to failed again
+        batchInfo.progress[mediaIdx] = {
+          progress: 0,
+          status: 'failed',
+          error: error.message || 'Retry failed'
+        };
+        
+        // Clean up cookie file
+        await fs_promises.unlink(tempCookiePath).catch(() => {});
+      }
+    })();
+    
+    // Return success immediately (download continues in background)
+    res.json({ success: true, message: 'Retry started' });
+    
+  } catch (error: any) {
+    console.error('[BatchDownload Retry] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to retry download' });
+  }
+});
+
+/**
+ * Get project metadata including playlist information
+ */
+router.get('/:projectId/metadata', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { projectId } = req.params;
+    const userId = (req as any).user?.id || 'dev-anonymous';
+    
+    const projectDir = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
+    const projectJsonPath = path.join(projectDir, 'project.json');
+    
+    // Read project metadata
+    const projectJson = JSON.parse(await fs_promises.readFile(projectJsonPath, 'utf8'));
+    
+    // If this is a playlist project, load playlist.json for accurate tracking
+    if (projectJson.playlistMetadata) {
+      const playlistJsonPath = path.join(projectDir, 'playlist.json');
+      try {
+        const playlistData = JSON.parse(await fs_promises.readFile(playlistJsonPath, 'utf8'));
+        projectJson.playlistData = playlistData;
+        
+        // Also create mediaPlaylistIndices for backward compatibility
+        const mediaPlaylistIndices: { [mediaId: string]: number } = {};
+        for (const [index, video] of Object.entries(playlistData.downloadedVideos || {})) {
+          const videoData = video as any;
+          if (videoData.mediaId) {
+            mediaPlaylistIndices[videoData.mediaId] = parseInt(index);
+          }
+        }
+        projectJson.mediaPlaylistIndices = mediaPlaylistIndices;
+      } catch (error) {
+        // Fallback to old method if playlist.json doesn't exist
+        const mediaPlaylistIndices: { [mediaId: string]: number } = {};
+        
+        // Read each media's metadata to get playlist index
+        for (const mediaId of projectJson.mediaFiles || []) {
+          const mediaJsonPath = path.join(projectDir, 'media', mediaId, 'media.json');
+          try {
+            const mediaJson = JSON.parse(await fs_promises.readFile(mediaJsonPath, 'utf8'));
+            if (mediaJson.playlistIndex !== undefined) {
+              mediaPlaylistIndices[mediaId] = mediaJson.playlistIndex;
+            }
+          } catch (error) {
+            // Media.json might not exist for older projects
+          }
+        }
+        
+        projectJson.mediaPlaylistIndices = mediaPlaylistIndices;
+      }
+    }
+    
+    res.json(projectJson);
+  } catch (error: any) {
+    console.error('[Project Metadata] Error:', error);
+    res.status(500).json({ error: 'Failed to get project metadata' });
   }
 });
 
@@ -1115,6 +1547,9 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
         status = 'protected';
       } else if (error.message.includes('סרטון למנויים') || error.message.includes('members-only')) {
         userMessage = 'סרטון למנויים בלבד - נדרש קובץ Cookies';
+        status = 'protected';
+      } else if (error.message.includes('Sign in to confirm') || error.message.includes('not a bot')) {
+        userMessage = 'YouTube דורש אימות - נדרש קובץ Cookies';
         status = 'protected';
       } else if (error.message.includes('לא זמין') || error.message.includes('unavailable')) {
         userMessage = 'הסרטון לא זמין או הוסר';
@@ -1269,7 +1704,7 @@ router.post('/:projectId/add-missing-media', verifyUser, upload.array('files'), 
     console.log(`[AddMissingMedia] Adding ${finalFilesToAdd.length} new files (filtered from ${filesToAdd.length})`);
     
     // Add each missing file
-    const newMediaIds: string[] = [];
+    let newMediaIds: string[] = [];
     
     // Load or create media index
     const mediaIndexPath = path.join(projectPath, 'media-index.json');
@@ -1309,100 +1744,19 @@ router.post('/:projectId/add-missing-media', verifyUser, upload.array('files'), 
       };
     }
     
-    for (let i = 0; i < finalFilesToAdd.length; i++) {
-      const file = finalFilesToAdd[i];
-      const fileName = finalNamesToAdd[i];
-      
-      // Get next media ID from index
-      let mediaNumber: number;
-      if (mediaIndex.availableNumbers && mediaIndex.availableNumbers.length > 0) {
-        // Use available gap
-        mediaNumber = mediaIndex.availableNumbers.shift();
-        console.log(`[AddMissingMedia] Using gap: media-${mediaNumber} for file: ${fileName}`);
-      } else {
-        // Use next number
-        mediaNumber = mediaIndex.nextMediaNumber;
-        mediaIndex.nextMediaNumber++;
-        console.log(`[AddMissingMedia] Using next: media-${mediaNumber} for file: ${fileName}`);
-      }
-      
-      const mediaId = `media-${mediaNumber}`;
-      
-      // Update media index
-      if (!mediaIndex.activeMediaIds.includes(mediaId)) {
-        mediaIndex.activeMediaIds.push(mediaId);
-        mediaIndex.activeMediaIds.sort();
-      }
-      
-      // Create media directory structure
-      const mediaDir = path.join(mediaPath, mediaId);
-      const backupsDir = path.join(mediaDir, 'backups');
-      const transcriptionDir = path.join(mediaDir, 'transcription');
-      
-      await fs_promises.mkdir(mediaDir, { recursive: true });
-      await fs_promises.mkdir(backupsDir, { recursive: true });
-      await fs_promises.mkdir(transcriptionDir, { recursive: true });
-      
-      // Save media file
-      const fileExtension = path.extname(fileName).toLowerCase();
-      const mediaFileName = `media${fileExtension}`;
-      const mediaFilePath = path.join(mediaDir, mediaFileName);
-      await fs_promises.writeFile(mediaFilePath, file.buffer);
-      
-      // Calculate audio duration
-      console.log(`[AddMissingMedia] Calculating duration for: ${mediaFilePath}`);
-      const duration = await getAudioDuration(mediaFilePath);
-      console.log(`[AddMissingMedia] Calculated duration: ${duration} seconds for ${fileName}`);
-      
-      // Create metadata
-      const metadataContent = {
-        mediaId,
-        fileName: mediaFileName,
-        originalName: fileName,
-        mimeType: file.mimetype,
-        size: file.size,
-        duration,
-        stage: 'transcription',
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString()
-      };
-      
-      await fs_promises.writeFile(
-        path.join(mediaDir, 'metadata.json'),
-        JSON.stringify(metadataContent, null, 2)
-      );
-      
-      // Create empty transcription data
-      const transcriptionData = {
-        blocks: [],
-        lastSaved: new Date().toISOString()
-      };
-      
-      await fs_promises.writeFile(
-        path.join(transcriptionDir, 'data.json'),
-        JSON.stringify(transcriptionData, null, 2)
-      );
-      
-      // Create empty speakers and remarks files
-      await fs_promises.writeFile(
-        path.join(mediaDir, 'speakers.json'),
-        JSON.stringify({ speakers: [] }, null, 2)
-      );
-      
-      await fs_promises.writeFile(
-        path.join(mediaDir, 'remarks.json'),
-        JSON.stringify({ remarks: [] }, null, 2)
-      );
-      
-      newMediaIds.push(mediaId);
-      
-      // Update media index's active media list
-      if (!mediaIndex.activeMediaIds.includes(mediaId)) {
-        mediaIndex.activeMediaIds.push(mediaId);
-      }
-    }
+    // Use projectService to add media files with proper UUID-based media IDs
+    const mediaFilesForService = finalFilesToAdd.map((file, index) => ({
+      name: finalNamesToAdd[index],
+      buffer: file.buffer,
+      mimeType: file.mimetype
+    }));
     
-    // Sort activeMediaIds and update lastUpdated
+    console.log(`[AddMissingMedia] Adding ${mediaFilesForService.length} media files using projectService`);
+    const result = await projectService.addMediaToProject(projectId, mediaFilesForService, userId);
+    newMediaIds = result.mediaIds;
+    
+    // Update media index with new UUID-based media IDs
+    mediaIndex.activeMediaIds = [...new Set([...(mediaIndex.activeMediaIds || []), ...newMediaIds])];
     mediaIndex.activeMediaIds.sort();
     mediaIndex.lastUpdated = new Date().toISOString();
     
@@ -1416,9 +1770,9 @@ router.post('/:projectId/add-missing-media', verifyUser, upload.array('files'), 
     
     await fs_promises.writeFile(projectMetaPath, JSON.stringify(projectData, null, 2));
     
-    // Save updated media index
+    // Save updated media index with UUID-based IDs
     await fs_promises.writeFile(mediaIndexPath, JSON.stringify(mediaIndex, null, 2));
-    console.log('[AddMissingMedia] Updated media index:', mediaIndex);
+    console.log('[AddMissingMedia] Updated media index with UUID-based IDs:', mediaIndex);
     
     console.log('[AddMissingMedia] Successfully added', newMediaIds.length, 'missing media files');
     
@@ -2967,6 +3321,12 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
     // Delete the media folder
     await fs_promises.rm(mediaPath, { recursive: true, force: true });
     
+    // Import PlaylistService if not already imported
+    const { PlaylistService } = require('../../services/playlistService');
+    
+    // Remove from playlist.json if it exists
+    await PlaylistService.removeFromPlaylistJson(projectPath, mediaId);
+    
     // Update project.json to remove the media file
     const projectFile = path.join(projectPath, 'project.json');
     let isLastMedia = false;
@@ -3592,8 +3952,8 @@ router.get('/:projectId/media/:filename', async (req: Request, res: Response) =>
       }
     }
     
-    // Check if filename is actually a mediaId (like "media-1", "media-2")
-    const isMediaId = filename.match(/^media-\d+$/);
+    // Check if filename is actually a mediaId (like "media-1", "media-2" or "media-uuid")
+    const isMediaId = filename.match(/^media-[\w-]+$/);
     
     // Try to find the file in any of the media subdirectories
     const mediaDir = path.join(userDataPath, 'media');

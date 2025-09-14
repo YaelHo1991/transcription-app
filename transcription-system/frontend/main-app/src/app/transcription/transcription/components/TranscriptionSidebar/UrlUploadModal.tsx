@@ -60,7 +60,7 @@ interface UrlConfig {
 interface UrlUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (urls: UrlConfig[], downloadNow: boolean, projectName: string) => Promise<void>;
+  onSubmit: (urls: UrlConfig[], downloadNow: boolean, projectName: string, playlistCookieFile?: File) => Promise<void>;
   target: 'new' | string; // 'new' for new project, or projectId for existing
   projectName?: string; // Name of existing project if adding to existing
   continuePlaylist?: { // Data for continuing a playlist download
@@ -69,6 +69,20 @@ interface UrlUploadModalProps {
     playlistUrl: string;
     playlistTitle: string;
     downloadedIndices: number[];
+    mediaPlaylistIndices?: { [mediaId: string]: number }; // Map of mediaId to playlist index
+    playlistData?: { // Data from playlist.json
+      playlistUrl: string;
+      playlistTitle: string;
+      totalVideos: number;
+      downloadedVideos: {
+        [index: string]: {
+          mediaId: string;
+          title: string;
+          index: number;
+          originalUrl: string;
+        };
+      };
+    };
     totalVideos: number;
     existingMediaIds: string[];
   };
@@ -95,8 +109,11 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   const [playlistVideoQualities, setPlaylistVideoQualities] = useState<{[key: string]: 'high' | 'medium' | 'low' | 'audio'}>({});
   const [globalPlaylistQuality, setGlobalPlaylistQuality] = useState<'high' | 'medium' | 'low' | 'audio'>('high');
   const [showQualityDropdown, setShowQualityDropdown] = useState<string | null>(null);
+  const [playlistCookieFile, setPlaylistCookieFile] = useState<File | null>(null);
+  const [showPlaylistCookieUpload, setShowPlaylistCookieUpload] = useState(false);
   
   const cookieInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const playlistCookieInputRef = useRef<HTMLInputElement | null>(null);
   const urlCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize with one empty URL config when modal opens
@@ -620,7 +637,9 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     
     // Pass the configured URLs to parent component without any error handling
     // Parent will handle the background download and show progress modal
-    await onSubmit(configuredUrls, downloadNow, projectNameInput);
+    // Pass playlistCookieFile if this is a playlist download
+    const isPlaylistDownload = urls.some(u => u.isPlaylist);
+    await onSubmit(configuredUrls, downloadNow, projectNameInput, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
   };
 
   // Clean up timeout on unmount
@@ -638,7 +657,22 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
       if (playlistUrl?.playlistInfo) {
         // If we're in continue mode, only select videos that haven't been downloaded
-        if (continuePlaylist && continuePlaylist.downloadedIndices) {
+        if (continuePlaylist && continuePlaylist.playlistData?.downloadedVideos) {
+          // Use playlist.json data for most accurate tracking
+          const downloadedIndices = new Set(Object.keys(continuePlaylist.playlistData.downloadedVideos).map(Number));
+          const undownloadedVideos = playlistUrl.playlistInfo.videos
+            .filter((_, index) => !downloadedIndices.has(index + 1)) // Use 1-based index
+            .map(v => v.id);
+          setSelectedPlaylistVideos(new Set(undownloadedVideos));
+        } else if (continuePlaylist && continuePlaylist.mediaPlaylistIndices) {
+          // Fallback to mediaPlaylistIndices method
+          const existingIndices = new Set(Object.values(continuePlaylist.mediaPlaylistIndices));
+          const undownloadedVideos = playlistUrl.playlistInfo.videos
+            .filter((_, index) => !existingIndices.has(index + 1)) // Use 1-based index
+            .map(v => v.id);
+          setSelectedPlaylistVideos(new Set(undownloadedVideos));
+        } else if (continuePlaylist && continuePlaylist.downloadedIndices) {
+          // Fallback to old method if nothing else is available
           const downloadedSet = new Set(continuePlaylist.downloadedIndices);
           const undownloadedVideos = playlistUrl.playlistInfo.videos
             .filter((_, index) => !downloadedSet.has(index + 1)) // Use 1-based index
@@ -936,9 +970,10 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                 <div className="playlist-header">
                   <h3>יצירת פרויקט מ-URL</h3>
                   <div className="playlist-title">שם הפרויקט: {playlistInfo.title}</div>
+                  
                 </div>
                 
-                <div className="playlist-select-all">
+                <div className="playlist-select-all" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                   <div className="global-quality-selector">
                     <select 
                       value={globalPlaylistQuality}
@@ -961,27 +996,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                     </select>
                   </div>
                   
-                  {(() => {
-                    console.log('Cookie indicator check:', {
-                      requiresCookies: playlistUrl.requiresCookies,
-                      selectedVideosCount: selectedPlaylistVideos.size,
-                      shouldShow: playlistUrl.requiresCookies && selectedPlaylistVideos.size > 0,
-                      cookieUploaded: playlistUrl.cookieUploaded
-                    });
-                    return playlistUrl.requiresCookies && selectedPlaylistVideos.size > 0 && (
-                      <div className="playlist-cookie-indicator-inline">
-                        {playlistUrl.cookieUploaded ? (
-                          <span className="cookie-indicator-inline uploaded" title="קובץ Cookie הועלה">
-                            🍪
-                          </span>
-                        ) : (
-                          <span className="cookie-indicator-inline required" title="דרוש קובץ Cookie">
-                            ⚠️
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
                   
                   <label className="select-all-label">
                     <input 
@@ -994,10 +1008,81 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                   </label>
                 </div>
                 
+                {/* Cookie Upload Section for Protected Playlists */}
+                {(showPlaylistCookieUpload || playlistCookieFile) && (
+                  <div className="playlist-cookie-upload-section">
+                    <div className="cookie-upload-header">
+                      <span className="cookie-icon">🍪</span>
+                      <span className="cookie-title">
+                        {playlistCookieFile ? 'קובץ Cookies הועלה' : 'העלה קובץ Cookies עבור תוכן מוגן'}
+                      </span>
+                    </div>
+                    {!playlistCookieFile ? (
+                      <>
+                        <p className="cookie-help-text">
+                          חלק מהסרטונים ברשימה זו עשויים להיות מוגנים. העלה קובץ cookies.txt כדי לגשת אליהם.
+                        </p>
+                        <div className="cookie-upload-buttons">
+                          <input
+                            ref={playlistCookieInputRef}
+                            type="file"
+                            accept=".txt"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setPlaylistCookieFile(file);
+                                setShowPlaylistCookieUpload(false);
+                              }
+                            }}
+                          />
+                          <button
+                            className="cookie-upload-button"
+                            onClick={() => playlistCookieInputRef.current?.click()}
+                          >
+                            📁 בחר קובץ Cookies
+                          </button>
+                          <a
+                            href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="cookie-help-link"
+                          >
+                            איך להשיג קובץ Cookies?
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="cookie-uploaded-info">
+                        <span className="success-icon">✓</span>
+                        <span className="file-name">{playlistCookieFile.name}</span>
+                        <button
+                          className="remove-cookie-button"
+                          onClick={() => setPlaylistCookieFile(null)}
+                        >
+                          הסר
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="playlist-video-list">
                   {playlistInfo.videos.map((video, index) => {
                     const videoIndex = index + 1; // 1-based index
-                    const isDownloaded = continuePlaylist?.downloadedIndices?.includes(videoIndex);
+                    // Check if this video is already downloaded using playlist.json data first
+                    let isDownloaded = false;
+                    
+                    if (continuePlaylist?.playlistData?.downloadedVideos) {
+                      // Use playlist.json data for most accurate tracking
+                      isDownloaded = videoIndex.toString() in continuePlaylist.playlistData.downloadedVideos;
+                    } else {
+                      // Fallback to old methods
+                      const existingIndices = continuePlaylist?.mediaPlaylistIndices ? 
+                        new Set(Object.values(continuePlaylist.mediaPlaylistIndices)) : 
+                        new Set(continuePlaylist?.downloadedIndices || []);
+                      isDownloaded = existingIndices.has(videoIndex);
+                    }
                     
                     return (
                       <div key={video.id} className={`playlist-video-item ${isDownloaded ? 'downloaded' : ''}`}>
