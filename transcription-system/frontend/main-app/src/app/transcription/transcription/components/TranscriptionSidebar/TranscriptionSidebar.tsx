@@ -11,6 +11,11 @@ export interface TranscriptionSidebarProps {
   onOpenManagementModal?: (tab: 'projects' | 'transcriptions' | 'duration' | 'progress') => void;
   onProjectDelete?: (projectId: string, deleteTranscriptions: boolean) => Promise<void>;
   onMediaDelete?: (projectId: string, mediaId: string, deleteTranscriptions: boolean) => Promise<void>;
+  onGetActionHandlers?: (handlers: {
+    handleFolderUpload: () => void;
+    handleSingleMediaClick: () => void;
+    handleUrlDownload: () => void;
+  }) => void;
 }
 
 const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) => {
@@ -39,6 +44,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   const [currentBatchId, setCurrentBatchId] = useState('');
   const [downloadProjectName, setDownloadProjectName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [playlistContinueData, setPlaylistContinueData] = useState<any>(null); // Data for continuing playlist downloads
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const downloadPollingRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -217,9 +223,12 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Expose the refresh method to parent component
+  // Expose the refresh method and action handlers to parent component
   useImperativeHandle(ref, () => ({
-    refreshStorage: loadStorageInfo
+    refreshStorage: loadStorageInfo,
+    handleFolderUpload,
+    handleSingleMediaClick,
+    handleUrlDownload
   }));
   
   // Also expose globally for easy access
@@ -230,12 +239,21 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Set mounted state
+  // Set mounted state and expose action handlers
   useEffect(() => {
     console.log('[TranscriptionSidebar] Component mounted');
     console.log('[TranscriptionSidebar] Initial isLoading:', isLoading);
     console.log('[TranscriptionSidebar] Initial projects:', projects.length);
     setIsMounted(true);
+
+    // Expose action handlers to parent if callback provided
+    if (props.onGetActionHandlers) {
+      props.onGetActionHandlers({
+        handleFolderUpload,
+        handleSingleMediaClick,
+        handleUrlDownload
+      });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Log when projects change and auto-select first project if none selected
@@ -262,18 +280,28 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     }
   }, [projects, isLoading, error, currentProject, setCurrentProject, setCurrentMediaById]);
   
-  const handleFolderUpload = async () => {
+  const handleFolderUpload = () => {
     console.log('[TranscriptionSidebar] handleFolderUpload called');
     console.log('[TranscriptionSidebar] folderInputRef.current:', folderInputRef.current);
-    
-    // Directly open the folder selection dialog
-    if (folderInputRef.current) {
-      console.log('[TranscriptionSidebar] Clicking folder input');
-      folderInputRef.current.click();
-    } else {
-      console.error('[TranscriptionSidebar] folderInputRef.current is null');
-      showSidebarNotification('שגיאה בפתיחת חלון בחירת תיקייה', 'error');
-    }
+
+    // Use setTimeout to ensure the DOM is ready
+    setTimeout(() => {
+      if (folderInputRef.current) {
+        console.log('[TranscriptionSidebar] Clicking folder input');
+        folderInputRef.current.click();
+      } else {
+        console.error('[TranscriptionSidebar] folderInputRef.current is still null');
+        // Try using the file input instead
+        if (fileInputRef.current) {
+          console.log('[TranscriptionSidebar] Using fileInputRef instead');
+          fileInputRef.current.setAttribute('webkitdirectory', '');
+          fileInputRef.current.setAttribute('directory', '');
+          fileInputRef.current.click();
+        } else {
+          showSidebarNotification('שגיאה בפתיחת חלון בחירת תיקייה', 'error');
+        }
+      }
+    }, 100);
   };
   
   // Function to track download progress in sidebar notification
@@ -384,15 +412,20 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     setShowUrlModal(true);
   };
   
-  const handleUrlSubmit = async (urls: any[], downloadNow: boolean, projectName: string) => {
+  const handleUrlSubmit = async (urls: any[], downloadNow: boolean, projectName: string, playlistCookieFile?: File) => {
+    // Always close the modal first
     setShowUrlModal(false);
     
     if (!downloadNow) {
+      setPlaylistContinueData(null); // Clear continue data
       return;
     }
     
-    // Always create new project for URL downloads
-    const target = 'new';
+    // Use existing project ID if continuing a playlist, otherwise create new
+    const target = playlistContinueData ? playlistContinueData.projectId : 'new';
+    
+    // Clear the playlist continue data after use
+    setPlaylistContinueData(null);
     
     // Show immediate notification that download is starting with progress and clickable link
     setSidebarNotification({
@@ -403,26 +436,37 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     });
     
     try {
-      console.log('[handleUrlSubmit] Calling batch-download with:', { urls, projectName, target });
+      console.log('[handleUrlSubmit] Calling batch-download with:', { urls, projectName, target, hasCookieFile: !!playlistCookieFile });
       
       // Create FormData to handle cookie files
       const formData = new FormData();
       formData.append('projectName', projectName);
       formData.append('target', target);
       
-      // Add URLs and cookie files
+      // If playlist cookie file is provided, add it for all playlist URLs
+      if (playlistCookieFile) {
+        formData.append('playlistCookieFile', playlistCookieFile);
+      }
+      
+      // Add URLs and individual cookie files
       const urlsData: any[] = [];
       urls.forEach((url, index) => {
         const urlData = {
           url: url.url || url,
           quality: url.selectedQuality || url.quality,
           downloadType: url.downloadType,
-          mediaName: url.mediaName
+          mediaName: url.mediaName,
+          // Include playlist-specific metadata if present
+          ...(url.playlistIndex !== undefined && {
+            playlistIndex: url.playlistIndex,
+            playlistUrl: url.playlistUrl,
+            totalVideosInPlaylist: url.totalVideosInPlaylist
+          })
         };
         urlsData.push(urlData);
         
-        // Add cookie file if present
-        if (url.cookieFile) {
+        // Add individual cookie file if present (for non-playlist URLs)
+        if (url.cookieFile && !playlistCookieFile) {
           formData.append(`cookieFile_${index}`, url.cookieFile);
         }
       });
@@ -1622,53 +1666,95 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     }
   };
   
+  const handleContinuePlaylist = async (project: any) => {
+    // First, fetch the full project metadata including playlist information
+    try {
+      const url = buildApiUrl(`/api/projects/${project.projectId}/metadata`);
+      console.log('Fetching playlist metadata from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || 'dev-anonymous'}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const metadata = await response.json();
+        
+        // Set the playlist continue data with project and metadata info
+        setPlaylistContinueData({
+          projectId: project.projectId,
+          projectName: project.displayName,
+          playlistUrl: metadata.playlistMetadata?.playlistUrl,
+          playlistTitle: metadata.playlistMetadata?.playlistTitle,
+          downloadedIndices: metadata.playlistMetadata?.downloadedIndices || [],
+          mediaPlaylistIndices: metadata.mediaPlaylistIndices || {}, // Pass the actual media->index mapping
+          playlistData: metadata.playlistData || null, // Pass the playlist.json data
+          totalVideos: metadata.playlistMetadata?.totalVideosInPlaylist,
+          existingMediaIds: project.mediaFiles || []
+        });
+        
+        // Open the URL modal in continue mode
+        setShowUrlModal(true);
+        
+        console.log('Continue playlist for project:', project.projectId);
+        console.log('Playlist metadata:', metadata.playlistMetadata);
+      } else {
+        showSidebarNotification('לא ניתן לטעון מידע על הרשימה', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to fetch playlist metadata:', error);
+      showSidebarNotification('שגיאה בטעינת מידע הרשימה', 'error');
+    }
+  };
+  
   return (
     <>
-      <div 
+      <div
         className={`transcription-sidebar-content ${isDragging ? 'dragging-over' : ''}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}>
-        {/* Upload button at top of sidebar */}
-      <div className="sidebar-upload-section">
-        <button 
-          className="sidebar-upload-button"
-          onClick={handleFolderUpload}
-          title="הוסף תיקיית פרויקט"
-        >
-          <span className="upload-plus">+</span>
-          <span className="upload-text">תיקייה</span>
-        </button>
-        <button 
-          className="sidebar-url-button"
-          onClick={handleUrlDownload}
-          title="הורד מ-URL"
-        >
-          <span className="url-icon">🌐</span>
-          <span className="url-text">URL</span>
-        </button>
-        <button 
-          className="sidebar-media-button"
-          onClick={handleSingleMediaClick}
-          title="הוסף קובץ מדיה בודד"
-        >
-          <span className="media-icon">+</span>
-          <span className="media-text">מדיה</span>
-        </button>
-        {/* Hidden file input for media (supports multiple files) */}
-        <input
-          ref={singleMediaInputRef}
-          type="file"
-          accept="audio/*,video/*"
-          multiple
-          onChange={handleSingleMediaSelected}
-          style={{ display: 'none' }}
-        />
-      </div>
-      
+
+      {/* Hidden file input for media (supports multiple files) */}
+      <input
+        ref={singleMediaInputRef}
+        type="file"
+        accept="audio/*,video/*"
+        multiple
+        onChange={handleSingleMediaSelected}
+        style={{ display: 'none' }}
+      />
+
       <div className="sidebar-stats">
-        <h3 className="sidebar-stats-title">סטטיסטיקות</h3>
+        {/* Storage Display */}
+        {storageInfo && (
+          <div className="stats-storage-display" title="אחסון">
+            <div className="stats-storage-text">
+              <div className="storage-size-display">
+                <span className="storage-used">{storageInfo.quotaUsedMB}MB</span>
+                <span className="storage-separator"> / </span>
+                <span className="storage-total">{storageInfo.quotaLimitMB}MB</span>
+              </div>
+            </div>
+            <div className="stats-storage-progress-bar">
+              <div
+                className="storage-progress-fill"
+                style={{
+                  width: `${Math.min(storageInfo.usedPercent, 100)}%`,
+                  backgroundColor: getStorageColor(storageInfo.usedPercent)
+                }}
+              />
+              <div className="storage-progress-text">
+                {Math.round(storageInfo.usedPercent)}%
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="sidebar-stats-grid">
           <div className="sidebar-stat-item clickable" onClick={() => handleStatClick('projects')}>
             <div className="sidebar-stat-number">{projects.length}</div>
@@ -1688,33 +1774,6 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           </div>
         </div>
       </div>
-
-      {/* Storage Display */}
-      {storageInfo && (
-        <div className="sidebar-storage" title="אחסון">
-          <div className="storage-info-display">
-            <div className="storage-text-compact">
-              <div className="storage-size-display">
-                <span className="storage-used">{storageInfo.quotaUsedMB}MB</span>
-                <span className="storage-separator"> / </span>
-                <span className="storage-total">{storageInfo.quotaLimitMB}MB</span>
-              </div>
-            </div>
-            <div className="storage-progress-bar-compact">
-              <div 
-                className="storage-progress-fill"
-                style={{
-                  width: `${Math.min(storageInfo.usedPercent, 100)}%`,
-                  backgroundColor: getStorageColor(storageInfo.usedPercent)
-                }}
-              />
-              <div className="storage-progress-text">
-                {Math.round(storageInfo.usedPercent)}%
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Inline Notification Area */}
       {sidebarNotification && (
@@ -1749,21 +1808,31 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           </div>
         ) : (
           <div className="projects-list">
-            {projects.length > 0 && (
-              <h3 className="projects-title">פרויקטים ({projects.length})</h3>
-            )}
             {projects.map(project => (
               <div 
                 key={project.projectId} 
                 className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''} ${dragOverProject === project.projectId ? 'drag-over-project' : ''}`}
                 onClick={async () => {
                   setCurrentProject(project);
-                  // DISABLED: Auto-load first media causes issues after restoration
-                  // Users should manually select which media to work on
-                  // if (project.mediaFiles && project.mediaFiles.length > 0) {
-                  //   const firstMediaId = project.mediaFiles[0];
-                  //   await setCurrentMediaById(project.projectId, firstMediaId);
-                  // }
+                  
+                  // If this is a playlist project, fetch additional metadata
+                  if (project.displayName?.startsWith('YouTube -')) {
+                    try {
+                      const response = await fetch(buildApiUrl(`/api/projects/${project.projectId}/metadata`), {
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('token') || 'dev-anonymous'}`,
+                        }
+                      });
+                      if (response.ok) {
+                        const metadata = await response.json();
+                        // Update the current project with metadata
+                        const updatedProject = { ...project, playlistMetadata: metadata.playlistMetadata, mediaPlaylistIndices: metadata.mediaPlaylistIndices };
+                        setCurrentProject(updatedProject);
+                      }
+                    } catch (error) {
+                      console.error('Failed to fetch playlist metadata:', error);
+                    }
+                  }
                 }}
                 onDragOver={(e) => handleProjectDragOver(e, project.projectId)}
                 onDragLeave={handleProjectDragLeave}
@@ -1821,18 +1890,50 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                 </div>
                 {currentProject?.projectId === project.projectId && (
                   <div className="media-list">
-                    {project.mediaFiles.map((mediaId, index) => (
-                      <div 
-                        key={`sidebar-${project.projectId}-${mediaId}-${index}`} 
-                        className={`media-item ${currentMediaId === mediaId ? 'active' : ''}`}
+                    {project.mediaFiles.map((mediaId, index) => {
+                      // Use currentProject for metadata if this is the current project
+                      const projectWithMetadata = currentProject?.projectId === project.projectId ? currentProject : project;
+                      
+                      // For playlist projects, check if we have playlist metadata
+                      const isPlaylistProject = projectWithMetadata.displayName?.startsWith('YouTube -');
+                      let displayName = `קובץ ${index + 1}`;
+                      
+                      // If this is a playlist project and we have metadata, show the original playlist index
+                      if (isPlaylistProject && projectWithMetadata.mediaPlaylistIndices) {
+                        // Try to get the original playlist index for this media
+                        const playlistIndex = projectWithMetadata.mediaPlaylistIndices[mediaId];
+                        if (playlistIndex !== undefined) {
+                          displayName = `${playlistIndex}. קובץ ${index + 1}`;
+                        }
+                      }
+                      
+                      return (
+                        <div 
+                          key={`sidebar-${project.projectId}-${mediaId}-${index}`} 
+                          className={`media-item ${currentMediaId === mediaId ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentMediaById(project.projectId, mediaId);
+                          }}
+                        >
+                          <span className="media-name">{displayName}</span>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Add Continue Playlist button for playlist projects */}
+                    {currentProject?.displayName?.startsWith('YouTube -') && currentProject?.playlistMetadata && (
+                      <button 
+                        className="continue-playlist-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setCurrentMediaById(project.projectId, mediaId);
+                          handleContinuePlaylist(currentProject);
                         }}
+                        title="המשך הורדה מהפלייליסט"
                       >
-                        <span className="media-name">קובץ {index + 1}</span>
-                      </div>
-                    ))}
+                        המשך הורדה
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2056,17 +2157,27 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       {showUrlModal && (
         <UrlUploadModal
           isOpen={showUrlModal}
-          onClose={() => setShowUrlModal(false)}
+          onClose={() => {
+            setShowUrlModal(false);
+            setPlaylistContinueData(null); // Clear continue data when closing
+          }}
           onSubmit={handleUrlSubmit}
-          target="new"
-          projectName={undefined}
+          target={playlistContinueData ? playlistContinueData.projectId : "new"}
+          projectName={playlistContinueData?.projectName}
+          continuePlaylist={playlistContinueData} // Pass the continue data
         />
       )}
       
       {showDownloadProgress && (
         <DownloadProgressModal
           isOpen={showDownloadProgress}
-          onClose={() => setShowDownloadProgress(false)}
+          onClose={() => {
+            setShowDownloadProgress(false);
+            // Clear playlist continue data to force fresh metadata on next "המשך הורדה" click
+            setPlaylistContinueData(null);
+            // Refresh projects when closing to ensure we have latest data
+            loadProjects();
+          }}
           batchId={currentBatchId}
           projectName={downloadProjectName}
         />

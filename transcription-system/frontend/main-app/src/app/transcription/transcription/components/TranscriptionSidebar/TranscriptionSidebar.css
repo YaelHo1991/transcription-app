@@ -5,91 +5,177 @@
   color: white;
 }
 
-/* Upload Section Styles */
-.sidebar-upload-section {
-  padding: 10px 15px;
+/* Header with Action Icons */
+.sidebar-header-actions {
+  padding: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
-  gap: 10px;
-  margin: 0 0 15px 0;
-  justify-content: stretch;
-}
-
-/* When sidebar is locked, center the buttons properly */
-.sidebar-locked .sidebar-upload-section {
-  padding: 10px 5px;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
 }
 
-.sidebar-locked .sidebar-upload-button,
-.sidebar-locked .sidebar-url-button,
-.sidebar-locked .sidebar-media-button {
-  width: 50px;
-  height: 50px;
-  padding: 8px;
-  border-radius: 10px;
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
+  letter-spacing: 0.5px;
 }
 
-.sidebar-locked .sidebar-upload-button .upload-text,
-.sidebar-locked .sidebar-url-button .url-text,
-.sidebar-locked .sidebar-media-button .media-text {
+/* When sidebar is locked, hide title */
+.sidebar-locked .sidebar-title {
   display: none;
 }
 
-.sidebar-upload-button,
-.sidebar-url-button,
-.sidebar-media-button {
+/* Action Icons Container */
+.sidebar-action-icons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* When sidebar is locked, center the icons */
+.sidebar-locked .sidebar-header-actions {
+  padding: 10px 5px;
+  justify-content: center;
+}
+
+.sidebar-locked .sidebar-action-icons {
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Action Icon Buttons */
+.sidebar-action-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.9);
-  padding: 12px;
-  border-radius: 12px;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  flex: 1;
-  min-height: 50px;
+  transition: all 0.2s ease;
+  padding: 0;
   backdrop-filter: blur(5px);
 }
 
-.sidebar-upload-button:hover,
-.sidebar-url-button:hover,
-.sidebar-media-button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+/* Locked state - make icons bigger */
+.sidebar-locked .sidebar-action-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
 }
 
-.sidebar-upload-button:active,
-.sidebar-url-button:active,
-.sidebar-media-button:active {
+.sidebar-action-icon:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-action-icon:active {
   transform: translateY(0);
   background: rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-upload-button .upload-plus,
-.sidebar-url-button .url-icon,
-.sidebar-media-button .media-icon {
-  font-size: 18px;
-  line-height: 1;
-  font-weight: 400;
+.sidebar-action-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
 }
 
-/* Text labels beneath icons */
-.sidebar-upload-button .upload-text,
-.sidebar-url-button .url-text,
-.sidebar-media-button .media-text {
-  font-size: 11px;
-  font-weight: 500;
-  opacity: 0.95;
-  letter-spacing: 0.3px;
+.sidebar-locked .sidebar-action-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Specific icon colors on hover */
+.sidebar-action-icon.folder-icon:hover {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+.sidebar-action-icon.media-icon:hover {
+  background: rgba(33, 150, 243, 0.2);
+  border-color: rgba(33, 150, 243, 0.5);
+}
+
+.sidebar-action-icon.url-icon:hover {
+  background: rgba(255, 152, 0, 0.2);
+  border-color: rgba(255, 152, 0, 0.5);
+}
+
+/* Action Buttons Container */
+.sidebar-action-container {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 15px 10px;
+  margin: 0 5px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(5px);
+  width: calc(100% - 10px);
+}
+
+.sidebar-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.sidebar-action-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-action-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: white;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-action-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.sidebar-action-btn:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive for locked state */
+.hovering-sidebar.locked .sidebar-action-container {
+  padding: 10px 5px;
+}
+
+.hovering-sidebar.locked .sidebar-actions-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .theme-transcription .sidebar-header {
@@ -128,7 +214,7 @@
 .theme-transcription .sidebar-stats {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 12px;  /* Restore rounded corners */
-  padding: 15px 10px;
+  padding: 20px 10px;  /* Increased padding for storage section */
   margin: 0 5px;  /* Small side margins for rounded corners */
   margin-bottom: 10px;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -143,14 +229,6 @@
   padding: 10px 5px;  /* Reasonable padding when locked */
 }
 
-.theme-transcription .sidebar-stats-title {
-  font-size: 18px;  /* Even bigger font */
-  font-weight: 600;
-  color: white;
-  margin-bottom: 12px;
-  padding: 0 5px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-}
 
 .theme-transcription .sidebar-stats-grid {
   display: grid;
@@ -284,6 +362,17 @@
   line-height: 1.4;
 }
 
+/* Ensure proper spacing for project date */
+.project-date {
+  display: block;
+  padding-bottom: 8px;
+}
+
+/* Add spacing to project meta container */
+.project-item-meta {
+  padding-bottom: 12px !important;
+}
+
 .theme-transcription .hovering-sidebar.locked .project-item-meta {
   font-size: 11px;
   gap: 5px;
@@ -342,30 +431,20 @@
 }
 
 /* Storage Display - Compact Version */
-.theme-transcription .sidebar-storage {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin: 0 5px 10px 5px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(5px);
-  width: calc(100% - 10px);
-  box-sizing: border-box;
-  cursor: pointer;
+/* Storage display within stats section */
+.theme-transcription .stats-storage-display {
+  padding: 10px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.theme-transcription .storage-info-display {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.theme-transcription .storage-text-compact {
+.theme-transcription .stats-storage-text {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
+  margin-bottom: 8px;
 }
 
 .theme-transcription .storage-used {
@@ -375,47 +454,48 @@
 
 .theme-transcription .storage-separator {
   color: rgba(255, 255, 255, 0.7);
-  margin: 0 1px;
+  margin: 0 2px;
 }
 
 .theme-transcription .storage-total {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.theme-transcription .storage-percent {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 10px;
+.theme-transcription .storage-size-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
-.theme-transcription .storage-progress-bar-compact {
-  width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  overflow: visible;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+.theme-transcription .stats-storage-progress-bar {
   position: relative;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  height: 18px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 .theme-transcription .storage-progress-fill {
   height: 100%;
+  border-radius: 8px;
   transition: width 0.3s ease;
+  background: rgba(32, 201, 151, 0.8) !important;
+  position: relative;
 }
 
 .theme-transcription .storage-progress-text {
   position: absolute;
-  top: -16px;
-  right: 0;
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* Hover effect for storage display */
-.theme-transcription .sidebar-storage:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  z-index: 1;
 }
 
 /* Inline Sidebar Notification */
@@ -750,4 +830,66 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
+}
+
+/* Media list container - ensure proper spacing */
+.media-list {
+  margin-top: 25px !important;
+  padding-top: 10px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;  /* Consistent spacing between items */
+  clear: both;
+}
+
+/* Individual media items in the list */
+.media-item {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  text-align: right;
+}
+
+.media-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(-2px);
+}
+
+.media-item.active {
+  background: rgba(32, 201, 151, 0.2);
+  border: 1px solid rgba(32, 201, 151, 0.4);
+  color: white;
+}
+
+.media-item .media-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Continue Playlist Button */
+.continue-playlist-btn {
+  width: 100%;
+  padding: 10px 0;
+  margin-top: 8px;  /* Use smaller margin since gap handles spacing */
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  padding-top: 12px;  /* Extra padding above the text for the border */
+}
+
+.continue-playlist-btn:hover {
+  color: white;
+  text-decoration: underline;
 }

@@ -105,6 +105,188 @@ const createDefaultTranscription = () => ({
   isDefault: true // Always true - marks it as undeletable
 });
 
+// Combined upload button component with dropdown menu
+const CombinedUploadButton = ({ sidebarRef }: { sidebarRef: React.RefObject<any> }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  const handleOptionClick = (action: 'media' | 'folder' | 'url') => {
+    setIsDropdownOpen(false);
+
+    switch (action) {
+      case 'media':
+        sidebarRef.current?.handleSingleMediaClick?.();
+        break;
+      case 'folder':
+        if (sidebarRef.current?.handleFolderUpload) {
+          sidebarRef.current.handleFolderUpload();
+        }
+        break;
+      case 'url':
+        sidebarRef.current?.handleUrlDownload?.();
+        break;
+    }
+  };
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        className="sidebar-header-action-btn"
+        title="פעולות העלאה"
+        style={{
+          width: '32px',
+          height: '32px',
+          padding: '6px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '50%',
+          color: 'white',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="12" cy="5" r="1"/>
+          <circle cx="12" cy="19" r="1"/>
+        </svg>
+      </button>
+
+      {isDropdownOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '40px',
+            right: '0',
+            background: 'rgba(20, 30, 40, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '8px',
+            padding: '8px',
+            minWidth: '150px',
+            zIndex: 3000,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <button
+            onClick={() => handleOptionClick('media')}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px',
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            העלה מדיה
+          </button>
+
+          <button
+            onClick={() => handleOptionClick('folder')}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px',
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              <line x1="12" y1="11" x2="12" y2="17"/>
+              <line x1="9" y1="14" x2="15" y2="14"/>
+            </svg>
+            הוסף תיקיית פרויקט
+          </button>
+
+          <button
+            onClick={() => handleOptionClick('url')}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '14px',
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            הורד מ-URL
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Helper function to get current user ID from token or localStorage
 const getCurrentUserId = (): string | null => {
   // Check if we're in the browser
@@ -174,7 +356,8 @@ const clearMediaLocalStorage = (projectId?: string, mediaId?: string) => {
 export default function TranscriptionWorkPage() {
   // Main transcription page component
   const router = useRouter();
-  
+  const sidebarRef = useRef<any>(null);
+
   // Project store for new project management
   const {
     projects = [],
@@ -1066,11 +1249,102 @@ export default function TranscriptionWorkPage() {
         />
       }
       sidebarContent={
-        <TranscriptionSidebar 
+        <TranscriptionSidebar
+          ref={sidebarRef}
           onOpenManagementModal={handleOpenManagementModal}
           onProjectDelete={handleProjectDelete}
           onMediaDelete={handleMediaDelete}
         />
+      }
+      sidebarActions={
+        sidebarLocked ? (
+          <CombinedUploadButton sidebarRef={sidebarRef} />
+        ) : (
+          <>
+            <button
+              onClick={() => sidebarRef.current?.handleSingleMediaClick?.()}
+              className="sidebar-header-action-btn"
+              title="העלה מדיה"
+              style={{
+                width: '32px',
+                height: '32px',
+                padding: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '50%',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                console.log('[Page] Folder button clicked, ref:', sidebarRef.current);
+                if (sidebarRef.current?.handleFolderUpload) {
+                  sidebarRef.current.handleFolderUpload();
+                } else {
+                  console.error('[Page] handleFolderUpload not available');
+                }
+              }}
+              className="sidebar-header-action-btn"
+              title="הוסף תיקיית פרויקט"
+              style={{
+                width: '32px',
+                height: '32px',
+                padding: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '50%',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                <line x1="12" y1="11" x2="12" y2="17"/>
+                <line x1="9" y1="14" x2="15" y2="14"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => sidebarRef.current?.handleUrlDownload?.()}
+              className="sidebar-header-action-btn"
+              title="הורד מ-URL"
+              style={{
+                width: '32px',
+                height: '32px',
+                padding: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '50%',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            </button>
+          </>
+        )
       }
       theme="transcription"
     >
