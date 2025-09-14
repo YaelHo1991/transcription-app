@@ -29,6 +29,25 @@ interface FormatInfo {
   format: string;
 }
 
+interface PlaylistVideoInfo {
+  id: string;
+  title: string;
+  url: string;
+  duration: number;
+  thumbnail?: string;
+  uploader?: string;
+  uploadDate?: string;
+}
+
+interface PlaylistInfo {
+  title: string;
+  id: string;
+  description?: string;
+  uploader?: string;
+  videoCount: number;
+  videos: PlaylistVideoInfo[];
+}
+
 export class YtDlpService {
   /**
    * Get the correct yt-dlp command for the platform
@@ -156,6 +175,103 @@ export class YtDlpService {
         };
         
         resolve(formats);
+      });
+      
+      ytdlp.on('error', (error) => {
+        reject(error);
+      });
+    });
+  }
+  
+  /**
+   * Check if a URL is a playlist
+   */
+  static isPlaylistUrl(url: string): boolean {
+    return url.includes('playlist?list=') || 
+           url.includes('&list=') || 
+           url.includes('?list=') ||
+           /\/playlist\//.test(url);
+  }
+  
+  /**
+   * Get playlist information without downloading
+   */
+  static async getPlaylistInfo(url: string, cookieFile?: string): Promise<PlaylistInfo> {
+    return new Promise((resolve, reject) => {
+      const args = [
+        '--dump-json',
+        '--flat-playlist',
+        url
+      ];
+      
+      if (cookieFile) {
+        args.push('--cookies', cookieFile);
+      }
+      
+      const ytdlpCommand = this.getYtDlpCommand();
+      const ytdlp = spawn(ytdlpCommand, args);
+      
+      let stdout = '';
+      let stderr = '';
+      
+      ytdlp.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      ytdlp.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      ytdlp.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(stderr || 'Failed to get playlist info'));
+          return;
+        }
+        
+        try {
+          // Parse each line as JSON (yt-dlp returns one JSON object per line for playlist)
+          const lines = stdout.trim().split('\n').filter(line => line.trim());
+          const videos: PlaylistVideoInfo[] = [];
+          let playlistTitle = 'Unknown Playlist';
+          let playlistId = '';
+          
+          for (const line of lines) {
+            try {
+              const info = JSON.parse(line);
+              
+              // Extract playlist info from the first video entry
+              if (!playlistId && info.playlist_id) {
+                playlistTitle = info.playlist_title || info.playlist || 'Unknown Playlist';
+                playlistId = info.playlist_id || '';
+              }
+              
+              // Add video entry
+              if (info.id && info.title) {
+                videos.push({
+                  id: info.id,
+                  title: info.title || 'Unknown Video',
+                  url: info.url || info.webpage_url || `https://www.youtube.com/watch?v=${info.id}`,
+                  duration: info.duration || 0,
+                  thumbnail: info.thumbnail,
+                  uploader: info.uploader || info.channel,
+                  uploadDate: info.upload_date || info.timestamp
+                });
+              }
+            } catch (parseError) {
+              console.log('[YtDlpService] Failed to parse line:', line);
+            }
+          }
+          
+          resolve({
+            title: playlistTitle,
+            id: playlistId,
+            videoCount: videos.length,
+            videos: videos
+          });
+          
+        } catch (error) {
+          reject(new Error('Failed to parse playlist info'));
+        }
       });
       
       ytdlp.on('error', (error) => {

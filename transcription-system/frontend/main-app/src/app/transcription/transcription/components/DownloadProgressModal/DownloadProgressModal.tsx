@@ -229,7 +229,14 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
               </div>
 
               <div className="media-list">
-                <h5>קבצי מדיה ({batchData.totalFiles})</h5>
+                <h5>
+                  {batchData.totalFiles === 1 
+                    ? (batchData.mediaNames && batchData.mediaNames[0] 
+                        ? batchData.mediaNames[0] 
+                        : 'מדיה בהורדה')
+                    : `קבצי מדיה (${batchData.totalFiles})`
+                  }
+                </h5>
                 {Object.entries(batchData.progress)
                   .sort(([a], [b]) => Number(a) - Number(b))
                   .map(([mediaIndexStr, mediaProgress]) => {

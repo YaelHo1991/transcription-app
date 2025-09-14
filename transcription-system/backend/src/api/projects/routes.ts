@@ -997,6 +997,48 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
     // Import YtDlpService
     const { YtDlpService } = require('../../services/ytdlpService');
     
+    // Check if this is a playlist URL
+    if (YtDlpService.isPlaylistUrl(url)) {
+      console.log('[CheckURL] Playlist URL detected');
+      
+      try {
+        const playlistInfo = await YtDlpService.getPlaylistInfo(url);
+        
+        console.log('[CheckURL] Playlist info retrieved:', {
+          title: playlistInfo.title,
+          videoCount: playlistInfo.videoCount
+        });
+        
+        return res.json({
+          valid: true,
+          status: 'playlist',
+          title: playlistInfo.title,
+          videoCount: playlistInfo.videoCount,
+          playlist: playlistInfo
+        });
+        
+      } catch (error: any) {
+        console.error('[CheckURL] Failed to get playlist info:', error);
+        
+        // Check if it's a protected playlist
+        if (error.message.includes('Private') || error.message.includes('members-only') || error.message.includes('סרטון פרטי') || error.message.includes('סרטון למנויים')) {
+          return res.json({
+            valid: true,
+            status: 'protected-playlist',
+            message: 'רשימת השמעה פרטית - נדרש קובץ Cookies',
+            requiresCookies: true
+          });
+        }
+        
+        return res.status(400).json({
+          valid: false,
+          status: 'invalid',
+          message: 'לא ניתן לגשת לרשימת השמעה',
+          error: error.message
+        });
+      }
+    }
+    
     try {
       // Try to get video info to validate the URL
       const videoInfo = await YtDlpService.getVideoInfo(url);

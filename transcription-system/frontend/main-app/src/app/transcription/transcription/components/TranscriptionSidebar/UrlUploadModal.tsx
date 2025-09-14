@@ -5,6 +5,25 @@ import ReactDOM from 'react-dom';
 import { buildApiUrl } from '@/utils/api';
 import './UrlUploadModal.css';
 
+interface PlaylistVideoInfo {
+  id: string;
+  title: string;
+  url: string;
+  duration: number;
+  thumbnail?: string;
+  uploader?: string;
+  uploadDate?: string;
+}
+
+interface PlaylistInfo {
+  title: string;
+  id: string;
+  description?: string;
+  uploader?: string;
+  videoCount: number;
+  videos: PlaylistVideoInfo[];
+}
+
 interface UrlConfig {
   id: string;
   url: string;
@@ -18,13 +37,21 @@ interface UrlConfig {
     estimatedSize: string;
   }>;
   status: 'editing' | 'configured' | 'error';
-  urlStatus: 'unchecked' | 'checking' | 'public' | 'protected' | 'invalid';
+  urlStatus: 'unchecked' | 'checking' | 'public' | 'protected' | 'invalid' | 'playlist' | 'protected-playlist';
   urlCheckMessage: string;
   isLoadingQuality: boolean;
   requiresCookies: boolean;
   cookieUploaded: boolean;
   showQualityPanel?: boolean;
   showCookiePanel?: boolean;
+  
+  // Playlist specific fields
+  isPlaylist?: boolean;
+  playlistInfo?: PlaylistInfo;
+  originalPlaylistUrl?: string; // Store original playlist URL
+  playlistVideoId?: string; // For individual videos from playlist
+  isSelected?: boolean; // Whether this video is selected for download
+  downloadStatus?: 'not-downloaded' | 'downloaded' | 'unavailable';
 }
 
 interface UrlUploadModalProps {
@@ -49,6 +76,12 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   const [error, setError] = useState('');
   const [activeUrlId, setActiveUrlId] = useState<string | null>(null);
   const [projectNameInput, setProjectNameInput] = useState('');
+  const [showPlaylistConfirmation, setShowPlaylistConfirmation] = useState<string | null>(null);
+  const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState<Set<string>>(new Set());
+  const [playlistInitialized, setPlaylistInitialized] = useState(false);
+  const [playlistVideoQualities, setPlaylistVideoQualities] = useState<{[key: string]: 'high' | 'medium' | 'low' | 'audio'}>({});
+  const [globalPlaylistQuality, setGlobalPlaylistQuality] = useState<'high' | 'medium' | 'low' | 'audio'>('high');
+  const [showQualityDropdown, setShowQualityDropdown] = useState<string | null>(null);
   
   const cookieInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const urlCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -303,6 +336,34 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               mediaName: result.title || urlConfig.mediaName, // Use the title from backend
               showCookiePanel: true  // Auto-show cookie panel for protected content
             });
+          } else if (result.status === 'playlist') {
+            // Handle playlist detection - show confirmation
+            updateUrlConfig(urlConfig.id, {
+              urlStatus: 'playlist',
+              requiresCookies: false,
+              urlCheckMessage: `📝 רשימת השמעה: ${result.videoCount} סרטונים`,
+              mediaName: result.title || urlConfig.mediaName,
+              isPlaylist: true,
+              playlistInfo: result.playlist,
+              originalPlaylistUrl: urlConfig.url
+            });
+            // Show playlist confirmation dialog
+            setShowPlaylistConfirmation(urlConfig.id);
+          } else if (result.status === 'protected-playlist') {
+            updateUrlConfig(urlConfig.id, {
+              urlStatus: 'protected-playlist',
+              requiresCookies: true,
+              urlCheckMessage: '🔒📝 רשימת השמעה פרטית - נדרש קובץ Cookies',
+              mediaName: result.title || 'רשימת השמעה פרטית',
+              isPlaylist: true,
+              playlistInfo: result.playlist,
+              originalPlaylistUrl: urlConfig.url,
+              showCookiePanel: true
+            });
+            // Show playlist confirmation dialog for protected playlists too
+            if (result.playlist) {
+              setShowPlaylistConfirmation(urlConfig.id);
+            }
           } else if (result.status === 'invalid') {
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'invalid',
@@ -417,11 +478,87 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     updateUrlConfig(id, { status: 'editing' });
   };
 
+  // Handle playlist expansion
+  const handlePlaylistConfirm = (playlistUrlId: string) => {
+    const playlistUrlConfig = urls.find(u => u.id === playlistUrlId);
+    if (!playlistUrlConfig || !playlistUrlConfig.playlistInfo) return;
+
+    // Remove the original playlist URL config
+    const filteredUrls = urls.filter(u => u.id !== playlistUrlId);
+    
+    // Create individual URL configs for each selected video in the playlist
+    const videoConfigs: UrlConfig[] = playlistUrlConfig.playlistInfo.videos
+      .filter(video => selectedPlaylistVideos.has(video.id))
+      .map((video, index) => {
+        const quality = playlistVideoQualities[video.id] || globalPlaylistQuality || 'high';
+        const isAudio = quality === 'audio';
+        
+        return {
+          id: `${playlistUrlId}-video-${index}`,
+          url: video.url,
+          mediaName: video.title,
+          cookieFile: playlistUrlConfig.cookieFile, // Inherit cookie file from playlist
+          selectedQuality: isAudio ? 'high' : quality as 'high' | 'medium' | 'low',
+          downloadType: isAudio ? 'audio' : 'video',
+          qualityOptions: [],
+          status: 'configured', // Mark as configured since quality is already selected
+          urlStatus: 'unchecked',
+          urlCheckMessage: '',
+          isLoadingQuality: false,
+          requiresCookies: playlistUrlConfig.requiresCookies,
+          cookieUploaded: playlistUrlConfig.cookieUploaded,
+          showQualityPanel: false,
+          showCookiePanel: false,
+          
+          // Playlist-specific fields
+          isPlaylist: false,
+          originalPlaylistUrl: playlistUrlConfig.originalPlaylistUrl,
+          playlistVideoId: video.id,
+          isSelected: true,
+          downloadStatus: 'not-downloaded'
+        };
+      });
+    
+    // Update the URLs array
+    setUrls([...filteredUrls, ...videoConfigs]);
+    setShowPlaylistConfirmation(null);
+    setActiveUrlId(null);
+    setPlaylistInitialized(false);
+    setSelectedPlaylistVideos(new Set());
+    setPlaylistVideoQualities({});
+  };
+
+  const handlePlaylistCancel = (playlistUrlId: string) => {
+    // Just remove the playlist URL and close dialog
+    setUrls(prev => prev.filter(u => u.id !== playlistUrlId));
+    setShowPlaylistConfirmation(null);
+  };
+
+  const handleVideoToggle = (videoId: string) => {
+    updateUrlConfig(videoId, { 
+      isSelected: !urls.find(u => u.id === videoId)?.isSelected 
+    });
+  };
+
+  const handleSelectAllVideos = (select: boolean) => {
+    const playlistVideos = urls.filter(u => u.originalPlaylistUrl);
+    playlistVideos.forEach(video => {
+      updateUrlConfig(video.id, { isSelected: select });
+    });
+  };
+
   const handleSubmit = async (downloadNow: boolean) => {
-    const configuredUrls = urls.filter(u => u.status === 'configured' || (u.status === 'editing' && u.url));
+    // Filter URLs: configured regular URLs + selected playlist videos
+    const configuredUrls = urls.filter(u => {
+      const hasUrl = u.status === 'configured' || (u.status === 'editing' && u.url);
+      const isRegularUrl = !u.originalPlaylistUrl;
+      const isSelectedPlaylistVideo = u.originalPlaylistUrl && u.isSelected;
+      
+      return hasUrl && (isRegularUrl || isSelectedPlaylistVideo);
+    });
     
     if (configuredUrls.length === 0) {
-      setError('נא להגדיר לפחות כתובת URL אחת');
+      setError('נא להגדיר לפחות כתובת URL אחת או לבחור סרטונים מהרשימה');
       return;
     }
     
@@ -441,6 +578,20 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       }
     };
   }, []);
+  
+  // Initialize playlist videos when confirmation dialog opens
+  useEffect(() => {
+    if (showPlaylistConfirmation && !playlistInitialized) {
+      const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
+      if (playlistUrl?.playlistInfo) {
+        setSelectedPlaylistVideos(new Set(playlistUrl.playlistInfo.videos.map(v => v.id)));
+        setPlaylistInitialized(true);
+      }
+    } else if (!showPlaylistConfirmation && playlistInitialized) {
+      setPlaylistInitialized(false);
+      setSelectedPlaylistVideos(new Set());
+    }
+  }, [showPlaylistConfirmation, urls, playlistInitialized]);
 
   if (!isOpen) return null;
 
@@ -692,6 +843,180 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             </button>
           </div>
         </div>
+        
+        {/* Playlist Confirmation Dialog */}
+        {showPlaylistConfirmation && (() => {
+          const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
+          const playlistInfo = playlistUrl?.playlistInfo;
+          if (!playlistInfo) return null;
+          
+          const handleSelectAll = (checked: boolean) => {
+            if (checked) {
+              setSelectedPlaylistVideos(new Set(playlistInfo.videos.map(v => v.id)));
+            } else {
+              setSelectedPlaylistVideos(new Set());
+            }
+          };
+          
+          const handleVideoToggle = (videoId: string, checked: boolean) => {
+            const newSelected = new Set(selectedPlaylistVideos);
+            if (checked) {
+              newSelected.add(videoId);
+            } else {
+              newSelected.delete(videoId);
+            }
+            setSelectedPlaylistVideos(newSelected);
+          };
+          
+          return (
+            <div className="playlist-confirm-overlay">
+              <div className="playlist-confirm-dialog playlist-with-videos">
+                <div className="playlist-header">
+                  <h3>יצירת פרויקט מ-URL</h3>
+                  <div className="playlist-title">שם הפרויקט: {playlistInfo.title}</div>
+                </div>
+                
+                <div className="playlist-select-all">
+                  <div className="global-quality-selector">
+                    <select 
+                      value={globalPlaylistQuality}
+                      onChange={(e) => {
+                        const quality = e.target.value as 'high' | 'medium' | 'low' | 'audio';
+                        setGlobalPlaylistQuality(quality);
+                        // Apply to all videos
+                        const newQualities: {[key: string]: 'high' | 'medium' | 'low' | 'audio'} = {};
+                        playlistInfo.videos.forEach(video => {
+                          newQualities[video.id] = quality;
+                        });
+                        setPlaylistVideoQualities(newQualities);
+                      }}
+                      className="quality-select"
+                    >
+                      <option value="high">איכות גבוהה</option>
+                      <option value="medium">איכות בינונית</option>
+                      <option value="low">איכות נמוכה</option>
+                      <option value="audio">אודיו בלבד</option>
+                    </select>
+                  </div>
+                  
+                  {(() => {
+                    console.log('Cookie indicator check:', {
+                      requiresCookies: playlistUrl.requiresCookies,
+                      selectedVideosCount: selectedPlaylistVideos.size,
+                      shouldShow: playlistUrl.requiresCookies && selectedPlaylistVideos.size > 0,
+                      cookieUploaded: playlistUrl.cookieUploaded
+                    });
+                    return playlistUrl.requiresCookies && selectedPlaylistVideos.size > 0 && (
+                      <div className="playlist-cookie-indicator-inline">
+                        {playlistUrl.cookieUploaded ? (
+                          <span className="cookie-indicator-inline uploaded" title="קובץ Cookie הועלה">
+                            🍪
+                          </span>
+                        ) : (
+                          <span className="cookie-indicator-inline required" title="דרוש קובץ Cookie">
+                            ⚠️
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  
+                  <label className="select-all-label">
+                    <input 
+                      type="checkbox"
+                      checked={selectedPlaylistVideos.size === playlistInfo.videos.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="select-all-checkbox"
+                    />
+                    <span>בחר הכל</span>
+                  </label>
+                </div>
+                
+                <div className="playlist-video-list">
+                  {playlistInfo.videos.map((video, index) => (
+                    <div key={video.id} className="playlist-video-item">
+                      <span className="video-number">{index + 1}.</span>
+                      <label htmlFor={`video-${video.id}`} className="video-label">
+                        <span className="video-title">{video.title || 'Unknown Video'}</span>
+                      </label>
+                      
+                      {selectedPlaylistVideos.has(video.id) && (
+                        <div className="video-quality-selector">
+                          <button
+                            className="quality-icon"
+                            onClick={() => setShowQualityDropdown(showQualityDropdown === video.id ? null : video.id)}
+                            title="בחר איכות"
+                          >
+                            {playlistVideoQualities[video.id] === 'audio' ? '🎵' : 
+                             playlistVideoQualities[video.id] === 'low' ? '📹' :
+                             playlistVideoQualities[video.id] === 'medium' ? '📺' : '🎬'}
+                          </button>
+                          {showQualityDropdown === video.id && (
+                            <div className="quality-dropdown">
+                              <button onClick={() => {
+                                setPlaylistVideoQualities({...playlistVideoQualities, [video.id]: 'high'});
+                                setShowQualityDropdown(null);
+                              }}>🎬 גבוהה</button>
+                              <button onClick={() => {
+                                setPlaylistVideoQualities({...playlistVideoQualities, [video.id]: 'medium'});
+                                setShowQualityDropdown(null);
+                              }}>📺 בינונית</button>
+                              <button onClick={() => {
+                                setPlaylistVideoQualities({...playlistVideoQualities, [video.id]: 'low'});
+                                setShowQualityDropdown(null);
+                              }}>📹 נמוכה</button>
+                              <button onClick={() => {
+                                setPlaylistVideoQualities({...playlistVideoQualities, [video.id]: 'audio'});
+                                setShowQualityDropdown(null);
+                              }}>🎵 אודיו</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <input 
+                        type="checkbox"
+                        id={`video-${video.id}`}
+                        checked={selectedPlaylistVideos.has(video.id)}
+                        onChange={(e) => handleVideoToggle(video.id, e.target.checked)}
+                        className="video-checkbox"
+                      />
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="playlist-confirm-buttons">
+                  <button 
+                    className="confirm-button primary"
+                    onClick={() => {
+                      // Filter videos to only include selected ones
+                      const filteredPlaylistInfo = {
+                        ...playlistInfo,
+                        videos: playlistInfo.videos.filter(v => selectedPlaylistVideos.has(v.id))
+                      };
+                      
+                      // Temporarily update the URL with filtered videos
+                      const tempUrl = urls.find(u => u.id === showPlaylistConfirmation);
+                      if (tempUrl) {
+                        tempUrl.playlistInfo = filteredPlaylistInfo;
+                      }
+                      
+                      handlePlaylistConfirm(showPlaylistConfirmation);
+                    }}
+                  >
+                    הורד נבחרים
+                  </button>
+                  <button 
+                    className="cancel-button"
+                    onClick={() => handlePlaylistCancel(showPlaylistConfirmation)}
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>,
     document.body
