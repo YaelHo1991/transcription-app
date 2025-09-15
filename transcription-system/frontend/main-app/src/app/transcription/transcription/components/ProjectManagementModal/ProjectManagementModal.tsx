@@ -71,6 +71,7 @@ export default function ProjectManagementModal({
   const projects = storeProjects.length > 0 ? storeProjects : propProjects;
   
   const [currentTab, setCurrentTab] = useState(activeTab);
+  const [projectsSubTab, setProjectsSubTab] = useState<'active' | 'empty'>('active');
   const [archivedTranscriptions, setArchivedTranscriptions] = useState<ArchivedTranscription[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [deleteTranscriptions, setDeleteTranscriptions] = useState(false);
@@ -81,7 +82,15 @@ export default function ProjectManagementModal({
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
+
+  // Keep empty folder dialog state
+  const [showKeepEmptyDialog, setShowKeepEmptyDialog] = useState(false);
+  const [pendingDeleteParams, setPendingDeleteParams] = useState<{
+    projectId: string;
+    mediaId: string;
+    deleteTranscriptions: boolean;
+  } | null>(null);
+
   // Multi-select states
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [selectedMedia, setSelectedMedia] = useState<Set<string>>(new Set());
@@ -202,10 +211,28 @@ export default function ProjectManagementModal({
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    
+
     setShowConfirmDialog(false);
+
+    // Check if this is the last media in the project
+    if (deleteTarget.type === 'media' && deleteTarget.mediaId) {
+      const project = projects.find(p => p.projectId === deleteTarget.id);
+      if (project && project.mediaFiles && project.mediaFiles.length === 1) {
+        // This is the last media file, show keep empty dialog
+        setPendingDeleteParams({
+          projectId: deleteTarget.id,
+          mediaId: deleteTarget.mediaId,
+          deleteTranscriptions
+        });
+        setShowKeepEmptyDialog(true);
+        setDeleteTarget(null);
+        setDeleteTranscriptions(false);
+        return;
+      }
+    }
+
     setLoading(true);
-    
+
     try {
       if (deleteTarget.type === 'project' && onProjectDelete) {
         await onProjectDelete(deleteTarget.id, deleteTranscriptions);
@@ -223,7 +250,7 @@ export default function ProjectManagementModal({
       } else if (deleteTarget.type === 'orphaned') {
         await executeOrphanedDelete(deleteTarget.id);
       }
-      
+
       setDeleteTarget(null);
       setDeleteTranscriptions(false);
     } catch (error) {
@@ -237,11 +264,30 @@ export default function ProjectManagementModal({
   
   const confirmBulkDelete = async () => {
     setShowBulkDeleteConfirm(false);
+
+    // Check if this is bulk deleting all media from a project (would empty it)
+    if (bulkDeleteType === 'media' && selectedProject) {
+      const project = projects.find(p => p.projectId === selectedProject);
+      if (project && project.mediaFiles &&
+          selectedMedia.size === project.mediaFiles.length) {
+        // User is deleting all media files, show keep empty dialog
+        // We'll handle all selected media as one operation
+        setPendingDeleteParams({
+          projectId: selectedProject,
+          mediaId: Array.from(selectedMedia)[0], // We'll handle all in the handler
+          deleteTranscriptions
+        });
+        setShowKeepEmptyDialog(true);
+        setBulkDeleteType(null);
+        return;
+      }
+    }
+
     setLoading(true);
-    
+
     let successCount = 0;
     let failedCount = 0;
-    
+
     try {
       if (bulkDeleteType === 'projects' && onProjectDelete) {
         for (const projectId of selectedProjects) {
@@ -343,17 +389,18 @@ export default function ProjectManagementModal({
     setSelectedTranscriptions(newSelection);
   };
   
-  const handleRestoreClick = (transcription: ArchivedTranscription) => {
+  const handleRestoreClick = async (transcription: ArchivedTranscription) => {
     console.log('[Restore] Looking for media matching:', transcription.originalMediaName);
-    
+
     // Find all media files with matching names across all projects
     const matchingMedia: { projectId: string; projectName: string; mediaId: string; mediaName: string; }[] = [];
-    
+
+    // First, try name-based matching (for uploaded files)
     projects.forEach(project => {
       if (project.mediaInfo && project.mediaInfo.length > 0) {
         project.mediaInfo.forEach(media => {
           console.log(`[Restore] Checking media: "${media.name}" vs "${transcription.originalMediaName}" - Match: ${media.name === transcription.originalMediaName}`);
-          
+
           // Check if media name matches the archived transcription's original media name
           // Use exact match to avoid confusion between similar names
           if (media.name === transcription.originalMediaName) {
@@ -361,7 +408,7 @@ export default function ProjectManagementModal({
             const isDuplicate = matchingMedia.some(
               m => m.projectId === project.projectId && m.mediaId === media.mediaId
             );
-            
+
             if (!isDuplicate) {
               console.log(`[Restore] Found match: Project ${project.displayName || project.name}, Media ${media.name} (${media.mediaId})`);
               matchingMedia.push({
@@ -375,9 +422,47 @@ export default function ProjectManagementModal({
         });
       }
     });
-    
-    console.log('[Restore] Total matches found:', matchingMedia.length);
-    
+
+    console.log('[Restore] Total name-based matches found:', matchingMedia.length);
+
+    // If no name-based matches found, try URL hash matching for URL-downloaded media
+    if (matchingMedia.length === 0) {
+      console.log('[Restore] No name matches found, trying URL hash matching...');
+
+      try {
+        const token = (typeof window !== 'undefined' ?
+          (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
+
+        const response = await fetch(buildApiUrl('/api/projects/orphaned/find-matching-media'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            transcriptionId: transcription.id
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.matches && result.matches.length > 0) {
+            console.log('[Restore] Found URL hash matches:', result.matches);
+            matchingMedia.push(...result.matches);
+          }
+
+          // If we found matches by URL hash, update the display to show the original URL
+          if (result.originalUrl && matchingMedia.length > 0) {
+            console.log('[Restore] Original URL:', result.originalUrl);
+          }
+        }
+      } catch (error) {
+        console.error('[Restore] Error searching for URL hash matches:', error);
+      }
+    }
+
+    console.log('[Restore] Total matches found (name + URL hash):', matchingMedia.length);
+
     // Show restoration dialog with matching media
     setRestorationDialog({
       transcription,
@@ -679,6 +764,114 @@ export default function ProjectManagementModal({
     }
   };
 
+  // Handle keep empty folder dialog
+  const handleKeepEmptyChoice = async (keepEmpty: boolean) => {
+    if (!pendingDeleteParams) return;
+
+    setShowKeepEmptyDialog(false);
+    setLoading(true);
+
+    try {
+      // Check if we need to handle multiple media files (from bulk delete)
+      if (selectedMedia.size >= 1) {
+        // Handle bulk delete of all media (even if it's just one file)
+        for (const mediaId of selectedMedia) {
+          const token = (typeof window !== 'undefined' ?
+            (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
+
+          const isLastMedia = Array.from(selectedMedia).indexOf(mediaId) === selectedMedia.size - 1;
+
+          const response = await fetch(
+            buildApiUrl(`/api/projects/${pendingDeleteParams.projectId}/media/${mediaId}`),
+            {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                deleteTranscription: pendingDeleteParams.deleteTranscriptions,
+                keepEmptyProject: isLastMedia ? keepEmpty : true // Only apply user choice on last media
+              })
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Failed to delete media ${mediaId}:`, errorText);
+          }
+        }
+
+        // Clear selections
+        setSelectedMedia(new Set());
+        setSelectedProject(null);
+
+        // Reload projects to get updated counts
+        const { loadProjects } = useProjectStore.getState();
+        await loadProjects();
+
+        if (keepEmpty) {
+          setSuccessMessage('המדיה נמחקה והפרויקט נשמר כריק');
+        } else {
+          setSuccessMessage('המדיה והפרויקט נמחקו בהצלחה');
+        }
+        setShowSuccessModal(true);
+
+      } else {
+        // Handle single media delete (when not using checkbox)
+        const token = (typeof window !== 'undefined' ?
+          (localStorage.getItem('token') || localStorage.getItem('auth_token')) : null) || 'dev-anonymous';
+
+        const response = await fetch(
+          buildApiUrl(`/api/projects/${pendingDeleteParams.projectId}/media/${pendingDeleteParams.mediaId}`),
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              deleteTranscription: pendingDeleteParams.deleteTranscriptions,
+              keepEmptyProject: keepEmpty
+            })
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+
+          // Close the media panel after successful deletion
+          setSelectedProject(null);
+
+          // Reload projects to get updated counts
+          const { loadProjects } = useProjectStore.getState();
+          await loadProjects();
+
+          if (result.projectKeptEmpty) {
+            setSuccessMessage('המדיה נמחקה והפרויקט נשמר כריק');
+          } else if (result.projectDeleted) {
+            setSuccessMessage('המדיה והפרויקט נמחקו בהצלחה');
+          } else {
+            setSuccessMessage('המדיה נמחקה בהצלחה');
+          }
+
+          setShowSuccessModal(true);
+        } else {
+          const errorText = await response.text();
+          setErrorMessage(`שגיאה במחיקה: ${errorText}`);
+          setShowErrorModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      setErrorMessage('שגיאה במחיקה. אנא נסה שנית.');
+      setShowErrorModal(true);
+    } finally {
+      setLoading(false);
+      setPendingDeleteParams(null);
+    }
+  };
+
   const calculateTotalDuration = () => {
     // Calculate total duration from all media files
     let totalSeconds = 0;
@@ -725,13 +918,13 @@ export default function ProjectManagementModal({
           >
             פרויקטים
           </button>
-          <button 
+          <button
             className={`tab ${currentTab === 'transcriptions' ? 'active' : ''}`}
             onClick={() => setCurrentTab('transcriptions')}
           >
             תמלולים
           </button>
-          <button 
+          <button
             className={`tab ${currentTab === 'duration' ? 'active' : ''}`}
             onClick={() => setCurrentTab('duration')}
           >
@@ -755,24 +948,45 @@ export default function ProjectManagementModal({
           {/* Projects Tab */}
           {currentTab === 'projects' && (
             <div className="projects-tab">
-              <div className="projects-stats-bar">
-                <span>סה"כ פרויקטים: {projects.length}</span>
-                <span>נפח כולל: {formatSize(calculateTotalSize())}</span>
-                <span>משך כולל: {formatDuration(calculateTotalDuration())}</span>
-                {selectedProjects.size > 0 && (
-                  <button 
-                    className="bulk-delete-btn"
-                    onClick={() => {
-                      setBulkDeleteType('projects');
-                      setShowBulkDeleteConfirm(true);
-                    }}
-                  >
-                    🗑️ מחק {selectedProjects.size} פרויקטים
-                  </button>
-                )}
+              {/* Sub-tabs for Projects */}
+              <div className="projects-sub-tabs">
+                <button
+                  className={`sub-tab ${projectsSubTab === 'active' ? 'active' : ''}`}
+                  onClick={() => setProjectsSubTab('active')}
+                >
+                  פרויקטים פעילים ({projects.filter(p => p.mediaFiles && p.mediaFiles.length > 0).length})
+                </button>
+                <button
+                  className={`sub-tab ${projectsSubTab === 'empty' ? 'active' : ''}`}
+                  onClick={() => setProjectsSubTab('empty')}
+                >
+                  פרויקטים ריקים ({projects.filter(p => !p.mediaFiles || p.mediaFiles.length === 0).length})
+                </button>
               </div>
-              <div className="projects-grid">
-                {projects.map(project => {
+
+              {/* Active Projects */}
+              {projectsSubTab === 'active' && (
+                <>
+                  <div className="projects-stats-bar">
+                    <span>סה"כ פרויקטים פעילים: {projects.filter(p => p.mediaFiles && p.mediaFiles.length > 0).length}</span>
+                    <span>נפח כולל: {formatSize(calculateTotalSize())}</span>
+                    <span>משך כולל: {formatDuration(calculateTotalDuration())}</span>
+                    {selectedProjects.size > 0 && (
+                      <button
+                        className="bulk-delete-btn"
+                        onClick={() => {
+                          setBulkDeleteType('projects');
+                          setShowBulkDeleteConfirm(true);
+                        }}
+                      >
+                        🗑️ מחק {selectedProjects.size} פרויקטים
+                      </button>
+                    )}
+                  </div>
+                  <div className="projects-grid">
+                    {projects
+                      .filter(p => p.mediaFiles && p.mediaFiles.length > 0)
+                      .map(project => {
                   const projectSize = calculateProjectSize(project);
                   return (
                     <div 
@@ -793,17 +1007,95 @@ export default function ProjectManagementModal({
                       />
                       
                       <div className="project-icon">📁</div>
-                      <div className="project-name">{project.displayName}</div>
+                      <div className="project-name" title={project.displayName}>{project.displayName}</div>
                       <div className="project-stats">
                         <span>{project.mediaInfo ? project.mediaInfo.length : (project.mediaFiles?.length || 0)} קבצים</span>
+                        <span>•</span>
                         <span>{formatSize(projectSize)}</span>
                       </div>
                       
                     </div>
                   );
-                })}
-              </div>
-              
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* Empty Projects */}
+              {projectsSubTab === 'empty' && (
+                <>
+                  <div className="projects-stats-bar">
+                    <span>סה"כ פרויקטים ריקים: {projects.filter(p => !p.mediaFiles || p.mediaFiles.length === 0).length}</span>
+                    {selectedProjects.size > 0 && (
+                      <button
+                        className="bulk-delete-btn"
+                        onClick={() => {
+                          setBulkDeleteType('projects');
+                          setShowBulkDeleteConfirm(true);
+                        }}
+                      >
+                        🗑️ מחק {selectedProjects.size} פרויקטים
+                      </button>
+                    )}
+                    {projects.filter(p => !p.mediaFiles || p.mediaFiles.length === 0).length > 0 && (
+                      <button
+                        className="bulk-delete-btn"
+                        onClick={() => {
+                          const emptyProjects = projects.filter(p => !p.mediaFiles || p.mediaFiles.length === 0);
+                          setSelectedProjects(new Set(emptyProjects.map(p => p.projectId)));
+                          setBulkDeleteType('projects');
+                          setShowBulkDeleteConfirm(true);
+                        }}
+                        disabled={loading}
+                      >
+                        מחק את כל הפרויקטים הריקים
+                      </button>
+                    )}
+                  </div>
+                  <div className="projects-grid">
+                    {projects.filter(p => !p.mediaFiles || p.mediaFiles.length === 0).length === 0 ? (
+                      <div className="no-empty-projects">
+                        <p>אין פרויקטים ריקים</p>
+                        <p className="hint">פרויקטים ריקים הם פרויקטים ללא קבצי מדיה</p>
+                      </div>
+                    ) : (
+                      projects
+                        .filter(p => !p.mediaFiles || p.mediaFiles.length === 0)
+                        .map(project => {
+                          const projectSize = calculateProjectSize(project);
+                          return (
+                            <div
+                              key={project.projectId}
+                              className={`project-grid-item ${selectedProject === project.projectId ? 'selected' : ''} ${selectedProjects.has(project.projectId) ? 'checkbox-selected' : ''}`}
+                              onClick={() => setSelectedProject(selectedProject === project.projectId ? null : project.projectId)}
+                            >
+                              <div className="project-date-corner">
+                                {new Date(project.lastModified).toLocaleDateString('he-IL')}
+                              </div>
+
+                              <input
+                                type="checkbox"
+                                className="project-checkbox"
+                                checked={selectedProjects.has(project.projectId)}
+                                onClick={(e) => toggleProjectSelection(project.projectId, e)}
+                                onChange={() => {}}
+                              />
+
+                              <div className="project-icon">📁</div>
+                              <div className="project-name" title={project.displayName}>{project.displayName}</div>
+                              <div className="project-stats">
+                                <span>0 קבצים</span>
+                                <span className="separator">•</span>
+                                <span>{formatSize(projectSize)}</span>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Media Details Panel - Outside of grid */}
               {selectedProject && (
                 <>
@@ -859,8 +1151,9 @@ export default function ProjectManagementModal({
                                         return media.name;
                                       }
                                     })()}</div>
-                                    <div className="media-meta">
+                                    <div className="media-stats">
                                       <span>{formatSize(media.size)}</span>
+                                      <span>•</span>
                                       <span>{formatDuration(media.duration)}</span>
                                     </div>
                                   </div>
@@ -883,7 +1176,7 @@ export default function ProjectManagementModal({
                                     <div className="media-icon">🎵</div>
                                     <div className="media-info">
                                       <div className="media-name">{mediaName}</div>
-                                      <div className="media-meta">
+                                      <div className="media-stats">
                                         <span className="media-id">0 B</span>
                                       </div>
                                     </div>
@@ -1384,7 +1677,61 @@ export default function ProjectManagementModal({
             </div>
           </div>
         )}
-        
+
+        {/* Keep Empty Folder Dialog */}
+        {showKeepEmptyDialog && pendingDeleteParams && (
+          <div className="keep-empty-dialog">
+            <div className="modal-overlay" onClick={(e) => {
+              if ((e.target as HTMLElement).classList.contains('modal-overlay') && !loading) {
+                setShowKeepEmptyDialog(false);
+                setPendingDeleteParams(null);
+              }
+            }}>
+              <div className="modal-dialog">
+                <div className="modal-header">
+                  <h3>קובץ מדיה אחרון בפרויקט</h3>
+                </div>
+
+                <div className="modal-body">
+                  <p className="confirmation-message">
+                    זהו קובץ המדיה האחרון בפרויקט זה.
+                  </p>
+                  <p className="confirmation-submessage">
+                    האם ברצונך לשמור את תיקיית הפרויקט הריקה או למחוק את כל הפרויקט?
+                  </p>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className={'modal-btn modal-btn-primary' + (loading ? ' loading' : '')}
+                    onClick={() => handleKeepEmptyChoice(true)}
+                    disabled={loading}
+                  >
+                    {loading ? '' : 'שמור תיקייה ריקה'}
+                  </button>
+                  <button
+                    className={'modal-btn modal-btn-danger' + (loading ? ' loading' : '')}
+                    onClick={() => handleKeepEmptyChoice(false)}
+                    disabled={loading}
+                  >
+                    {loading ? '' : 'מחק את כל הפרויקט'}
+                  </button>
+                  <button
+                    className="modal-btn modal-btn-secondary"
+                    onClick={() => {
+                      setShowKeepEmptyDialog(false);
+                      setPendingDeleteParams(null);
+                    }}
+                    disabled={loading}
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Success Modal */}
         <ConfirmationModal
           isOpen={showSuccessModal}
@@ -1517,8 +1864,8 @@ export default function ProjectManagementModal({
                       {restorationDialog.matchingMedia.map((media, index) => (
                         <div key={index} className="matching-media-item">
                           <div className="media-info">
-                            <span className="project-name">{media.projectName}</span>
-                            <span className="media-name">{media.mediaName}</span>
+                            <div className="project-name">{media.projectName}</div>
+                            <div className="media-name">{media.mediaName}</div>
                           </div>
                           <div className="restore-actions">
                             <button
