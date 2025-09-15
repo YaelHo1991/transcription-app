@@ -839,9 +839,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       const url = urlInfo.url || urlInfo;
       console.log(`[BatchDownload] Processing URL: ${url}`);
       
-      // Update progress to show downloading
+      // Update progress to show downloading (start at 0%)
       if (downloadProgress[batchId]) {
-        downloadProgress[batchId].progress[i] = { progress: 10, status: 'downloading' };
+        downloadProgress[batchId].progress[i] = { progress: 0, status: 'downloading' };
       }
       
       try {
