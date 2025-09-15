@@ -13,6 +13,7 @@ interface PlaylistVideoInfo {
   thumbnail?: string;
   uploader?: string;
   uploadDate?: string;
+  playlistIndex?: number;
 }
 
 interface PlaylistInfo {
@@ -44,7 +45,8 @@ interface UrlConfig {
   cookieUploaded: boolean;
   showQualityPanel?: boolean;
   showCookiePanel?: boolean;
-  
+  autoConfigureAfterCheck?: boolean;
+
   // Playlist specific fields
   isPlaylist?: boolean;
   playlistInfo?: PlaylistInfo;
@@ -60,7 +62,7 @@ interface UrlConfig {
 interface UrlUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (urls: UrlConfig[], downloadNow: boolean, projectName: string, playlistCookieFile?: File) => Promise<void>;
+  onSubmit: (urls: UrlConfig[], downloadNow: boolean, projectName: string, target: 'new' | string, playlistCookieFile?: File) => Promise<void>;
   target: 'new' | string; // 'new' for new project, or projectId for existing
   projectName?: string; // Name of existing project if adding to existing
   continuePlaylist?: { // Data for continuing a playlist download
@@ -96,6 +98,13 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   projectName,
   continuePlaylist
 }) => {
+  console.log('[UrlUploadModal] Component mounted/updated with target:', target, 'projectName:', projectName);
+
+  // Log whenever target changes
+  useEffect(() => {
+    console.log('[UrlUploadModal] Target prop changed to:', target, 'projectName:', projectName);
+  }, [target]);
+
   const [urls, setUrls] = useState<UrlConfig[]>([]);
   const [currentUrl, setCurrentUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -104,6 +113,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   const [activeUrlId, setActiveUrlId] = useState<string | null>(null);
   const [projectNameInput, setProjectNameInput] = useState('');
   const [showPlaylistConfirmation, setShowPlaylistConfirmation] = useState<string | null>(null);
+  const [showPlaylistChoice, setShowPlaylistChoice] = useState<string | null>(null); // Show choice dialog for playlist
   const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState<Set<string>>(new Set());
   const [playlistInitialized, setPlaylistInitialized] = useState(false);
   const [playlistVideoQualities, setPlaylistVideoQualities] = useState<{[key: string]: 'high' | 'medium' | 'low' | 'audio'}>({});
@@ -116,6 +126,70 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   const playlistCookieInputRef = useRef<HTMLInputElement | null>(null);
   const urlCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Helper function to extract video-only URL from playlist URL
+  const extractVideoOnlyUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+
+      // For YouTube, remove the list parameter
+      if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+        urlObj.searchParams.delete('list');
+        urlObj.searchParams.delete('index');
+        return urlObj.toString();
+      }
+
+      // For other platforms, return as-is (they might not have playlist parameters)
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
+  // Helper function to detect platform from URL
+  const getPlatformFromUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.replace('www.', '').toLowerCase();
+
+      // Check for known platforms
+      if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+        return 'YouTube';
+      } else if (hostname.includes('instagram.com')) {
+        return 'Instagram';
+      } else if (hostname.includes('facebook.com') || hostname.includes('fb.com')) {
+        return 'Facebook';
+      } else if (hostname.includes('tiktok.com')) {
+        return 'TikTok';
+      } else if (hostname.includes('twitter.com') || hostname.includes('x.com')) {
+        return 'X';
+      } else if (hostname.includes('vimeo.com')) {
+        return 'Vimeo';
+      } else if (hostname.includes('dailymotion.com')) {
+        return 'Dailymotion';
+      } else if (hostname.includes('twitch.tv')) {
+        return 'Twitch';
+      } else if (hostname.includes('reddit.com')) {
+        return 'Reddit';
+      } else if (hostname.includes('soundcloud.com')) {
+        return 'SoundCloud';
+      } else if (hostname.includes('spotify.com')) {
+        return 'Spotify';
+      }
+
+      // If unknown, try to use the main domain name
+      const domainParts = hostname.split('.');
+      if (domainParts.length >= 2) {
+        // Capitalize first letter of domain
+        const domain = domainParts[domainParts.length - 2];
+        return domain.charAt(0).toUpperCase() + domain.slice(1);
+      }
+
+      return 'Media';
+    } catch {
+      return 'Media';
+    }
+  };
+
   // Initialize with one empty URL config when modal opens
   useEffect(() => {
     if (isOpen && urls.length === 0) {
@@ -123,8 +197,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       if (continuePlaylist) {
         // Set the project name from the existing project
         setProjectNameInput(continuePlaylist.projectName);
-        
-        // Create a URL config for the playlist URL and trigger check
+
+        // Create a URL config for the playlist URL with playlist info already loaded
         const playlistUrlId = `url-${Date.now()}`;
         const playlistUrlConfig: UrlConfig = {
           id: playlistUrlId,
@@ -133,19 +207,28 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           downloadType: 'video',
           qualityOptions: [],
           status: 'editing',
-          urlStatus: 'checking',
-          urlCheckMessage: 'טוען מידע רשימה...',
+          urlStatus: 'playlist',
+          urlCheckMessage: `📝 רשימת השמעה: ${continuePlaylist.playlistData?.totalVideos || 0} סרטונים`,
           isLoadingQuality: false,
           requiresCookies: false,
           cookieUploaded: false,
           showQualityPanel: false,
-          showCookiePanel: false
+          showCookiePanel: false,
+          isPlaylist: true,
+          playlistInfo: continuePlaylist.playlistData ? {
+            title: continuePlaylist.playlistData.playlistTitle || '',
+            id: '',
+            videoCount: continuePlaylist.playlistData.totalVideos || 0,
+            videos: [] // We'll fetch this from the backend
+          } : undefined,
+          originalPlaylistUrl: continuePlaylist.playlistUrl
         };
         setUrls([playlistUrlConfig]);
         setActiveUrlId(playlistUrlId);
-        
-        // Automatically check the playlist URL to get video list
-        checkUrlStatus(playlistUrlConfig);
+
+        // Directly show the playlist confirmation dialog for continue mode
+        // We'll fetch the full playlist info when the confirmation is shown
+        setShowPlaylistConfirmation(playlistUrlId);
       } else {
         // Generate default project name with date
         const now = new Date();
@@ -159,7 +242,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           minute: '2-digit',
           hour12: false
         });
-        setProjectNameInput(`YouTube - ${dateStr} ${timeStr}`);
+        setProjectNameInput(`Media - ${dateStr} ${timeStr}`);
         
         const newId = `url-${Date.now()}`;
         const newUrlConfig: UrlConfig = {
@@ -188,6 +271,33 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     }
   }, [isOpen, continuePlaylist]);
 
+  // Update project name based on detected platform when URLs change
+  useEffect(() => {
+    if (target === 'new' && urls.length > 0) {
+      // Find the first URL with content
+      const firstUrl = urls.find(u => u.url && u.url.trim());
+      if (firstUrl && firstUrl.url) {
+        const platform = getPlatformFromUrl(firstUrl.url);
+
+        // Only update if the project name still has the default pattern
+        if (projectNameInput.match(/^(Media|YouTube|Instagram|Facebook|TikTok|X|Vimeo|Dailymotion|Twitch|Reddit|SoundCloud|Spotify) - \d{2}\.\d{2}\.\d{2} \d{2}:\d{2}$/)) {
+          const now = new Date();
+          const dateStr = now.toLocaleDateString('he-IL', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit'
+          }).replace(/\//g, '.');
+          const timeStr = now.toLocaleTimeString('he-IL', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+          setProjectNameInput(`${platform} - ${dateStr} ${timeStr}`);
+        }
+      }
+    }
+  }, [urls, target, projectNameInput]);
+
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -198,7 +308,9 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
         setActiveUrlId(null);
         setIsLoading(false);
         setLoadingButton(null);
-        
+        setShowPlaylistChoice(null);
+        setShowPlaylistConfirmation(null);
+
         // Clear any pending timeouts
         if (urlCheckTimeoutRef.current) {
           clearTimeout(urlCheckTimeoutRef.current);
@@ -207,6 +319,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       }, 300);
     }
   }, [isOpen]);
+
 
   const addNewUrl = () => {
     const newId = `url-${Date.now()}`;
@@ -325,16 +438,30 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     try {
       const urlObj = new URL(url);
       const hostname = urlObj.hostname.replace('www.', '');
-      
-      // YouTube - just show the full URL for now, will be replaced with actual title after check
+
+      // YouTube - extract video ID as temporary name
       if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-        return url;
+        const videoIdMatch = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/);
+        if (videoIdMatch) {
+          return `סרטון YouTube (${videoIdMatch[1]})`;
+        }
+        return 'סרטון YouTube';
       }
-      
-      // Default: show full URL
-      return url;
+
+      // Instagram
+      if (hostname.includes('instagram.com')) {
+        return 'סרטון Instagram';
+      }
+
+      // Facebook
+      if (hostname.includes('facebook.com')) {
+        return 'סרטון Facebook';
+      }
+
+      // Default: show domain name
+      return `סרטון מ-${hostname}`;
     } catch {
-      return url;
+      return 'סרטון';
     }
   };
 
@@ -378,25 +505,39 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           console.log('URL check result:', result);
           
           if (result.status === 'public') {
+            // Check if this was from "download only video" from playlist
+            const shouldAutoConfigure = urlConfig.autoConfigureAfterCheck;
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'public',
               requiresCookies: false,
               urlCheckMessage: '',
-              mediaName: result.title || urlConfig.mediaName, // Use the title from backend
-              showQualityPanel: true  // Auto-show quality panel for public content
+              mediaName: result.title || extractMediaName(urlConfig.url), // Use the title from backend
+              showQualityPanel: !shouldAutoConfigure,  // Don't show panel if auto-configuring
+              status: shouldAutoConfigure ? 'configured' : 'editing', // Auto-configure if from playlist
+              selectedQuality: 'high', // Default to high quality
+              downloadType: 'video', // Default to video
+              autoConfigureAfterCheck: false // Reset flag
             });
             // Fetch quality options for public content
             fetchQualityOptions(urlConfig);
           } else if (result.status === 'protected') {
+            // Check if this was from "download only video" from playlist
+            const shouldAutoConfigure = urlConfig.autoConfigureAfterCheck;
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'protected',
               requiresCookies: true,
-              urlCheckMessage: '🔒 נדרש קובץ Cookies עבור תוכן זה',
-              mediaName: result.title || urlConfig.mediaName, // Use the title from backend
-              showCookiePanel: true  // Auto-show cookie panel for protected content
+              urlCheckMessage: '🔒 תוכן מוגן - Cookies יטופל בהורדה',
+              mediaName: result.title || extractMediaName(urlConfig.url), // Use the title from backend or extract from URL
+              showQualityPanel: !shouldAutoConfigure,  // Don't show panel if auto-configuring
+              status: shouldAutoConfigure ? 'configured' : 'editing', // Auto-configure if from playlist
+              selectedQuality: 'high', // Default to high quality
+              downloadType: 'video', // Default to video
+              autoConfigureAfterCheck: false // Reset flag
             });
+            // Fetch quality options for protected content too
+            fetchQualityOptions(urlConfig);
           } else if (result.status === 'playlist') {
-            // Handle playlist detection - show confirmation
+            // Handle playlist detection - show choice dialog first
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'playlist',
               requiresCookies: false,
@@ -406,22 +547,21 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               playlistInfo: result.playlist,
               originalPlaylistUrl: urlConfig.url
             });
-            // Show playlist confirmation dialog
-            setShowPlaylistConfirmation(urlConfig.id);
+            // Show choice dialog instead of directly showing playlist confirmation
+            setShowPlaylistChoice(urlConfig.id);
           } else if (result.status === 'protected-playlist') {
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'protected-playlist',
               requiresCookies: true,
-              urlCheckMessage: '🔒📝 רשימת השמעה פרטית - נדרש קובץ Cookies',
+              urlCheckMessage: '🔒📝 רשימת השמעה פרטית',
               mediaName: result.title || 'רשימת השמעה פרטית',
               isPlaylist: true,
               playlistInfo: result.playlist,
-              originalPlaylistUrl: urlConfig.url,
-              showCookiePanel: true
+              originalPlaylistUrl: urlConfig.url
             });
-            // Show playlist confirmation dialog for protected playlists too
+            // Show choice dialog for protected playlists too
             if (result.playlist) {
-              setShowPlaylistConfirmation(urlConfig.id);
+              setShowPlaylistChoice(urlConfig.id);
             }
           } else if (result.status === 'invalid') {
             updateUrlConfig(urlConfig.id, {
@@ -443,6 +583,14 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           // Log the error response
           const errorText = await response.text();
           console.error('URL check failed:', response.status, errorText);
+
+          // If we're in continue mode and check fails, still show playlist
+          if (continuePlaylist && urlConfig.isPlaylist) {
+            // Keep the playlist status and show confirmation
+            setShowPlaylistConfirmation(urlConfig.id);
+            return;
+          }
+
           // If check fails, assume public and show quality options
           updateUrlConfig(urlConfig.id, {
             urlStatus: 'public',
@@ -452,8 +600,16 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           fetchQualityOptions(urlConfig);
         }
       } catch (error) {
+        console.log('URL check failed:', error);
+
+        // If we're in continue mode and check fails, still show playlist
+        if (continuePlaylist && urlConfig.isPlaylist) {
+          // Keep the playlist status and show confirmation
+          setShowPlaylistConfirmation(urlConfig.id);
+          return;
+        }
+
         // If check fails, assume public and show quality options
-        console.log('URL check failed, assuming public:', error);
         updateUrlConfig(urlConfig.id, {
           urlStatus: 'public',
           requiresCookies: false,
@@ -544,14 +700,16 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
 
     // Create individual URL configs for each selected video in the playlist
     const videoConfigs: UrlConfig[] = playlistUrlConfig.playlistInfo.videos
-      .map((video, originalIndex) => ({video, originalIndex: originalIndex + 1})) // Add 1-based index
-      .filter(({video}) => selectedPlaylistVideos.has(video.id))
-      .map(({video, originalIndex}, filteredIndex) => {
+      .filter(video => selectedPlaylistVideos.has(video.id))
+      .map((video, filteredIndex) => {
         const quality = playlistVideoQualities[video.id] || globalPlaylistQuality || 'high';
         const isAudio = quality === 'audio';
-        
+        // Use playlistIndex from video info if available, otherwise use array position + 1
+        const actualPlaylistIndex = video.playlistIndex ||
+          (playlistUrlConfig.playlistInfo.videos.findIndex(v => v.id === video.id) + 1);
+
         return {
-          id: `${playlistUrlId}-video-${filteredIndex}`,
+          id: `${playlistUrlId}-video-${actualPlaylistIndex}`,
           url: video.url,
           mediaName: video.title,
           cookieFile: playlistUrlConfig.cookieFile, // Inherit cookie file from playlist
@@ -567,7 +725,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           showQualityPanel: false,
           showCookiePanel: false,
           // Add playlist-specific metadata
-          playlistIndex: originalIndex, // Original 1-based index in the playlist
+          playlistIndex: actualPlaylistIndex, // Use actual playlist index from yt-dlp
           playlistUrl: playlistUrlConfig.url, // Store the original playlist URL
           totalVideosInPlaylist: playlistUrlConfig.playlistInfo.videos.length,
           
@@ -580,8 +738,9 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
         };
       });
     
-    // Use playlist title as project name
-    const playlistProjectName = `YouTube - ${playlistUrlConfig.playlistInfo.title}`;
+    // Use playlist title as project name with detected platform
+    const platform = getPlatformFromUrl(playlistUrlConfig.url);
+    const playlistProjectName = `${platform} - ${playlistUrlConfig.playlistInfo.title}`;
     
     // Close the modal immediately
     onClose();
@@ -604,6 +763,53 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     setShowPlaylistConfirmation(null);
   };
 
+  // Handle playlist choice - download entire playlist
+  const handleDownloadEntirePlaylist = (urlId: string) => {
+    setShowPlaylistChoice(null);
+    // Show the playlist confirmation dialog
+    setShowPlaylistConfirmation(urlId);
+  };
+
+  // Handle playlist choice - download only video
+  const handleDownloadOnlyVideo = (urlId: string) => {
+    const urlConfig = urls.find(u => u.id === urlId);
+    if (!urlConfig) return;
+
+    // Extract video-only URL
+    const videoOnlyUrl = extractVideoOnlyUrl(urlConfig.url);
+
+    // Update the URL config to be a regular video, not a playlist
+    updateUrlConfig(urlId, {
+      url: videoOnlyUrl,
+      isPlaylist: false,
+      playlistInfo: undefined,
+      originalPlaylistUrl: undefined, // Clear this to make it a regular URL
+      urlStatus: 'unchecked',
+      urlCheckMessage: '',
+      mediaName: '', // Clear the playlist name to force re-fetch
+      status: 'editing', // Start in editing mode
+      showQualityPanel: false, // Reset quality panel
+      autoConfigureAfterCheck: true // Flag to auto-configure after URL check
+    });
+
+    // Close the choice dialog
+    setShowPlaylistChoice(null);
+
+    // Trigger a new URL check to get the individual video title
+    // Use a ref to get the latest state
+    setTimeout(() => {
+      // Get the latest URL config from state
+      setUrls(currentUrls => {
+        const updatedConfig = currentUrls.find(u => u.id === urlId);
+        if (updatedConfig) {
+          // Trigger the check with the updated URL
+          checkUrlStatus({ ...updatedConfig, url: videoOnlyUrl, autoConfigureAfterCheck: true });
+        }
+        return currentUrls; // Return unchanged
+      });
+    }, 100);
+  };
+
   const handleVideoToggle = (videoId: string) => {
     updateUrlConfig(videoId, { 
       isSelected: !urls.find(u => u.id === videoId)?.isSelected 
@@ -618,13 +824,10 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   };
 
   const handleSubmit = async (downloadNow: boolean) => {
-    // Filter URLs: configured regular URLs + selected playlist videos
+    // Filter URLs: only include configured URLs
     const configuredUrls = urls.filter(u => {
-      const hasUrl = u.status === 'configured' || (u.status === 'editing' && u.url);
-      const isRegularUrl = !u.originalPlaylistUrl;
-      const isSelectedPlaylistVideo = u.originalPlaylistUrl && u.isSelected;
-      
-      return hasUrl && (isRegularUrl || isSelectedPlaylistVideo);
+      // Must have status 'configured' to be included
+      return u.status === 'configured' && u.url;
     });
     
     if (configuredUrls.length === 0) {
@@ -632,14 +835,12 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       return;
     }
     
-    // Pure data collector - immediately close modal and pass data to parent
-    onClose();
-    
-    // Pass the configured URLs to parent component without any error handling
-    // Parent will handle the background download and show progress modal
     // Pass playlistCookieFile if this is a playlist download
     const isPlaylistDownload = urls.some(u => u.isPlaylist);
-    await onSubmit(configuredUrls, downloadNow, projectNameInput, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
+    
+    // Pass the configured URLs and target to parent component
+    // Parent will handle closing the modal
+    await onSubmit(configuredUrls, downloadNow, projectNameInput, target, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
   };
 
   // Clean up timeout on unmount
@@ -655,7 +856,17 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   useEffect(() => {
     if (showPlaylistConfirmation && !playlistInitialized) {
       const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
-      if (playlistUrl?.playlistInfo) {
+
+      // If we're in continue mode and don't have videos yet, mark as initialized to prevent loops
+      if (continuePlaylist && playlistUrl && (!playlistUrl.playlistInfo?.videos || playlistUrl.playlistInfo.videos.length === 0)) {
+        // Mark as initialized immediately to prevent infinite loop
+        setPlaylistInitialized(true);
+        // Fetch the playlist info to get the videos
+        checkUrlStatus(playlistUrl);
+        return; // Wait for the playlist info to be fetched
+      }
+
+      if (playlistUrl?.playlistInfo?.videos) {
         // If we're in continue mode, only select videos that haven't been downloaded
         if (continuePlaylist && continuePlaylist.playlistData?.downloadedVideos) {
           // Use playlist.json data for most accurate tracking
@@ -790,7 +1001,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                       <div className="url-content-wrapper">
                         <div className="media-name-wrapper full-width">
                           <span className="url-number">{index + 1}.</span>
-                          <span className="media-name">{urlConfig.mediaName || urlConfig.url}</span>
+                          <span className="media-name">{urlConfig.mediaName || extractMediaName(urlConfig.url)}</span>
                         </div>
                       </div>
                     ) : (
@@ -816,62 +1027,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                       </div>
                     )}
 
-                    {/* Cookie File Panel (shown when cookie button clicked) */}
-                    {urlConfig.showCookiePanel && urlConfig.requiresCookies && (
-                      <div className="url-step cookie-step fade-in">
-                        <label>קובץ Cookies נדרש:</label>
-                        <div className="cookie-file-input-wrapper">
-                          <button
-                            type="button"
-                            onClick={() => cookieInputRefs.current[urlConfig.id]?.click()}
-                            className="cookie-file-button"
-                            disabled={isLoading}
-                          >
-                            {urlConfig.cookieFile ? urlConfig.cookieFile.name : 'בחר קובץ Cookies'}
-                          </button>
-                          <input
-                            ref={(el) => cookieInputRefs.current[urlConfig.id] = el}
-                            type="file"
-                            accept=".txt,.json"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleCookieFileChange(urlConfig.id, file);
-                            }}
-                            style={{ display: 'none' }}
-                          />
-                        </div>
-                        <small className="cookie-hint">
-                          <strong>איך להשיג קובץ Cookies?</strong><br/>
-                          1. התקן תוסף "Get cookies.txt LOCALLY" בדפדפן<br/>
-                          2. התחבר לאתר עם התוכן המוגן<br/>
-                          3. לחץ על התוסף ובחר "Export as cookies.txt"<br/>
-                          4. העלה את הקובץ כאן
-                        </small>
-                      </div>
-                    )}
-
-                    {/* Cookie uploaded message */}
-                    {urlConfig.cookieUploaded && urlConfig.requiresCookies && (
-                      <div className="cookie-uploaded-message fade-in">
-                        ✓ קובץ Cookies הועלה בהצלחה
-                        <button 
-                          className="cookie-update-btn"
-                          onClick={() => cookieInputRefs.current[urlConfig.id]?.click()}
-                        >
-                          עדכן קובץ
-                        </button>
-                        <input
-                          ref={(el) => cookieInputRefs.current[urlConfig.id] = el}
-                          type="file"
-                          accept=".txt,.json"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleCookieFileChange(urlConfig.id, file);
-                          }}
-                          style={{ display: 'none' }}
-                        />
-                      </div>
-                    )}
 
                     {/* Quality Selection Panel (shown when quality button clicked) */}
                     {urlConfig.showQualityPanel && (
@@ -929,7 +1084,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               onClick={() => handleSubmit(true)}
               disabled={urls.filter(u => u.status === 'configured').length === 0}
             >
-              הורד וצור פרויקט
+              {target === 'new' ? 'הורד וצור פרויקט' : 'הוסף לפרויקט'}
             </button>
             <button
               className="url-cancel-button"
@@ -939,7 +1094,59 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             </button>
           </div>
         </div>
-        
+
+        {/* Playlist Choice Dialog - Ask if user wants playlist or just video */}
+        {showPlaylistChoice && (() => {
+          const urlConfig = urls.find(u => u.id === showPlaylistChoice);
+          if (!urlConfig) return null;
+
+          return (
+            <div className="playlist-confirm-overlay">
+              <div className="playlist-confirm-dialog" style={{ maxWidth: '500px' }}>
+                <div className="playlist-header">
+                  <h3>זוהתה רשימת השמעה</h3>
+                </div>
+
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '16px', marginBottom: '10px' }}>
+                    הכתובת שהזנת מכילה רשימת השמעה עם {urlConfig.playlistInfo?.videoCount || 'מספר'} סרטונים.
+                  </p>
+                  <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+                    האם ברצונך להוריד את כל הרשימה או רק את הסרטון הנוכחי?
+                  </p>
+                </div>
+
+                <div className="modal-buttons" style={{ justifyContent: 'center', gap: '15px' }}>
+                  <button
+                    className="submit-button"
+                    onClick={() => handleDownloadEntirePlaylist(showPlaylistChoice)}
+                    style={{ minWidth: '150px' }}
+                  >
+                    הורד את כל הרשימה
+                  </button>
+                  <button
+                    className="submit-button"
+                    onClick={() => handleDownloadOnlyVideo(showPlaylistChoice)}
+                    style={{ minWidth: '150px' }}
+                  >
+                    הורד רק את הסרטון
+                  </button>
+                  <button
+                    className="cancel-button"
+                    onClick={() => {
+                      setUrls(prev => prev.filter(u => u.id !== showPlaylistChoice));
+                      setShowPlaylistChoice(null);
+                    }}
+                    style={{ minWidth: '80px' }}
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Playlist Confirmation Dialog */}
         {showPlaylistConfirmation && (() => {
           const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
@@ -1069,19 +1276,39 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                 
                 <div className="playlist-video-list">
                   {playlistInfo.videos.map((video, index) => {
-                    const videoIndex = index + 1; // 1-based index
+                    // Use playlistIndex from video info if available, otherwise use array position + 1
+                    const videoIndex = video.playlistIndex || (index + 1);
                     // Check if this video is already downloaded using playlist.json data first
                     let isDownloaded = false;
+                    
+                    // Debug logging
+                    if (index < 3) { // Log first 3 videos for debugging
+                      console.log(`[UrlUploadModal] Video ${videoIndex}:`, {
+                        hasPlaylistData: !!continuePlaylist?.playlistData,
+                        downloadedVideos: continuePlaylist?.playlistData?.downloadedVideos,
+                        isIndexInDownloaded: continuePlaylist?.playlistData?.downloadedVideos ? 
+                          videoIndex.toString() in continuePlaylist.playlistData.downloadedVideos : false,
+                        mediaPlaylistIndices: continuePlaylist?.mediaPlaylistIndices,
+                        downloadedIndices: continuePlaylist?.downloadedIndices,
+                        videoTitle: video.title
+                      });
+                    }
                     
                     if (continuePlaylist?.playlistData?.downloadedVideos) {
                       // Use playlist.json data for most accurate tracking
                       isDownloaded = videoIndex.toString() in continuePlaylist.playlistData.downloadedVideos;
+                      if (index < 3) {
+                        console.log(`[UrlUploadModal] Video ${videoIndex} isDownloaded:`, isDownloaded);
+                      }
                     } else {
                       // Fallback to old methods
                       const existingIndices = continuePlaylist?.mediaPlaylistIndices ? 
                         new Set(Object.values(continuePlaylist.mediaPlaylistIndices)) : 
                         new Set(continuePlaylist?.downloadedIndices || []);
                       isDownloaded = existingIndices.has(videoIndex);
+                      if (index < 3) {
+                        console.log(`[UrlUploadModal] Video ${videoIndex} fallback isDownloaded:`, isDownloaded, 'indices:', Array.from(existingIndices));
+                      }
                     }
                     
                     return (

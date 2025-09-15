@@ -731,6 +731,11 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       urls = JSON.parse((req as any).body.urls || '[]');
       projectName = (req as any).body.projectName;
       target = (req as any).body.target;
+
+      // Debug logging for FormData extraction
+      console.log('[BatchDownload] FormData body keys:', Object.keys((req as any).body));
+      console.log('[BatchDownload] FormData body.target:', (req as any).body.target);
+      console.log('[BatchDownload] FormData body.target type:', typeof (req as any).body.target);
       
       // Extract cookie files
       const files = (req as any).files || [];
@@ -755,6 +760,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     console.log('[BatchDownload] URLs:', urls);
     console.log('[BatchDownload] Project name:', projectName);
     console.log('[BatchDownload] Target:', target);
+    console.log('[BatchDownload] Target type:', typeof target);
+    console.log('[BatchDownload] Target === "new":', target === 'new');
+    console.log('[BatchDownload] Target is truthy:', !!target);
     
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({ error: 'No URLs provided' });
@@ -803,6 +811,8 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       urls: urls, // Store URLs for retry functionality
       userId: (req as any).user?.id || 'dev-anonymous',
       projectId: target && target !== 'new' ? target : batchId, // Use target if adding to existing project
+      projectName: projectName, // Store the original project name for retry
+      playlistMetadata: playlistMetadata, // Store playlist metadata for retry
       playlistCookieFile: playlistCookieFile, // Store cookie files for use in async function
       cookieFiles: cookieFiles
     };
@@ -839,9 +849,19 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
           url,
           outputPath: tempDir,
           quality: urlInfo.quality || 'medium',
-          downloadType: urlInfo.downloadType || 'video'
+          downloadType: urlInfo.downloadType || 'video',
+          onProgress: (progress: number) => {
+            // Update the progress for this specific media item
+            if (downloadProgress[batchId]) {
+              downloadProgress[batchId].progress[i] = {
+                progress: Math.round(progress),
+                status: 'downloading'
+              };
+              console.log(`[BatchDownload] Progress for media ${i}: ${Math.round(progress)}%`);
+            }
+          }
         };
-        
+
         // Add cookie file if present for this URL
         // Use playlist cookie file for all URLs if it exists, otherwise use individual cookie file
         const batchInfo = downloadProgress[batchId];
@@ -852,7 +872,7 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
             console.log(`[BatchDownload] Using cookie file for URL ${i}: ${cookieFile}`);
           }
         }
-        
+
         // Download with real progress tracking
         const videoInfo = await YtDlpService.downloadVideo(downloadOptions);
         
@@ -936,10 +956,12 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     
     // Check if we should add to existing project or create new one
     let result: { projectId: string, mediaIds: string[] };
-    
+
+    console.log(`[BatchDownload] Decision point - target: "${target}", target !== 'new': ${target !== 'new'}`);
+
     if (target && target !== 'new') {
       // Add to existing project
-      console.log(`[BatchDownload] Adding to existing project: ${target}`);
+      console.log(`[BatchDownload] ADDING TO EXISTING PROJECT: ${target}`);
       result = await projectService.addMediaToProject(
         target,
         downloadedFiles,
@@ -947,7 +969,7 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       );
     } else {
       // Create new project
-      console.log(`[BatchDownload] Creating new project`);
+      console.log(`[BatchDownload] CREATING NEW PROJECT (target was: ${target})`);
       result = await projectService.createMultiMediaProject(
         projectName || 'Downloaded Media',
         downloadedFiles,
@@ -1126,6 +1148,8 @@ const downloadProgress: {
     urls?: any[], // Store URLs for retry functionality
     userId?: string,
     projectId?: string,
+    projectName?: string, // Store the original project name for retry
+    playlistMetadata?: any, // Store playlist metadata for retry
     playlistCookieFile?: string, // Cookie file for entire playlist
     cookieFiles?: { [index: string]: any } // Individual cookie files per URL
   } 
@@ -1257,9 +1281,19 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
           outputPath: tempDir,
           quality: urlInfo.quality || 'medium',
           downloadType: urlInfo.downloadType || 'video',
-          cookieFile: tempCookiePath
+          cookieFile: tempCookiePath,
+          onProgress: (progress: number) => {
+            // Update the progress for this specific media item
+            if (batchInfo) {
+              batchInfo.progress[mediaIdx] = {
+                progress: Math.round(progress),
+                status: 'downloading'
+              };
+              console.log(`[BatchDownload Retry] Progress for media ${mediaIdx}: ${Math.round(progress)}%`);
+            }
+          }
         };
-        
+
         const videoInfo = await YtDlpService.downloadVideo(downloadOptions);
         
         // Update the media name
@@ -1287,8 +1321,12 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
           // Create a new project for the retried media  
           const { ProjectService } = require('../../services/projectService');
           const projectServiceInstance = new ProjectService();
+          
+          // Use the original project name if available, otherwise create a default one
+          const projectName = batchInfo.projectName || `${videoInfo.title} - ${new Date().toLocaleString('he-IL')}`;
+          
           const result = await projectServiceInstance.createMultiMediaProject(
-            `Retried Download - ${new Date().toLocaleString('he-IL')}`,
+            projectName,
             [{
               name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
               buffer: fileBuffer,
@@ -1301,6 +1339,49 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
           
           // Update the batch info with the new project ID for future retries
           batchInfo.projectId = result.projectId;
+          
+          // If this was a playlist download, preserve the playlist metadata
+          if (batchInfo.playlistMetadata) {
+            const userDir = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', result.projectId);
+            const projectJsonPath = path.join(userDir, 'project.json');
+            
+            try {
+              // Read the newly created project.json
+              const projectJsonContent = await fs_promises.readFile(projectJsonPath, 'utf8');
+              const projectJson = JSON.parse(projectJsonContent);
+              
+              // Add the playlist metadata
+              projectJson.playlistMetadata = batchInfo.playlistMetadata;
+              
+              // Write back updated project.json
+              await fs_promises.writeFile(projectJsonPath, JSON.stringify(projectJson, null, 2));
+              console.log('[BatchDownload Retry] Added playlist metadata to new project');
+              
+              // Also create/update playlist.json for the new project
+              const playlistJsonPath = path.join(userDir, 'playlist.json');
+              const playlistData = {
+                playlistUrl: urlInfo.playlistUrl || batchInfo.urls[0]?.playlistUrl || '',
+                playlistTitle: batchInfo.playlistMetadata.playlistTitle,
+                totalVideos: batchInfo.playlistMetadata.totalVideosInPlaylist,
+                videos: {}
+              };
+              
+              // Add this video to the playlist
+              if (urlInfo.playlistIndex !== undefined) {
+                playlistData.videos[urlInfo.playlistIndex] = {
+                  index: urlInfo.playlistIndex,
+                  mediaId: result.mediaIds[0],
+                  title: videoInfo.title,
+                  downloaded: true
+                };
+              }
+              
+              await fs_promises.writeFile(playlistJsonPath, JSON.stringify(playlistData, null, 2));
+              console.log('[BatchDownload Retry] Created playlist.json for new project');
+            } catch (error) {
+              console.error('[BatchDownload Retry] Error adding playlist metadata:', error);
+            }
+          }
           
         } else {
           // Add media to existing project
@@ -1417,7 +1498,22 @@ router.get('/:projectId/metadata', verifyUser, async (req: Request, res: Respons
       const playlistJsonPath = path.join(projectDir, 'playlist.json');
       try {
         const playlistData = JSON.parse(await fs_promises.readFile(playlistJsonPath, 'utf8'));
+        
+        // Handle both old format (videos) and new format (downloadedVideos)
+        if (!playlistData.downloadedVideos && playlistData.videos) {
+          playlistData.downloadedVideos = playlistData.videos;
+        } else if (!playlistData.downloadedVideos) {
+          playlistData.downloadedVideos = {};
+        }
+        
         projectJson.playlistData = playlistData;
+        console.log('[Project Metadata] Loaded playlist.json:', {
+          projectId,
+          hasDownloadedVideos: !!playlistData.downloadedVideos,
+          downloadedVideosCount: Object.keys(playlistData.downloadedVideos || {}).length,
+          downloadedIndices: Object.keys(playlistData.downloadedVideos || {}),
+          fullPlaylistData: playlistData
+        });
         
         // Also create mediaPlaylistIndices for backward compatibility
         const mediaPlaylistIndices: { [mediaId: string]: number } = {};
@@ -1559,12 +1655,42 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
         status = 'invalid';
       }
       
+      // For protected content, try to extract title from error or URL
+      let title = '';
+      if (status === 'protected') {
+        // Try to get title even for protected content using minimal yt-dlp call
+        try {
+          const minimalInfo = await YtDlpService.getMinimalInfo(url);
+          if (minimalInfo.title) {
+            title = minimalInfo.title;
+            console.log('[CheckURL] Got title for protected content:', title);
+          }
+        } catch (titleError) {
+          console.log('[CheckURL] Could not get title for protected content');
+        }
+
+        // If still no title, try to extract from error message
+        if (!title) {
+          const titleMatch = error.message.match(/"([^"]+)"/); // Look for quoted title
+          if (titleMatch) {
+            title = titleMatch[1];
+          } else {
+            // Extract video ID and use as temporary title
+            const videoIdMatch = url.match(/[?&]v=([^&]+)/);
+            if (videoIdMatch) {
+              title = `סרטון YouTube (${videoIdMatch[1]})`;
+            }
+          }
+        }
+      }
+
       // For protected content, return 200 instead of 400 so frontend can handle it
       const responseStatus = status === 'protected' ? 200 : 400;
-      
+
       res.status(responseStatus).json({
         valid: status === 'protected', // Protected content is valid, just needs cookies
         status: status,
+        title: title || undefined, // Include title if we found one
         message: userMessage,
         error: userMessage
       });
@@ -4240,6 +4366,54 @@ router.post('/:projectId/restore-transcriptions', verifyUser, async (req: Reques
   } catch (error: any) {
     console.error('[restore-transcriptions] Error:', error);
     res.status(500).json({ error: error.message || 'Failed to restore transcriptions' });
+  }
+});
+
+// Endpoint to download browser extension
+router.get('/download-extension', async (req: Request, res: Response) => {
+  try {
+    console.log('[download-extension] Request received');
+    
+    // Path to the browser extension directory
+    const extensionPath = path.join(__dirname, '..', '..', '..', '..', 'browser-extension');
+    const zipPath = path.join(extensionPath, 'cookie-helper-extension.zip');
+    
+    // Check if zip exists, if not try to create it
+    if (!fs.existsSync(zipPath)) {
+      console.log('[download-extension] Extension zip not found, attempting to package...');
+      
+      // Try to package the extension
+      const packageScript = path.join(extensionPath, 'package-extension.js');
+      if (fs.existsSync(packageScript)) {
+        await execAsync(`node "${packageScript}"`, { cwd: extensionPath });
+        
+        // Check again if zip was created
+        if (!fs.existsSync(zipPath)) {
+          return res.status(404).json({ error: 'Failed to package extension' });
+        }
+      } else {
+        return res.status(404).json({ error: 'Extension package script not found' });
+      }
+    }
+    
+    // Send the zip file
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="cookie-helper-extension.zip"');
+    
+    const fileStream = createReadStream(zipPath);
+    fileStream.pipe(res);
+    
+    fileStream.on('error', (error) => {
+      console.error('[download-extension] Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to stream extension file' });
+      }
+    });
+    
+    console.log('[download-extension] Extension sent successfully');
+  } catch (error: any) {
+    console.error('[download-extension] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to download extension' });
   }
 });
 

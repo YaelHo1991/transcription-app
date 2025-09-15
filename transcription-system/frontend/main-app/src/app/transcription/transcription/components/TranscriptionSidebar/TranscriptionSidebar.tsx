@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import useProjectStore from '@/lib/stores/projectStore';
 import './TranscriptionSidebar.css';
 import { buildApiUrl } from '@/utils/api';
@@ -45,6 +46,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   const [downloadProjectName, setDownloadProjectName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [playlistContinueData, setPlaylistContinueData] = useState<any>(null); // Data for continuing playlist downloads
+  const [urlAddData, setUrlAddData] = useState<{ projectId: string; projectName: string } | null>(null); // Data for adding URL to existing project
+  const [urlModalTarget, setUrlModalTarget] = useState<'new' | string>('new');
+  const [urlModalProjectName, setUrlModalProjectName] = useState<string | undefined>(undefined);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const downloadPollingRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -77,7 +81,17 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   // Editing state for project names
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState<string>('');
-  
+
+  // Project tabs state
+  const [activeProjectTab, setActiveProjectTab] = useState<'active' | 'empty'>('active');
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    projectId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
   // Drag & Drop state
   const [isDragging, setIsDragging] = useState(false);
   const [dragOverProject, setDragOverProject] = useState<string | null>(null);
@@ -279,7 +293,77 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       }
     }
   }, [projects, isLoading, error, currentProject, setCurrentProject, setCurrentMediaById]);
-  
+
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent, projectId: string) => {
+    console.log('[TranscriptionSidebar] Right-click detected on project:', projectId);
+    console.log('[TranscriptionSidebar] Mouse position:', { x: e.clientX, y: e.clientY });
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Set context menu with position
+    const menuState = {
+      projectId,
+      x: e.clientX,
+      y: e.clientY
+    };
+
+    console.log('[TranscriptionSidebar] Setting context menu state:', menuState);
+    setContextMenu(menuState);
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleContextMenuAction = (action: 'rename' | 'addMedia' | 'addUrl', projectId: string) => {
+    closeContextMenu();
+
+    switch (action) {
+      case 'rename':
+        const project = projects.find(p => p.projectId === projectId);
+        if (project) {
+          handleStartEditProject(projectId, project.displayName);
+        }
+        break;
+      case 'addMedia':
+        handleAddMediaClick(projectId);
+        break;
+      case 'addUrl':
+        // Set the target project for URL addition using the same pattern as playlist continuation
+        const targetProject = projects.find(p => p.projectId === projectId);
+        console.log('[handleContextMenuAction] addUrl for projectId:', projectId);
+        console.log('[handleContextMenuAction] targetProject found:', targetProject);
+        if (targetProject) {
+          console.log('[handleContextMenuAction] Setting urlAddData with projectId:', projectId);
+          // Use the same pattern as playlist continuation
+          setUrlAddData({
+            projectId: projectId,
+            projectName: targetProject.displayName
+          });
+          setShowUrlModal(true);
+        }
+        break;
+    }
+  };
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenu) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [contextMenu]);
+
   const handleFolderUpload = () => {
     console.log('[TranscriptionSidebar] handleFolderUpload called');
     console.log('[TranscriptionSidebar] folderInputRef.current:', folderInputRef.current);
@@ -408,40 +492,70 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   };
 
   const handleUrlDownload = () => {
-    console.log('[TranscriptionSidebar] Opening URL download modal');
+    console.log('[TranscriptionSidebar] Opening URL download modal for NEW project');
+    // Clear any existing URL add data to ensure we create a new project
+    setUrlAddData(null);
+    setUrlModalTarget('new');
+    setUrlModalProjectName(undefined);
     setShowUrlModal(true);
   };
   
-  const handleUrlSubmit = async (urls: any[], downloadNow: boolean, projectName: string, playlistCookieFile?: File) => {
-    // Always close the modal first
+  const handleUrlSubmit = async (urls: any[], downloadNow: boolean, projectName: string, targetFromModal: 'new' | string, playlistCookieFile?: File) => {
+    console.log('[handleUrlSubmit] Received target from modal:', targetFromModal);
+    console.log('[handleUrlSubmit] Project name:', projectName);
+    console.log('[handleUrlSubmit] Download now:', downloadNow);
+
+    // Use the target passed directly from the modal
+    const target = targetFromModal;
+
+    console.log('[handleUrlSubmit] FINAL TARGET for backend:', target);
+
+    // Determine the actual project name to use for notifications
+    let actualProjectName = projectName;
+    if (target !== 'new') {
+      // Find the existing project to get its actual display name
+      const existingProject = projects.find(p => p.projectId === target);
+      if (existingProject) {
+        actualProjectName = existingProject.displayName;
+        console.log('[handleUrlSubmit] Using existing project name:', actualProjectName);
+      }
+    }
+
+    // Now close the modal
     setShowUrlModal(false);
-    
+
     if (!downloadNow) {
       setPlaylistContinueData(null); // Clear continue data
       return;
     }
-    
-    // Use existing project ID if continuing a playlist, otherwise create new
-    const target = playlistContinueData ? playlistContinueData.projectId : 'new';
-    
-    // Clear the playlist continue data after use
+
+    // Clear the playlist continue data, URL add data, and reset urlModalTarget after use
     setPlaylistContinueData(null);
-    
+    setUrlAddData(null); // Clear URL add data after submission
+    setUrlModalTarget('new'); // Reset to default after submission
+    setUrlModalProjectName(undefined);
+
     // Show immediate notification that download is starting with progress and clickable link
     setSidebarNotification({
-      message: `מתחיל הורדה: ${projectName}`,
+      message: `מתחיל הורדה: ${actualProjectName}`,
       type: 'download',
       progress: 0,
       onClick: () => setShowDownloadProgress(true)
     });
     
     try {
-      console.log('[handleUrlSubmit] Calling batch-download with:', { urls, projectName, target, hasCookieFile: !!playlistCookieFile });
-      
+      console.log('[handleUrlSubmit] About to call batch-download with:');
+      console.log('  - urls:', urls);
+      console.log('  - projectName:', projectName);
+      console.log('  - target:', target);
+      console.log('  - target type:', typeof target);
+      console.log('  - target === "new":', target === 'new');
+
       // Create FormData to handle cookie files
       const formData = new FormData();
       formData.append('projectName', projectName);
       formData.append('target', target);
+      console.log('[handleUrlSubmit] FormData target appended:', target);
       
       // If playlist cookie file is provided, add it for all playlist URLs
       if (playlistCookieFile) {
@@ -487,23 +601,23 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         const { batchId } = await response.json();
         console.log('[handleUrlSubmit] Got batchId:', batchId);
         setCurrentBatchId(batchId);
-        setDownloadProjectName(projectName);
-        
+        setDownloadProjectName(actualProjectName);
+
         // Update the notification with the batchId now that we have it
         setSidebarNotification({
-          message: `מתחיל הורדה: ${projectName}`,
+          message: `מתחיל הורדה: ${actualProjectName}`,
           type: 'download',
           progress: 0,
           batchId,
           onClick: () => {
             setCurrentBatchId(batchId);
-            setDownloadProjectName(projectName);
+            setDownloadProjectName(actualProjectName);
             setShowDownloadProgress(true);
           }
         });
         
         // Start tracking progress updates
-        startDownloadProgressTracking(batchId, projectName);
+        startDownloadProgressTracking(batchId, actualProjectName);
         
         // Don't open modal automatically - let user click notification to see details
         // setShowDownloadProgress(true);
@@ -1004,6 +1118,19 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       props.onOpenManagementModal(tab);
     }
   };
+
+  // Filter projects based on active tab
+  const getFilteredProjects = () => {
+    if (activeProjectTab === 'active') {
+      return projects.filter(project => project.mediaFiles && project.mediaFiles.length > 0);
+    } else {
+      return projects.filter(project => !project.mediaFiles || project.mediaFiles.length === 0);
+    }
+  };
+
+  const filteredProjects = getFilteredProjects();
+  const activeProjectsCount = projects.filter(project => project.mediaFiles && project.mediaFiles.length > 0).length;
+  const emptyProjectsCount = projects.filter(project => !project.mediaFiles || project.mediaFiles.length === 0).length;
   
   const handleProjectDelete = async (projectId: string, deleteTranscriptions: boolean) => {
     if (props.onProjectDelete) {
@@ -1774,7 +1901,25 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           </div>
         </div>
       </div>
-      
+
+      {/* Project Tabs */}
+      <div className="project-tabs">
+        <button
+          className={`project-tab ${activeProjectTab === 'active' ? 'active' : ''}`}
+          onClick={() => setActiveProjectTab('active')}
+        >
+          <span className="tab-text">פרויקטים פעילים</span>
+          <span className="tab-count">({activeProjectsCount})</span>
+        </button>
+        <button
+          className={`project-tab ${activeProjectTab === 'empty' ? 'active' : ''}`}
+          onClick={() => setActiveProjectTab('empty')}
+        >
+          <span className="tab-text">פרויקטים ריקים</span>
+          <span className="tab-count">({emptyProjectsCount})</span>
+        </button>
+      </div>
+
       {/* Inline Notification Area */}
       {sidebarNotification && (
         <div 
@@ -1801,20 +1946,32 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       )}
       
       <div className="project-list">
-        {projects.length === 0 && !isLoading ? (
+        {filteredProjects.length === 0 && !isLoading ? (
           <div className="empty-projects">
-            <p>אין פרויקטים</p>
-            <p className="hint">העלה תיקייה עם קבצי מדיה כדי ליצור פרויקט חדש</p>
+            {activeProjectTab === 'active' ? (
+              <>
+                <p>אין פרויקטים פעילים</p>
+                <p className="hint">העלה תיקייה עם קבצי מדיה כדי ליצור פרויקט חדש</p>
+              </>
+            ) : (
+              <>
+                <p>אין פרויקטים ריקים</p>
+                <p className="hint">פרויקטים ריקים הם פרויקטים ללא קבצי מדיה</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="projects-list">
-            {projects.map(project => (
-              <div 
-                key={project.projectId} 
+            {filteredProjects.map(project => (
+              <div
+                key={project.projectId}
                 className={`project-item ${currentProject?.projectId === project.projectId ? 'active' : ''} ${dragOverProject === project.projectId ? 'drag-over-project' : ''}`}
-                onClick={async () => {
+                onClick={async (e) => {
+                  // Don't handle left click if it's actually a right click
+                  if (e.button === 2) return;
+
                   setCurrentProject(project);
-                  
+
                   // If this is a playlist project, fetch additional metadata
                   if (project.displayName?.startsWith('YouTube -')) {
                     try {
@@ -1834,6 +1991,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                     }
                   }
                 }}
+                onContextMenu={(e) => handleContextMenu(e, project.projectId)}
                 onDragOver={(e) => handleProjectDragOver(e, project.projectId)}
                 onDragLeave={handleProjectDragLeave}
                 onDrop={(e) => handleProjectDrop(e, project.projectId)}
@@ -1855,38 +2013,13 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                   ) : (
                     <div className="project-name-display">
                       <span className="project-name">{project.displayName}</span>
-                      <button
-                        className="edit-project-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStartEditProject(project.projectId, project.displayName);
-                        }}
-                        title="ערוך שם פרויקט"
-                      >
-                        ערוך
-                      </button>
                     </div>
                   )}
                 </div>
                 <div className="project-meta">
                   <div className="media-info">
-                    <button 
-                      className="add-media-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddMediaClick(project.projectId);
-                      }}
-                      title="הוסף קובץ"
-                      disabled={isUploading}
-                    >
-                      הוסף קובץ
-                    </button>
-                    <span className="separator">·</span>
                     <span className="media-count">{project.totalMedia} קבצים</span>
                   </div>
-                  <span className="project-date">
-                    {new Date(project.lastModified).toLocaleDateString('he-IL')}
-                  </span>
                 </div>
                 {currentProject?.projectId === project.projectId && (
                   <div className="media-list">
@@ -1897,7 +2030,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                       // For playlist projects, check if we have playlist metadata
                       const isPlaylistProject = projectWithMetadata.displayName?.startsWith('YouTube -');
                       let displayName = `קובץ ${index + 1}`;
-                      
+
                       // If this is a playlist project and we have metadata, show the original playlist index
                       if (isPlaylistProject && projectWithMetadata.mediaPlaylistIndices) {
                         // Try to get the original playlist index for this media
@@ -1936,12 +2069,20 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                     )}
                   </div>
                 )}
+
+                {/* Project Date Section - At bottom of each project */}
+                <div className="project-date-section">
+                  <span className="project-date">
+                    {new Date(project.lastModified).toLocaleDateString('he-IL')}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
-      
+
+
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
@@ -1978,7 +2119,110 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         />
       ))}
       </div>
-      
+
+
+      {/* Context Menu - using portal to ensure it renders at top level */}
+      {console.log('[TranscriptionSidebar] Rendering context menu:', contextMenu)}
+      {contextMenu && typeof document !== 'undefined' ? createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            left: Math.max(10, Math.min(contextMenu.x - 100, window.innerWidth - 200)) + 'px',
+            top: Math.min(contextMenu.y, window.innerHeight - 150) + 'px',
+            zIndex: 999999,
+            background: 'rgba(20, 30, 40, 0.98)',
+            padding: '6px',
+            border: '2px solid rgba(32, 201, 151, 0.4)',
+            borderRadius: '8px',
+            minWidth: '180px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              textAlign: 'right',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '4px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onClick={() => handleContextMenuAction('rename', contextMenu.projectId)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            שנה שם
+          </button>
+          <button
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              textAlign: 'right',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '4px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onClick={() => handleContextMenuAction('addMedia', contextMenu.projectId)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            הוסף קובץ מדיה
+          </button>
+          <button
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px',
+              textAlign: 'right',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '4px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onClick={() => {
+              console.log('[Context Menu] Add URL clicked for project:', contextMenu.projectId);
+              handleContextMenuAction('addUrl', contextMenu.projectId);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            הוסף URL
+          </button>
+        </div>,
+        document.body
+      ) : null}
+
       {/* Move duplicate dialogs outside sidebar content to allow full-screen overlay */}
       {duplicateConfirm && (
         <div className="duplicate-confirm-overlay">
@@ -2155,17 +2399,36 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       )}
       
       {showUrlModal && (
-        <UrlUploadModal
-          isOpen={showUrlModal}
-          onClose={() => {
-            setShowUrlModal(false);
-            setPlaylistContinueData(null); // Clear continue data when closing
-          }}
-          onSubmit={handleUrlSubmit}
-          target={playlistContinueData ? playlistContinueData.projectId : "new"}
-          projectName={playlistContinueData?.projectName}
-          continuePlaylist={playlistContinueData} // Pass the continue data
-        />
+        <>
+          {(() => {
+            console.log('[TranscriptionSidebar] Rendering UrlUploadModal with:');
+            console.log('  - urlAddData:', urlAddData);
+            console.log('  - playlistContinueData:', playlistContinueData);
+            const finalTarget = playlistContinueData
+              ? playlistContinueData.projectId
+              : (urlAddData ? urlAddData.projectId : 'new');
+            console.log('  - FINAL target passed to modal:', finalTarget);
+            return null;
+          })()}
+          <UrlUploadModal
+            isOpen={showUrlModal}
+            onClose={() => {
+              setShowUrlModal(false);
+              setPlaylistContinueData(null); // Clear continue data when closing
+              setUrlAddData(null); // Clear URL add data when closing
+              setUrlModalTarget('new'); // Reset to default when closing without submission
+              setUrlModalProjectName(undefined);
+            }}
+            onSubmit={handleUrlSubmit}
+            target={playlistContinueData
+              ? playlistContinueData.projectId
+              : (urlAddData ? urlAddData.projectId : 'new')}
+            projectName={playlistContinueData?.projectName
+              || urlAddData?.projectName
+              || urlModalProjectName}
+            continuePlaylist={playlistContinueData} // Pass the continue data
+          />
+        </>
       )}
       
       {showDownloadProgress && (

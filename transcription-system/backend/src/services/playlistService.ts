@@ -18,13 +18,17 @@ export class PlaylistService {
       playlistUrl: '',
       playlistTitle: '',
       totalVideos: 0,
-      downloadedVideos: {}
+      videos: {}  // Changed from downloadedVideos to videos
     };
     
     // Try to read existing playlist.json
     try {
       const existingData = await fs.readFile(playlistJsonPath, 'utf8');
       playlistData = JSON.parse(existingData);
+      // Ensure videos field exists
+      if (!playlistData.videos) {
+        playlistData.videos = playlistData.downloadedVideos || {};
+      }
     } catch (error) {
       // File doesn't exist, will create new one
       console.log('[PlaylistService] Creating new playlist.json');
@@ -41,17 +45,21 @@ export class PlaylistService {
       }
     }
     
-    // Add or update the downloaded video entry
-    playlistData.downloadedVideos[playlistIndex.toString()] = {
+    // Add or update the downloaded video entry - using 'videos' field
+    if (!playlistData.videos) {
+      playlistData.videos = {};
+    }
+    playlistData.videos[playlistIndex.toString()] = {
       mediaId,
       title,
       index: playlistIndex,
+      downloaded: true,  // Add downloaded flag
       originalUrl: originalUrl || ''
     };
     
     // Update total videos count if needed
     const maxIndex = Math.max(
-      ...Object.keys(playlistData.downloadedVideos).map(Number),
+      ...Object.keys(playlistData.videos).map(Number),
       playlistData.totalVideos || 0
     );
     playlistData.totalVideos = Math.max(playlistData.totalVideos || 0, maxIndex);

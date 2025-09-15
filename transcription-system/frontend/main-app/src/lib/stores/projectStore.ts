@@ -134,9 +134,23 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           
           const projects = data.projects || [];
           
-          // Just set the projects, no auto-selection for now
+          // Update currentProject if it exists
+          const { currentProject } = get();
+          let updatedCurrentProject = currentProject;
+          
+          if (currentProject && currentProject.projectId) {
+            // Find the updated version of the current project
+            const updatedProject = projects.find(p => p.projectId === currentProject.projectId);
+            if (updatedProject) {
+              updatedCurrentProject = updatedProject;
+              console.log('[ProjectStore] Updated currentProject with fresh data');
+            }
+          }
+          
+          // Set the projects and updated currentProject
           set({ 
             projects,
+            currentProject: updatedCurrentProject,
             isLoading: false 
           });
           

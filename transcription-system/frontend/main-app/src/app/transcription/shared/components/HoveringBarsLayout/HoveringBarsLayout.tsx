@@ -7,6 +7,7 @@ import './HoveringBarsLayout.css';
 interface HoveringBarsLayoutProps {
   headerContent: ReactNode;
   sidebarContent: ReactNode;
+  sidebarActions?: ReactNode;
   children: ReactNode;
   theme: 'transcription' | 'proofreading' | 'export';
   onHeaderLockChange?: (locked: boolean) => void;
@@ -16,12 +17,14 @@ interface HoveringBarsLayoutProps {
 export default function HoveringBarsLayout({
   headerContent,
   sidebarContent,
+  sidebarActions,
   children,
   theme,
   onHeaderLockChange,
   onSidebarLockChange
 }: HoveringBarsLayoutProps) {
   console.log('[HoveringBarsLayout] Rendering with sidebarContent:', !!sidebarContent);
+  console.log('[HoveringBarsLayout] sidebarActions:', !!sidebarActions);
   
   // Use global store for lock states
   const { headerLocked, sidebarLocked, toggleHeaderLocked, toggleSidebarLocked } = useHoveringBarsStore();
@@ -145,8 +148,12 @@ export default function HoveringBarsLayout({
       >
         <div className="sidebar-header">
           <div className="sidebar-header-top">
-            <h3 className="sidebar-title">פרויקטים זמינים</h3>
-            <button 
+            {sidebarActions && (
+              <div className="sidebar-header-actions">
+                {sidebarActions}
+              </div>
+            )}
+            <button
               onClick={handleSidebarLockToggle}
               className={'lock-btn ' + (sidebarLocked ? 'locked' : '')}
               aria-label={sidebarLocked ? 'Unlock sidebar' : 'Lock sidebar'}

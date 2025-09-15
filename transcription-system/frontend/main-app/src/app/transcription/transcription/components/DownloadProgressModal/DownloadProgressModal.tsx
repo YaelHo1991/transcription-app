@@ -40,6 +40,9 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
   const [error, setError] = useState('');
   const [cookieFile, setCookieFile] = useState<File | null>(null);
   const cookieInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [checkingExtension, setCheckingExtension] = useState(true);
+  const [previousStatuses, setPreviousStatuses] = useState<{[key: number]: string}>({});
 
   // Fetch progress data
   const fetchProgress = async () => {
@@ -58,6 +61,39 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
       }
 
       const data = await response.json();
+      
+      // Check for status changes (failed -> completed) to trigger project refresh
+      if (batchData && data.progress) {
+        let shouldRefreshProjects = false;
+        
+        Object.entries(data.progress).forEach(([index, mediaProgress]: [string, any]) => {
+          const mediaIndex = Number(index);
+          const prevStatus = previousStatuses[mediaIndex];
+          const currentStatus = mediaProgress.status;
+          
+          // If a media item went from failed to completed (cookie retry succeeded)
+          if (prevStatus === 'failed' && currentStatus === 'completed') {
+            console.log(`Media ${mediaIndex} recovered from failed to completed - refreshing projects`);
+            shouldRefreshProjects = true;
+          }
+        });
+        
+        // Update the previous statuses for next comparison
+        const newStatuses: {[key: number]: string} = {};
+        Object.entries(data.progress).forEach(([index, mediaProgress]: [string, any]) => {
+          newStatuses[Number(index)] = mediaProgress.status;
+        });
+        setPreviousStatuses(newStatuses);
+        
+        // Refresh projects if any media recovered
+        if (shouldRefreshProjects) {
+          const store = useProjectStore.getState();
+          if (store.loadProjects) {
+            store.loadProjects();
+          }
+        }
+      }
+      
       setBatchData(data);
       setError('');
     } catch (err: any) {
@@ -67,6 +103,38 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
       setIsLoading(false);
     }
   };
+
+  // Check for extension installation
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const checkExtension = () => {
+      // Send message to check if extension is installed
+      window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
+      
+      // Listen for response
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data.type === 'EXTENSION_INSTALLED' || event.data.type === 'COOKIE_EXTENSION_READY') {
+          setExtensionInstalled(true);
+          setCheckingExtension(false);
+          console.log('Cookie Helper Extension detected:', event.data.version);
+        }
+      };
+      
+      window.addEventListener('message', handleMessage);
+      
+      // Timeout after 1 second - assume not installed
+      setTimeout(() => {
+        setCheckingExtension(false);
+      }, 1000);
+      
+      return () => {
+        window.removeEventListener('message', handleMessage);
+      };
+    };
+    
+    checkExtension();
+  }, [isOpen]);
 
   // Poll progress every 2 seconds while downloading
   useEffect(() => {
@@ -235,7 +303,7 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
 
   const modalContent = (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="download-progress-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="download-progress-modal" data-batch-id={batchId} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>התקדמות ההורדה</h3>
           <button 
@@ -295,7 +363,7 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                     const mediaIndex = Number(mediaIndexStr);
                     
                     return (
-                      <div key={mediaIndex} className="media-item">
+                      <div key={mediaIndex} className="media-item" data-index={mediaIndex}>
                         <div className="media-header">
                           <span className="media-name">{getMediaName(mediaIndex)}</span>
                           <div className="media-status">
@@ -323,51 +391,178 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                             {/* Cookie upload for cookie-related errors */}
                             {isCookieRelatedError(mediaProgress.error) && (
                               <div className="cookie-retry-section" style={{ marginTop: '10px' }}>
-                                {!cookieFile ? (
-                                  <>
-                                    <p style={{ fontSize: '12px', color: '#ffc107', marginBottom: '8px' }}>
-                                      סרטון מוגן - נדרש קובץ Cookies
+                                {extensionInstalled ? (
+                                  // Extension is installed - show automatic handling message
+                                  <div style={{
+                                    padding: '10px',
+                                    backgroundColor: 'rgba(32, 201, 151, 0.05)',
+                                    border: '1px solid rgba(32, 201, 151, 0.3)',
+                                    borderRadius: '4px'
+                                  }}>
+                                    <p style={{ fontSize: '12px', color: '#20c997', marginBottom: '4px' }}>
+                                      ✅ התוסף מותקן ופעיל
                                     </p>
-                                    <input
-                                      ref={cookieInputRef}
-                                      type="file"
-                                      accept=".txt"
-                                      style={{ display: 'none' }}
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          setCookieFile(file);
+                                    <p style={{ fontSize: '11px', color: '#666' }}>
+                                      התוסף יטפל אוטומטית בבעיות Cookies כשתוריד את הקובץ
+                                    </p>
+                                  </div>
+                                ) : !checkingExtension ? (
+                                  // Extension not installed - show installation button
+                                  <div style={{ 
+                                    padding: '10px', 
+                                    background: 'rgba(76, 175, 80, 0.1)', 
+                                    border: '1px solid rgba(76, 175, 80, 0.2)', 
+                                    borderRadius: '4px' 
+                                  }}>
+                                    <p style={{ fontSize: '13px', color: '#4CAF50', marginBottom: '8px', fontWeight: 'bold' }}>
+                                      🍪 נדרש תוסף Cookie Helper
+                                    </p>
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          // Download the extension from backend
+                                          const token = localStorage.getItem('token') || 'dev-anonymous';
+                                          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/download-extension`, {
+                                            headers: {
+                                              'Authorization': `Bearer ${token}`
+                                            }
+                                          });
+                                          
+                                          if (response.ok) {
+                                            const blob = await response.blob();
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = 'cookie-helper-extension.zip';
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            window.URL.revokeObjectURL(url);
+                                            document.body.removeChild(a);
+                                            
+                                            // Show simplified installation instructions
+                                            setTimeout(() => {
+                                              alert(`התקנת התוסף:
+1. חלץ את הקובץ שהורדת
+2. פתח chrome://extensions/
+3. הפעל "Developer mode"
+4. לחץ "Load unpacked"
+5. בחר את התיקיה שחילצת
+6. רענן את העמוד הזה`);
+                                            }, 100);
+                                            
+                                            // Check if extension was installed after a delay
+                                            setTimeout(() => {
+                                              setCheckingExtension(true);
+                                              // Recheck for extension
+                                              window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
+                                            }, 5000);
+                                          } else {
+                                            console.error('Failed to download extension');
+                                            alert('שגיאה בהורדת התוסף');
+                                          }
+                                        } catch (error) {
+                                          console.error('Error downloading extension:', error);
+                                          alert('שגיאה בהורדת התוסף');
                                         }
                                       }}
-                                    />
-                                    <button
-                                      onClick={() => cookieInputRef.current?.click()}
                                       style={{
-                                        padding: '6px 12px',
-                                        background: 'rgba(255, 193, 7, 0.1)',
-                                        border: '1px solid rgba(255, 193, 7, 0.3)',
-                                        color: '#ffc107',
+                                        width: '100%',
+                                        padding: '10px',
+                                        background: 'linear-gradient(135deg, #20c997, #17a085)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        fontWeight: 'bold',
+                                        marginBottom: '8px',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 8px rgba(32, 201, 151, 0.2)'
+                                      }}
+                                    >
+                                      📥 התקן תוסף Cookie Helper
+                                    </button>
+                                    <p style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>
+                                      התקנה חד-פעמית • טיפול אוטומטי בכל הורדה
+                                    </p>
+                                    <button
+                                      onClick={() => {
+                                        setCheckingExtension(true);
+                                        // Recheck for extension
+                                        window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
+                                        setTimeout(() => {
+                                          setCheckingExtension(false);
+                                        }, 1000);
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        background: 'transparent',
+                                        color: '#20c997',
+                                        border: '1px solid #20c997',
                                         borderRadius: '4px',
                                         cursor: 'pointer',
                                         fontSize: '12px',
-                                        marginRight: '8px'
+                                        marginTop: '8px'
                                       }}
                                     >
-                                      📁 העלה קובץ Cookies
+                                      🔄 בדוק שוב אם התוסף מותקן
                                     </button>
-                                    <div style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>
-                                      <strong>איך להשיג קובץ Cookies?</strong><br/>
-                                      1. התקן תוסף "Get cookies.txt LOCALLY" בדפדפן<br/>
-                                      2. התחבר לאתר עם התוכן המוגן<br/>
-                                      3. לחץ על התוסף ובחר "Export as cookies.txt"<br/>
-                                      4. העלה את הקובץ כאן
-                                    </div>
-                                  </>
+                                  </div>
                                 ) : (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span style={{ color: '#28a745', fontSize: '12px' }}>
-                                      ✓ קובץ Cookies: {cookieFile.name}
-                                    </span>
+                                  // Checking for extension
+                                  <div style={{
+                                    textAlign: 'center',
+                                    padding: '10px',
+                                    backgroundColor: 'rgba(32, 201, 151, 0.05)',
+                                    border: '1px solid rgba(32, 201, 151, 0.3)',
+                                    borderRadius: '4px'
+                                  }}>
+                                    <div className="spinner" style={{ marginBottom: '8px' }}></div>
+                                    <p style={{ fontSize: '12px', color: '#20c997' }}>בודק התקנת תוסף אוטומטי...</p>
+                                  </div>
+                                )}
+                                
+                                {/* Manual fallback (hidden by default) */}
+                                {!extensionInstalled && !checkingExtension && (
+                                  <details style={{ marginTop: '8px' }}>
+                                    <summary style={{ color: '#888', cursor: 'pointer', fontSize: '11px' }}>
+                                      אפשרות ידנית (למתקדמים)
+                                    </summary>
+                                    <div style={{ marginTop: '8px' }}>
+                                      <input
+                                        ref={cookieInputRef}
+                                        type="file"
+                                        accept=".txt"
+                                        style={{ display: 'none' }}
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            setCookieFile(file);
+                                          }
+                                        }}
+                                      />
+                                      {!cookieFile ? (
+                                        <button
+                                          onClick={() => cookieInputRef.current?.click()}
+                                          style={{
+                                            padding: '6px 12px',
+                                            background: 'rgba(255, 193, 7, 0.1)',
+                                            border: '1px solid rgba(255, 193, 7, 0.3)',
+                                            color: '#ffc107',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '11px',
+                                            width: '100%'
+                                          }}
+                                        >
+                                          📁 העלה קובץ Cookies ידנית
+                                        </button>
+                                      ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                          <span style={{ color: '#28a745', fontSize: '12px' }}>
+                                            ✓ קובץ Cookies: {cookieFile.name}
+                                          </span>
                                     <button
                                       onClick={() => handleRetryWithCookie(mediaIndex)}
                                       style={{
@@ -397,6 +592,9 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                                       הסר
                                     </button>
                                   </div>
+                                      )}
+                                    </div>
+                                  </details>
                                 )}
                               </div>
                             )}

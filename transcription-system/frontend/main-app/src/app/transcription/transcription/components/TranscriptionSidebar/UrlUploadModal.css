@@ -562,6 +562,102 @@
   cursor: not-allowed;
 }
 
+/* Playlist Cookie Upload Section */
+.playlist-cookie-upload-section {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(255, 193, 7, 0.05);
+  border: 1px solid rgba(255, 193, 7, 0.2);
+  border-radius: 8px;
+}
+
+.cookie-upload-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cookie-icon {
+  font-size: 20px;
+}
+
+.cookie-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffc107;
+}
+
+.cookie-help-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.cookie-upload-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.cookie-upload-button {
+  padding: 8px 16px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  color: #ffc107;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cookie-upload-button:hover {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: #ffc107;
+}
+
+.cookie-uploaded-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(40, 167, 69, 0.1);
+  border-radius: 6px;
+}
+
+.cookie-uploaded-info .success-icon {
+  color: #28a745;
+  font-size: 16px;
+}
+
+.cookie-uploaded-info .file-name {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-cookie-button {
+  padding: 4px 10px;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  color: #dc3545;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.remove-cookie-button:hover {
+  background: rgba(220, 53, 69, 0.2);
+  border-color: #dc3545;
+}
+
 /* Add URL Button in Modal */
 .url-upload-modal .add-url-btn {
   width: auto;
@@ -1315,6 +1411,29 @@
   background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   margin-bottom: 8px;
+}
+
+.playlist-video-item.downloaded {
+  background: rgba(76, 175, 80, 0.1);
+  opacity: 0.7;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  cursor: not-allowed;
+}
+
+.playlist-video-item.downloaded .video-checkbox {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.playlist-video-item.downloaded .video-label {
+  cursor: not-allowed;
+}
+
+.downloaded-badge {
+  color: #4caf50;
+  font-weight: 600;
+  margin-right: 8px;
+  font-size: 13px;
 }
 
 .video-number {

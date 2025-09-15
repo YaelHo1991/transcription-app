@@ -37,6 +37,7 @@ interface PlaylistVideoInfo {
   thumbnail?: string;
   uploader?: string;
   uploadDate?: string;
+  playlistIndex?: number;
 }
 
 interface PlaylistInfo {
@@ -184,11 +185,48 @@ export class YtDlpService {
   }
   
   /**
+   * Get minimal info (just title) even for protected content
+   */
+  static async getMinimalInfo(url: string): Promise<{ title?: string }> {
+    return new Promise((resolve) => {
+      const args = [
+        '--get-title',
+        '--no-warnings',
+        '--no-check-certificate',
+        '--ignore-errors',
+        url
+      ];
+
+      const ytdlpCommand = this.getYtDlpCommand();
+      const ytdlp = spawn(ytdlpCommand, args);
+      let title = '';
+
+      ytdlp.stdout.on('data', (data) => {
+        title = data.toString().trim();
+      });
+
+      ytdlp.on('close', () => {
+        resolve({ title: title || undefined });
+      });
+
+      ytdlp.on('error', () => {
+        resolve({ title: undefined });
+      });
+
+      // Timeout after 3 seconds
+      setTimeout(() => {
+        ytdlp.kill();
+        resolve({ title: title || undefined });
+      }, 3000);
+    });
+  }
+
+  /**
    * Check if a URL is a playlist
    */
   static isPlaylistUrl(url: string): boolean {
-    return url.includes('playlist?list=') || 
-           url.includes('&list=') || 
+    return url.includes('playlist?list=') ||
+           url.includes('&list=') ||
            url.includes('?list=') ||
            /\/playlist\//.test(url);
   }
@@ -254,7 +292,8 @@ export class YtDlpService {
                   duration: info.duration || 0,
                   thumbnail: info.thumbnail,
                   uploader: info.uploader || info.channel,
-                  uploadDate: info.upload_date || info.timestamp
+                  uploadDate: info.upload_date || info.timestamp,
+                  playlistIndex: info.playlist_index
                 });
               }
             } catch (parseError) {

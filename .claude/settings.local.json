@@ -419,7 +419,11 @@
       "Bash(npx next dev:*)",
       "Bash(npx nodemon:*)",
       "Bash(rs)",
-      "Bash(yt-dlp:*)"
+      "Bash(yt-dlp:*)",
+      "Bash(if [ -f \"$dir/metadata.json\" ])",
+      "Bash(then echo \"  ✓ Has metadata.json\")",
+      "Bash(else echo \"  ✗ Missing metadata.json\")",
+      "Bash(zip:*)"
     ],
     "deny": [],
     "ask": [],

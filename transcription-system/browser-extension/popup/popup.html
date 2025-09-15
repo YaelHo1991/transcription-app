@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Exporter - מייצא Cookies</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="header-icon">🍪</div>
+      <div class="header-text">
+        <h1>מייצא Cookies</h1>
+        <p class="subtitle">למערכת התמלול</p>
+      </div>
+    </header>
+    
+    <main class="popup-main">
+      <!-- Current Site Info -->
+      <div class="site-info">
+        <div class="site-icon">🌐</div>
+        <div class="site-details">
+          <div class="site-url" id="currentSite">טוען...</div>
+          <div class="cookie-count" id="cookieCount">בודק cookies...</div>
+        </div>
+      </div>
+      
+      <!-- Export Options -->
+      <div class="export-section">
+        <h2>אפשרויות יצוא</h2>
+        
+        <div class="option-card">
+          <div class="option-header">
+            <div class="option-icon">🎯</div>
+            <div class="option-info">
+              <h3>האתר הנוכחי</h3>
+              <p>יצא cookies רק עבור האתר הנוכחי</p>
+            </div>
+          </div>
+          <button class="btn-export btn-primary" id="exportCurrentSite">
+            <span class="btn-text">יצא עבור האתר</span>
+            <span class="btn-icon">📥</span>
+          </button>
+        </div>
+        
+        <div class="option-card">
+          <div class="option-header">
+            <div class="option-icon">🌍</div>
+            <div class="option-info">
+              <h3>כל הדומיין</h3>
+              <p>יצא cookies עבור כל תת-הדומיינים</p>
+            </div>
+          </div>
+          <button class="btn-export btn-secondary" id="exportDomain">
+            <span class="btn-text">יצא עבור הדומיין</span>
+            <span class="btn-icon">📥</span>
+          </button>
+        </div>
+        
+        <div class="option-card">
+          <div class="option-header">
+            <div class="option-icon">🔒</div>
+            <div class="option-info">
+              <h3>YouTube בלבד</h3>
+              <p>יצא cookies עבור YouTube (מומלץ)</p>
+            </div>
+          </div>
+          <button class="btn-export btn-recommended" id="exportYouTube">
+            <span class="btn-text">יצא עבור YouTube</span>
+            <span class="btn-icon">📥</span>
+            <span class="recommended-badge">מומלץ</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Status Messages -->
+      <div class="status-section">
+        <div class="status-message hidden" id="statusMessage">
+          <div class="status-icon" id="statusIcon">ℹ️</div>
+          <div class="status-text" id="statusText">מוכן ליצוא</div>
+        </div>
+        
+        <div class="progress-bar hidden" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </main>
+    
+    <footer class="popup-footer">
+      <div class="help-text">
+        <span class="help-icon">💡</span>
+        <span>השתמש בקובץ המיוצא במערכת התמלול כדי לגשת לתוכן מוגן</span>
+      </div>
+      <div class="footer-links">
+        <button class="link-btn" id="helpButton">עזרה</button>
+        <span class="separator">•</span>
+        <button class="link-btn" id="aboutButton">אודות</button>
+      </div>
+    </footer>
+  </div>
+  
+  <!-- Help Modal -->
+  <div class="modal hidden" id="helpModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>איך להשתמש</h2>
+        <button class="modal-close" id="helpClose">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>התחבר לאתר</h3>
+            <p>התחבר לאתר עם התוכן המוגן (למשל YouTube)</p>
+          </div>
+        </div>
+        <div class="help-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>יצא Cookies</h3>
+            <p>לחץ על כפתור "יצא עבור YouTube" או בחר באפשרות המתאימה</p>
+          </div>
+        </div>
+        <div class="help-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>השתמש במערכת התמלול</h3>
+            <p>העלה את קובץ הcookies במערכת התמלול כאשר נדרש</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

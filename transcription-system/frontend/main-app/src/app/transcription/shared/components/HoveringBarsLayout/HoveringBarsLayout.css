@@ -13,7 +13,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;  /* Full width for better trigger */
+  right: 350px;  /* Exclude sidebar area to prevent blocking buttons */
   height: 20px;  /* Thin trigger strip at top */
   z-index: 2000;  /* Very high z-index to be above everything */
   background: transparent;
@@ -383,20 +383,84 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
+  overflow: visible;
 }
 
 .hovering-sidebar .sidebar-header-top {
-  padding: 10px 5px;  /* Small padding */
+  padding: 10px 15px;  /* Consistent padding */
   margin: 0;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   background: transparent;
   width: 100%;
   box-sizing: border-box;
+  min-height: 50px;
+  gap: 10px;
+}
+
+.hovering-sidebar .sidebar-header-actions {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-right: 8px;
+  overflow: visible;
   position: relative;
-  min-height: 45px;
+  z-index: 2200; /* Higher than trigger areas */
+}
+
+/* Ensure action buttons have hover effects */
+.sidebar-header-action-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sidebar-action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sidebar-action-buttons .action-btn {
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2200; /* Higher than trigger areas */
+}
+
+.sidebar-action-buttons .action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-action-buttons .action-btn:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .hovering-sidebar .sidebar-title {
@@ -423,18 +487,15 @@
   justify-content: center;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  position: absolute;
-  left: 5px;  /* LEFT side where it's accessible */
-  top: 50%;
-  transform: translateY(-50%);
   font-weight: 600;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 
 .hovering-sidebar .sidebar-header-top .lock-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   color: white;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.5);
 }
