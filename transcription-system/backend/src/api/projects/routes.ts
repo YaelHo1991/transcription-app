@@ -10,6 +10,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import crypto from 'crypto';
 
 const execAsync = promisify(exec);
 
@@ -833,7 +834,8 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         // For now, we'll download synchronously and create the project
         // In production, this should be done in background with progress tracking
         const downloadedFiles: Array<{name: string, buffer: Buffer, mimeType: string}> = [];
-    
+        const videoInfos: any[] = []; // Store video info for duration and other metadata
+
     for (let i = 0; i < urls.length; i++) {
       const urlInfo = urls[i];
       const url = urlInfo.url || urlInfo;
@@ -898,6 +900,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
           buffer: fileBuffer,
           mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
         });
+
+        // Store video info for later use in media.json
+        videoInfos.push(videoInfo);
         
         // Clean up temp directory
         await fs_promises.rm(tempDir, { recursive: true, force: true });
@@ -1025,16 +1030,29 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     for (let i = 0; i < Math.min(urls.length, result.mediaIds.length); i++) {
       const mediaDir = path.join(userDir, 'media', result.mediaIds[i]);
       const urlInfo = urls[i];
-      
-      // Save media.json with URL-specific information
+
+      // Calculate file size from buffer
+      const fileSize = downloadedFiles[i].buffer.length;
+
+      // Get duration from videoInfo if available
+      const duration = videoInfos[i]?.duration || 0;
+
+      // Create a unique hash for the URL to enable re-matching
+      const urlForHash = urlInfo.url || urlInfo;
+      const urlHash = crypto.createHash('sha256').update(urlForHash).digest('hex').substring(0, 16);
+
+      // Save media.json with URL-specific information including size and duration
       const mediaJson = {
         name: downloadedFiles[i].name.replace(/\.[^/.]+$/, ''), // Remove extension
         filename: `media-${uuidv4()}.${downloadedFiles[i].name.split('.').pop()}`,
         originalUrl: urlInfo.url || urlInfo,
+        urlHash: urlHash, // Add URL hash for unique identification
         quality: urlInfo.quality || 'medium',
         downloadType: urlInfo.downloadType || 'video',
         format: downloadedFiles[i].name.split('.').pop(),
         hasVideo: downloadedFiles[i].mimeType.startsWith('video/'),
+        size: fileSize, // Add file size
+        duration: duration, // Add duration in seconds
         createdAt: new Date().toISOString(),
         // Add playlist-specific metadata if available
         ...(urlInfo.playlistIndex !== undefined && {
@@ -2784,6 +2802,108 @@ router.post('/orphaned/restore-to-media', verifyUser, async (req: Request, res: 
 });
 
 /**
+ * Find matching media for orphaned transcription by URL hash
+ */
+router.post('/orphaned/find-matching-media', verifyUser, async (req: Request, res: Response) => {
+  try {
+    const { transcriptionId } = req.body;
+    const userId = (req as any).user?.id || 'bfc0ba9a-daae-46e2-acb9-5984d1adef9f';
+
+    console.log(`[FindMatchingMedia] Finding matching media for orphaned transcription ${transcriptionId}`);
+
+    // First, read the orphaned transcription to get the URL hash
+    const orphanedPath = path.join(process.cwd(), 'user_data', 'users', userId, 'orphaned');
+    let orphanedData: any = null;
+    let urlHashToFind: string | undefined;
+
+    // Find and read the orphaned transcription data
+    const possiblePaths = [
+      path.join(orphanedPath, transcriptionId, 'transcription', 'data.json'),
+      path.join(orphanedPath, transcriptionId.replace(/_media-\d+$/, ''), transcriptionId.match(/_media-\d+$/)?.[0]?.substring(1) || '', 'transcription', 'data.json')
+    ];
+
+    for (const testPath of possiblePaths) {
+      try {
+        orphanedData = JSON.parse(await fs_promises.readFile(testPath, 'utf-8'));
+        urlHashToFind = orphanedData.orphanedFrom?.urlHash;
+        break;
+      } catch {
+        // Continue to next path
+      }
+    }
+
+    if (!orphanedData || !urlHashToFind) {
+      console.log('[FindMatchingMedia] No URL hash found in orphaned transcription');
+      return res.json({ matches: [] });
+    }
+
+    console.log(`[FindMatchingMedia] Looking for media with URL hash: ${urlHashToFind}`);
+
+    // Now search all projects for media with matching URL hash
+    const matches: Array<{ projectId: string, projectName: string, mediaId: string, mediaName: string }> = [];
+    const projectsPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects');
+
+    try {
+      const projects = await fs_promises.readdir(projectsPath);
+
+      for (const projectId of projects) {
+        const projectPath = path.join(projectsPath, projectId);
+        const projectJsonPath = path.join(projectPath, 'project.json');
+
+        let projectName = projectId;
+        try {
+          const projectData = JSON.parse(await fs_promises.readFile(projectJsonPath, 'utf-8'));
+          projectName = projectData.projectName || projectData.name || projectId;
+        } catch {
+          // Continue with projectId as name
+        }
+
+        // Check media folders
+        const mediaPath = path.join(projectPath, 'media');
+        try {
+          const mediaFolders = await fs_promises.readdir(mediaPath);
+
+          for (const mediaId of mediaFolders) {
+            const mediaJsonPath = path.join(mediaPath, mediaId, 'media.json');
+
+            try {
+              const mediaJson = JSON.parse(await fs_promises.readFile(mediaJsonPath, 'utf-8'));
+
+              // Check if URL hash matches
+              if (mediaJson.urlHash === urlHashToFind) {
+                console.log(`[FindMatchingMedia] Found match: Project ${projectId}, Media ${mediaId}`);
+                matches.push({
+                  projectId,
+                  projectName,
+                  mediaId,
+                  mediaName: mediaJson.name || mediaId
+                });
+              }
+            } catch {
+              // No media.json or can't read it, skip
+            }
+          }
+        } catch {
+          // No media folder or can't read it, skip
+        }
+      }
+    } catch (error) {
+      console.error('[FindMatchingMedia] Error searching projects:', error);
+    }
+
+    res.json({
+      matches,
+      originalUrl: orphanedData.orphanedFrom?.originalUrl,
+      originalMediaName: orphanedData.orphanedFrom?.mediaName
+    });
+
+  } catch (error: any) {
+    console.error('[FindMatchingMedia] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to find matching media' });
+  }
+});
+
+/**
  * Preview orphaned transcription content
  */
 router.get('/orphaned/preview/:transcriptionId', verifyUser, async (req: Request, res: Response) => {
@@ -3435,18 +3555,32 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
         let mediaName = mediaId;
         let mediaDuration: number | undefined;
         let mediaSize: number | undefined;
-        
+        let urlHash: string | undefined;
+        let originalUrl: string | undefined;
+
+        // First try media.json (for URL downloads)
         try {
-          const mediaMetadataPath = path.join(mediaPath, 'metadata.json');
-          const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetadataPath, 'utf-8'));
-          mediaName = mediaMetadata.originalName || mediaMetadata.fileName || mediaId;
-          mediaDuration = mediaMetadata.duration;
-          mediaSize = mediaMetadata.size;
+          const mediaJsonPath = path.join(mediaPath, 'media.json');
+          const mediaJson = JSON.parse(await fs_promises.readFile(mediaJsonPath, 'utf-8'));
+          mediaName = mediaJson.name || mediaId;
+          mediaDuration = mediaJson.duration;
+          mediaSize = mediaJson.size;
+          urlHash = mediaJson.urlHash;
+          originalUrl = mediaJson.originalUrl;
         } catch {
-          // If no metadata.json, use the name from transcription metadata if available
-          mediaName = data.metadata?.originalName || data.metadata?.fileName || mediaId;
-          if (data.metadata?.duration) {
-            mediaDuration = data.metadata.duration;
+          // If no media.json, try metadata.json (for uploaded files)
+          try {
+            const mediaMetadataPath = path.join(mediaPath, 'metadata.json');
+            const mediaMetadata = JSON.parse(await fs_promises.readFile(mediaMetadataPath, 'utf-8'));
+            mediaName = mediaMetadata.originalName || mediaMetadata.fileName || mediaId;
+            mediaDuration = mediaMetadata.duration;
+            mediaSize = mediaMetadata.size;
+          } catch {
+            // If no metadata.json, use the name from transcription metadata if available
+            mediaName = data.metadata?.originalName || data.metadata?.fileName || mediaId;
+            if (data.metadata?.duration) {
+              mediaDuration = data.metadata.duration;
+            }
           }
         }
         
@@ -3458,6 +3592,8 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
           mediaName,
           mediaDuration,
           mediaSize,
+          urlHash,  // Add URL hash for re-matching
+          originalUrl,  // Add original URL for reference
           orphanedAt: new Date().toISOString()
         };
         
