@@ -2126,7 +2126,13 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       {/* Context Menu - using portal to ensure it renders at top level */}
       {console.log('[TranscriptionSidebar] Rendering context menu:', contextMenu)}
       {contextMenu && typeof document !== 'undefined' ? createPortal(
-        <div
+        (() => {
+          // Check if this is a playlist project
+          const contextMenuProject = projects.find(p => p.projectId === contextMenu.projectId);
+          const isPlaylistProject = contextMenuProject?.displayName?.startsWith('YouTube -');
+
+          return (
+            <div
           style={{
             position: 'fixed',
             left: Math.max(10, Math.min(contextMenu.x - 100, window.innerWidth - 200)) + 'px',
@@ -2166,7 +2172,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             </svg>
             שנה שם
           </button>
-          <button
+          {!isPlaylistProject && (
+            <>
+              <button
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -2221,7 +2229,11 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             </svg>
             הוסף URL
           </button>
-        </div>,
+            </>
+          )}
+        </div>
+          );
+        })(),
         document.body
       ) : null}
 

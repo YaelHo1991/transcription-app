@@ -46,7 +46,6 @@ interface UrlConfig {
   showQualityPanel?: boolean;
   showCookiePanel?: boolean;
   autoConfigureAfterCheck?: boolean;
-  autoSubmitAfterConfigure?: boolean;
 
   // Playlist specific fields
   isPlaylist?: boolean;
@@ -58,6 +57,7 @@ interface UrlConfig {
   playlistIndex?: number; // Original index in playlist (1-based)
   playlistUrl?: string; // Original playlist URL
   totalVideosInPlaylist?: number; // Total videos in the playlist
+  isExtractedVideo?: boolean; // Whether this was extracted from a playlist URL
 }
 
 interface UrlUploadModalProps {
@@ -467,6 +467,127 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   };
 
   // Check URL status when user stops typing
+  // Direct URL check function that doesn't rely on React state
+  const checkUrlStatusDirect = async (urlConfig: UrlConfig, directUrl: string) => {
+    if (urlCheckTimeoutRef.current) {
+      clearTimeout(urlCheckTimeoutRef.current);
+    }
+
+    // Basic URL validation
+    try {
+      new URL(directUrl);
+      // Extract media name from URL
+      const mediaName = extractMediaName(directUrl);
+      updateUrlConfig(urlConfig.id, { mediaName });
+    } catch {
+      updateUrlConfig(urlConfig.id, {
+        urlStatus: 'unchecked',
+        requiresCookies: false,
+        urlCheckMessage: '',
+        mediaName: ''
+      });
+      return;
+    }
+
+    urlCheckTimeoutRef.current = setTimeout(async () => {
+      updateUrlConfig(urlConfig.id, { urlStatus: 'checking' });
+
+      try {
+        // Use the direct URL parameter instead of urlConfig.url
+        console.log('[checkUrlStatusDirect] Checking direct URL:', directUrl);
+
+        const response = await fetch(buildApiUrl('/api/projects/check-url'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`
+          },
+          body: JSON.stringify({ url: directUrl }) // Use directUrl here
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('[checkUrlStatusDirect] URL check result:', result);
+
+          if (result.status === 'public') {
+            // Check if this was from "download only video" from playlist
+            const shouldAutoConfigure = urlConfig.autoConfigureAfterCheck;
+            updateUrlConfig(urlConfig.id, {
+              urlStatus: 'public',
+              requiresCookies: false,
+              urlCheckMessage: '',
+              mediaName: result.title || extractMediaName(directUrl), // Use the title from backend
+              showQualityPanel: true,
+              qualityOptions: result.qualityOptions || [],
+              selectedQuality: result.selectedQuality || 'high',
+              autoConfigureAfterCheck: false, // Clear this flag
+              status: 'editing', // Keep in editing status to show quality panel
+              downloadType: 'video' // Default to video
+            });
+
+            // Fetch quality options for public content (same as regular checkUrlStatus)
+            fetchQualityOptions({...urlConfig, url: directUrl});
+
+            if (shouldAutoConfigure && target !== 'new') {
+              // Auto-configure for existing project addition
+              setTimeout(() => {
+                handleSubmitUrls();
+              }, 500);
+            }
+          } else if (result.status === 'private') {
+            updateUrlConfig(urlConfig.id, {
+              urlStatus: 'private',
+              requiresCookies: true,
+              urlCheckMessage: '🔒 תוכן מוגן - נדרש העלאת קוקיז',
+              mediaName: result.title || extractMediaName(directUrl),
+              showQualityPanel: false,
+              qualityOptions: result.qualityOptions || [],
+              selectedQuality: result.selectedQuality || 'high'
+            });
+          } else if (result.status === 'playlist') {
+            updateUrlConfig(urlConfig.id, {
+              urlStatus: 'playlist',
+              isPlaylist: true,
+              playlistInfo: result.playlistInfo,
+              mediaName: result.title || extractMediaName(directUrl),
+              urlCheckMessage: `📝 רשימת השמעה עם ${result.playlistInfo?.videoCount || 'מספר'} סרטונים`,
+              showQualityPanel: false,
+              originalPlaylistUrl: directUrl
+            });
+
+            // For existing projects, auto-handle playlist as single video
+            if (target !== 'new') {
+              setTimeout(() => {
+                setShowPlaylistChoice(urlConfig.id);
+              }, 100);
+            } else {
+              setShowPlaylistChoice(urlConfig.id);
+            }
+          } else {
+            updateUrlConfig(urlConfig.id, {
+              urlStatus: 'error',
+              requiresCookies: false,
+              urlCheckMessage: result.message || 'שגיאה בבדיקת הקישור'
+            });
+          }
+        } else {
+          updateUrlConfig(urlConfig.id, {
+            urlStatus: 'error',
+            requiresCookies: false,
+            urlCheckMessage: 'שגיאה בבדיקת הקישור'
+          });
+        }
+      } catch (error) {
+        console.error('Error checking URL status:', error);
+        updateUrlConfig(urlConfig.id, {
+          urlStatus: 'error',
+          requiresCookies: false,
+          urlCheckMessage: 'שגיאה בחיבור לשרת'
+        });
+      }
+    }, 1000); // Add some delay for visual feedback
+  };
+
   const checkUrlStatus = async (urlConfig: UrlConfig) => {
     if (urlCheckTimeoutRef.current) {
       clearTimeout(urlCheckTimeoutRef.current);
@@ -492,13 +613,17 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       updateUrlConfig(urlConfig.id, { urlStatus: 'checking' });
       
       try {
+        // Use the URL from urlConfig, which should be the extracted video URL if isExtractedVideo is true
+        const urlToCheck = urlConfig.url;
+        console.log('[checkUrlStatus] Checking URL:', urlToCheck, 'isExtractedVideo:', urlConfig.isExtractedVideo);
+
         const response = await fetch(buildApiUrl('/api/projects/check-url'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`
           },
-          body: JSON.stringify({ url: urlConfig.url })
+          body: JSON.stringify({ url: urlToCheck })
         });
         
         if (response.ok) {
@@ -538,33 +663,166 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             // Fetch quality options for protected content too
             fetchQualityOptions(urlConfig);
           } else if (result.status === 'playlist') {
-            // Handle playlist detection
-            updateUrlConfig(urlConfig.id, {
-              urlStatus: 'playlist',
-              requiresCookies: false,
-              urlCheckMessage: `📝 רשימת השמעה: ${result.videoCount} סרטונים`,
-              mediaName: result.title || urlConfig.mediaName,
-              isPlaylist: true,
-              playlistInfo: result.playlist,
-              originalPlaylistUrl: urlConfig.url
-            });
-            // Only show choice dialog if NOT in continue mode
-            if (!continuePlaylist) {
-              setShowPlaylistChoice(urlConfig.id);
+            // If this was an extracted video that's still being detected as playlist, force re-check as single video
+            if (urlConfig.isExtractedVideo) {
+              console.log('[URL Check] ERROR: Extracted video still detected as playlist!');
+              console.log('[URL Check] URL sent to backend:', urlToCheck);
+              console.log('[URL Check] Backend returned playlist with title:', result.title);
+              console.log('[URL Check] Full urlConfig:', urlConfig);
+
+              // This shouldn't happen if we properly removed the list parameter
+              // Force treat as a single video but don't use the playlist title
+              const shouldAutoConfigure = urlConfig.autoConfigureAfterCheck;
+
+              // Try to get the first video's title from the playlist info if available
+              let videoName = extractMediaName(urlConfig.url);
+              if (result.playlist && result.playlist.videos && result.playlist.videos.length > 0) {
+                // Find the video that matches our URL (by video ID)
+                const urlObj = new URL(urlConfig.url);
+                const videoId = urlObj.searchParams.get('v');
+                if (videoId) {
+                  const matchingVideo = result.playlist.videos.find((v: any) => v.id === videoId);
+                  if (matchingVideo && matchingVideo.title) {
+                    videoName = matchingVideo.title;
+                    console.log('[URL Check] Found matching video in playlist:', videoName);
+                  }
+                }
+              }
+
+              updateUrlConfig(urlConfig.id, {
+                urlStatus: 'public',
+                requiresCookies: false,
+                urlCheckMessage: '',
+                mediaName: videoName, // Use extracted or found video name
+                showQualityPanel: !shouldAutoConfigure,
+                status: shouldAutoConfigure ? 'configured' : 'editing',
+                selectedQuality: 'high',
+                downloadType: 'video',
+                autoConfigureAfterCheck: false,
+                isPlaylist: false,
+                playlistInfo: undefined,
+                isExtractedVideo: false
+              });
+              // Fetch quality options
+              fetchQualityOptions(urlConfig);
+            } else {
+              // Normal playlist handling
+              updateUrlConfig(urlConfig.id, {
+                urlStatus: 'playlist',
+                requiresCookies: false,
+                urlCheckMessage: `📝 רשימת השמעה: ${result.videoCount} סרטונים`,
+                mediaName: result.title || urlConfig.mediaName,
+                isPlaylist: true,
+                playlistInfo: result.playlist,
+                originalPlaylistUrl: urlConfig.url
+              });
+
+              // Check if we're adding to an existing project (not creating new and not continuing playlist)
+              if (target !== 'new' && !continuePlaylist) {
+                // Auto-select "video only" for regular projects - don't show choice dialog
+                console.log('[URL Check] Adding playlist URL to regular project - auto-selecting video only');
+
+                // Extract the video-only URL immediately
+                const videoOnlyUrl = extractVideoOnlyUrl(urlConfig.url);
+                console.log('[URL Check] Extracted video URL:', videoOnlyUrl);
+
+                // Update the URL config with the extracted video URL
+                updateUrlConfig(urlConfig.id, {
+                  url: videoOnlyUrl,
+                  isPlaylist: false,
+                  playlistInfo: undefined,
+                  originalPlaylistUrl: undefined,
+                  urlStatus: 'unchecked',
+                  urlCheckMessage: '⏳ בודק את הסרטון...',
+                  mediaName: '',
+                  status: 'editing',
+                  showQualityPanel: false,
+                  autoConfigureAfterCheck: false // Don't auto-submit, show quality panel
+                });
+
+                // Re-check the extracted video URL after a short delay
+                setTimeout(() => {
+                  const videoConfig = {
+                    id: urlConfig.id,
+                    url: videoOnlyUrl,
+                    mediaName: '',
+                    selectedQuality: 'high' as const,
+                    downloadType: 'video' as const,
+                    qualityOptions: [],
+                    status: 'editing' as const,
+                    urlStatus: 'unchecked' as const,
+                    urlCheckMessage: '',
+                    isLoadingQuality: false,
+                    requiresCookies: false,
+                    cookieUploaded: false,
+                    showQualityPanel: false,
+                    autoConfigureAfterCheck: false // Don't auto-submit, show quality panel
+                  };
+
+                  console.log('[URL Check] Re-checking extracted video URL');
+                  checkUrlStatus(videoConfig);
+                }, 500);
+              } else if (!continuePlaylist) {
+                // Only show choice dialog for new projects
+                setShowPlaylistChoice(urlConfig.id);
+              }
             }
           } else if (result.status === 'protected-playlist') {
-            updateUrlConfig(urlConfig.id, {
-              urlStatus: 'protected-playlist',
-              requiresCookies: true,
-              urlCheckMessage: '🔒📝 רשימת השמעה פרטית',
-              mediaName: result.title || 'רשימת השמעה פרטית',
-              isPlaylist: true,
-              playlistInfo: result.playlist,
-              originalPlaylistUrl: urlConfig.url
-            });
-            // Only show choice dialog if NOT in continue mode
-            if (result.playlist && !continuePlaylist) {
-              setShowPlaylistChoice(urlConfig.id);
+            // If this was an extracted video that's still being detected as playlist, treat it as protected video
+            if (urlConfig.isExtractedVideo) {
+              console.log('[URL Check] Extracted video still detected as protected-playlist - treating as protected video');
+              const shouldAutoConfigure = urlConfig.autoConfigureAfterCheck;
+
+              // Try to extract video name, don't use playlist title
+              let videoName = extractMediaName(urlConfig.url);
+              if (result.playlist && result.playlist.videos && result.playlist.videos.length > 0) {
+                const urlObj = new URL(urlConfig.url);
+                const videoId = urlObj.searchParams.get('v');
+                if (videoId) {
+                  const matchingVideo = result.playlist.videos.find((v: any) => v.id === videoId);
+                  if (matchingVideo && matchingVideo.title) {
+                    videoName = matchingVideo.title;
+                  }
+                }
+              }
+
+              updateUrlConfig(urlConfig.id, {
+                urlStatus: 'protected',
+                requiresCookies: true,
+                urlCheckMessage: '🔒 תוכן מוגן - Cookies יטופל בהורדה',
+                mediaName: videoName, // Use extracted or found video name
+                showQualityPanel: !shouldAutoConfigure,  // Don't show panel if auto-configuring
+                status: shouldAutoConfigure ? 'configured' : 'editing', // Auto-configure if from playlist
+                selectedQuality: 'high', // Default to high quality
+                downloadType: 'video', // Default to video
+                autoConfigureAfterCheck: false, // Reset flag
+                isPlaylist: false, // Ensure it's not treated as playlist
+                playlistInfo: undefined,
+                isExtractedVideo: false // Reset the flag
+              });
+              // Fetch quality options
+              fetchQualityOptions(urlConfig);
+            } else {
+              // Normal protected playlist handling
+              updateUrlConfig(urlConfig.id, {
+                urlStatus: 'protected-playlist',
+                requiresCookies: true,
+                urlCheckMessage: '🔒📝 רשימת השמעה פרטית',
+                mediaName: result.title || 'רשימת השמעה פרטית',
+                isPlaylist: true,
+                playlistInfo: result.playlist,
+                originalPlaylistUrl: urlConfig.url
+              });
+
+              // Check if we're adding to an existing project (not creating new and not continuing playlist)
+              if (target !== 'new' && !continuePlaylist && result.playlist) {
+                // Auto-select "video only" for regular projects - don't show choice dialog
+                console.log('[URL Check] Adding protected playlist URL to regular project - auto-selecting video only');
+                handleDownloadOnlyVideo(urlConfig.id);
+              } else if (result.playlist && !continuePlaylist) {
+                // Only show choice dialog for new projects
+                setShowPlaylistChoice(urlConfig.id);
+              }
             }
           } else if (result.status === 'invalid') {
             updateUrlConfig(urlConfig.id, {
@@ -624,9 +882,11 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   };
 
   const handleUrlChange = (id: string, newUrl: string) => {
+    console.log('[handleUrlChange] Called with:', { id, newUrl });
     updateUrlConfig(id, { url: newUrl });
     const urlConfig = urls.find(u => u.id === id);
     if (urlConfig && newUrl.trim()) {
+      console.log('[handleUrlChange] Triggering checkUrlStatus for:', newUrl);
       checkUrlStatus({ ...urlConfig, url: newUrl });
     } else if (!newUrl.trim()) {
       // Clear status when URL is empty
@@ -782,38 +1042,51 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
 
     // Extract video-only URL
     const videoOnlyUrl = extractVideoOnlyUrl(urlConfig.url);
+    console.log('[handleDownloadOnlyVideo] Original URL:', urlConfig.url);
+    console.log('[handleDownloadOnlyVideo] Extracted video-only URL:', videoOnlyUrl);
 
-    // Update the URL config to be a regular video, not a playlist
+    // Close the choice dialog if it's open
+    setShowPlaylistChoice(null);
+
+    // Clear playlist-related data and set the video URL
     updateUrlConfig(urlId, {
       url: videoOnlyUrl,
       isPlaylist: false,
       playlistInfo: undefined,
-      originalPlaylistUrl: undefined, // Clear this to make it a regular URL
+      originalPlaylistUrl: undefined,
       urlStatus: 'unchecked',
-      urlCheckMessage: '',
-      mediaName: '', // Clear the playlist name to force re-fetch
-      status: 'editing', // Start in editing mode
-      showQualityPanel: false, // Reset quality panel
-      autoConfigureAfterCheck: true, // Flag to auto-configure after URL check
-      autoSubmitAfterConfigure: true // Flag to auto-submit after configuring
+      urlCheckMessage: '⏳ מחלץ את הסרטון מהרשימה...',
+      mediaName: '',
+      status: 'editing',
+      showQualityPanel: false,
+      autoConfigureAfterCheck: false // Don't auto-submit, show quality panel instead
     });
 
-    // Close the choice dialog
-    setShowPlaylistChoice(null);
-
-    // Trigger a new URL check to get the individual video title
-    // Use a ref to get the latest state
+    // Call checkUrlStatus with the extracted URL directly, not relying on state
     setTimeout(() => {
-      // Get the latest URL config from state
-      setUrls(currentUrls => {
-        const updatedConfig = currentUrls.find(u => u.id === urlId);
-        if (updatedConfig) {
-          // Trigger the check with the updated URL
-          checkUrlStatus({ ...updatedConfig, url: videoOnlyUrl, autoConfigureAfterCheck: true });
-        }
-        return currentUrls; // Return unchanged
-      });
-    }, 100);
+      console.log('[handleDownloadOnlyVideo] Calling checkUrlStatus with extracted URL:', videoOnlyUrl);
+
+      // Create a config object with the extracted URL
+      const configForCheck = {
+        id: urlId,
+        url: videoOnlyUrl, // Use the extracted URL directly
+        mediaName: '',
+        selectedQuality: 'high' as const,
+        downloadType: 'video' as const,
+        qualityOptions: [],
+        status: 'editing' as const,
+        urlStatus: 'unchecked' as const,
+        urlCheckMessage: '',
+        isLoadingQuality: false,
+        requiresCookies: false,
+        cookieUploaded: false,
+        showQualityPanel: false,
+        autoConfigureAfterCheck: false // Don't auto-submit, show quality panel instead
+      };
+
+      // Call directly with the extracted URL
+      checkUrlStatusDirect(configForCheck, videoOnlyUrl);
+    }, 300);
   };
 
   const handleVideoToggle = (videoId: string) => {
@@ -918,16 +1191,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     }
   }, [showPlaylistConfirmation, urls, playlistInitialized, continuePlaylist]);
 
-  // Auto-submit when a URL is configured with autoSubmitAfterConfigure flag
-  useEffect(() => {
-    const urlWithAutoSubmit = urls.find(u => u.status === 'configured' && u.autoSubmitAfterConfigure);
-    if (urlWithAutoSubmit) {
-      // Clear the flag first to prevent infinite loop
-      updateUrlConfig(urlWithAutoSubmit.id, { autoSubmitAfterConfigure: false });
-      // Submit automatically
-      handleSubmit(true);
-    }
-  }, [urls]);
+  // Removed auto-submit to prevent modal from closing unexpectedly
+  // Users should always manually confirm their selections
 
   if (!isOpen) return null;
 
