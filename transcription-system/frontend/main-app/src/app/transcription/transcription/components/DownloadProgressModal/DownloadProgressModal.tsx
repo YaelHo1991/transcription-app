@@ -421,52 +421,9 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                                       🍪 נדרש תוסף Cookie Helper
                                     </p>
                                     <button
-                                      onClick={async () => {
-                                        try {
-                                          // Download the extension from backend
-                                          const token = localStorage.getItem('token') || 'dev-anonymous';
-                                          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/download-extension`, {
-                                            headers: {
-                                              'Authorization': `Bearer ${token}`
-                                            }
-                                          });
-                                          
-                                          if (response.ok) {
-                                            const blob = await response.blob();
-                                            const url = window.URL.createObjectURL(blob);
-                                            const a = document.createElement('a');
-                                            a.href = url;
-                                            a.download = 'cookie-helper-extension.zip';
-                                            document.body.appendChild(a);
-                                            a.click();
-                                            window.URL.revokeObjectURL(url);
-                                            document.body.removeChild(a);
-                                            
-                                            // Show simplified installation instructions
-                                            setTimeout(() => {
-                                              alert(`התקנת התוסף:
-1. חלץ את הקובץ שהורדת
-2. פתח chrome://extensions/
-3. הפעל "Developer mode"
-4. לחץ "Load unpacked"
-5. בחר את התיקיה שחילצת
-6. רענן את העמוד הזה`);
-                                            }, 100);
-                                            
-                                            // Check if extension was installed after a delay
-                                            setTimeout(() => {
-                                              setCheckingExtension(true);
-                                              // Recheck for extension
-                                              window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
-                                            }, 5000);
-                                          } else {
-                                            console.error('Failed to download extension');
-                                            alert('שגיאה בהורדת התוסף');
-                                          }
-                                        } catch (error) {
-                                          console.error('Error downloading extension:', error);
-                                          alert('שגיאה בהורדת התוסף');
-                                        }
+                                      onClick={() => {
+                                        // Open the extension help page in a new tab
+                                        window.open('/transcription/extension-help', '_blank');
                                       }}
                                       style={{
                                         width: '100%',
@@ -483,7 +440,7 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                                         boxShadow: '0 2px 8px rgba(32, 201, 151, 0.2)'
                                       }}
                                     >
-                                      📥 התקן תוסף Cookie Helper
+                                      📥 פתח מדריך התקנת התוסף
                                     </button>
                                     <p style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>
                                       התקנה חד-פעמית • טיפול אוטומטי בכל הורדה

@@ -538,7 +538,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             // Fetch quality options for protected content too
             fetchQualityOptions(urlConfig);
           } else if (result.status === 'playlist') {
-            // Handle playlist detection - show choice dialog first
+            // Handle playlist detection
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'playlist',
               requiresCookies: false,
@@ -548,8 +548,10 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               playlistInfo: result.playlist,
               originalPlaylistUrl: urlConfig.url
             });
-            // Show choice dialog instead of directly showing playlist confirmation
-            setShowPlaylistChoice(urlConfig.id);
+            // Only show choice dialog if NOT in continue mode
+            if (!continuePlaylist) {
+              setShowPlaylistChoice(urlConfig.id);
+            }
           } else if (result.status === 'protected-playlist') {
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'protected-playlist',
@@ -560,8 +562,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               playlistInfo: result.playlist,
               originalPlaylistUrl: urlConfig.url
             });
-            // Show choice dialog for protected playlists too
-            if (result.playlist) {
+            // Only show choice dialog if NOT in continue mode
+            if (result.playlist && !continuePlaylist) {
               setShowPlaylistChoice(urlConfig.id);
             }
           } else if (result.status === 'invalid') {
@@ -742,12 +744,15 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     // Use playlist title as project name with detected platform
     const platform = getPlatformFromUrl(playlistUrlConfig.url);
     const playlistProjectName = `${platform} - ${playlistUrlConfig.playlistInfo.title}`;
-    
+
+    // Determine the target project ID
+    const submitTarget = continuePlaylist ? continuePlaylist.projectId : target;
+
     // Close the modal immediately
     onClose();
-    
-    // Start download directly with playlist videos
-    await onSubmit(videoConfigs, true, playlistProjectName);
+
+    // Start download directly with playlist videos, passing the correct target and playlist cookie file
+    await onSubmit(videoConfigs, true, playlistProjectName, submitTarget, playlistCookieFile || undefined);
     
     // Reset state
     setShowPlaylistConfirmation(null);
@@ -840,8 +845,19 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     const isPlaylistDownload = urls.some(u => u.isPlaylist);
     
     // Pass the configured URLs and target to parent component
+    // If in continue mode, use the existing project ID instead of 'new'
+    const submitTarget = continuePlaylist ? continuePlaylist.projectId : target;
+    const submitProjectName = continuePlaylist ? continuePlaylist.projectName : projectNameInput;
+
+    console.log('[UrlUploadModal] Submit debug:');
+    console.log('  - continuePlaylist:', continuePlaylist);
+    console.log('  - continuePlaylist.projectId:', continuePlaylist?.projectId);
+    console.log('  - target prop:', target);
+    console.log('  - submitTarget (final):', submitTarget);
+    console.log('  - submitProjectName:', submitProjectName);
+
     // Parent will handle closing the modal
-    await onSubmit(configuredUrls, downloadNow, projectNameInput, target, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
+    await onSubmit(configuredUrls, downloadNow, submitProjectName, submitTarget, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
   };
 
   // Clean up timeout on unmount
