@@ -102,29 +102,29 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
 
   // Load all projects
   loadProjects: async () => {
-        console.log('[ProjectStore] Starting loadProjects...'); 
-        
+        console.log('[ProjectStore] Starting loadProjects...');
+
         const { isLoading } = get();
-        
+
         if (isLoading) {
           console.log('[ProjectStore] Already loading, skipping duplicate request');
           return;
         }
-        
+
         set({ isLoading: true, error: null });
-        
+
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
           console.log('[ProjectStore] Using token:', token);
-          
+
           const response = await fetch(buildApiUrl('/api/projects/list'), {
             headers: {
               'Authorization': `Bearer ${token}`
             }
           });
-          
+
           console.log('[ProjectStore] Response status:', response.status);
-          
+
           if (!response.ok) {
             throw new Error(`Failed to load projects: ${response.status}`);
           }

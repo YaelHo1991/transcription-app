@@ -554,8 +554,10 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       // Create FormData to handle cookie files
       const formData = new FormData();
       formData.append('projectName', projectName);
-      formData.append('target', target);
-      console.log('[handleUrlSubmit] FormData target appended:', target);
+      // Ensure target is never undefined - default to 'new'
+      const targetValue = target || 'new';
+      formData.append('target', targetValue);
+      console.log('[handleUrlSubmit] FormData target appended:', targetValue, '(original was:', target, ')');
       
       // If playlist cookie file is provided, add it for all playlist URLs
       if (playlistCookieFile) {
@@ -2431,7 +2433,7 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         </>
       )}
       
-      {showDownloadProgress && (
+      {showDownloadProgress && currentBatchId && (
         <DownloadProgressModal
           isOpen={showDownloadProgress}
           onClose={() => {

@@ -46,8 +46,11 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
 
   // Fetch progress data
   const fetchProgress = async () => {
-    if (!batchId) return;
-    
+    if (!batchId) {
+      console.log('[DownloadProgressModal] No batchId, skipping fetch');
+      return;
+    }
+
     try {
       const response = await fetch(buildApiUrl(`/api/projects/batch-download/${batchId}/progress`), {
         method: 'GET',
@@ -138,19 +141,19 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
 
   // Poll progress every 2 seconds while downloading
   useEffect(() => {
-    if (!isOpen || !batchId) return;
+    if (!isOpen || !batchId) {
+      console.log('[DownloadProgressModal] Not polling - isOpen:', isOpen, 'batchId:', batchId);
+      return;
+    }
 
     let interval: NodeJS.Timeout;
-    
-    const startPolling = () => {
-      fetchProgress();
-      
-      interval = setInterval(() => {
-        fetchProgress();
-      }, 2000);
-    };
 
-    startPolling();
+    // Start polling immediately
+    fetchProgress();
+
+    interval = setInterval(() => {
+      fetchProgress();
+    }, 2000);
 
     return () => {
       if (interval) {

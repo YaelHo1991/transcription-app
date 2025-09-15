@@ -732,10 +732,17 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       projectName = (req as any).body.projectName;
       target = (req as any).body.target;
 
+      // Fix undefined string issue
+      if (target === 'undefined' || target === undefined || target === null) {
+        target = 'new';
+        console.log('[BatchDownload] Converted undefined/null target to "new"');
+      }
+
       // Debug logging for FormData extraction
       console.log('[BatchDownload] FormData body keys:', Object.keys((req as any).body));
-      console.log('[BatchDownload] FormData body.target:', (req as any).body.target);
+      console.log('[BatchDownload] FormData body.target (raw):', (req as any).body.target);
       console.log('[BatchDownload] FormData body.target type:', typeof (req as any).body.target);
+      console.log('[BatchDownload] Final target after conversion:', target);
       
       // Extract cookie files
       const files = (req as any).files || [];
@@ -928,13 +935,10 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
             }, 5000);
           }
           
-          // Return error response that will trigger cookie upload in frontend
-          return res.status(400).json({
-            status: 'protected',
-            requiresCookies: true,
-            message: 'YouTube דורש אימות - נדרש קובץ Cookies',
-            error: 'Bot detection triggered'
-          });
+          // Don't send response here as we already sent one
+          // The frontend will see the failed status in progress tracking
+          console.log('[BatchDownload] Bot detection error - marked as failed in progress tracking');
+          return;
         }
         
         // Update progress to failed for this file
@@ -951,7 +955,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     }
     
     if (downloadedFiles.length === 0) {
-      return res.status(400).json({ error: 'Failed to download any files' });
+      console.error('[BatchDownload] Failed to download any files');
+      // Don't send response here as we already sent one
+      return;
     }
     
     // Check if we should add to existing project or create new one
@@ -959,7 +965,8 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
 
     console.log(`[BatchDownload] Decision point - target: "${target}", target !== 'new': ${target !== 'new'}`);
 
-    if (target && target !== 'new') {
+    // Check if target is valid (not undefined string and not 'new')
+    if (target && target !== 'new' && target !== 'undefined') {
       // Add to existing project
       console.log(`[BatchDownload] ADDING TO EXISTING PROJECT: ${target}`);
       result = await projectService.addMediaToProject(
@@ -1675,10 +1682,10 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
           if (titleMatch) {
             title = titleMatch[1];
           } else {
-            // Extract video ID and use as temporary title
+            // For protected content, indicate that title will be retrieved during download
             const videoIdMatch = url.match(/[?&]v=([^&]+)/);
             if (videoIdMatch) {
-              title = `סרטון YouTube (${videoIdMatch[1]})`;
+              title = `סרטון מוגן - השם יתקבל בעת ההורדה`;
             }
           }
         }
