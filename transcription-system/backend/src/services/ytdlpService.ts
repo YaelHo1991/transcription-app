@@ -187,25 +187,71 @@ export class YtDlpService {
   /**
    * Get minimal info (just title) even for protected content
    */
-  static async getMinimalInfo(url: string): Promise<{ title?: string }> {
+  static async getMinimalInfo(url: string, cookieFile?: string): Promise<{ title?: string }> {
     return new Promise((resolve) => {
+      // First try the simple --get-title approach
       const args = [
         '--get-title',
         '--no-warnings',
         '--no-check-certificate',
-        '--ignore-errors',
+        '--skip-download',
+        '--quiet',
+        '--no-playlist',
         url
       ];
 
+      // Check if cookies are available for protected content
+      if (cookieFile && fs.existsSync(cookieFile)) {
+        args.push('--cookies', cookieFile);
+        console.log('[YtDlpService.getMinimalInfo] Using cookies for protected content');
+      }
+
       const ytdlpCommand = this.getYtDlpCommand();
+      console.log('[YtDlpService.getMinimalInfo] Trying to get title for:', url);
       const ytdlp = spawn(ytdlpCommand, args);
+      let stdout = '';
+      let stderr = '';
       let title = '';
 
       ytdlp.stdout.on('data', (data) => {
-        title = data.toString().trim();
+        const output = data.toString().trim();
+        if (output && !output.includes('ERROR') && !output.includes('WARNING')) {
+          title = output.split('\n')[0]; // Take first line if multiple
+          console.log('[YtDlpService.getMinimalInfo] Got title from --get-title:', title);
+        }
       });
 
-      ytdlp.on('close', () => {
+      ytdlp.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      ytdlp.on('close', (code) => {
+        // If we didn't get a title and have an error, try to extract from error
+        if (!title && stderr) {
+          // Enhanced patterns for extracting titles from error messages
+          const titlePatterns = [
+            /"([^"]+)" is members-only/,  // Members-only with title
+            /Video "([^"]+)"/,  // Video with title in quotes
+            /'([^']+)' is private/,  // Private video with single quotes
+            /title[:\s]+["']([^"']+)["']/i,  // Generic title pattern
+            /\[youtube\] [^:]+: (.+?) \(/,  // YouTube error pattern
+            /ERROR: ([^:]+) is/,  // Error with title at start
+            /סרטון "([^"]+)"/,  // Hebrew pattern
+          ];
+
+          for (const pattern of titlePatterns) {
+            const match = stderr.match(pattern);
+            if (match && match[1]) {
+              // Don't use corrupted text from error messages
+              if (!match[1].includes('�')) {
+                title = match[1].trim();
+                console.log('[YtDlpService.getMinimalInfo] Extracted title from error:', title);
+                break;
+              }
+            }
+          }
+        }
+
         resolve({ title: title || undefined });
       });
 
@@ -213,7 +259,7 @@ export class YtDlpService {
         resolve({ title: undefined });
       });
 
-      // Timeout after 3 seconds
+      // Timeout
       setTimeout(() => {
         ytdlp.kill();
         resolve({ title: title || undefined });
