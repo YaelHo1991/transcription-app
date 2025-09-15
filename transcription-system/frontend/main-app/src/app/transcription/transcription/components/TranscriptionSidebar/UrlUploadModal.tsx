@@ -46,6 +46,7 @@ interface UrlConfig {
   showQualityPanel?: boolean;
   showCookiePanel?: boolean;
   autoConfigureAfterCheck?: boolean;
+  autoSubmitAfterConfigure?: boolean;
 
   // Playlist specific fields
   isPlaylist?: boolean;
@@ -112,14 +113,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   const [error, setError] = useState('');
   const [activeUrlId, setActiveUrlId] = useState<string | null>(null);
   const [projectNameInput, setProjectNameInput] = useState('');
-  const [defaultProjectName, setDefaultProjectName] = useState('');
   const [showPlaylistConfirmation, setShowPlaylistConfirmation] = useState<string | null>(null);
   const [showPlaylistChoice, setShowPlaylistChoice] = useState<string | null>(null); // Show choice dialog for playlist
-
-  // Debug log for showPlaylistChoice state changes
-  useEffect(() => {
-    console.log('[UrlUploadModal] showPlaylistChoice state changed to:', showPlaylistChoice);
-  }, [showPlaylistChoice]);
   const [selectedPlaylistVideos, setSelectedPlaylistVideos] = useState<Set<string>>(new Set());
   const [playlistInitialized, setPlaylistInitialized] = useState(false);
   const [playlistVideoQualities, setPlaylistVideoQualities] = useState<{[key: string]: 'high' | 'medium' | 'low' | 'audio'}>({});
@@ -203,7 +198,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       if (continuePlaylist) {
         // Set the project name from the existing project
         setProjectNameInput(continuePlaylist.projectName);
-        setDefaultProjectName(continuePlaylist.projectName);
 
         // Create a URL config for the playlist URL with playlist info already loaded
         const playlistUrlId = `url-${Date.now()}`;
@@ -249,9 +243,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           minute: '2-digit',
           hour12: false
         });
-        const generatedName = `Media - ${dateStr} ${timeStr}`;
-        setProjectNameInput(generatedName);
-        setDefaultProjectName(generatedName);
+        setProjectNameInput(`Media - ${dateStr} ${timeStr}`);
         
         const newId = `url-${Date.now()}`;
         const newUrlConfig: UrlConfig = {
@@ -301,9 +293,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             minute: '2-digit',
             hour12: false
           });
-          const generatedName = `${platform} - ${dateStr} ${timeStr}`;
-          setProjectNameInput(generatedName);
-          setDefaultProjectName(generatedName);
+          setProjectNameInput(`${platform} - ${dateStr} ${timeStr}`);
         }
       }
     }
@@ -312,7 +302,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
-      console.log('[UrlUploadModal] Modal is closing, resetting state after delay');
       setTimeout(() => {
         setUrls([]);
         setCurrentUrl('');
@@ -364,36 +353,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   };
 
   const removeUrl = (id: string) => {
-    setUrls(prev => {
-      const filtered = prev.filter(u => u.id !== id);
-      // If we're removing the last URL, add a new empty one
-      if (filtered.length === 0) {
-        const newId = `url-${Date.now()}`;
-        const newUrlConfig: UrlConfig = {
-          id: newId,
-          url: '',
-          selectedQuality: 'high',
-          downloadType: 'video',
-          qualityOptions: [
-            { quality: 'high', resolution: 'מיטבית', estimatedSize: '200-500 MB', format: 'mp4' },
-            { quality: 'medium', resolution: '720p', estimatedSize: '100-250 MB', format: 'mp4' },
-            { quality: 'low', resolution: '480p', estimatedSize: '50-150 MB', format: 'mp4' },
-            { quality: 'audio' as 'high' | 'medium' | 'low', resolution: 'אודיו בלבד', estimatedSize: '10-30 MB', format: 'mp3' }
-          ],
-          status: 'editing',
-          urlStatus: 'unchecked',
-          urlCheckMessage: '',
-          isLoadingQuality: false,
-          requiresCookies: false,
-          cookieUploaded: false,
-          showQualityPanel: false,
-          showCookiePanel: false
-        };
-        setActiveUrlId(newId);
-        return [newUrlConfig];
-      }
-      return filtered;
-    });
+    setUrls(prev => prev.filter(u => u.id !== id));
     if (activeUrlId === id) {
       setActiveUrlId(null);
     }
@@ -543,9 +503,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
         
         if (response.ok) {
           const result = await response.json();
-          console.log('[UrlUploadModal] URL check result:', result);
-          console.log('[UrlUploadModal] Result status:', result.status);
-          console.log('[UrlUploadModal] Is playlist?:', result.status === 'playlist');
+          console.log('URL check result:', result);
           
           if (result.status === 'public') {
             // Check if this was from "download only video" from playlist
@@ -580,8 +538,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             // Fetch quality options for protected content too
             fetchQualityOptions(urlConfig);
           } else if (result.status === 'playlist') {
-            console.log('[UrlUploadModal] Playlist detected, showing choice dialog');
-            console.log('[UrlUploadModal] Playlist info:', result.playlist);
             // Handle playlist detection - show choice dialog first
             updateUrlConfig(urlConfig.id, {
               urlStatus: 'playlist',
@@ -593,7 +549,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               originalPlaylistUrl: urlConfig.url
             });
             // Show choice dialog instead of directly showing playlist confirmation
-            console.log('[UrlUploadModal] Setting showPlaylistChoice to:', urlConfig.id);
             setShowPlaylistChoice(urlConfig.id);
           } else if (result.status === 'protected-playlist') {
             updateUrlConfig(urlConfig.id, {
@@ -626,16 +581,9 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             fetchQualityOptions(urlConfig);
           }
         } else {
-          // Handle error response
-          let errorMessage = 'כתובת URL לא תקינה';
-          try {
-            const errorData = JSON.parse(await response.text());
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } catch {
-            // If parsing fails, use default message
-          }
-
-          console.log('URL check returned error:', response.status, errorMessage);
+          // Log the error response
+          const errorText = await response.text();
+          console.error('URL check failed:', response.status, errorText);
 
           // If we're in continue mode and check fails, still show playlist
           if (continuePlaylist && urlConfig.isPlaylist) {
@@ -644,13 +592,13 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             return;
           }
 
-          // Mark URL as invalid
+          // If check fails, assume public and show quality options
           updateUrlConfig(urlConfig.id, {
-            urlStatus: 'invalid',
+            urlStatus: 'public',
             requiresCookies: false,
-            urlCheckMessage: '⚠ ' + errorMessage,
-            status: 'editing' // Keep in editing mode so user can fix it
+            urlCheckMessage: ''
           });
+          fetchQualityOptions(urlConfig);
         }
       } catch (error) {
         console.log('URL check failed:', error);
@@ -662,13 +610,13 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
           return;
         }
 
-        // Mark URL as invalid on network/other errors
+        // If check fails, assume public and show quality options
         updateUrlConfig(urlConfig.id, {
-          urlStatus: 'invalid',
+          urlStatus: 'public',
           requiresCookies: false,
-          urlCheckMessage: '⚠ שגיאה בבדיקת URL - נסה שוב',
-          status: 'editing' // Keep in editing mode so user can fix it
+          urlCheckMessage: ''
         });
+        fetchQualityOptions(urlConfig);
       }
     }, 1000);
   };
@@ -811,9 +759,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
   };
 
   const handlePlaylistCancel = (playlistUrlId: string) => {
-    // Just remove the playlist URL and close dialog
-    setUrls(prev => prev.filter(u => u.id !== playlistUrlId));
-    setShowPlaylistConfirmation(null);
+    // Always close the entire modal when canceling playlist
+    onClose();
   };
 
   // Handle playlist choice - download entire playlist
@@ -842,7 +789,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
       mediaName: '', // Clear the playlist name to force re-fetch
       status: 'editing', // Start in editing mode
       showQualityPanel: false, // Reset quality panel
-      autoConfigureAfterCheck: true // Flag to auto-configure after URL check
+      autoConfigureAfterCheck: true, // Flag to auto-configure after URL check
+      autoSubmitAfterConfigure: true // Flag to auto-submit after configuring
     });
 
     // Close the choice dialog
@@ -891,12 +839,9 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     // Pass playlistCookieFile if this is a playlist download
     const isPlaylistDownload = urls.some(u => u.isPlaylist);
     
-    // Use default project name if input is empty
-    const finalProjectName = projectNameInput.trim() || defaultProjectName || 'Media';
-
     // Pass the configured URLs and target to parent component
     // Parent will handle closing the modal
-    await onSubmit(configuredUrls, downloadNow, finalProjectName, target, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
+    await onSubmit(configuredUrls, downloadNow, projectNameInput, target, isPlaylistDownload ? playlistCookieFile || undefined : undefined);
   };
 
   // Clean up timeout on unmount
@@ -957,30 +902,41 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
     }
   }, [showPlaylistConfirmation, urls, playlistInitialized, continuePlaylist]);
 
-  if (!isOpen) {
-    console.log('[UrlUploadModal] Modal is not open, returning null');
-    return null;
-  }
+  // Auto-submit when a URL is configured with autoSubmitAfterConfigure flag
+  useEffect(() => {
+    const urlWithAutoSubmit = urls.find(u => u.status === 'configured' && u.autoSubmitAfterConfigure);
+    if (urlWithAutoSubmit) {
+      // Clear the flag first to prevent infinite loop
+      updateUrlConfig(urlWithAutoSubmit.id, { autoSubmitAfterConfigure: false });
+      // Submit automatically
+      handleSubmit(true);
+    }
+  }, [urls]);
+
+  if (!isOpen) return null;
 
   // Check if we're in the browser
-  if (typeof document === 'undefined') {
-    console.log('[UrlUploadModal] Not in browser, returning null');
-    return null;
-  }
+  if (typeof document === 'undefined') return null;
 
-  console.log('[UrlUploadModal] Rendering modal portal, showPlaylistChoice:', showPlaylistChoice);
+  // Hide URL modal when showing playlist confirmation or in continue mode (but NOT for playlist choice)
+  const shouldShowUrlModal = !showPlaylistConfirmation && !(continuePlaylist && urls.length > 0);
 
   return ReactDOM.createPortal(
-    <div className="url-modal-overlay" onClick={onClose}>
-      <div className="url-modal-content extended" onClick={(e) => e.stopPropagation()}>
-        <div className="url-modal-header">
-          <h2>
-            {target === 'new' ? 'יצירת פרויקט מ-URL' : `הוספת מדיה לפרויקט: ${projectName}`}
-          </h2>
-          <button className="url-modal-close" onClick={onClose}>×</button>
-        </div>
-        
-        <div className="url-modal-form">
+    <>
+      {/* Show overlay and appropriate content based on state */}
+      {(shouldShowUrlModal || showPlaylistChoice) ? (
+        <div className="url-modal-overlay" onClick={onClose}>
+          {/* Show URL modal content only when not showing playlist choice */}
+          {!showPlaylistChoice && (
+            <div className="url-modal-content extended" onClick={(e) => e.stopPropagation()}>
+            <div className="url-modal-header">
+              <h2>
+                {target === 'new' ? 'יצירת פרויקט מ-URL' : `הוספת מדיה לפרויקט: ${projectName}`}
+              </h2>
+              <button className="url-modal-close" onClick={onClose}>×</button>
+            </div>
+
+          <div className="url-modal-form">
           {/* Project name input (only for new projects) */}
           {target === 'new' && (
             <div className="url-input-group" style={{ marginBottom: '20px' }}>
@@ -990,7 +946,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                 className="url-input"
                 value={projectNameInput}
                 onChange={(e) => setProjectNameInput(e.target.value)}
-                placeholder={defaultProjectName || "הכנס שם פרויקט"}
+                placeholder="הכנס שם פרויקט"
               />
             </div>
           )}
@@ -1058,30 +1014,6 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                         <div className="media-name-wrapper full-width">
                           <span className="url-number">{index + 1}.</span>
                           <span className="media-name">בודק URL...</span>
-                        </div>
-                      </div>
-                    ) : urlConfig.urlStatus === 'invalid' ? (
-                      // Show editable URL input for invalid URLs to allow fixes
-                      <div className="url-content-wrapper">
-                        <div className="media-name-wrapper full-width">
-                          <span className="url-number">{index + 1}.</span>
-                          <input
-                            type="text"
-                            value={urlConfig.url}
-                            onChange={(e) => handleUrlChange(urlConfig.id, e.target.value)}
-                            disabled={isLoading}
-                            className="url-input inline-edit error"
-                            dir="ltr"
-                            placeholder="תקן את כתובת ה-URL"
-                          />
-                          <button
-                            className="url-reset-btn"
-                            onClick={() => handleUrlChange(urlConfig.id, '')}
-                            title="נקה URL"
-                            style={{ marginLeft: '10px', padding: '4px 8px', fontSize: '12px' }}
-                          >
-                            נקה
-                          </button>
                         </div>
                       </div>
                     ) : urlConfig.urlStatus !== 'unchecked' ? (
@@ -1181,22 +1113,18 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
               ביטול
             </button>
           </div>
-        </div>
 
-        {/* Playlist Choice Dialog - Ask if user wants playlist or just video */}
-        {showPlaylistChoice && (() => {
-          console.log('[UrlUploadModal] Rendering playlist choice dialog for:', showPlaylistChoice);
-          const urlConfig = urls.find(u => u.id === showPlaylistChoice);
-          console.log('[UrlUploadModal] Found urlConfig:', urlConfig);
-          if (!urlConfig) {
-            console.log('[UrlUploadModal] No urlConfig found, not showing dialog');
-            return null;
-          }
+          </div>
+            </div>
+          )}
 
-          console.log('[UrlUploadModal] Rendering playlist choice dialog HTML');
-          return (
-            <div className="playlist-confirm-overlay">
-              <div className="playlist-confirm-dialog" style={{ maxWidth: '500px' }}>
+          {/* Playlist Choice Dialog - Ask if user wants playlist or just video */}
+          {showPlaylistChoice && (() => {
+            const urlConfig = urls.find(u => u.id === showPlaylistChoice);
+            if (!urlConfig) return null;
+
+            return (
+              <div className="playlist-confirm-dialog" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                 <div className="playlist-header">
                   <h3>זוהתה רשימת השמעה</h3>
                 </div>
@@ -1228,8 +1156,8 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                   <button
                     className="cancel-button"
                     onClick={() => {
-                      setUrls(prev => prev.filter(u => u.id !== showPlaylistChoice));
-                      setShowPlaylistChoice(null);
+                      // Close the entire modal when canceling playlist choice
+                      onClose();
                     }}
                     style={{ minWidth: '80px' }}
                   >
@@ -1237,12 +1165,13 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
                   </button>
                 </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
+      ) : null}
 
-        {/* Playlist Confirmation Dialog */}
-        {showPlaylistConfirmation && (() => {
+      {/* Playlist Confirmation Dialog - Show when in playlist confirmation mode */}
+      {showPlaylistConfirmation && (() => {
           const playlistUrl = urls.find(u => u.id === showPlaylistConfirmation);
           const playlistInfo = playlistUrl?.playlistInfo;
           if (!playlistInfo) return null;
@@ -1495,8 +1424,7 @@ const UrlUploadModal: React.FC<UrlUploadModalProps> = ({
             </div>
           );
         })()}
-      </div>
-    </div>,
+    </>,
     document.body
   );
 };

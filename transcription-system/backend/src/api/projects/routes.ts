@@ -1062,7 +1062,7 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       }
     }
     
-    // If this is a playlist download, ensure playlist.json has the playlist URL and title
+    // If this is a playlist download, ensure playlist.json has complete playlist info
     if (playlistMetadata && urls[0].playlistUrl) {
       const playlistJsonPath = path.join(userDir, 'playlist.json');
       try {
@@ -1070,9 +1070,10 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
           playlistUrl: '',
           playlistTitle: '',
           totalVideos: 0,
+          allVideos: [] as any[], // Store complete video list
           downloadedVideos: {}
         };
-        
+
         // Try to read existing playlist.json
         try {
           const existingData = await fs_promises.readFile(playlistJsonPath, 'utf8');
@@ -1080,12 +1081,38 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         } catch {
           // File doesn't exist yet
         }
-        
+
         // Update playlist metadata
         playlistData.playlistUrl = urls[0].playlistUrl || playlistData.playlistUrl;
         playlistData.playlistTitle = playlistMetadata.playlistTitle || playlistData.playlistTitle;
         playlistData.totalVideos = playlistMetadata.totalVideosInPlaylist || playlistData.totalVideos;
-        
+
+        // If we don't have the complete video list yet, fetch it now
+        if (!playlistData.allVideos || playlistData.allVideos.length === 0) {
+          try {
+            console.log('[BatchDownload] Fetching complete playlist info for caching...');
+            const { YtDlpService } = require('../../services/ytdlpService');
+            const playlistInfo = await YtDlpService.getPlaylistInfo(urls[0].playlistUrl);
+
+            if (playlistInfo && playlistInfo.videos) {
+              playlistData.allVideos = playlistInfo.videos.map((video: any, index: number) => ({
+                index: index + 1,
+                id: video.id,
+                title: video.title,
+                url: video.url || `https://www.youtube.com/watch?v=${video.id}`,
+                duration: video.duration,
+                thumbnail: video.thumbnail,
+                uploader: video.uploader || video.channel,
+                uploadDate: video.upload_date
+              }));
+              console.log(`[BatchDownload] Cached ${playlistData.allVideos.length} videos for playlist`);
+            }
+          } catch (error) {
+            console.error('[BatchDownload] Failed to fetch complete playlist info:', error);
+            // Continue without caching - will fetch on demand later
+          }
+        }
+
         // Write back the updated playlist.json
         await fs_promises.writeFile(playlistJsonPath, JSON.stringify(playlistData, null, 2));
       } catch (error) {
@@ -1513,13 +1540,21 @@ router.get('/:projectId/metadata', verifyUser, async (req: Request, res: Respons
           playlistData.downloadedVideos = {};
         }
         
+        // Check if we have cached video list
+        if (!playlistData.allVideos || playlistData.allVideos.length === 0) {
+          console.log('[Project Metadata] No cached video list, will need to fetch from YouTube');
+        } else {
+          console.log(`[Project Metadata] Found cached video list with ${playlistData.allVideos.length} videos`);
+        }
+
         projectJson.playlistData = playlistData;
         console.log('[Project Metadata] Loaded playlist.json:', {
           projectId,
           hasDownloadedVideos: !!playlistData.downloadedVideos,
           downloadedVideosCount: Object.keys(playlistData.downloadedVideos || {}).length,
           downloadedIndices: Object.keys(playlistData.downloadedVideos || {}),
-          fullPlaylistData: playlistData
+          hasCachedVideos: !!playlistData.allVideos && playlistData.allVideos.length > 0,
+          cachedVideoCount: playlistData.allVideos?.length || 0
         });
         
         // Also create mediaPlaylistIndices for backward compatibility

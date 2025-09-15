@@ -423,7 +423,9 @@
       "Bash(if [ -f \"$dir/metadata.json\" ])",
       "Bash(then echo \"  ✓ Has metadata.json\")",
       "Bash(else echo \"  ✗ Missing metadata.json\")",
-      "Bash(zip:*)"
+      "Bash(zip:*)",
+      "Bash(npx eslint:*)",
+      "Bash(/dev/null)"
     ],
     "deny": [],
     "ask": [],

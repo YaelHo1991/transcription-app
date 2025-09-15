@@ -3,6 +3,40 @@ import * as path from 'path';
 
 export class PlaylistService {
   /**
+   * Save complete playlist information (all videos) to playlist.json
+   */
+  static async saveCompletePlaylistInfo(
+    projectDir: string,
+    playlistUrl: string,
+    playlistTitle: string,
+    allVideos: any[]
+  ): Promise<void> {
+    const playlistJsonPath = path.join(projectDir, 'playlist.json');
+
+    let playlistData: any = {
+      playlistUrl,
+      playlistTitle,
+      totalVideos: allVideos.length,
+      allVideos: allVideos, // Store complete video list
+      videos: {} // Downloaded videos tracking
+    };
+
+    // Try to preserve existing downloaded videos data
+    try {
+      const existingData = await fs.readFile(playlistJsonPath, 'utf8');
+      const existing = JSON.parse(existingData);
+      if (existing.videos || existing.downloadedVideos) {
+        playlistData.videos = existing.videos || existing.downloadedVideos || {};
+      }
+    } catch {
+      // File doesn't exist, start fresh
+    }
+
+    await fs.writeFile(playlistJsonPath, JSON.stringify(playlistData, null, 2));
+    console.log(`[PlaylistService] Saved complete playlist info with ${allVideos.length} videos`);
+  }
+
+  /**
    * Update or create playlist.json for a project
    */
   static async updatePlaylistJson(
