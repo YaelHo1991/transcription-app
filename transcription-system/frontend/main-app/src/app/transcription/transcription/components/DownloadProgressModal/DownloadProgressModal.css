@@ -371,28 +371,46 @@
   text-align: right;
 }
 
+/* Minimized view animation */
+@keyframes slideIn {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.download-progress-minimized:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+  border-color: rgba(32, 201, 151, 0.6) !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .download-progress-modal {
     width: 95%;
     margin: 20px auto;
   }
-  
+
   .download-progress-modal .modal-content {
     padding: 20px 16px;
   }
-  
+
   .download-progress-modal .media-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .download-progress-modal .completion-message {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .download-progress-modal .completion-icon {
     font-size: 28px;
   }

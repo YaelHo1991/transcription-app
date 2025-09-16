@@ -26,13 +26,17 @@ interface DownloadProgressModalProps {
   onClose: () => void;
   batchId: string;
   projectName: string;
+  extensionInstalled: boolean;
+  checkingExtension: boolean;
 }
 
 const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
   isOpen,
   onClose,
   batchId,
-  projectName
+  projectName,
+  extensionInstalled,
+  checkingExtension
 }) => {
   const { projects } = useProjectStore();
   const [batchData, setBatchData] = useState<BatchDownloadData | null>(null);
@@ -40,9 +44,11 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
   const [error, setError] = useState('');
   const [cookieFile, setCookieFile] = useState<File | null>(null);
   const cookieInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [extensionInstalled, setExtensionInstalled] = useState(false);
-  const [checkingExtension, setCheckingExtension] = useState(true);
   const [previousStatuses, setPreviousStatuses] = useState<{[key: number]: string}>({});
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 20, y: 80 }); // Position from bottom-left
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // Fetch progress data
   const fetchProgress = async () => {
@@ -92,7 +98,19 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
         if (shouldRefreshProjects) {
           const store = useProjectStore.getState();
           if (store.loadProjects) {
-            store.loadProjects();
+            store.loadProjects().then(() => {
+              // After refresh, re-select the project if it's not currently selected
+              if (data.projectId && !store.currentProject?.projectId) {
+                const project = store.projects.find(p => p.projectId === data.projectId);
+                if (project) {
+                  console.log('[DownloadProgressModal] Re-selecting project after recovery:', project);
+                  store.setCurrentProject(project);
+                  if (project.media && project.media.length > 0) {
+                    store.setCurrentMediaById(data.projectId, project.media[0].id);
+                  }
+                }
+              }
+            });
           }
         }
       }
@@ -106,38 +124,6 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
       setIsLoading(false);
     }
   };
-
-  // Check for extension installation
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    const checkExtension = () => {
-      // Send message to check if extension is installed
-      window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
-      
-      // Listen for response
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data.type === 'EXTENSION_INSTALLED' || event.data.type === 'COOKIE_EXTENSION_READY') {
-          setExtensionInstalled(true);
-          setCheckingExtension(false);
-          console.log('Cookie Helper Extension detected:', event.data.version);
-        }
-      };
-      
-      window.addEventListener('message', handleMessage);
-      
-      // Timeout after 1 second - assume not installed
-      setTimeout(() => {
-        setCheckingExtension(false);
-      }, 1000);
-      
-      return () => {
-        window.removeEventListener('message', handleMessage);
-      };
-    };
-    
-    checkExtension();
-  }, [isOpen]);
 
   // Poll progress every 2 seconds while downloading
   useEffect(() => {
@@ -162,13 +148,49 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
     };
   }, [isOpen, batchId]);
 
-  // Reload projects when download completes
+  // Reload projects and auto-select when download completes
   useEffect(() => {
     if (batchData && batchData.status === 'completed') {
+      console.log('[DownloadProgressModal] Download completed, loading and selecting project');
+
       // Trigger a reload of projects when download completes
       const store = useProjectStore.getState();
       if (store.loadProjects) {
-        store.loadProjects();
+        store.loadProjects().then(() => {
+          // After projects are loaded, automatically select the newly created project
+          if (batchData.projectId) {
+            console.log('[DownloadProgressModal] Auto-selecting project:', batchData.projectId);
+
+            // Find the project in the loaded projects
+            const loadedProjects = store.projects;
+            const newProject = loadedProjects.find(p => p.projectId === batchData.projectId);
+
+            if (newProject) {
+              console.log('[DownloadProgressModal] Found project, setting as current:', newProject);
+              store.setCurrentProject(newProject);
+
+              // If the project has media, select the first media item
+              if (newProject.media && newProject.media.length > 0) {
+                const firstMediaId = newProject.media[0].id;
+                console.log('[DownloadProgressModal] Auto-selecting first media:', firstMediaId);
+                store.setCurrentMediaById(batchData.projectId, firstMediaId).then(() => {
+                  console.log('[DownloadProgressModal] ✅ Project and media selected, backup should now initialize');
+                });
+              }
+            } else {
+              console.warn('[DownloadProgressModal] Could not find project in loaded projects');
+            }
+          }
+        });
+      }
+
+      // Auto-close modal after 2 seconds when completed (only if all files succeeded)
+      const allCompleted = Object.values(batchData.progress).every(p => p.status === 'completed');
+      if (allCompleted) {
+        setTimeout(() => {
+          setIsMinimized(false);
+          onClose();
+        }, 2000);
       }
     }
   }, [batchData?.status]);
@@ -181,7 +203,11 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
         setError('');
         setIsLoading(true);
         setCookieFile(null);
+        setIsMinimized(false); // Reset minimized state
       }, 300);
+    } else {
+      // When modal opens, ensure it's not minimized
+      setIsMinimized(false);
     }
   }, [isOpen]);
 
@@ -235,12 +261,12 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
 
   const getOverallProgress = (): number => {
     if (!batchData || batchData.totalFiles === 0) return 0;
-    
+
     let totalProgress = 0;
     const mediaIndices = Object.keys(batchData.progress).map(Number);
-    
+
     if (mediaIndices.length === 0) return 0;
-    
+
     for (const mediaIndex of mediaIndices) {
       const mediaProgress = batchData.progress[mediaIndex];
       if (mediaProgress.status === 'completed') {
@@ -251,34 +277,60 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
         totalProgress += mediaProgress.progress;
       }
     }
-    
+
     return Math.round(totalProgress / batchData.totalFiles);
   };
 
   const getStatusText = (): string => {
     if (!batchData) return 'מתחבר...';
-    
+
+    // Check if any downloads are in progress
+    const hasDownloading = Object.values(batchData.progress).some(p => p.status === 'downloading');
     // Check if any downloads failed
     const hasFailures = Object.values(batchData.progress).some(p => p.status === 'failed');
-    
-    if (batchData.status === 'completed' && !hasFailures) {
+    // Check if all are completed
+    const allCompleted = Object.values(batchData.progress).every(p => p.status === 'completed');
+
+    if (allCompleted && batchData.status === 'completed') {
       return 'ההורדה הושלמה בהצלחה!';
-    } else if (batchData.status === 'failed' || hasFailures) {
+    } else if (hasDownloading) {
+      return `מוריד... (${batchData.completedFiles}/${batchData.totalFiles})`;
+    } else if (hasFailures) {
+      // Check if failures are cookie-related
+      const hasCookieErrors = Object.values(batchData.progress).some(
+        p => p.status === 'failed' && p.error && isCookieRelatedError(p.error)
+      );
+      if (hasCookieErrors) {
+        return 'ממתין לקובץ Cookies';
+      }
       return 'ההורדה נכשלה';
     } else if (batchData.status === 'downloading') {
       return `מוריד... (${batchData.completedFiles}/${batchData.totalFiles})`;
+    } else if (batchData.completedFiles > 0 && batchData.completedFiles < batchData.totalFiles) {
+      return 'הושלם חלקית';
     } else {
-      return 'ההורדה הושלמה עם שגיאות';
+      return 'ההורדה הושלמה בהצלחה!';
     }
   };
   
 
   const getStatusIcon = (): string => {
     if (!batchData) return '⏳';
-    
-    if (batchData.status === 'completed') return '✅';
-    if (batchData.status === 'failed') return '❌';
-    return '⬇️';
+
+    // Check actual download status of individual files
+    const hasDownloading = Object.values(batchData.progress).some(p => p.status === 'downloading');
+    const hasFailures = Object.values(batchData.progress).some(p => p.status === 'failed');
+    const allCompleted = Object.values(batchData.progress).every(p => p.status === 'completed');
+
+    // Show download icon if any file is downloading (even during cookie retry)
+    if (hasDownloading) return '⬇️';
+    // Show error icon if any file failed
+    if (hasFailures) return '❌';
+    // Show success icon only when ALL files are truly completed
+    if (allCompleted && batchData.status === 'completed') return '✅';
+
+    // Default to loading icon
+    return '⏳';
   };
 
   const getMediaName = (mediaIndex: number): string => {
@@ -286,7 +338,7 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
     if (batchData?.mediaNames && batchData.mediaNames[mediaIndex]) {
       return batchData.mediaNames[mediaIndex];
     }
-    
+
     // Fallback to project store if available
     if (batchData && projects) {
       const project = projects.find(p => p.projectId === batchData.projectId);
@@ -302,16 +354,201 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
     return `קובץ מדיה ${mediaIndex + 1}`;
   };
 
-  if (!isOpen) return null;
+  // Smart close handler - minimizes if download is active or needs cookies
+  const handleSmartClose = () => {
+    if (!batchData) {
+      onClose();
+      return;
+    }
 
-  const modalContent = (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="download-progress-modal" data-batch-id={batchId} onClick={(e) => e.stopPropagation()}>
+    // Check if any downloads are actively in progress
+    const hasActiveDownloads = Object.values(batchData.progress).some(
+      p => p.status === 'downloading'
+    );
+
+    // Check if any downloads failed with cookie errors (extension might auto-fix)
+    const hasCookieErrors = Object.values(batchData.progress).some(
+      p => p.status === 'failed' && p.error && isCookieRelatedError(p.error)
+    );
+
+    // If downloads are active OR there are cookie errors that might be fixed, minimize
+    if (hasActiveDownloads || hasCookieErrors) {
+      setIsMinimized(true);
+    } else {
+      // No active downloads and no cookie errors - safe to close
+      setIsMinimized(false);
+      onClose();
+    }
+  };
+
+  // Restore from minimized state
+  const handleRestore = () => {
+    setIsMinimized(false);
+  };
+
+  // Drag handlers for minimized widget
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - (window.innerHeight - position.y) // Convert bottom position to mouse coordinates
+    });
+  };
+
+  const handleMouseMove = React.useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+
+    const newX = e.clientX - dragStart.x;
+    const newY = window.innerHeight - (e.clientY - dragStart.y); // Convert mouse Y to bottom position
+
+    // Keep widget within viewport bounds
+    const boundedX = Math.max(0, Math.min(window.innerWidth - 250, newX)); // 250 is widget width
+    const boundedY = Math.max(20, Math.min(window.innerHeight - 60, newY)); // Keep some margin
+
+    setPosition({ x: boundedX, y: boundedY });
+  }, [isDragging, dragStart]);
+
+  const handleMouseUp = React.useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add global mouse event listeners for dragging
+  React.useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  // Don't render anything if not open and not minimized
+  if (!isOpen && !isMinimized) return null;
+
+  // Minimized view - small widget showing download progress
+  if (isMinimized) {
+    // Check if download completed successfully
+    const allCompleted = batchData && Object.values(batchData.progress).every(p => p.status === 'completed');
+
+    // Show success message and auto-close
+    if (allCompleted && batchData?.status === 'completed') {
+      setTimeout(() => {
+        setIsMinimized(false);
+        onClose();
+      }, 2000);
+    }
+
+    return ReactDOM.createPortal(
+      <div className="download-progress-minimized"
+           style={{
+             position: 'fixed',
+             bottom: `${position.y}px`,
+             left: `${position.x}px`,
+             width: '250px',
+             background: allCompleted ? '#d4edda' : 'white', // Green tint when completed
+             color: '#333',
+             borderRadius: '8px',
+             padding: '10px',
+             boxShadow: '0 2px 10px rgba(0, 0, 0, 0.15)',
+             border: allCompleted ? '1px solid #28a745' : '1px solid rgba(32, 201, 151, 0.3)',
+             zIndex: 1000,
+             cursor: isDragging ? 'grabbing' : 'grab',
+             transition: isDragging ? 'none' : 'all 0.3s ease',
+             animation: !isDragging ? 'slideIn 0.3s ease' : 'none',
+             fontSize: '12px',
+             userSelect: 'none'
+           }}
+           onMouseDown={handleMouseDown}
+           onClick={(e) => {
+             if (!isDragging) handleRestore();
+           }}
+           data-batch-id={batchId}>
+        {/* Hidden elements for extension to detect */}
+        <div className="download-progress-modal" style={{ display: 'none' }}>
+          {batchData && Object.entries(batchData.progress).map(([mediaIndexStr, mediaProgress]) => {
+            const mediaIndex = Number(mediaIndexStr);
+            if (mediaProgress.error && isCookieRelatedError(mediaProgress.error)) {
+              return (
+                <div key={`error-${mediaIndex}`} className="media-item" data-index={mediaIndex}>
+                  <div className="media-error">{mediaProgress.error}</div>
+                  <div className="status-failed">נכשל</div>
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '14px' }}>{getStatusIcon()}</span>
+          <div style={{ flex: 1 }}>
+            {allCompleted ? (
+              <div style={{
+                fontWeight: '600',
+                fontSize: '12px',
+                color: '#155724',
+                textAlign: 'center'
+              }}>
+                ✅ ההורדה הושלמה! הפרויקט נוסף
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: '600', fontSize: '11px', color: '#333' }}>
+                    {batchData && Object.values(batchData.progress).some(p => p.status === 'downloading')
+                      ? 'מוריד'
+                      : batchData && Object.values(batchData.progress).some(p => p.status === 'failed')
+                      ? 'ממתין לCookies'
+                      : 'הושלם'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#666' }}>
+                    ({batchData?.completedFiles || 0}/{batchData?.totalFiles || 0})
+                  </span>
+                </div>
+                <div style={{
+                  background: '#e0e0e0',
+                  borderRadius: '3px',
+                  height: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    background: 'linear-gradient(90deg, #20c997, #17a085)',
+                    height: '100%',
+                    width: `${getOverallProgress()}%`,
+                    transition: 'width 0.3s ease'
+                  }}></div>
+                </div>
+              </>
+            )}
+          </div>
+          {!allCompleted && (
+            <div style={{
+              fontWeight: '600',
+              fontSize: '11px',
+              color: '#20c997'
+            }}>
+              {getOverallProgress()}%
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // Full modal view - only show if not minimized
+  if (!isMinimized) {
+    const modalContent = (
+      <div className="modal-overlay" onClick={handleSmartClose}>
+        <div className="download-progress-modal" data-batch-id={batchId} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>התקדמות ההורדה</h3>
-          <button 
+          <button
             className="modal-close-btn"
-            onClick={onClose}
+            onClick={handleSmartClose}
             aria-label="סגור"
           >
             ×
@@ -445,29 +682,6 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                                     <p style={{ fontSize: '11px', color: '#666', textAlign: 'center' }}>
                                       התקנה חד-פעמית • טיפול אוטומטי בכל הורדה
                                     </p>
-                                    <button
-                                      onClick={() => {
-                                        setCheckingExtension(true);
-                                        // Recheck for extension
-                                        window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
-                                        setTimeout(() => {
-                                          setCheckingExtension(false);
-                                        }, 1000);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '8px',
-                                        background: 'transparent',
-                                        color: '#20c997',
-                                        border: '1px solid #20c997',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '12px',
-                                        marginTop: '8px'
-                                      }}
-                                    >
-                                      🔄 בדוק שוב אם התוסף מותקן
-                                    </button>
                                   </div>
                                 ) : (
                                   // Checking for extension
@@ -566,7 +780,8 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
                 }
               </div>
 
-              {batchData.status === 'completed' && !Object.values(batchData.progress).some(p => p.status === 'failed') && (
+              {batchData.status === 'completed' &&
+               Object.values(batchData.progress).every(p => p.status === 'completed') && (
                 <div className="completion-message">
                   <div className="completion-icon">🎉</div>
                   <div className="completion-text">
@@ -580,9 +795,9 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
         </div>
         
         <div className="modal-footer">
-          <button 
-            className="btn-secondary" 
-            onClick={onClose}
+          <button
+            className="btn-secondary"
+            onClick={handleSmartClose}
           >
             {batchData?.status === 'completed' ? 'סגור' : 'הסתר'}
           </button>
@@ -591,7 +806,11 @@ const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
     </div>
   );
 
-  return ReactDOM.createPortal(modalContent, document.body);
+    return ReactDOM.createPortal(modalContent, document.body);
+  }
+
+  // Should never reach here but return null for safety
+  return null;
 };
 
 export default DownloadProgressModal;

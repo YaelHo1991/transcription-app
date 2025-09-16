@@ -51,6 +51,13 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   const [urlModalProjectName, setUrlModalProjectName] = useState<string | undefined>(undefined);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const downloadPollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Extension state - moved from DownloadProgressModal for background operation
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [checkingExtension, setCheckingExtension] = useState(true);
+
+  // Track download progress data for extension to detect errors even when modal is closed
+  const [backgroundDownloadData, setBackgroundDownloadData] = useState<any>(null);
   
   // Duplicate confirmation state for media
   const [duplicateConfirm, setDuplicateConfirm] = useState<{
@@ -388,6 +395,35 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
     };
   }, [contextMenu]);
 
+  // Extension initialization - runs once on component mount for background operation
+  useEffect(() => {
+    // Send message to check if extension is installed
+    window.postMessage({ type: 'CHECK_EXTENSION_INSTALLED' }, '*');
+    console.log('[TranscriptionSidebar] Checking for Cookie Helper Extension...');
+
+    // Listen for response
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'EXTENSION_INSTALLED' || event.data.type === 'COOKIE_EXTENSION_READY') {
+        setExtensionInstalled(true);
+        setCheckingExtension(false);
+        console.log('[TranscriptionSidebar] Cookie Helper Extension detected:', event.data.version);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Timeout after 1 second - assume not installed
+    const timeout = setTimeout(() => {
+      setCheckingExtension(false);
+      console.log('[TranscriptionSidebar] Extension check timeout - assuming not installed');
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearTimeout(timeout);
+    };
+  }, []); // Run once on mount
+
   const handleFolderUpload = () => {
     console.log('[TranscriptionSidebar] handleFolderUpload called');
     console.log('[TranscriptionSidebar] folderInputRef.current:', folderInputRef.current);
@@ -435,7 +471,10 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         }
 
         const data = await response.json();
-        
+
+        // Store download data for extension to detect errors
+        setBackgroundDownloadData({ ...data, batchId });
+
         // Calculate overall progress
         let overallProgress = 0;
         if (data && data.totalFiles > 0) {
@@ -464,11 +503,12 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             progress: 100
           });
 
-          // Clear polling
+          // Clear polling and background data
           if (downloadPollingRef.current) {
             clearInterval(downloadPollingRef.current);
             downloadPollingRef.current = null;
           }
+          setBackgroundDownloadData(null);
 
           // Reload projects to show the new one
           loadProjects();
@@ -483,11 +523,12 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             type: 'error'
           });
 
-          // Clear polling
+          // Clear polling and background data
           if (downloadPollingRef.current) {
             clearInterval(downloadPollingRef.current);
             downloadPollingRef.current = null;
           }
+          setBackgroundDownloadData(null);
         } else {
           // Still downloading - check if there are cookie errors
           let hasCookieError = false;
@@ -688,9 +729,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         
         // Start tracking progress updates
         startDownloadProgressTracking(batchId, actualProjectName);
-        
-        // Don't open modal automatically - let user click notification to see details
-        // setShowDownloadProgress(true);
+
+        // Open modal automatically to show download progress
+        setShowDownloadProgress(true);
       } else {
         const errorText = await response.text();
         console.error('Failed to start batch download. Status:', response.status, 'Response:', errorText);
@@ -1909,6 +1950,41 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   
   return (
     <>
+      {/* Hidden div for extension to detect download errors even when modal is closed */}
+      {backgroundDownloadData && backgroundDownloadData.progress && (
+        <div
+          className="download-progress-modal"
+          data-batch-id={backgroundDownloadData.batchId}
+          style={{ display: 'none', position: 'absolute', left: '-9999px' }}
+        >
+          {Object.entries(backgroundDownloadData.progress).map(([mediaIndex, mediaProgress]: [string, any]) => {
+            if (mediaProgress.error && (
+              mediaProgress.error.includes('cookie') ||
+              mediaProgress.error.includes('Cookie') ||
+              mediaProgress.error.includes('סרטון מוגן') ||
+              mediaProgress.error.includes('Sign in') ||
+              mediaProgress.error.includes('members-only') ||
+              mediaProgress.error.includes('Bot detection') ||
+              mediaProgress.error.includes('private')
+            )) {
+              return (
+                <div
+                  key={`error-${mediaIndex}`}
+                  className="media-item"
+                  data-index={mediaIndex}
+                >
+                  <div className="media-error">
+                    {mediaProgress.error}
+                  </div>
+                  <div className="status-failed">נכשל</div>
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+      )}
+
       <div
         className={`transcription-sidebar-content ${isDragging ? 'dragging-over' : ''}`}
         onDragEnter={handleDragEnter}
@@ -2513,18 +2589,22 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         </>
       )}
       
-      {showDownloadProgress && currentBatchId && (
+      {currentBatchId && (
         <DownloadProgressModal
           isOpen={showDownloadProgress}
           onClose={() => {
             setShowDownloadProgress(false);
             // Clear playlist continue data to force fresh metadata on next "המשך הורדה" click
             setPlaylistContinueData(null);
+            // Clear the batch ID to fully unmount the modal
+            setCurrentBatchId(null);
             // Refresh projects when closing to ensure we have latest data
             loadProjects();
           }}
           batchId={currentBatchId}
           projectName={downloadProjectName}
+          extensionInstalled={extensionInstalled}
+          checkingExtension={checkingExtension}
         />
       )}
       
