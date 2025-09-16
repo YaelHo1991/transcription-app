@@ -50,12 +50,8 @@ export default function ExtensionHelpPage() {
   const handleDownloadExtension = async () => {
     try {
       setDownloadStatus('downloading');
-      const token = localStorage.getItem('token') || 'dev-anonymous';
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/download-extension`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Download directly from the public folder
+      const response = await fetch('/extensions/cookie-helper-extension.zip');
 
       if (response.ok) {
         const blob = await response.blob();

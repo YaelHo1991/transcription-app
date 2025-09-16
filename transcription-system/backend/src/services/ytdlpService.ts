@@ -88,7 +88,7 @@ export class YtDlpService {
         '--no-playlist',
         url
       ];
-      
+
       if (cookieFile) {
         args.push('--cookies', cookieFile);
       }
@@ -143,7 +143,7 @@ export class YtDlpService {
         '--no-playlist',
         url
       ];
-      
+
       if (cookieFile) {
         args.push('--cookies', cookieFile);
       }
@@ -188,37 +188,123 @@ export class YtDlpService {
    * Get minimal info (just title) even for protected content
    */
   static async getMinimalInfo(url: string, cookieFile?: string): Promise<{ title?: string }> {
+    // First try with yt-dlp
+    const ytdlpResult = await this.tryGetTitleWithYtDlp(url, cookieFile);
+
+    // If yt-dlp got a valid title (not the generic members-only message), return it
+    if (ytdlpResult.title &&
+        !ytdlpResult.title.includes('Join this channel') &&
+        !ytdlpResult.title.includes('members-only content')) {
+      return ytdlpResult;
+    }
+
+    // If yt-dlp failed or returned generic message, try fetching from HTML
+    console.log('[YtDlpService.getMinimalInfo] yt-dlp failed or returned generic title, trying HTML fetch...');
+    try {
+      const fetch = require('node-fetch');
+      const AbortController = require('abort-controller');
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, 5000);
+
+      console.log('[YtDlpService.getMinimalInfo] Fetching HTML from:', url);
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        },
+        signal: controller.signal,
+        timeout: 5000
+      }).catch(err => {
+        console.log('[YtDlpService.getMinimalInfo] Fetch failed:', err.message);
+        return null;
+      });
+
+      clearTimeout(timeout);
+
+      if (!response || !response.ok) {
+        console.log('[YtDlpService.getMinimalInfo] Failed to fetch HTML, status:', response?.status);
+        return ytdlpResult;
+      }
+
+      // Get only the first part of the HTML (title is usually in the first 100KB)
+      const html = await response.text();
+      console.log('[YtDlpService.getMinimalInfo] Got HTML response, length:', html.length);
+
+      // Try to extract title from HTML
+      let title = '';
+
+      // Method 1: Extract from <title> tag
+      const titleMatch = html.match(/<title>([^<]*)<\/title>/);
+      if (titleMatch && titleMatch[1]) {
+        title = titleMatch[1].replace(' - YouTube', '').trim();
+        console.log('[YtDlpService.getMinimalInfo] Got title from HTML <title> tag:', title);
+      }
+
+      // Method 2: If no title from tag, try from JSON metadata
+      if (!title) {
+        const jsonMatch = html.match(/"title"\s*:\s*"([^"]*)"/);
+        if (jsonMatch && jsonMatch[1]) {
+          title = jsonMatch[1];
+          console.log('[YtDlpService.getMinimalInfo] Got title from JSON metadata:', title);
+        }
+      }
+
+      // Method 3: Try meta property
+      if (!title) {
+        const metaMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]*)"/);
+        if (metaMatch && metaMatch[1]) {
+          title = metaMatch[1];
+          console.log('[YtDlpService.getMinimalInfo] Got title from og:title:', title);
+        }
+      }
+
+      return { title: title || ytdlpResult.title || undefined };
+    } catch (error) {
+      console.error('[YtDlpService.getMinimalInfo] Failed to fetch HTML:', error);
+      return ytdlpResult;
+    }
+  }
+
+  /**
+   * Helper method to try getting title with yt-dlp
+   */
+  private static tryGetTitleWithYtDlp(url: string, cookieFile?: string): Promise<{ title?: string }> {
     return new Promise((resolve) => {
-      // First try the simple --get-title approach
+      // Use --dump-json with skip-download to get metadata (like playlists do - this works for protected content!)
       const args = [
-        '--get-title',
+        '--dump-json',      // Get full metadata as JSON (works even for protected content!)
+        '--skip-download',  // Don't actually download the video
+        '--no-playlist',    // Treat as single video even if it's in a playlist
         '--no-warnings',
-        '--no-check-certificate',
-        '--skip-download',
+        '--ignore-errors',  // Continue even if there are errors - helps with protected content
         '--quiet',
-        '--no-playlist',
         url
       ];
 
       // Check if cookies are available for protected content
       if (cookieFile && fs.existsSync(cookieFile)) {
         args.push('--cookies', cookieFile);
-        console.log('[YtDlpService.getMinimalInfo] Using cookies for protected content');
+        console.log('[YtDlpService.tryGetTitleWithYtDlp] Using cookies for protected content');
       }
 
       const ytdlpCommand = this.getYtDlpCommand();
-      console.log('[YtDlpService.getMinimalInfo] Trying to get title for:', url);
+      console.log('[YtDlpService.tryGetTitleWithYtDlp] Getting metadata using --dump-json for:', url);
       const ytdlp = spawn(ytdlpCommand, args);
       let stdout = '';
       let stderr = '';
       let title = '';
 
       ytdlp.stdout.on('data', (data) => {
-        const output = data.toString().trim();
-        if (output && !output.includes('ERROR') && !output.includes('WARNING')) {
-          title = output.split('\n')[0]; // Take first line if multiple
-          console.log('[YtDlpService.getMinimalInfo] Got title from --get-title:', title);
-        }
+        stdout += data.toString();
       });
 
       ytdlp.stderr.on('data', (data) => {
@@ -226,32 +312,51 @@ export class YtDlpService {
       });
 
       ytdlp.on('close', (code) => {
-        // If we didn't get a title and have an error, try to extract from error
-        if (!title && stderr) {
-          // Enhanced patterns for extracting titles from error messages
-          const titlePatterns = [
-            /"([^"]+)" is members-only/,  // Members-only with title
-            /Video "([^"]+)"/,  // Video with title in quotes
-            /'([^']+)' is private/,  // Private video with single quotes
-            /title[:\s]+["']([^"']+)["']/i,  // Generic title pattern
-            /\[youtube\] [^:]+: (.+?) \(/,  // YouTube error pattern
-            /ERROR: ([^:]+) is/,  // Error with title at start
-            /סרטון "([^"]+)"/,  // Hebrew pattern
-          ];
+        console.log('[YtDlpService.tryGetTitleWithYtDlp] Process exited with code:', code);
 
-          for (const pattern of titlePatterns) {
-            const match = stderr.match(pattern);
-            if (match && match[1]) {
-              // Don't use corrupted text from error messages
-              if (!match[1].includes('�')) {
-                title = match[1].trim();
-                console.log('[YtDlpService.getMinimalInfo] Extracted title from error:', title);
-                break;
+        // Try to parse JSON output (similar to getPlaylistInfo)
+        if (stdout) {
+          try {
+            // Parse JSON output - yt-dlp should return a single JSON object for a single video
+            const lines = stdout.trim().split('\n');
+            for (const line of lines) {
+              if (line.trim()) {
+                try {
+                  const info = JSON.parse(line);
+                  // Extract title from JSON metadata
+                  if (info.title) {
+                    title = info.title;
+                    console.log('[YtDlpService.tryGetTitleWithYtDlp] Got title from JSON:', title);
+                    break;
+                  } else if (info.fulltitle) {
+                    title = info.fulltitle;
+                    console.log('[YtDlpService.tryGetTitleWithYtDlp] Got fulltitle from JSON:', title);
+                    break;
+                  }
+                } catch (parseError) {
+                  // This line wasn't valid JSON, continue to next
+                }
               }
+            }
+          } catch (error) {
+            console.log('[YtDlpService.tryGetTitleWithYtDlp] Error parsing JSON output:', error);
+          }
+        }
+
+        // If we still didn't get a title and there's an error, try to extract from error messages
+        if (!title && stderr) {
+          // Check for members-only message
+          if (stderr.includes('Join this channel') || stderr.includes('members-only')) {
+            // Extract the actual error message as title (temporarily)
+            const match = stderr.match(/ERROR:\s+\[youtube\]\s+[A-Za-z0-9_-]+:\s+(.+?)$/m);
+            if (match && match[1]) {
+              title = match[1].trim();
+              console.log('[YtDlpService.tryGetTitleWithYtDlp] Got members-only message:', title);
             }
           }
         }
 
+        console.log('[YtDlpService.tryGetTitleWithYtDlp] Final title:', title || '(no title found)');
         resolve({ title: title || undefined });
       });
 
@@ -259,7 +364,7 @@ export class YtDlpService {
         resolve({ title: undefined });
       });
 
-      // Timeout
+      // Timeout - give enough time for JSON extraction
       setTimeout(() => {
         ytdlp.kill();
         resolve({ title: title || undefined });
@@ -271,6 +376,12 @@ export class YtDlpService {
    * Check if a URL is a playlist
    */
   static isPlaylistUrl(url: string): boolean {
+    // Watch Later (list=WL) should be treated as single video
+    if (url.includes('list=WL')) {
+      return false;
+    }
+
+    // Any URL with list= parameter is a playlist
     return url.includes('playlist?list=') ||
            url.includes('&list=') ||
            url.includes('?list=') ||
@@ -287,7 +398,7 @@ export class YtDlpService {
         '--flat-playlist',
         url
       ];
-      
+
       if (cookieFile) {
         args.push('--cookies', cookieFile);
       }

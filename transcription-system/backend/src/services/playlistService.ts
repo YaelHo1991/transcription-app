@@ -111,24 +111,37 @@ export class PlaylistService {
     mediaId: string
   ): Promise<void> {
     const playlistJsonPath = path.join(projectDir, 'playlist.json');
-    
+
     try {
       const existingData = await fs.readFile(playlistJsonPath, 'utf8');
       const playlistData = JSON.parse(existingData);
-      
-      // Find and remove the entry with this mediaId
-      for (const [index, video] of Object.entries(playlistData.downloadedVideos || {})) {
-        if ((video as any).mediaId === mediaId) {
-          delete playlistData.downloadedVideos[index];
-          console.log(`[PlaylistService] Removed media ${mediaId} from playlist.json`);
-          break;
+
+      // Check both 'videos' (new format) and 'downloadedVideos' (old format)
+      const videosField = playlistData.videos || playlistData.downloadedVideos;
+
+      if (videosField) {
+        // Find and remove the entry with this mediaId
+        for (const [index, video] of Object.entries(videosField)) {
+          if ((video as any).mediaId === mediaId) {
+            delete videosField[index];
+            console.log(`[PlaylistService] Removed media ${mediaId} from playlist.json at index ${index}`);
+            break;
+          }
+        }
+
+        // Update the correct field in playlistData
+        if (playlistData.videos) {
+          playlistData.videos = videosField;
+        } else if (playlistData.downloadedVideos) {
+          playlistData.downloadedVideos = videosField;
         }
       }
-      
+
       // Write updated playlist.json
       await fs.writeFile(playlistJsonPath, JSON.stringify(playlistData, null, 2));
+      console.log(`[PlaylistService] Updated playlist.json after removing media ${mediaId}`);
     } catch (error) {
-      console.log('[PlaylistService] No playlist.json to update');
+      console.log('[PlaylistService] No playlist.json to update or error:', error);
     }
   }
   

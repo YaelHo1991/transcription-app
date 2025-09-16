@@ -151,22 +151,30 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
   useEffect(() => {
     const loadOrphanedCount = async () => {
       try {
-        const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        if (!token) {
+          console.log('No token, skipping orphaned count load');
+          return;
+        }
+
         const response = await fetch(buildApiUrl('/api/projects/orphaned/transcriptions'), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
+        }).catch(error => {
+          console.warn('Failed to fetch orphaned count:', error.message);
+          return null;
         });
-        
-        if (response.ok) {
+
+        if (response && response.ok) {
           const data = await response.json();
           setOrphanedCount(data.transcriptions?.length || 0);
         }
       } catch (error) {
-        console.error('Failed to load orphaned transcriptions count:', error);
+        console.warn('Failed to load orphaned transcriptions count:', error);
       }
     };
-    
+
     loadOrphanedCount();
   }, [projects]); // Reload when projects change
 
@@ -223,12 +231,28 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
 
   // Load projects and user storage info on mount only
   useEffect(() => {
-    loadProjects(); // Load projects from backend
+    // Function to load projects with retry logic
+    let retryTimeout: NodeJS.Timeout | null = null;
+    const loadProjectsWithRetry = async () => {
+      await loadProjects();
+      // If projects is empty and backend might be down, retry after a delay
+      const projectsState = useProjectStore.getState();
+      if (projectsState.projects.length === 0 && !projectsState.isLoading) {
+        // Retry after 3 seconds if no projects loaded
+        retryTimeout = setTimeout(loadProjectsWithRetry, 3000);
+      }
+    };
+
+    loadProjectsWithRetry(); // Load projects from backend with retry
     loadStorageInfo();
     // Refresh storage info every 30 seconds
     const intervalId = setInterval(loadStorageInfo, 30000);
     return () => {
       clearInterval(intervalId);
+      // Clear retry timeout if active
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
       // Also clear download polling if active
       if (downloadPollingRef.current) {
         clearInterval(downloadPollingRef.current);
@@ -439,16 +463,16 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             type: 'success',
             progress: 100
           });
-          
+
           // Clear polling
           if (downloadPollingRef.current) {
             clearInterval(downloadPollingRef.current);
             downloadPollingRef.current = null;
           }
-          
+
           // Reload projects to show the new one
           loadProjects();
-          
+
           // Auto-hide after 3 seconds
           setTimeout(() => {
             hideSidebarNotification();
@@ -458,17 +482,48 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
             message: `ההורדה נכשלה: ${projectName}`,
             type: 'error'
           });
-          
+
           // Clear polling
           if (downloadPollingRef.current) {
             clearInterval(downloadPollingRef.current);
             downloadPollingRef.current = null;
           }
         } else {
-          // Still downloading
-          console.log('[Download Progress] Setting notification with progress:', overallProgress);
+          // Still downloading - check if there are cookie errors
+          let hasCookieError = false;
+          let downloadingCount = 0;
+
+          // Check for cookie-related errors
+          if (data.progress) {
+            Object.values(data.progress).forEach((mediaProgress: any) => {
+              if (mediaProgress.status === 'downloading') {
+                downloadingCount++;
+              }
+              if (mediaProgress.error && (
+                mediaProgress.error.includes('cookie') ||
+                mediaProgress.error.includes('Cookie') ||
+                mediaProgress.error.includes('Sign in') ||
+                mediaProgress.error.includes('members-only') ||
+                mediaProgress.error.includes('Bot detection')
+              )) {
+                hasCookieError = true;
+              }
+            });
+          }
+
+          // Determine the message based on status
+          let message = `מוריד: ${projectName} (${overallProgress}%)`;
+          if (hasCookieError && downloadingCount === 0) {
+            // All downloads stopped due to cookie error
+            message = `ממתין לקובץ Cookie: ${projectName}`;
+          } else if (hasCookieError && downloadingCount > 0) {
+            // Some downloads continuing, some need cookies
+            message = `מוריד (נדרש Cookie לחלק): ${projectName} (${overallProgress}%)`;
+          }
+
+          console.log('[Download Progress] Setting notification with progress:', overallProgress, 'hasCookieError:', hasCookieError);
           setSidebarNotification({
-            message: `מוריד: ${projectName} (${overallProgress}%)`,
+            message,
             type: 'download',
             progress: overallProgress,
             batchId,
@@ -481,13 +536,26 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
         }
       } catch (error) {
         console.error('[Download Progress] Error fetching progress:', error);
+        // Keep the notification visible even if there's an error fetching progress
+        // This ensures the user knows the download is still in progress
+        setSidebarNotification({
+          message: `מוריד: ${projectName}...`,
+          type: 'download',
+          progress: 0,
+          batchId,
+          onClick: () => {
+            setCurrentBatchId(batchId);
+            setDownloadProjectName(projectName);
+            setShowDownloadProgress(true);
+          }
+        });
       }
     };
 
     // Initial fetch
     fetchProgress();
-    
-    // Poll every 2 seconds
+
+    // Poll every 2 seconds - will continue until explicitly cleared
     downloadPollingRef.current = setInterval(fetchProgress, 2000);
   };
 
@@ -2029,8 +2097,8 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
                       // Use currentProject for metadata if this is the current project
                       const projectWithMetadata = currentProject?.projectId === project.projectId ? currentProject : project;
                       
-                      // For playlist projects, check if we have playlist metadata
-                      const isPlaylistProject = projectWithMetadata.displayName?.startsWith('YouTube -');
+                      // For playlist projects, check if we have playlist metadata (not just the name)
+                      const isPlaylistProject = !!projectWithMetadata.mediaPlaylistIndices;
                       let displayName = `קובץ ${index + 1}`;
 
                       // If this is a playlist project and we have metadata, show the original playlist index
@@ -2127,9 +2195,9 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       {console.log('[TranscriptionSidebar] Rendering context menu:', contextMenu)}
       {contextMenu && typeof document !== 'undefined' ? createPortal(
         (() => {
-          // Check if this is a playlist project
+          // Check if this is a playlist project by checking for playlist metadata
           const contextMenuProject = projects.find(p => p.projectId === contextMenu.projectId);
-          const isPlaylistProject = contextMenuProject?.displayName?.startsWith('YouTube -');
+          const isPlaylistProject = !!(contextMenuProject?.mediaPlaylistIndices || contextMenuProject?.playlistMetadata);
 
           return (
             <div

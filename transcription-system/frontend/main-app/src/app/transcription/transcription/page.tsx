@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getApiUrl } from '@/utils/api';
+import { getApiUrl, buildApiUrl } from '@/utils/api';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import dynamic from 'next/dynamic';
 
@@ -28,7 +28,8 @@ const TextEditor = dynamic(
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-gray-500">טוען עורך טקסט...</div>
       </div>
-    )
+    ),
+    ssr: false
   }
 );
 
@@ -39,7 +40,8 @@ const MediaPlayer = dynamic(
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-gray-500">טוען נגן מדיה...</div>
       </div>
-    )
+    ),
+    ssr: false
   }
 );
 
@@ -50,7 +52,8 @@ const SimpleSpeaker = dynamic(
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-gray-500">טוען פאנל דוברים...</div>
       </div>
-    )
+    ),
+    ssr: false
   }
 ) as React.ComponentType<{
   ref?: React.RefObject<SimpleSpeakerHandle>;
@@ -419,6 +422,18 @@ export default function TranscriptionWorkPage() {
   
   // Store project remarks to pass to RemarksProvider
   const [projectRemarks, setProjectRemarks] = useState<any[]>([]);
+
+  // Test URL modal state (localhost only)
+  const [showTestUrlModal, setShowTestUrlModal] = useState(false);
+  const [testUrlInput, setTestUrlInput] = useState('');
+  const [testUrlResult, setTestUrlResult] = useState<{title?: string, error?: string} | null>(null);
+  const [isTestingUrl, setIsTestingUrl] = useState(false);
+  const [isLocalhost, setIsLocalhost] = useState(false);
+
+  // Set localhost state after mounting to avoid hydration mismatch
+  useEffect(() => {
+    setIsLocalhost(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  }, []);
   
   // Create a unique session ID for this transcription session
   const [sessionId] = useState<string>('session-default');
@@ -1230,8 +1245,181 @@ export default function TranscriptionWorkPage() {
     }
   };
 
+  // Test URL handler (localhost only)
+  const handleTestUrl = async () => {
+    if (!testUrlInput.trim()) {
+      setTestUrlResult({ error: 'נא להזין URL' });
+      return;
+    }
+
+    setIsTestingUrl(true);
+    setTestUrlResult(null);
+
+    try {
+      const response = await fetch(buildApiUrl('/api/projects/check-url'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`
+        },
+        body: JSON.stringify({ url: testUrlInput })
+      });
+
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Non-JSON response:', response.status, response.statusText);
+        setTestUrlResult({ error: `שגיאת שרת: ${response.status} ${response.statusText}` });
+        setIsTestingUrl(false);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.title) {
+        setTestUrlResult({ title: result.title });
+      } else if (result.status === 'protected') {
+        // Try to get minimal info for protected content
+        const minimalResponse = await fetch(buildApiUrl('/api/projects/test-title'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous'}`
+          },
+          body: JSON.stringify({ url: testUrlInput })
+        });
+
+        // Check if response is JSON before parsing
+        const minimalContentType = minimalResponse.headers.get('content-type');
+        if (!minimalContentType || !minimalContentType.includes('application/json')) {
+          console.error('Non-JSON response from test-title:', minimalResponse.status, minimalResponse.statusText);
+          setTestUrlResult({ error: `שגיאת שרת בבדיקת כותרת: ${minimalResponse.status}` });
+          setIsTestingUrl(false);
+          return;
+        }
+
+        const minimalResult = await minimalResponse.json();
+        if (minimalResult.title) {
+          setTestUrlResult({ title: minimalResult.title });
+        } else {
+          setTestUrlResult({ error: 'לא ניתן לחלץ כותרת - תוכן מוגן ללא Cookies' });
+        }
+      } else {
+        setTestUrlResult({ error: result.message || 'לא ניתן לקבל כותרת' });
+      }
+    } catch (error) {
+      console.error('Test URL error:', error);
+      setTestUrlResult({ error: 'שגיאה בבדיקת URL' });
+    } finally {
+      setIsTestingUrl(false);
+    }
+  };
+
   return (
-    <HoveringBarsLayout
+    <>
+      {/* Test URL Modal (localhost only) */}
+      {isLocalhost && showTestUrlModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '30px',
+            borderRadius: '10px',
+            width: '500px',
+            maxWidth: '90%'
+          }}>
+            <h2 style={{ marginBottom: '20px', color: '#333' }}>בדיקת כותרת URL מוגן</h2>
+
+            <input
+              type="text"
+              value={testUrlInput}
+              onChange={(e) => setTestUrlInput(e.target.value)}
+              placeholder="הכנס URL של YouTube..."
+              style={{
+                width: '100%',
+                padding: '10px',
+                fontSize: '16px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                marginBottom: '15px'
+              }}
+              dir="ltr"
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <button
+                onClick={handleTestUrl}
+                disabled={isTestingUrl}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: isTestingUrl ? 'wait' : 'pointer',
+                  opacity: isTestingUrl ? 0.7 : 1
+                }}
+              >
+                {isTestingUrl ? 'בודק...' : 'בדוק כותרת'}
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowTestUrlModal(false);
+                  setTestUrlInput('');
+                  setTestUrlResult(null);
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                סגור
+              </button>
+            </div>
+
+            {testUrlResult && (
+              <div style={{
+                padding: '15px',
+                background: testUrlResult.error ? '#ffebee' : '#e8f5e9',
+                border: `1px solid ${testUrlResult.error ? '#ffcdd2' : '#c8e6c9'}`,
+                borderRadius: '5px',
+                marginTop: '15px'
+              }}>
+                {testUrlResult.title ? (
+                  <>
+                    <strong style={{ color: '#2e7d32' }}>כותרת שחולצה:</strong>
+                    <div style={{ marginTop: '10px', fontSize: '18px', color: '#1b5e20' }}>
+                      {testUrlResult.title}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ color: '#c62828' }}>
+                    {testUrlResult.error}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <HoveringBarsLayout
       headerContent={
         <HoveringHeader 
           userFullName={userFullName}
@@ -1599,7 +1787,26 @@ export default function TranscriptionWorkPage() {
             
             {/* TextEditor Component */}
             <div className="text-editor-wrapper">
-              <TextEditor 
+              {(() => {
+                console.log('[Page] === RENDERING TextEditor ===');
+                console.log('[Page] Props being passed:', {
+                  currentProjectId: currentProject?.projectId || '',
+                  currentMediaId: currentMediaId || '',
+                  hasProject: !!currentProject,
+                  hasProjectId: !!currentProject?.projectId,
+                  hasMediaId: !!currentMediaId,
+                  projectType: currentProject?.type,
+                  projectName: currentProject?.name,
+                  mediaIdFormat: {
+                    isUUID: currentMediaId?.includes('-') && currentMediaId?.length > 20,
+                    isNumbered: currentMediaId?.match(/^media-\d+$/),
+                    actual: currentMediaId
+                  },
+                  timestamp: new Date().toISOString()
+                });
+                return null;
+              })()}
+              <TextEditor
                 currentProjectId={currentProject?.projectId || ''}
                 currentMediaId={currentMediaId || ''}
                 mediaPlayerRef={mediaPlayerRef}
@@ -1945,5 +2152,6 @@ export default function TranscriptionWorkPage() {
         onTranscriptionRestored={handleTranscriptionRestored}
       />
     </HoveringBarsLayout>
+    </>
   );
 }
