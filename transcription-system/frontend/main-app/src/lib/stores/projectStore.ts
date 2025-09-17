@@ -121,7 +121,19 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
             headers: {
               'Authorization': `Bearer ${token}`
             }
+          }).catch(error => {
+            console.warn('[ProjectStore] Failed to fetch projects:', error.message);
+            return null;
           });
+
+          if (!response) {
+            console.log('[ProjectStore] Backend unavailable, using empty projects list');
+            set({
+              projects: [],
+              isLoading: false
+            });
+            return;
+          }
 
           console.log('[ProjectStore] Response status:', response.status);
 
@@ -410,7 +422,19 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
               'Authorization': `Bearer ${token}`
             },
             body: formData
+          }).catch(error => {
+            console.warn('[ProjectStore] Failed to create project - backend unavailable:', error.message);
+            return null;
           });
+
+          if (!response) {
+            // Backend is down, can't create project
+            set({
+              error: 'Backend unavailable - unable to create project',
+              isLoading: false
+            });
+            return null;
+          }
           
           if (!response.ok) {
             // Try to parse error response for storage limit errors
@@ -517,13 +541,11 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           
           return constructedProject;
         } catch (error) {
-          console.error('[ProjectStore] Error creating project:', error);
-          console.error('[ProjectStore] Error type:', error instanceof Error ? error.constructor.name : typeof error);
-          console.error('[ProjectStore] Error message:', error instanceof Error ? error.message : String(error));
-          
+          console.warn('[ProjectStore] Error creating project:', error instanceof Error ? error.message : String(error));
+
           // Check if it's a network error
           if (error instanceof TypeError && error.message.includes('fetch')) {
-            console.error('[ProjectStore] Network error - backend might be down');
+            console.warn('[ProjectStore] Network error - backend might be down');
           }
           
           set({ 
@@ -552,11 +574,23 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
               'Authorization': `Bearer ${token}`
             },
             body: formData
+          }).catch(error => {
+            console.warn('[ProjectStore] Failed to add media - backend unavailable:', error.message);
+            return null;
           });
+
+          if (!response) {
+            // Backend is down, can't add media
+            set({
+              error: 'Backend unavailable - unable to add media',
+              isLoading: false
+            });
+            return null;
+          }
           
           if (!response.ok) {
             const errorText = await response.text();
-            console.error('[ProjectStore] Add media error:', errorText);
+            console.warn('[ProjectStore] Add media error:', errorText);
             
             // Try to parse error response
             let errorData;
@@ -599,7 +633,7 @@ const useProjectStore = create<ProjectState>()((set, get) => ({
           return null;
           
         } catch (error) {
-          console.error('[ProjectStore] Error adding media:', error);
+          console.warn('[ProjectStore] Error adding media:', error instanceof Error ? error.message : String(error));
           set({ 
             error: error instanceof Error ? error.message : 'Failed to add media',
             isLoading: false 

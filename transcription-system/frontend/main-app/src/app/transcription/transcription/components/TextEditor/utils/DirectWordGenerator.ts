@@ -288,10 +288,16 @@ export class DirectWordGenerator {
    * Process timestamp in text
    */
   private processTimestamp(text: string, includeTimestamps: boolean): string {
-    if (includeTimestamps) {
-      return text;
+    if (!includeTimestamps) {
+      // Replace bracketed timestamps with "..."
+      text = text.replace(/\[\d{1,2}:\d{2}(:\d{2})?\]/g, '...');
+    } else {
+      // Remove brackets but keep the time
+      text = text.replace(/\[(\d{1,2}:\d{2}(:\d{2})?)\]/g, '$1');
     }
-    // Replace timestamps (format: MM:SS or HH:MM:SS) with ...
-    return text.replace(/\d{1,2}:\d{2}(:\d{2})?/g, '...');
+
+    // Don't apply any LTR protection to numbers to avoid text reflow issues
+
+    return text;
   }
 }

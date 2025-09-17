@@ -167,24 +167,33 @@ router.put('/:id', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/transcription/shortcuts/:id
- * Delete a personal shortcut
+ * Delete a personal shortcut by ID or shortcut text
  */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const shortcutId = req.params.id;
-    
-    await shortcutService.deleteUserShortcut(userId, shortcutId);
+    const shortcutIdOrText = req.params.id;
+
+    // Try to delete by ID first, if it looks like a UUID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shortcutIdOrText);
+
+    if (isUuid) {
+      await shortcutService.deleteUserShortcut(userId, shortcutIdOrText);
+    } else {
+      // Delete by shortcut text
+      await shortcutService.deleteUserShortcutByText(userId, decodeURIComponent(shortcutIdOrText));
+    }
+
     res.status(204).send();
   } catch (error: any) {
     console.error('Error deleting shortcut:', error);
-    
+
     if (error.code === 'NOT_FOUND') {
       return res.status(404).json({
         error: error.message
       });
     }
-    
+
     res.status(500).json({
       error: 'Failed to delete shortcut',
       message: error.message

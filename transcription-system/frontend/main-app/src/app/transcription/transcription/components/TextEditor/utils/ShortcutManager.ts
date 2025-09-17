@@ -50,6 +50,13 @@ export class ShortcutManager {
     this.token = token;
     await this.loadShortcuts();
   }
+
+  /**
+   * Set authentication token (for use when token is obtained later)
+   */
+  setToken(token: string): void {
+    this.token = token;
+  }
   
   /**
    * Load public system shortcuts without authentication
@@ -61,23 +68,33 @@ export class ShortcutManager {
       console.log('[ShortcutManager] Public shortcuts already loaded or loading, skipping...');
       return;
     }
-    
+
     this.isLoadingPublic = true;
-    
+
     try {
-      const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' 
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
         ? '' // Use same origin in production
         : getApiUrl();
-      
+
       const response = await fetch(baseUrl + '/api/transcription/shortcuts/public', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
         }
+      }).catch(error => {
+        console.warn('[ShortcutManager] Network error loading public shortcuts:', error.message);
+        return null;
       });
-      
+
+      if (!response) {
+        // Network error - continue without public shortcuts
+        console.warn('[ShortcutManager] Could not load public shortcuts - continuing without them');
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error('Failed to load public shortcuts: ' + response.statusText);
+        console.warn('Failed to load public shortcuts:', response.statusText);
+        return;
       }
       
       const data: ShortcutAPIResponse = await response.json();
@@ -123,20 +140,24 @@ export class ShortcutManager {
       console.log('[ShortcutManager] User shortcuts already loading, skipping...');
       return;
     }
-    
+
     // Check cache validity
     const now = Date.now();
     if (!forceRefresh && (now - this.lastFetchTime) < this.cacheTimeout) {
+      console.log('[ShortcutManager] Using cached shortcuts (cache valid for', Math.round((this.cacheTimeout - (now - this.lastFetchTime)) / 1000), 'more seconds)');
       return; // Use cached data
     }
-    
+
     if (!this.token) {
-      console.error('ShortcutManager: No authentication token');
+      console.warn('ShortcutManager: No authentication token - skipping user shortcuts');
       return;
     }
-    
+
+    console.log('[ShortcutManager] Making API request to:', this.apiUrl);
+    console.log('[ShortcutManager] Using token:', this.token.substring(0, 20) + '...');
+
     this.isLoadingUser = true;
-    
+
     try {
       const response = await fetch(this.apiUrl, {
         method: 'GET',
@@ -144,10 +165,24 @@ export class ShortcutManager {
           'Authorization': 'Bearer ' + this.token,
           'Content-Type': 'application/json'
         }
+      }).catch(error => {
+        console.warn('[ShortcutManager] Network error loading shortcuts:', error.message);
+        return null;
       });
-      
+
+      if (!response) {
+        console.warn('[ShortcutManager] No response from server - network error');
+        // Network error - just use existing shortcuts
+        return;
+      }
+
+      console.log('[ShortcutManager] API Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to load shortcuts: ' + response.statusText);
+        console.warn('[ShortcutManager] Failed to load shortcuts:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.warn('[ShortcutManager] Error response:', errorText);
+        return;
       }
       
       const data: ShortcutAPIResponse = await response.json();
@@ -170,16 +205,32 @@ export class ShortcutManager {
       const cacheData: Array<[string, any]> = [];
       
       // Add all shortcuts from the API (system + user)
-      data.shortcuts.forEach(([shortcut, shortcutData]) => {
-        this.shortcuts.set(shortcut, shortcutData);
-        // Prepare cache data
-        cacheData.push([shortcut, {
-          expansion: shortcutData.expansion,
-          category: shortcutData.category,
-          description: shortcutData.description,
-          source: shortcutData.source
-        }]);
-      });
+      // Check if shortcuts is an array
+      if (Array.isArray(data.shortcuts)) {
+        console.log('[ShortcutManager] Loading', data.shortcuts.length, 'shortcuts from API');
+
+        // Log user shortcuts specifically
+        const userShortcuts = data.shortcuts.filter(s => s.source === 'user');
+        console.log('[ShortcutManager] Found', userShortcuts.length, 'user shortcuts:', userShortcuts.map(s => s.shortcut));
+
+        data.shortcuts.forEach((shortcutObj) => {
+          // Handle the object format from the API
+          const shortcut = shortcutObj.shortcut;
+          const shortcutData = {
+            expansion: shortcutObj.expansion,
+            category: shortcutObj.category || 'custom',
+            source: shortcutObj.source || 'user',
+            description: shortcutObj.description,
+            language: shortcutObj.language || 'he'
+          };
+
+          this.shortcuts.set(shortcut, shortcutData);
+          // Prepare cache data
+          cacheData.push([shortcut, shortcutData]);
+        });
+      } else {
+        console.warn('[ShortcutManager] Unexpected data format - shortcuts is not an array:', data);
+      }
       
       // Bulk load into cache for optimal performance
       this.cache.bulkLoad(cacheData);
@@ -205,32 +256,78 @@ export class ShortcutManager {
   processText(text: string, cursorPosition: number): ProcessTextResult {
     const beforeCursor = text.substring(0, cursorPosition);
     const afterCursor = text.substring(cursorPosition);
-    
+
+    // Debug logging
+    console.log('[ShortcutManager] Processing text:', beforeCursor);
+
+    // First, try to match shortcuts exactly as they are (including shortcuts that contain punctuation)
+    console.log('[ShortcutManager] 🔍 DIRECT MATCH: Trying direct match for:', beforeCursor);
+    const result = this.tryMatchShortcuts(beforeCursor, afterCursor, text, cursorPosition, '');
+    if (result.expanded) {
+      console.log('[ShortcutManager] ✅ DIRECT SUCCESS: Matched shortcut directly:', result.expandedShortcut);
+      return result;
+    } else {
+      console.log('[ShortcutManager] ❌ DIRECT FAIL: No direct match found');
+    }
+
+    // If no direct match, check if text ends with punctuation and try matching without it
     // Define punctuation marks that can appear after shortcuts
-    // Note: Removed '/' from the list as it's often part of shortcuts (like נ/, ע/, etc.)
-    const punctuationMarks = [',', '.', '!', '?', ':', ';', ')', ']', '}', '"', "'", '-', '\\', '|'];
-    
-    // Check if the text before cursor ends with punctuation
-    let trailingPunctuation = '';
-    let textWithoutPunctuation = beforeCursor;
-    
+    // Including Hebrew apostrophe (׳) for shortcuts like וכו׳
+    const punctuationMarks = [',', '.', '!', '?', ':', ';', ')', ']', '}', '"', '-', '\\', '|', '%', '=', '׳', "'"];
+
     for (const punct of punctuationMarks) {
       if (beforeCursor.endsWith(punct)) {
-        trailingPunctuation = punct;
-        textWithoutPunctuation = beforeCursor.slice(0, -1);
-        break;
+        const textWithoutPunct = beforeCursor.slice(0, -1);
+        console.log('[ShortcutManager] 🔍 PUNCT DEBUG: Found punctuation:', punct);
+        console.log('[ShortcutManager] 🔍 PUNCT DEBUG: Text with punct:', beforeCursor);
+        console.log('[ShortcutManager] 🔍 PUNCT DEBUG: Text without punct:', textWithoutPunct);
+        console.log('[ShortcutManager] 🔍 PUNCT DEBUG: Available shortcuts containing text:',
+          Array.from(this.shortcuts.keys()).filter(s => textWithoutPunct.includes(s) || s.includes(textWithoutPunct))
+        );
+
+        const resultWithoutPunct = this.tryMatchShortcuts(textWithoutPunct, afterCursor, text, cursorPosition - 1, punct);
+        if (resultWithoutPunct.expanded) {
+          console.log('[ShortcutManager] ✅ PUNCT SUCCESS: Matched after removing punctuation:', resultWithoutPunct.expandedShortcut);
+          // Adjust positions for the punctuation
+          return {
+            ...resultWithoutPunct,
+            cursorPosition: resultWithoutPunct.cursorPosition + 1
+          };
+        } else {
+          console.log('[ShortcutManager] ❌ PUNCT FAIL: No match found for:', textWithoutPunct);
+        }
+        break; // Only check the first punctuation mark found
       }
     }
-    
+
+    // No expansion needed
+    return {
+      text,
+      cursorPosition,
+      expanded: false
+    };
+  }
+
+  /**
+   * Try to match shortcuts in the given text
+   */
+  private tryMatchShortcuts(
+    textToCheck: string,
+    afterCursor: string,
+    fullText: string,
+    originalCursorPos: number,
+    trailingPunctuation: string
+  ): ProcessTextResult {
+
     // Skip cache for now - it's not handling prefixes correctly
     // TODO: Update cache to handle prefix transformations
-    // const cacheMatch = this.cache.findMatch(textWithoutPunctuation);
+    // const cacheMatch = this.cache.findMatch(textToCheck);
     // if (cacheMatch) {
-    //   const startPos = cursorPosition - cacheMatch.shortcut.length - trailingPunctuation.length;
+    //   const startPos = originalCursorPos - cacheMatch.shortcut.length - trailingPunctuation.length;
     //   const expansionWithPunct = cacheMatch.expansion + trailingPunctuation;
-    //   const newText = text.substring(0, startPos) + expansionWithPunct + afterCursor;
+    //   const newText = fullText.substring(0, startPos) + expansionWithPunct + afterCursor;
     //   const newCursorPos = startPos + expansionWithPunct.length;
-      
+
     //   return {
     //     text: newText,
     //     cursorPosition: newCursorPos,
@@ -246,8 +343,8 @@ export class ShortcutManager {
       .sort((a, b) => b.length - a.length);
     
     // Debug: Log what we're checking
-    if (textWithoutPunctuation.includes('פייסבוק')) {
-      console.log('[ShortcutManager] Checking text:', textWithoutPunctuation);
+    if (textToCheck.includes('פייסבוק')) {
+      console.log('[ShortcutManager] Checking text:', textToCheck);
       console.log('[ShortcutManager] Available shortcuts:', sortedShortcuts.filter(s => s.includes('פייסבוק')));
     }
     
@@ -255,7 +352,7 @@ export class ShortcutManager {
     for (const prefix of this.hebrewPrefixes) {
       for (const shortcut of sortedShortcuts) {
         const prefixedShortcut = prefix + shortcut;
-        if (textWithoutPunctuation.endsWith(prefixedShortcut)) {
+        if (textToCheck.endsWith(prefixedShortcut)) {
           const shortcutData = this.shortcuts.get(shortcut);
           if (!shortcutData) continue;
           
@@ -276,8 +373,8 @@ export class ShortcutManager {
           
           // Add punctuation back if present
           const expansionWithPunct = expansion + trailingPunctuation;
-          const startPos = cursorPosition - prefixedShortcut.length - trailingPunctuation.length;
-          const newText = text.substring(0, startPos) + expansionWithPunct + afterCursor;
+          const startPos = originalCursorPos - prefixedShortcut.length - trailingPunctuation.length;
+          const newText = fullText.substring(0, startPos) + expansionWithPunct + afterCursor;
           const newCursorPos = startPos + expansionWithPunct.length;
           
           return {
@@ -288,7 +385,7 @@ export class ShortcutManager {
             expandedTo: expansionWithPunct,
             // Undo metadata
             processed: true,
-            originalText: text,
+            originalText: fullText,
             expansionStart: startPos,
             expansionEnd: startPos + expansionWithPunct.length
           };
@@ -305,10 +402,10 @@ export class ShortcutManager {
       // Example: ב'ס -> בית ספר, ב'הס -> בית הספר
       if (shortcut.includes("'") && shortcutData.expansion.includes(' ')) {
         const shortcutWithHe = shortcut.replace("'", "'ה");
-        if (beforeCursor.endsWith(shortcutWithHe)) {
+        if (textToCheck.endsWith(shortcutWithHe)) {
           const expansionWithHe = this.addHeToMultiWord(shortcutData.expansion);
-          const startPos = cursorPosition - shortcutWithHe.length;
-          const newText = text.substring(0, startPos) + expansionWithHe + afterCursor;
+          const startPos = originalCursorPos - shortcutWithHe.length;
+          const newText = fullText.substring(0, startPos) + expansionWithHe + afterCursor;
           const newCursorPos = startPos + expansionWithHe.length;
           
           return {
@@ -319,7 +416,7 @@ export class ShortcutManager {
             expandedTo: expansionWithHe,
             // Undo metadata
             processed: true,
-            originalText: text,
+            originalText: fullText,
             expansionStart: startPos,
             expansionEnd: startPos + expansionWithHe.length
           };
@@ -329,10 +426,10 @@ export class ShortcutManager {
         // Example: וב'הס -> ובית הספר
         for (const prefix of this.hebrewPrefixes) {
           const prefixedWithHe = prefix + shortcutWithHe;
-          if (beforeCursor.endsWith(prefixedWithHe)) {
+          if (textToCheck.endsWith(prefixedWithHe)) {
             const expansionWithHe = prefix + this.addHeToMultiWord(shortcutData.expansion);
-            const startPos = cursorPosition - prefixedWithHe.length;
-            const newText = text.substring(0, startPos) + expansionWithHe + afterCursor;
+            const startPos = originalCursorPos - prefixedWithHe.length;
+            const newText = fullText.substring(0, startPos) + expansionWithHe + afterCursor;
             const newCursorPos = startPos + expansionWithHe.length;
             
             return {
@@ -343,7 +440,7 @@ export class ShortcutManager {
               expandedTo: expansionWithHe,
               // Undo metadata
               processed: true,
-              originalText: text,
+              originalText: fullText,
               expansionStart: startPos,
               expansionEnd: startPos + expansionWithHe.length
             };
@@ -352,7 +449,7 @@ export class ShortcutManager {
       }
       
       // Regular shortcut check (with or without punctuation)
-      if (textWithoutPunctuation.endsWith(shortcut)) {
+      if (textToCheck.endsWith(shortcut)) {
         let expansion = shortcutData.expansion;
         
         // Special handling for English words
@@ -363,8 +460,8 @@ export class ShortcutManager {
         
         // Add punctuation back if present
         const expansionWithPunct = expansion + trailingPunctuation;
-        const startPos = cursorPosition - shortcut.length - trailingPunctuation.length;
-        const newText = text.substring(0, startPos) + expansionWithPunct + afterCursor;
+        const startPos = originalCursorPos - shortcut.length - trailingPunctuation.length;
+        const newText = fullText.substring(0, startPos) + expansionWithPunct + afterCursor;
         const newCursorPos = startPos + expansionWithPunct.length;
         
         return {
@@ -375,17 +472,17 @@ export class ShortcutManager {
           expandedTo: expansionWithPunct,
           // Undo metadata
           processed: true,
-          originalText: text,
+          originalText: fullText,
           expansionStart: startPos,
           expansionEnd: startPos + expansionWithPunct.length
         };
       }
     }
-    
+
     // No expansion needed
     return {
-      text,
-      cursorPosition,
+      text: fullText,
+      cursorPosition: originalCursorPos,
       expanded: false
     };
   }
@@ -413,18 +510,18 @@ export class ShortcutManager {
     if (!this.token) {
       throw new Error('Not authenticated');
     }
-    
+
     if (this.quota.used >= this.quota.max) {
       throw new Error('You\'ve reached your limit of ' + this.quota.max + ' personal shortcuts');
     }
-    
+
     // Check if shortcut already exists
     if (this.shortcuts.has(shortcut)) {
       const existing = this.shortcuts.get(shortcut);
       if (existing?.source === 'system') {
         throw new Error('Cannot override system shortcuts');
       }
-      // Update existing user shortcut
+      // Update existing user shortcut or override system shortcut
     }
     
     const request: AddShortcutRequest = {

@@ -8,6 +8,7 @@ import { SpeakerManager } from '../Speaker/utils/speakerManager';
 import { ShortcutManager } from './utils/ShortcutManager';
 import { ProcessTextResult } from './types/shortcuts';
 import ShortcutsModal from './components/ShortcutsModal';
+import { ShortcutPopup } from './components/ShortcutPopup';
 import BackupStatusIndicator from './components/BackupStatusIndicator';
 import TSessionStatus from './components/TSessionStatus';
 import NewTranscriptionModal from './components/NewTranscriptionModal';
@@ -32,7 +33,7 @@ import { EditorPreferencesService } from './utils/editorPreferencesService';
 import incrementalBackupService from '@/services/incrementalBackupService';
 import indexedDBService from '@/services/indexedDBService';
 import { tSessionService } from '@/services/tSessionService';
-import { shouldUseIndexedDB } from '../../../../../config/environment';
+import { shouldUseIndexedDB, getApiUrl } from '../../../../../config/environment';
 // import TTranscriptionNotification from './components/TTranscriptionNotification'; // Removed - no popup needed
 import { useRemarks } from '../Remarks/RemarksContext';
 import useProjectStore from '@/lib/stores/projectStore';
@@ -166,6 +167,7 @@ export default function TextEditor({
 
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showShortcutPopup, setShowShortcutPopup] = useState(false);
   const [showNewTranscriptionModal, setShowNewTranscriptionModal] = useState(false);
   const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
   const [showTranscriptionSwitcher, setShowTranscriptionSwitcher] = useState(false);
@@ -187,6 +189,7 @@ export default function TextEditor({
   const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
   const [showHTMLPreviewModal, setShowHTMLPreviewModal] = useState(false);
   const [autoExportEnabled, setAutoExportEnabled] = useState(false);
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isMediaNameOverflowing, setIsMediaNameOverflowing] = useState(false);
   const [selectedTranscriptions, setSelectedTranscriptions] = useState<Set<number>>(new Set());
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -295,15 +298,30 @@ export default function TextEditor({
         // Then, if user is authenticated, load their personal shortcuts
         const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
         const userId = localStorage.getItem('userId');
-        
+
+        console.log('[ShortcutManager] Auth check - token exists:', !!token, 'userId:', userId);
+
         if (token && userId) {
           try {
             console.log('[ShortcutManager] Loading user shortcuts for userId:', userId);
+            console.log('[ShortcutManager] Token being used:', token.substring(0, 20) + '...');
             await shortcutManagerRef.current.initialize(userId, token);
-            
+
+            // Force load shortcuts even if cached
+            await shortcutManagerRef.current.loadShortcuts(true);
+
+            // Update quota from the API response
+            const quota = shortcutManagerRef.current.getQuota();
+            setUserQuota(quota);
+
             // Update state with combined shortcuts (system + user)
             const allShortcutsMap = shortcutManagerRef.current.getAllShortcuts();
             console.log('[ShortcutManager] Total shortcuts after user load:', allShortcutsMap.size);
+
+            // Log a few shortcuts to see what we have
+            const shortcutEntries = Array.from(allShortcutsMap.entries());
+            console.log('[ShortcutManager] Sample shortcuts:', shortcutEntries.slice(0, 5).map(([k, v]) => ({ shortcut: k, source: v.source })));
+
             setLoadedShortcuts(new Map(allShortcutsMap));
           } catch (error) {
             console.error('[ShortcutManager] Failed to load user shortcuts:', error);
@@ -870,13 +888,20 @@ export default function TextEditor({
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      
+
+      // Alt+5 to toggle shortcut popup
+      if (e.altKey && e.key === '5') {
+        e.preventDefault();
+        setShowShortcutPopup(prev => !prev);
+        return;
+      }
+
       // Get current values from refs
       const currentBlocks = blocksRef.current;
       const currentActiveId = activeBlockIdRef.current;
       const currentActiveArea = activeAreaRef.current;
       const currentSelectedRange = selectedBlockRangeRef.current;
-      
+
       // Shift+Ctrl+Arrow for multi-block selection
       if (e.shiftKey && e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
@@ -1167,7 +1192,65 @@ export default function TextEditor({
       console.log('[TextEditor] Media change detected, stopping autosave');
       backupService.stopAutoSave();
       
-      if (!currentProjectId || !currentMediaId) {
+      // If we have a mediaId but no projectId (internet project), try to find the project
+      let effectiveProjectId = currentProjectId;
+
+      if (!currentProjectId && currentMediaId) {
+        console.log('[TextEditor] No project ID but have media ID, trying to find project...');
+
+        // Retry logic with exponential backoff for newly created projects
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (!effectiveProjectId && retryCount < maxRetries) {
+          try {
+            // Wait before retry (except first attempt)
+            if (retryCount > 0) {
+              const waitTime = Math.min(1000 * Math.pow(2, retryCount - 1), 4000); // 1s, 2s, 4s max
+              console.log(`[TextEditor] Retry ${retryCount}/${maxRetries} after ${waitTime}ms...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+
+            // Try to find the project that contains this media
+            const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+            const projectsResponse = await fetch(buildApiUrl('/api/projects/list'), {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+
+            if (projectsResponse.ok) {
+              const projectsData = await projectsResponse.json();
+              console.log(`[TextEditor] Found ${projectsData.projects?.length || 0} projects to search`);
+
+              // Find the project that contains this mediaId
+              for (const project of projectsData.projects || []) {
+                if (project.mediaFiles && project.mediaFiles.includes(currentMediaId)) {
+                  effectiveProjectId = project.projectId;
+                  console.log('[TextEditor] ✅ Found project for media:', effectiveProjectId, 'on attempt', retryCount + 1);
+                  break;
+                }
+              }
+
+              if (!effectiveProjectId) {
+                console.log(`[TextEditor] Media ${currentMediaId} not found in any project on attempt ${retryCount + 1}`);
+              }
+            } else {
+              console.log('[TextEditor] Failed to fetch projects:', projectsResponse.status);
+            }
+          } catch (error) {
+            console.error('[TextEditor] Error finding project for media:', error);
+          }
+
+          retryCount++;
+        }
+
+        if (!effectiveProjectId) {
+          console.warn('[TextEditor] ⚠️ Could not find project for media after', maxRetries, 'attempts');
+        }
+      }
+
+      if (!effectiveProjectId || !currentMediaId) {
         console.log('[TextEditor] No project or media ID, skipping load');
         // Don't create any blocks - wait for user to select a project/media
         blockManagerRef.current.setBlocks([]);
@@ -1178,12 +1261,12 @@ export default function TextEditor({
         // CRITICAL: Don't start autosave when there's no project/media
         return;
       }
-      
-      console.log('[TextEditor] Loading transcription for:', currentProjectId, currentMediaId);
+
+      console.log('[TextEditor] Loading transcription for:', effectiveProjectId, currentMediaId);
       
       try {
         const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
-        const response = await fetch(buildApiUrl(`/api/projects/${currentProjectId}/media/${currentMediaId}/transcription`), {
+        const response = await fetch(buildApiUrl(`/api/projects/${effectiveProjectId}/media/${currentMediaId}/transcription`), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -1204,6 +1287,54 @@ export default function TextEditor({
             setActiveBlockId(initialBlock.id);
             // Reset transition flag
             isTransitioningRef.current = false;
+
+            // Start auto-save for this media
+            console.log('[TextEditor] Starting auto-save for new transcription');
+            backupService.startAutoSave(
+              effectiveProjectId,
+              currentMediaId,
+              () => {
+                // Return current transcription data for backup
+                const blocks = blockManagerRef.current.getBlocks();
+                const speakers = speakerComponentRef?.current?.getAllSpeakers() || speakerManagerRef.current.getAllSpeakers();
+                const remarks = remarksContext?.state.remarks || [];
+
+                return {
+                  blocks: blocks.map(block => ({
+                    id: block.id,
+                    text: block.text,
+                    speaker: block.speaker,
+                    timestamp: block.speakerTime ? formatTime(block.speakerTime) : undefined,
+                    startTime: block.startTime,
+                    endTime: block.endTime
+                  })),
+                  speakers: speakers.map(speaker => ({
+                    id: speaker.id,
+                    code: speaker.code,
+                    name: speaker.name,
+                    description: speaker.description,
+                    color: speaker.color,
+                    count: speaker.count
+                  })),
+                  remarks: remarks.map(remark => ({
+                    id: remark.id,
+                    type: remark.type,
+                    content: remark.content || remark.text,
+                    text: remark.text || remark.content,
+                    blockId: remark.blockId,
+                    timestamp: remark.timestamp
+                  })),
+                  metadata: {
+                    mediaId: currentMediaId,
+                    fileName: mediaName || '',
+                    originalName: mediaName || '',
+                    savedAt: new Date().toISOString()
+                  }
+                };
+              },
+              120000 // Check every 2 minutes
+            );
+
             return;
           }
           throw new Error('Failed to load transcription');
@@ -1287,7 +1418,54 @@ export default function TextEditor({
         // Reset transition flag after successful load
         console.log('[TextEditor] Transcription loaded, resetting transition flag');
         isTransitioningRef.current = false;
-        
+
+        // Start auto-save for this media
+        console.log('[TextEditor] Starting auto-save for loaded transcription');
+        backupService.startAutoSave(
+          effectiveProjectId,
+          currentMediaId,
+          () => {
+            // Return current transcription data for backup
+            const blocks = blockManagerRef.current.getBlocks();
+            const speakers = speakerComponentRef?.current?.getAllSpeakers() || speakerManagerRef.current.getAllSpeakers();
+            const remarks = remarksContext?.state.remarks || [];
+
+            return {
+              blocks: blocks.map(block => ({
+                id: block.id,
+                text: block.text,
+                speaker: block.speaker,
+                timestamp: block.speakerTime ? formatTime(block.speakerTime) : undefined,
+                startTime: block.startTime,
+                endTime: block.endTime
+              })),
+              speakers: speakers.map(speaker => ({
+                id: speaker.id,
+                code: speaker.code,
+                name: speaker.name,
+                description: speaker.description,
+                color: speaker.color,
+                count: speaker.count
+              })),
+              remarks: remarks.map(remark => ({
+                id: remark.id,
+                type: remark.type,
+                content: remark.content || remark.text,
+                text: remark.text || remark.content,
+                blockId: remark.blockId,
+                timestamp: remark.timestamp
+              })),
+              metadata: {
+                mediaId: currentMediaId,
+                fileName: mediaName || '',
+                originalName: mediaName || '',
+                savedAt: new Date().toISOString()
+              }
+            };
+          },
+          120000 // Check every 2 minutes
+        );
+
       } catch (error) {
         console.error('[TextEditor] Error loading transcription:', error);
         // On error, start with empty block
@@ -1317,19 +1495,55 @@ export default function TextEditor({
   
   // Initialize auto-save
   useEffect(() => {
-    console.log('[AutoSave] Check conditions:', {
+    console.log('[TextEditor AutoSave] === EFFECT TRIGGERED ===');
+    console.log('[TextEditor AutoSave] Props received:', {
+      currentProjectId,
+      currentMediaId,
+      mediaName,
+      projectName,
+      autoSaveEnabled,
+      hasProjectId: !!currentProjectId,
+      hasMediaId: !!currentMediaId,
+      mediaIdFormat: {
+        isUUID: currentMediaId?.includes('-') && currentMediaId.length > 20,
+        isNumbered: currentMediaId?.match(/^media-\d+$/),
+        actual: currentMediaId
+      },
+      projectIdLength: currentProjectId?.length,
+      timestamp: new Date().toISOString()
+    });
+    console.log('[TextEditor AutoSave] Check conditions:', {
       autoSaveEnabled,
       currentProjectId,
       currentMediaId,
       shouldInit: autoSaveEnabled && currentProjectId && currentMediaId
     });
-    
+
     if (autoSaveEnabled && currentProjectId && currentMediaId) {
-      console.log('[AutoSave] Initializing for project:', currentProjectId, 'media:', currentMediaId);
-      
+      console.log('[TextEditor AutoSave] ✅ Conditions met - Initializing backup service');
+      console.log('[TextEditor AutoSave] Initializing for project:', currentProjectId, 'media:', currentMediaId);
+
+      // Check if this is a URL project (UUID-based media ID)
+      const isUrlProject = currentMediaId?.includes('-') && currentMediaId.length > 20;
+
       // Create data callback function
       const getBackupData = () => {
-        console.log('[Auto-Backup] Creating backup for project:', currentProjectId, 'media:', currentMediaId);
+        // CRITICAL: Use dynamic references to prevent stale closure issues
+        const dynamicProjectId = currentProjectId;
+        const dynamicMediaId = currentMediaId;
+
+        console.log('[Auto-Backup] 🔍 DYNAMIC backup creation:', {
+          dynamicProjectId,
+          dynamicMediaId,
+          mediaName,
+          closureCheck: 'Using dynamic references'
+        });
+
+        // Validate IDs before proceeding
+        if (!dynamicProjectId || !dynamicMediaId) {
+          console.error('[Auto-Backup] ❌ Missing dynamic project/media ID');
+          throw new Error('Missing project or media ID in dynamic backup');
+        }
         const blocks = blockManagerRef.current.getBlocks();
         // Get speakers from SimpleSpeaker component which has the actual names
         const speakers = speakerComponentRef?.current?.getAllSpeakers() || speakerManagerRef.current.getAllSpeakers();
@@ -1379,7 +1593,7 @@ export default function TextEditor({
             })
           })),
           metadata: {
-            mediaId: currentMediaId,
+            mediaId: dynamicMediaId, // Use dynamic reference instead of closure variable
             fileName: mediaName || '',
             originalName: mediaName || '',
             savedAt: new Date().toISOString()
@@ -1389,19 +1603,41 @@ export default function TextEditor({
       
       // Initialize auto-save with the callback
       backupService.initAutoSave(currentProjectId, currentMediaId, getBackupData, 60000);
-      
+
+      // Create an initial backup after a short delay (only if content exists)
+      setTimeout(() => {
+        const initialData = getBackupData();
+        // Only create initial backup if there's actual content
+        if (initialData.blocks.length > 0 || initialData.speakers.length > 0) {
+          console.log('[TextEditor AutoSave] 📁 Creating initial backup with content');
+          backupService.markChanges(); // Mark changes only when there's content to backup
+          backupService.forceBackup(initialData).then(() => {
+            console.log('[TextEditor AutoSave] 📁 Initial backup completed');
+          }).catch(err => {
+            console.error('[TextEditor AutoSave] Failed to create initial backup:', err);
+          });
+        } else {
+          console.log('[TextEditor AutoSave] 📁 No content to backup initially');
+        }
+      }, 1000); // Small delay to ensure everything is loaded
+
     } else if (!autoSaveEnabled || !currentProjectId || !currentMediaId) {
-      console.log('[AutoSave] Stopping - conditions not met:', {
+      console.log('[TextEditor AutoSave] ❌ Conditions NOT met - Stopping backup service:', {
         autoSaveEnabled,
         hasProjectId: !!currentProjectId,
-        hasMediaId: !!currentMediaId
+        hasMediaId: !!currentMediaId,
+        currentProjectId,
+        currentMediaId,
+        reason: !autoSaveEnabled ? 'Auto-save disabled' :
+                !currentProjectId ? 'No project ID' :
+                !currentMediaId ? 'No media ID' : 'Unknown'
       });
       backupService.stopAutoSave();
     }
     
     // Cleanup auto-save on unmount or when dependencies change
     return () => {
-      console.log('[AutoSave] Cleanup - stopping auto-save');
+      console.log('[TextEditor AutoSave] 🧹 Cleanup - stopping auto-save due to unmount or dependency change');
       backupService.stopAutoSave();
     };
   }, [autoSaveEnabled, currentProjectId, currentMediaId, mediaName, remarksContext, speakerComponentRef]);
@@ -1445,24 +1681,32 @@ export default function TextEditor({
           headers: {
             'Authorization': `Bearer ${token}`
           }
+        }).catch(error => {
+          console.warn('[TextEditor] Failed to fetch auto export setting:', error.message);
+          return null;
         });
 
+        if (!response) {
+          // Backend unavailable, use default settings
+          return;
+        }
+
         console.log('[TextEditor] Storage API response status:', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('[TextEditor] Full storage API response:', data);
           console.log('[TextEditor] autoExportEnabled from API:', data.autoExportEnabled);
           console.log('[TextEditor] Type of autoExportEnabled:', typeof data.autoExportEnabled);
-          
+
           const enabled = data.autoExportEnabled || false;
           setAutoExportEnabled(enabled);
           console.log('[TextEditor] Final autoExportEnabled state set to:', enabled);
         } else {
-          console.error('[TextEditor] Storage API error:', response.status, response.statusText);
+          console.warn('[TextEditor] Storage API returned non-OK status:', response.status);
         }
       } catch (error) {
-        console.error('[TextEditor] Failed to fetch auto export setting:', error);
+        console.warn('[TextEditor] Error processing auto export setting:', error);
       }
     };
 
@@ -1561,49 +1805,334 @@ export default function TextEditor({
   }, [shortcutsEnabled]);
 
   // Handle adding personal shortcut
-  const handleAddShortcut = useCallback(async (shortcut: string, expansion: string, description?: string) => {
-    // For now, just add to local shortcuts since we're using public endpoint
-    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
-    shortcutsMap.set(shortcut, {
-      expansion,
-      source: 'user',
-      description,
-      category: 'custom'
-    });
-    setLoadedShortcuts(new Map(shortcutsMap));
-    
-    // Update quota
-    const userShortcuts = Array.from(shortcutsMap.values()).filter(s => s.source === 'user');
-    setUserQuota(prev => ({ ...prev, used: userShortcuts.length }));
+  const handleAddShortcut = useCallback(async (shortcut: string, expansion: string, description?: string, allowOverride?: boolean) => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+
+      // If no token, save locally only (for development/testing)
+      if (!token) {
+        console.warn('No authentication token found - saving shortcut locally only');
+
+        // Add to local shortcuts
+        const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+        shortcutsMap.set(shortcut, {
+          expansion,
+          source: 'user',
+          description,
+          category: 'custom'
+        });
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Update quota from ShortcutManager
+        const quota = shortcutManagerRef.current.getQuota();
+        setUserQuota(quota);
+
+        // Show success feedback
+        setFeedbackMessage('קיצור נוסף מקומית');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+        return;
+      }
+
+      // Try to save to database
+      try {
+        const response = await fetch(buildApiUrl('/api/transcription/shortcuts'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            shortcut,
+            expansion,
+            description
+            // allowOverride // TODO: Add when backend supports it
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          if (response.status === 403) {
+            // Quota exceeded - show error to user, don't save locally
+            setFeedbackMessage(error.error || 'חרגת ממכסת הקיצורים האישיים');
+            if (feedbackTimeoutRef.current) {
+              clearTimeout(feedbackTimeoutRef.current);
+            }
+            feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 5000);
+            return;
+          }
+          if (response.status === 409) {
+            // Duplicate shortcut - show error to user, don't save locally
+            setFeedbackMessage(error.error || 'קיצור זה כבר קיים');
+            if (feedbackTimeoutRef.current) {
+              clearTimeout(feedbackTimeoutRef.current);
+            }
+            feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 5000);
+            return;
+          }
+          throw new Error(error.error || 'Failed to add shortcut');
+        }
+
+        // Reload shortcuts from API to ensure sync (only if we have connection)
+        try {
+          await shortcutManagerRef.current.loadShortcuts(true);
+        } catch (error) {
+          console.warn('Could not reload shortcuts from server:', error);
+        }
+        const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Update quota from ShortcutManager
+        const quota = shortcutManagerRef.current.getQuota();
+        setUserQuota(quota);
+
+        // Show success feedback
+        setFeedbackMessage('קיצור נוסף בהצלחה');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+      } catch (fetchError: any) {
+        // If network error, save locally as fallback
+        console.warn('Failed to save to server, saving locally:', fetchError.message);
+
+        // Add to local shortcuts
+        const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+        shortcutsMap.set(shortcut, {
+          expansion,
+          source: 'user',
+          description,
+          category: 'custom'
+        });
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Update quota from ShortcutManager
+        const quota = shortcutManagerRef.current.getQuota();
+        setUserQuota(quota);
+
+        // Show warning feedback
+        setFeedbackMessage('קיצור נשמר מקומית (השרת לא זמין)');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+      }
+    } catch (error: any) {
+      console.error('Failed to add shortcut:', error);
+      setFeedbackMessage(error.message || 'שגיאה בהוספת קיצור');
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 5000);
+      // Don't re-throw to prevent console errors
+    }
   }, []);
 
   // Handle editing personal shortcut
   const handleEditShortcut = useCallback(async (oldShortcut: string, newShortcut: string, expansion: string, description?: string) => {
-    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
-    
-    // Remove old shortcut
-    shortcutsMap.delete(oldShortcut);
-    
-    // Add new/updated shortcut
-    shortcutsMap.set(newShortcut, {
-      expansion,
-      source: 'user',
-      description,
-      category: 'custom'
-    });
-    
-    setLoadedShortcuts(new Map(shortcutsMap));
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+
+      // If no token, edit locally only
+      if (!token) {
+        console.warn('No authentication token found - editing shortcut locally only');
+
+        // Remove old shortcut
+        shortcutsMap.delete(oldShortcut);
+
+        // Add new/updated shortcut
+        shortcutsMap.set(newShortcut, {
+          expansion,
+          source: 'user',
+          description,
+          category: 'custom'
+        });
+
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Show success feedback
+        setFeedbackMessage('קיצור עודכן מקומית');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+        return;
+      }
+
+      // Try to save to database
+      try {
+        const oldShortcutData = shortcutsMap.get(oldShortcut);
+
+        // For now, we'll use delete and add since we don't have IDs tracked
+        // First delete the old shortcut
+        if (oldShortcutData && oldShortcutData.source === 'user') {
+          // Delete old shortcut from database
+          await fetch(buildApiUrl(`/api/transcription/shortcuts/${encodeURIComponent(oldShortcut)}`), {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        }
+
+        // Add the new shortcut
+        const response = await fetch(buildApiUrl('/api/transcription/shortcuts'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            shortcut: newShortcut,
+            expansion,
+            description
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update shortcut');
+        }
+
+        // Reload shortcuts from API to ensure sync (only if we have connection)
+        try {
+          await shortcutManagerRef.current.loadShortcuts(true);
+        } catch (error) {
+          console.warn('Could not reload shortcuts from server:', error);
+        }
+        const updatedShortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+        setLoadedShortcuts(new Map(updatedShortcutsMap));
+
+        // Show success feedback
+        setFeedbackMessage('קיצור עודכן בהצלחה');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+      } catch (fetchError: any) {
+        // If network error, edit locally as fallback
+        console.warn('Failed to save to server, editing locally:', fetchError.message);
+
+        // Remove old shortcut
+        shortcutsMap.delete(oldShortcut);
+
+        // Add new/updated shortcut
+        shortcutsMap.set(newShortcut, {
+          expansion,
+          source: 'user',
+          description,
+          category: 'custom'
+        });
+
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Show warning feedback
+        setFeedbackMessage('קיצור עודכן מקומית (השרת לא זמין)');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+      }
+    } catch (error: any) {
+      console.error('Failed to edit shortcut:', error);
+      setFeedbackMessage(error.message || 'שגיאה בעדכון קיצור');
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 5000);
+      // Don't re-throw to prevent console errors
+    }
   }, []);
 
   // Handle deleting personal shortcut
   const handleDeleteShortcut = useCallback(async (shortcut: string) => {
-    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
-    shortcutsMap.delete(shortcut);
-    setLoadedShortcuts(new Map(shortcutsMap));
-    
-    // Update quota
-    const userShortcuts = Array.from(shortcutsMap.values()).filter(s => s.source === 'user');
-    setUserQuota(prev => ({ ...prev, used: userShortcuts.length }));
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+
+      // If no token, delete locally only
+      if (!token) {
+        console.warn('No authentication token found - deleting shortcut locally only');
+
+        shortcutsMap.delete(shortcut);
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Update quota from ShortcutManager
+        const quota = shortcutManagerRef.current.getQuota();
+        setUserQuota(quota);
+
+        // Show success feedback
+        setFeedbackMessage('קיצור נמחק מקומית');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+        return;
+      }
+
+      // Try to delete from database
+      try {
+        const response = await fetch(buildApiUrl(`/api/transcription/shortcuts/${encodeURIComponent(shortcut)}`), {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok && response.status !== 204) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete shortcut');
+        }
+
+        // Reload shortcuts from API to ensure sync (only if we have connection)
+        try {
+          await shortcutManagerRef.current.loadShortcuts(true);
+        } catch (error) {
+          console.warn('Could not reload shortcuts from server:', error);
+        }
+        const updatedShortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+        setLoadedShortcuts(new Map(updatedShortcutsMap));
+
+        // Update quota
+        const userShortcuts = Array.from(updatedShortcutsMap.values()).filter(s => s.source === 'user');
+        setUserQuota(prev => ({ ...prev, used: userShortcuts.length }));
+
+        // Show success feedback
+        setFeedbackMessage('קיצור נמחק בהצלחה');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+      } catch (fetchError: any) {
+        // If network error, delete locally as fallback
+        console.warn('Failed to delete from server, deleting locally:', fetchError.message);
+
+        shortcutsMap.delete(shortcut);
+        setLoadedShortcuts(new Map(shortcutsMap));
+
+        // Update quota from ShortcutManager
+        const quota = shortcutManagerRef.current.getQuota();
+        setUserQuota(quota);
+
+        // Show warning feedback
+        setFeedbackMessage('קיצור נמחק מקומית (השרת לא זמין)');
+        if (feedbackTimeoutRef.current) {
+          clearTimeout(feedbackTimeoutRef.current);
+        }
+        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+      }
+    } catch (error: any) {
+      console.error('Failed to delete shortcut:', error);
+      setFeedbackMessage(error.message || 'שגיאה במחיקת קיצור');
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+      feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 5000);
+      // Don't re-throw to prevent console errors
+    }
   }, []);
 
   // Handle new transcription creation
@@ -1673,6 +2202,9 @@ export default function TextEditor({
     // Mark transcription as modified
     console.log('[TextEditor] Block updated, marking as modified:', { id, field, valueLength: value.length });
     sessionStorage.setItem('transcriptionModified', 'true');
+
+    // Track changes for backup service
+    backupService.trackChanges();
     
     // Store current blocks in sessionStorage for navigation saves
     const allBlocks = blockManagerRef.current.getBlocks();
@@ -2620,6 +3152,80 @@ export default function TextEditor({
   // Set the ref after the function is defined
   saveProjectDataRef.current = saveProjectData;
 
+  // Handle creating a manual backup
+  const handleCreateBackup = async () => {
+    if (!currentProjectId || !currentMediaId) {
+      console.log('[Backup] Cannot create backup - missing project or media ID');
+      showFeedback('לא ניתן ליצור גיבוי - חסר מזהה פרויקט או מדיה');
+      return;
+    }
+
+    console.log('[Backup] Creating manual backup for:', {
+      projectId: currentProjectId,
+      mediaId: currentMediaId
+    });
+
+    setIsCreatingBackup(true);
+
+    try {
+      // First save current data
+      await saveProjectData();
+
+      // Prepare backup data
+      const currentBlocks = blockManagerRef.current.getBlocks();
+      let speakers = [];
+
+      if ((window as any).simpleSpeakerRef) {
+        speakers = (window as any).simpleSpeakerRef.getAllSpeakers();
+      } else if (speakerComponentRef?.current) {
+        speakers = speakerComponentRef.current.getAllSpeakers();
+      } else if (speakerManagerRef.current) {
+        speakers = speakerManagerRef.current.getAllSpeakers();
+      }
+
+      const backupData = {
+        blocks: currentBlocks,
+        speakers: speakers,
+        remarks: remarksContext?.state.remarks || [],
+        metadata: {
+          mediaId: currentMediaId,
+          fileName: currentMediaFileName || mediaFileName,
+          originalName: mediaName || currentMediaFileName || mediaFileName
+        }
+      };
+
+      // Call backup API
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const apiUrl = getApiUrl();
+      const response = await fetch(
+        `${apiUrl}/api/projects/${currentProjectId}/media/${currentMediaId}/backup`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(backupData)
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[Backup] Created successfully:', result);
+        showFeedback(`גיבוי נוצר בהצלחה - גרסה ${result.version || ''}`);
+      } else {
+        const errorText = await response.text();
+        console.error('[Backup] Failed to create:', errorText);
+        showFeedback('שגיאה ביצירת גיבוי');
+      }
+    } catch (error) {
+      console.error('[Backup] Error creating backup:', error);
+      showFeedback('שגיאה ביצירת גיבוי');
+    } finally {
+      setIsCreatingBackup(false);
+    }
+  };
+
   const handleSearch = useCallback((text: string, options: SearchOptions): SearchResult[] => {
     const results: SearchResult[] = [];
     const blocks = blockManagerRef.current.getBlocks();
@@ -3205,7 +3811,7 @@ export default function TextEditor({
             setShowHTMLPreviewModal={setShowHTMLPreviewModal}
             currentTranscriptionId={currentTranscriptionId}
             handleTranscriptionChange={handleTranscriptionChange}
-            currentMediaId={currentProjectId}
+            currentMediaId={currentMediaId}
             projectName={projectName}
             tHandleSave={saveProjectData}
             fontSize={fontSize}
@@ -3347,10 +3953,21 @@ export default function TextEditor({
                   <path fill="currentColor" d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6ZM13 3.5L18.5 9H13V3.5ZM12 11L8 15H10.5V19H13.5V15H16L12 11Z"/>
                 </svg>
               </button>
-              
-              <button 
-                className="te-header-btn te-history-btn" 
-                onClick={() => setShowVersionHistoryModal(true)} 
+
+              <button
+                className={`te-header-btn te-backup-btn ${isCreatingBackup ? 'creating' : ''}`}
+                onClick={handleCreateBackup}
+                title="צור גיבוי"
+                disabled={isCreatingBackup || !currentProjectId || !currentMediaId}
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                </svg>
+              </button>
+
+              <button
+                className="te-header-btn te-history-btn"
+                onClick={() => setShowVersionHistoryModal(true)}
                 title="היסטוריית גרסאות"
               >
                 <svg viewBox="0 0 24 24" width="14" height="14">
@@ -3523,6 +4140,14 @@ export default function TextEditor({
         userQuota={userQuota}
         transcriptionId={currentTranscriptionId}
       />
+
+      {/* Compact Shortcut Popup (Alt+5) */}
+      <ShortcutPopup
+        isOpen={showShortcutPopup}
+        onClose={() => setShowShortcutPopup(false)}
+        onAddShortcut={handleAddShortcut}
+        feedbackMessage={feedbackMessage}
+      />
       
       {/* New Transcription Modal */}
       <NewTranscriptionModal
@@ -3537,7 +4162,10 @@ export default function TextEditor({
       <VersionHistoryModal
         isOpen={showVersionHistoryModal}
         onClose={() => setShowVersionHistoryModal(false)}
-        mediaName={mediaName}
+        transcriptionId={currentProjectId}
+        mediaId={currentMediaId}
+        mediaName={currentMediaFileName || mediaName}
+        transcriptionNumber={1}
         onRestore={async (version) => {
           console.log('[Project] Restoring version for media:', currentMediaId, version);
           try {

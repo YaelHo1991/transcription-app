@@ -47,6 +47,22 @@ export default function VersionHistoryModal({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<BackupVersion | null>(null);
 
+  // Helper function to decode Hebrew filenames
+  const decodeHebrewFilename = (name: string): string => {
+    try {
+      if (name.includes('%') || name.includes('\\x')) {
+        return decodeURIComponent(name);
+      }
+      if (/[\u0080-\u00FF]/.test(name)) {
+        const bytes = new Uint8Array(name.split('').map(c => c.charCodeAt(0)));
+        return new TextDecoder('utf-8').decode(bytes);
+      }
+      return name;
+    } catch (e) {
+      return name;
+    }
+  };
+
   useEffect(() => {
     if (isOpen && mediaId && transcriptionNumber) {
       loadVersions();
@@ -155,7 +171,7 @@ export default function VersionHistoryModal({
 
   const loadVersionContent = async (version: BackupVersion) => {
     if (!transcriptionId || !mediaId) return;
-    
+
     setLoading(true);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
@@ -170,21 +186,36 @@ export default function VersionHistoryModal({
           }
         }
       );
-      
+
       if (response.ok) {
         const data = await response.json();
+
+        // Decode Hebrew filename if present in metadata
+        if (data?.metadata?.originalName) {
+          data.metadata.originalName = decodeHebrewFilename(data.metadata.originalName);
+        }
+
         setVersionData(data);
         
-        // Format content for preview
+        // Format content for preview - preserve block integrity
         let content = '';
-        
+
         if (data.blocks && data.blocks.length > 0) {
-          data.blocks.forEach((block: any) => {
+          data.blocks.forEach((block: any, index: number) => {
             const speakerName = block.speaker || '';
+            const blockText = block.text || '';
+
+            // Add speaker label if exists (from the speaker field ONLY)
             if (speakerName) {
-              content += `${speakerName}: ${block.text || ''}\n`;
-            } else {
-              content += `${block.text || ''}\n`;
+              content += `${speakerName}: `;
+            }
+
+            // Add the block text as-is (preserving internal newlines)
+            content += blockText;
+
+            // Add double newline between blocks for visual separation
+            if (index < data.blocks.length - 1) {
+              content += '\n\n';
             }
           });
         }

@@ -320,84 +320,164 @@ Each feature is considered complete when:
 - Create feature branches for version control
 - Regular commits with descriptive messages
 
-## Related Documentation
+## Relaבךשוגקd Documentation
 - [SUB_AGENTS_DESIGN.md](./SUB_AGENTS_DESIGN.md) - Sub-agent specifications
 - [PROJECT_STATUS.md](./PROJECT_STATUS.md) - Current project status
 - [TRANSCRIPTION_PROGRESS_TRACKING.md](./TRANSCRIPTION_PROGRESS_TRACKING.md) - Progress tracking
-
+3ן
 ---
 *Last Updated: 2025-09-08*
 *Status: Planning Phase*
 
-
-deo Upload from Internet - Implementation Plan                                    │ │
-│ │                                                                                     │ │
-│ │ Based on my research, your system currently only supports local file uploads. Here  │ │
-│ │ are the options to add video downloading from the internet:                         │ │
-│ │                                                                                     │ │
-│ │ Current Situation:                                                                  │ │
-│ │                                                                                     │ │
-│ │ - System only accepts local file uploads (drag & drop or file selection)            │ │
-│ │ - You have ffmpeg and yt-dlp already installed on your system                       │ │
-│ │ - Backend uses multer for file uploads                                              │ │
-│ │                                                                                     │ │
-│ │ Proposed Implementation Options:                                                    │ │
-│ │                                                                                     │ │
-│ │ Option 1: URL Input with Backend Download (Recommended)                             │ │
-│ │                                                                                     │ │
-│ │ Add a URL input field in the sidebar that:                                          │ │
-│ │ 1. Frontend: Add "Upload from URL" button next to existing upload button            │ │
-│ │ 2. Frontend: Show modal with URL input field                                        │ │
-│ │ 3. Backend: New endpoint /api/projects/upload-from-url that:                        │ │
-│ │   - Uses yt-dlp to download video/audio                                             │ │
-│ │   - Supports YouTube, Vimeo, and 1000+ other sites                                  │ │
-│ │   - Converts to compatible format using ffmpeg if needed                            │ │
-│ │   - Creates project with downloaded media                                           │ │
-│ │ 4. Progress indication during download                                              │ │
-│ │                                                                                     │ │
-│ │ Option 2: Browser Extension Integration                                             │ │
-│ │                                                                                     │ │
-│ │ 1. Create a browser extension that captures video URLs                              │ │
-│ │ 2. Extension sends URL to your transcription system                                 │ │
-│ │ 3. System downloads and processes the video                                         │ │
-│ │                                                                                     │ │
-│ │ Option 3: Simple Direct URL Support                                                 │ │
-│ │                                                                                     │ │
-│ │ For direct media file URLs (mp4, mp3, etc.):                                        │ │
-│ │ 1. Frontend validates URL points to media file                                      │ │
-│ │ 2. Backend downloads file directly using Node.js                                    │ │
-│ │ 3. No yt-dlp needed for direct links                                                │ │
-│ │                                                                                     │ │
-│ │ Technical Implementation Details:                                                   │ │
-│ │                                                                                     │ │
-│ │ Frontend Changes:                                                                   │ │
-│ │ - Add URL input UI in TranscriptionSidebar                                          │ │
-│ │ - Add validation for URL format                                                     │ │
-│ │ - Show download progress                                                            │ │
-│ │                                                                                     │ │
-│ │ Backend Changes:                                                                    │ │
-│ │ - New route: POST /api/projects/upload-from-url                                     │ │
-│ │ - Execute yt-dlp command: yt-dlp -f best[ext=mp4]/best -o "output.mp4" [URL]        │ │
-│ │ - Handle various video platforms automatically                                      │ │
-│ │ - Error handling for invalid URLs or failed downloads                               │ │
-│ │                                                                                     │ │
-│ │ Supported Platforms (via yt-dlp):                                                   │ │
-│ │ - YouTube                                                                           │ │
-│ │ - Vimeo                                                                             │ │
-│ │ - Facebook                                                                          │ │
-│ │ - Twitter/X                                                                         │ │
-│ │ - Instagram                                                                         │ │
-│ │ - TikTok                                                                            │ │
-│ │ - And 1000+ more sites                                                              │ │
-│ │                                                                                     │ │
-│ │ Security Considerations:                                                            │ │
-│ │                                                                                     │ │
-│ │ - Validate URLs to prevent malicious input                                          │ │
-│ │ - Set download size limits                                                          │ │
-│ │ - Implement rate limiting                                                           │ │
-│ │ - Scan downloaded files for security                                                │ │
-│ │ - Use temporary directory with cleanup                                              │ │
-│ │                                                                                     │ │
-│ │ Would you like me to implement Option 1 with full yt-dlp integration for maximum    │ │
-│ │ compatibility?                                                                      │ │
-│ ╰──────────────────────────────────
+● Based on my analysis of your authentication system, I have a comprehensive plan to implement the main login system
+  with proper permission controls:
+  ⎿  User rejected Claude's plan:
+     ╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+     │ Main Login System & Permission Control Plan                                                                
+     │
+     │                                                                                                            
+     │
+     │ Current System Analysis:                                                                                   
+     │
+     │                                                                                                            
+     │
+     │ - Permissions: A,B,C (CRM), D,E,F (Transcription)                                                          
+     │
+     │ - Admin detection: Uses is_admin column + specific user IDs for יעל הורי                                   
+     │
+     │ - Your User IDs:                                                                                           
+     │
+     │   - Production: 3134f67b-db84-4d58-801e-6b2f5da0f6a3                                                       
+     │
+     │   - Local: bfc0ba9a-daae-46e2-acb9-5984d1adef9f                                                            
+     │
+     │                                                                                                            
+     │
+     │ Implementation Plan:                                                                                       
+     │
+     │                                                                                                            
+     │
+     │ 1. Add Super Developer Role                                                                                
+     │
+     │                                                                                                            
+     │
+     │ - Add new column is_developer to users table (only true for יעל)                                           
+     │
+     │ - This separates developer access from regular admin functions                                             
+     │
+     │ - Developer-only features:                                                                                 
+     │
+     │   - Access to management tab regardless of licenses                                                        
+     │
+     │   - Make other users admin                                                                                 
+     │
+     │   - Delete storage                                                                                         
+     │
+     │   - Access dev portal                                                                                      
+     │
+     │                                                                                                            
+     │
+     │ 2. Update Main Page Login System                                                                           
+     │
+     │                                                                                                            
+     │
+     │ - Modify main page (page.tsx) to show login when not authenticated                                         
+     │
+     │ - Add management tab for developer users only (not just admins)                                            
+     │
+     │ - Keep existing navigation for all authenticated users                                                     
+     │
+     │                                                                                                            
+     │
+     │ 3. License Purchase Page Updates                                                                           
+     │
+     │                                                                                                            
+     │
+     │ - Show purchased licenses as grayed out/blocked                                                            
+     │
+     │ - Display user's current permissions visually                                                              
+     │
+     │ - Allow purchase of additional licenses only                                                               
+     │
+     │                                                                                                            
+     │
+     │ 4. Permission Hierarchy                                                                                    
+     │
+     │                                                                                                            
+     │
+     │ Developer (יעל only) -> Can do everything                                                                  
+     │
+     │ Admin (is_admin=true) -> Can manage users in their licensed systems                                        
+     │
+     │ Regular Users -> Access based on permissions (A-F)                                                         
+     │
+     │                                                                                                            
+     │
+     │ 5. Backend Security Updates                                                                                
+     │
+     │                                                                                                            
+     │
+     │ - Create requireDeveloper middleware for developer-only endpoints                                          
+     │
+     │ - Update admin endpoints to differentiate between admin and developer                                      
+     │
+     │ - Secure critical operations (storage deletion, admin creation) to developer only                          
+     │
+     │                                                                                                            
+     │
+     │ 6. Frontend Components                                                                                     
+     │
+     │                                                                                                            
+     │
+     │ - Add DeveloperGuard component (wraps developer-only UI)                                                   
+     │
+     │ - Update AuthContext to include isDeveloper check                                                          
+     │
+     │ - Modify management tab visibility logic                                                                   
+     │
+     │                                                                                                            
+     │
+     │ Files to Modify:                                                                                           
+     │
+     │                                                                                                            
+     │
+     │ 1. Backend:                                                                                                
+     │
+     │   - Add migration for is_developer column                                                                  
+     │
+     │   - Update auth.middleware.ts - add requireDeveloper                                                       
+     │
+     │   - Update admin routes - separate developer operations                                                    
+     │
+     │   - Update user model and auth responses                                                                   
+     │
+     │ 2. Frontend:                                                                                               
+     │
+     │   - Update page.tsx - add management tab for developers                                                    
+     │
+     │   - Update AuthContext - add isDeveloper flag                                                              
+     │
+     │   - Create LicensePurchase component with blocking logic                                                   
+     │
+     │   - Update types to include is_developer                                                                   
+     │
+     │                                                                                                            
+     │
+     │ Security Notes:                                                                                            
+     │
+     │                                                                                                            
+     │
+     │ - Developer status is hardcoded to specific user IDs                                                       
+     │
+     │ - Cannot be changed via API (only database direct access)                                                  
+     │
+     │ - All critical operations double-check user ID                                                             
+     │
+     │ - Admin status can be granted by developer only                                                            
+     │
+     │                                                                                                            
+     │
+     │ This approach gives you full control while maintaining system security and allowing admins to have appropriate  │
+     │ permissions within their licensed systems.                                                                 
+     │
+     ╰────────────────────

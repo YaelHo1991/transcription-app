@@ -13,7 +13,7 @@ interface ShortcutsModalProps {
   shortcuts: Map<string, ShortcutData>;
   onToggleShortcuts: () => void;
   shortcutsEnabled: boolean;
-  onAddShortcut?: (shortcut: string, expansion: string, description?: string) => Promise<void>;
+  onAddShortcut?: (shortcut: string, expansion: string, description?: string, allowOverride?: boolean) => Promise<void>;
   onEditShortcut?: (oldShortcut: string, newShortcut: string, expansion: string, description?: string) => Promise<void>;
   onDeleteShortcut?: (shortcut: string) => Promise<void>;
   userQuota?: { used: number; max: number };
@@ -162,9 +162,9 @@ export default function ShortcutsModal({
     }
   };
 
-  const handleAddShortcut = async (shortcut: string, expansion: string, description?: string) => {
+  const handleAddShortcut = async (shortcut: string, expansion: string, description?: string, allowOverride?: boolean) => {
     if (!onAddShortcut) throw new Error('Add shortcut handler not provided');
-    await onAddShortcut(shortcut, expansion, description);
+    await onAddShortcut(shortcut, expansion, description, allowOverride);
     setShowAddForm(false);
   };
 
@@ -346,27 +346,41 @@ export default function ShortcutsModal({
 
         {activeTab === 'personal' && (
           <div className="text-editor-shortcuts-footer">
-            <button 
+            <button
               className="add-shortcut-btn"
               onClick={() => {
                 setEditingShortcut(undefined);
                 setShowAddForm(true);
               }}
-              disabled={personalCount >= (userQuota?.max || 100)}
+              disabled={userQuota && userQuota.max < 9999 && personalCount >= userQuota.max}
             >
               + הוסף קיצור אישי
             </button>
-            <div className="quota-container">
-              <span className="quota-info">
-                {personalCount} / {userQuota?.max || 100} קיצורים בשימוש
-              </span>
-              <div className="quota-bar">
-                <div 
-                  className="quota-fill" 
-                  style={{ width: ((personalCount / (userQuota?.max || 100)) * 100) + '%' }}
-                />
-              </div>
-            </div>
+            {(() => {
+              console.log('[ShortcutsModal] User quota:', userQuota);
+              const isUnlimited = userQuota && userQuota.max >= 9999;
+              console.log('[ShortcutsModal] Is unlimited?', isUnlimited);
+
+              return isUnlimited ? (
+                <div className="quota-container">
+                  <span className="quota-info">
+                    קיצורים אישיים ללא הגבלה ({personalCount})
+                  </span>
+                </div>
+              ) : (
+                <div className="quota-container">
+                  <span className="quota-info">
+                    {personalCount} / {userQuota?.max || 100} קיצורים בשימוש
+                  </span>
+                  <div className="quota-bar">
+                    <div
+                      className="quota-fill"
+                      style={{ width: ((personalCount / (userQuota?.max || 100)) * 100) + '%' }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -382,6 +396,7 @@ export default function ShortcutsModal({
         onEdit={editingShortcut ? handleEditShortcut : undefined}
         editingShortcut={editingShortcut}
         existingShortcuts={new Set(Array.from(shortcuts.keys()))}
+        shortcuts={shortcuts}
       />
       
       {/* Import/Export Modal */}

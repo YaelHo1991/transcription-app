@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Document Number Reversal Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .download-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .status {
+            margin-top: 10px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔢 Word Document Number Reversal Test</h1>
+        <p>Upload a Word document to test if the Hebrew converter can fix reversed numbers:</p>
+
+        <div class="upload-area" id="uploadArea">
+            <p>📄 Drag and drop a .docx file here or click to select</p>
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                Choose File
+            </button>
+            <input type="file" id="fileInput" accept=".docx" onchange="handleFile(this.files[0])">
+        </div>
+
+        <div id="result" class="result">
+            <div id="resultMessage"></div>
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const result = document.getElementById('result');
+        const resultMessage = document.getElementById('resultMessage');
+        const status = document.getElementById('status');
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+
+            if (!file.name.endsWith('.docx')) {
+                showResult('error', 'Please select a .docx file');
+                return;
+            }
+
+            uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('fileName', file.name.replace('.docx', '') + '_number_test');
+
+            showResult('success', 'Processing document...');
+            updateStatus('Uploading file...');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/template/convert-and-export', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    updateStatus('Conversion successful! Creating download...');
+
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+
+                    // Get filename from response headers
+                    const contentDisposition = response.headers.get('content-disposition');
+                    let filename = 'converted_document.docx';
+                    if (contentDisposition) {
+                        const matches = contentDisposition.match(/filename\*?=['"]?([^'";\s]+)['"]?/);
+                        if (matches) {
+                            filename = decodeURIComponent(matches[1]);
+                        }
+                    }
+
+                    // Create download button
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.textContent = `📥 Download ${filename}`;
+                    downloadBtn.onclick = () => {
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    };
+
+                    resultMessage.innerHTML = '✅ Document processed successfully!<br>The Hebrew converter has processed your document and should have fixed any reversed numbers.';
+                    result.appendChild(downloadBtn);
+                    updateStatus('Ready for download');
+
+                } else {
+                    const errorData = await response.json();
+                    showResult('error', `❌ Conversion failed: ${errorData.error || 'Unknown error'}`);
+                    updateStatus(errorData.details || 'Conversion failed');
+                }
+
+            } catch (error) {
+                showResult('error', `❌ Network error: ${error.message}`);
+                updateStatus('Failed to connect to the server. Make sure the backend is running on port 5000.');
+            }
+        }
+
+        function showResult(type, message) {
+            result.className = `result ${type}`;
+            result.style.display = 'block';
+            resultMessage.innerHTML = message;
+
+            // Remove any existing download buttons
+            const existingBtn = result.querySelector('.download-btn');
+            if (existingBtn) {
+                existingBtn.remove();
+            }
+        }
+
+        function updateStatus(message) {
+            status.textContent = message;
+        }
+    </script>
+</body>
+</html>

@@ -275,8 +275,34 @@ export default function ExtensionHelpPage() {
 
           <div className="video-section">
             <h3>🎥 סרטון הדרכה</h3>
-            <div className="video-placeholder">
-              <p>סרטון הדרכה יתווסף בקרוב</p>
+            <div className="video-container">
+              <video
+                controls
+                preload="metadata"
+                poster="/videos/extension-tutorial-poster.jpg"
+                style={{
+                  width: '100%',
+                  maxWidth: '800px',
+                  height: 'auto',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}
+              >
+                <source src="/videos/extension-tutorial.mp4" type="video/mp4" />
+                <p>הדפדפן שלך אינו תומך בהצגת וידאו.
+                   <a href="/videos/extension-tutorial.mp4" download>
+                     לחץ כאן להורדת הסרטון
+                   </a>
+                </p>
+              </video>
+              <p style={{
+                fontSize: '14px',
+                color: '#666',
+                marginTop: '10px',
+                textAlign: 'center'
+              }}>
+                ניתן להשהות, להריץ מחדש ולעבור לשלבים שונים בסרטון
+              </p>
             </div>
           </div>
         </div>

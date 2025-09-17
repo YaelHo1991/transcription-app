@@ -511,7 +511,27 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
           setBackgroundDownloadData(null);
 
           // Reload projects to show the new one
-          loadProjects();
+          await loadProjects();
+
+          // Auto-select the downloaded project and its first media
+          // This ensures the TextEditor gets the projectId for backups
+          if (data.projectId) {
+            console.log('[TranscriptionSidebar] URL download completed, auto-selecting project:', data.projectId);
+            setTimeout(async () => {
+              const downloadedProject = projects.find(p => p.projectId === data.projectId);
+              if (downloadedProject) {
+                console.log('[TranscriptionSidebar] Auto-selecting downloaded project:', downloadedProject.projectId);
+                setCurrentProject(downloadedProject);
+
+                // Also select the first media file to ensure full initialization
+                if (downloadedProject.mediaFiles && downloadedProject.mediaFiles.length > 0) {
+                  const firstMediaId = downloadedProject.mediaFiles[0];
+                  console.log('[TranscriptionSidebar] Auto-selecting first media:', firstMediaId);
+                  await setCurrentMediaById(downloadedProject.projectId, firstMediaId);
+                }
+              }
+            }, 100);
+          }
 
           // Auto-hide after 3 seconds
           setTimeout(() => {
@@ -1558,23 +1578,32 @@ const TranscriptionSidebar = forwardRef((props: TranscriptionSidebarProps, ref) 
       // Handle successful project creation
       if (response && response.projectId) {
         console.log('[TranscriptionSidebar] Media project created:', response.projectId);
-        const successMessage = files.length === 1 
-          ? 'פרויקט נוצר בהצלחה' 
+        const successMessage = files.length === 1
+          ? 'פרויקט נוצר בהצלחה'
           : `פרויקט נוצר בהצלחה עם ${files.length} קבצים`;
         showSidebarNotification(successMessage, 'success');
-        
+
         // Refresh project list
         await loadProjects();
-        
+
         // Set the new project for editing
         setEditingProjectId(response.projectId);
         setEditingProjectName(folderName);
-        
-        // Auto-select the new project
-        setTimeout(() => {
+
+        // Auto-select the new project AND its first media file immediately
+        // This ensures the TextEditor gets the projectId for backups
+        setTimeout(async () => {
           const newProject = projects.find(p => p.projectId === response.projectId);
           if (newProject) {
+            console.log('[TranscriptionSidebar] Auto-selecting new project:', newProject.projectId);
             setCurrentProject(newProject);
+
+            // Also select the first media file to ensure full initialization
+            if (newProject.mediaFiles && newProject.mediaFiles.length > 0) {
+              const firstMediaId = newProject.mediaFiles[0];
+              console.log('[TranscriptionSidebar] Auto-selecting first media:', firstMediaId);
+              await setCurrentMediaById(newProject.projectId, firstMediaId);
+            }
           }
         }, 100);
       } else if (response && response.error === 'storage_limit' && response.storageDetails) {

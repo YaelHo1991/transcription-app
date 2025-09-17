@@ -385,8 +385,12 @@ router.post('/reset-password', async (req, res) => {
 // GET /api/auth/storage - Get user storage info
 router.get('/storage', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const userId = req.user!.id;
-  
-  const storageInfo = await storageService.getUserStorage(userId);
+
+  // Check if force refresh is requested
+  const forceRefresh = req.query.refresh === 'true';
+  const storageInfo = forceRefresh
+    ? await storageService.forceRefreshUserStorage(userId)
+    : await storageService.getUserStorage(userId);
   
   // Also get if auto export is enabled  
   const userResult = await db.query(

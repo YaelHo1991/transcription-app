@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ShortcutData } from '../types/shortcuts';
 import './AddShortcutForm.css';
 
 interface AddShortcutFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (shortcut: string, expansion: string, description?: string) => Promise<void>;
+  onAdd: (shortcut: string, expansion: string, description?: string, allowOverride?: boolean) => Promise<void>;
   onEdit?: (oldShortcut: string, newShortcut: string, expansion: string, description?: string) => Promise<void>;
   editingShortcut?: { shortcut: string; expansion: string; description?: string };
   existingShortcuts: Set<string>;
+  shortcuts: Map<string, ShortcutData>; // Full shortcuts data to check system vs personal
 }
 
 export default function AddShortcutForm({
@@ -18,13 +20,20 @@ export default function AddShortcutForm({
   onAdd,
   onEdit,
   editingShortcut,
-  existingShortcuts
+  existingShortcuts,
+  shortcuts
 }: AddShortcutFormProps) {
   const [shortcut, setShortcut] = useState(editingShortcut?.shortcut || '');
   const [expansion, setExpansion] = useState(editingShortcut?.expansion || '');
   const [description, setDescription] = useState(editingShortcut?.description || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [conflictingShortcut, setConflictingShortcut] = useState<{
+    shortcut: string;
+    expansion: string;
+    source: 'system' | 'user';
+  } | null>(null);
 
   // Reset form when opening/closing
   React.useEffect(() => {
@@ -66,8 +75,22 @@ export default function AddShortcutForm({
     // Check for duplicates (only if not editing the same shortcut)
     if (!editingShortcut || editingShortcut.shortcut !== shortcut) {
       if (existingShortcuts.has(shortcut)) {
-        setError('קיצור זה כבר קיים');
-        return false;
+        const existingShortcutData = shortcuts.get(shortcut);
+
+        // If it's a system shortcut, show override dialog instead of error
+        if (existingShortcutData && existingShortcutData.source === 'system') {
+          setConflictingShortcut({
+            shortcut: shortcut,
+            expansion: existingShortcutData.expansion,
+            source: 'system'
+          });
+          setShowOverrideDialog(true);
+          return false; // Don't proceed with submit, show dialog instead
+        } else {
+          // It's a user shortcut, show regular error
+          setError('קיצור זה כבר קיים');
+          return false;
+        }
       }
     }
     
@@ -190,6 +213,81 @@ export default function AddShortcutForm({
             </button>
           </div>
         </form>
+
+        {/* Override Dialog */}
+        {showOverrideDialog && conflictingShortcut && (
+          <div className="override-dialog-overlay">
+            <div className="override-dialog">
+              <div className="override-dialog-header">
+                <h4>קיצור כבר קיים במערכת</h4>
+              </div>
+
+              <div className="override-dialog-content">
+                <p>הקיצור <strong>{conflictingShortcut.shortcut}</strong> כבר קיים במערכת:</p>
+
+                <div className="conflict-info">
+                  <div className="existing-shortcut">
+                    <span className="shortcut-label">מערכת:</span>
+                    <span className="shortcut-text">{conflictingShortcut.shortcut} → {conflictingShortcut.expansion}</span>
+                  </div>
+
+                  <div className="new-shortcut">
+                    <span className="shortcut-label">האישי שלך:</span>
+                    <span className="shortcut-text">{shortcut} → {expansion}</span>
+                  </div>
+                </div>
+
+                <p>איך תרצה להמשיך?</p>
+              </div>
+
+              <div className="override-dialog-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowOverrideDialog(false);
+                    setConflictingShortcut(null);
+                  }}
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  className="keep-system-btn"
+                  onClick={() => {
+                    setShowOverrideDialog(false);
+                    setConflictingShortcut(null);
+                    setError('לא ניתן להחליף קיצור מערכת. נסה קיצור אחר.');
+                  }}
+                >
+                  השאר מערכת
+                </button>
+                <button
+                  type="button"
+                  className="override-btn"
+                  onClick={async () => {
+                    setShowOverrideDialog(false);
+                    setConflictingShortcut(null);
+                    setLoading(true);
+                    setError('');
+
+                    try {
+                      // Add with override flag
+                      await onAdd(shortcut.trim(), expansion.trim(), description.trim() || undefined, true);
+                      onClose();
+                    } catch (err: any) {
+                      setError(err.message || 'שגיאה בשמירת הקיצור');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  השתמש בשלי
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

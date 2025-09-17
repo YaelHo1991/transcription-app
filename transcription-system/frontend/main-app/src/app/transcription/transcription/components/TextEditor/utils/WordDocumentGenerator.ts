@@ -355,9 +355,15 @@ export class WordDocumentGenerator {
    */
   private processTimestamp(text: string, includeTimestamps: boolean): string {
     if (!includeTimestamps) {
-      // Replace timestamps (format: HH:MM:SS or MM:SS) with ...
-      return text.replace(/\d{1,2}:\d{2}(:\d{2})?/g, '...');
+      // Replace ONLY bracketed timestamps [HH:MM:SS] or [MM:SS] with ...
+      text = text.replace(/\[\d{1,2}:\d{2}(:\d{2})?\]/g, '...');
+    } else {
+      // Remove brackets but keep the timestamp
+      text = text.replace(/\[(\d{1,2}:\d{2}(:\d{2})?)\]/g, '$1');
     }
+
+    // Don't apply any LTR protection to numbers to avoid text reflow issues
+
     return text;
   }
 

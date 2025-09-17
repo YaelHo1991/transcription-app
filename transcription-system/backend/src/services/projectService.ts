@@ -144,7 +144,7 @@ export class ProjectService {
   /**
    * Create a new multi-media project from folder
    */
-  async createMultiMediaProject(folderName: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
+  async createMultiMediaProject(folderName: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string, duration?: number}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
     // Ensure user directories exist
     await this.ensureUserDirectories(userId);
     
@@ -175,21 +175,27 @@ export class ProjectService {
       const mediaFilePath = path.join(mediaDir, safeFileName);
       await fs.writeFile(mediaFilePath, file.buffer);
       
-      // Extract duration from audio file
-      let duration = 0;
-      try {
-        // Check both mm.parseFile and mm.default.parseFile for ES module compatibility
-        const parseFile = mm?.parseFile || mm?.default?.parseFile || mm?.parseBuffer;
-        if (parseFile) {
-          const metadata = await parseFile(mediaFilePath);
-          duration = metadata.format.duration || 0;
-          console.log(`[ProjectService] Extracted duration for ${mediaId}: ${duration} seconds`);
-        } else {
-          console.log(`[ProjectService] music-metadata not available or parseFile not found, skipping duration extraction for ${mediaId}`);
+      // Extract duration - use provided duration if available, otherwise try to extract from file
+      let duration = file.duration || 0;
+
+      // Only try to extract duration if not already provided
+      if (!duration) {
+        try {
+          // Check both mm.parseFile and mm.default.parseFile for ES module compatibility
+          const parseFile = mm?.parseFile || mm?.default?.parseFile || mm?.parseBuffer;
+          if (parseFile) {
+            const metadata = await parseFile(mediaFilePath);
+            duration = metadata.format.duration || 0;
+            console.log(`[ProjectService] Extracted duration for ${mediaId}: ${duration} seconds`);
+          } else {
+            console.log(`[ProjectService] music-metadata not available or parseFile not found, skipping duration extraction for ${mediaId}`);
+          }
+        } catch (error) {
+          console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, error);
+          duration = 0;
         }
-      } catch (error) {
-        console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, error);
-        duration = 0;
+      } else {
+        console.log(`[ProjectService] Using provided duration for ${mediaId}: ${duration} seconds`);
       }
       
       // Create media metadata with duration
@@ -253,7 +259,7 @@ export class ProjectService {
   /**
    * Add media files to an existing project
    */
-  async addMediaToProject(projectId: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
+  async addMediaToProject(projectId: string, mediaFiles: Array<{name: string, buffer: Buffer, mimeType: string, duration?: number}>, userId: string = 'default'): Promise<{projectId: string, mediaIds: string[]}> {
     try {
       // Ensure user directory exists
       await this.ensureUserDirectories(userId);
@@ -306,17 +312,19 @@ export class ProjectService {
         );
 
         // Create metadata.json (required for media player)
+        console.log(`[ProjectService] Creating metadata.json for ${mediaId}, file.duration:`, file.duration);
         const metadataJson = {
           mediaId,
           fileName: mediaFileName,
           originalName: file.name,
           mimeType: file.mimeType,
           size: file.buffer.length,
-          duration: 0, // Will be populated when media is analyzed
+          duration: file.duration || 0, // Use provided duration or default to 0
           stage: 'transcription',
           createdAt: new Date().toISOString(),
           lastModified: new Date().toISOString()
         };
+        console.log(`[ProjectService] metadata.json duration:`, metadataJson.duration);
 
         await fs.writeFile(
           path.join(mediaDir, 'metadata.json'),
@@ -821,31 +829,42 @@ export class ProjectService {
               
               if (projectData.mediaFiles && Array.isArray(projectData.mediaFiles)) {
                 for (const mediaId of projectData.mediaFiles) {
+                  // Initialize variables for this media
+                  let mediaName = null;
+                  let mediaSize = 0;
+                  let mediaDuration = 0;
+                  let mediaMimeType = 'unknown';
+                  let hasMediaJson = false;
+
                   // First, try to load from media.json (URL downloads have correct name here)
                   try {
                     const mediaJsonPath = path.join(projectDir, 'media', mediaId, 'media.json');
                     const mediaData = JSON.parse(await fs.readFile(mediaJsonPath, 'utf8'));
-                    
-                    mediaInfo.push({
-                      mediaId: mediaId,
-                      name: mediaData.name || mediaData.title || mediaData.filename,
-                      size: mediaData.size || 0,
-                      duration: mediaData.duration || 0,
-                      mimeType: mediaData.format ? `video/${mediaData.format}` : 'unknown'
-                    });
-                    totalSize += mediaData.size || 0;
-                    console.log(`[ProjectService] Loaded media info from media.json for ${mediaId}: ${mediaData.name}`);
-                    continue; // Skip to next media file
+
+                    mediaName = mediaData.name || mediaData.title || mediaData.filename;
+                    mediaSize = mediaData.size || 0;
+                    mediaMimeType = mediaData.format ? `video/${mediaData.format}` : (mediaData.mimeType || 'unknown');
+                    hasMediaJson = true;
+
+                    console.log(`[ProjectService] Loaded basic info from media.json for ${mediaId}: ${mediaName}`);
                   } catch (mediaJsonError) {
-                    // media.json doesn't exist, fall back to metadata.json
+                    // media.json doesn't exist, will get info from metadata.json
                   }
-                  
-                  // Fall back to metadata.json (regular uploads)
+
+                  // Always check metadata.json for duration (media.json doesn't have duration)
+                  // Also use it as fallback for other info if media.json doesn't exist
                   try {
                     const mediaMetadataPath = path.join(projectDir, 'media', mediaId, 'metadata.json');
                     const mediaMetadata = JSON.parse(await fs.readFile(mediaMetadataPath, 'utf8'));
-                    
-                    // If duration is missing, try to extract it from the audio file
+
+                    // If we didn't get info from media.json, get it from metadata.json
+                    if (!hasMediaJson) {
+                      mediaName = mediaMetadata.originalName || mediaMetadata.fileName;
+                      mediaSize = mediaMetadata.size || 0;
+                      mediaMimeType = mediaMetadata.mimeType || 'unknown';
+                    }
+
+                    // Always get duration from metadata.json (media.json doesn't have it)
                     let duration = mediaMetadata.duration || 0;
                     if (!duration || duration === 0) {
                       try {
@@ -873,18 +892,32 @@ export class ProjectService {
                         console.log(`[ProjectService] Could not extract duration for ${mediaId}:`, extractError.message);
                       }
                     }
-                    
+
+                    mediaDuration = duration;
                     mediaInfo.push({
                       mediaId: mediaId,
-                      name: mediaMetadata.originalName || mediaMetadata.fileName,
-                      size: mediaMetadata.size || 0,
-                      duration: duration,
-                      mimeType: mediaMetadata.mimeType
+                      name: mediaName,
+                      size: mediaSize,
+                      duration: mediaDuration,
+                      mimeType: mediaMimeType
                     });
-                    
-                    totalSize += mediaMetadata.size || 0;
+                    totalSize += mediaSize;
+                    console.log(`[ProjectService] Got duration from metadata.json for ${mediaId}: ${duration} seconds`);
                   } catch (error) {
-                    console.log(`[ProjectService] No metadata.json or media.json for ${mediaId}, using fallback file detection`);
+                    // If we have media.json but no metadata.json, still add what we have
+                    if (hasMediaJson) {
+                      mediaInfo.push({
+                        mediaId: mediaId,
+                        name: mediaName,
+                        size: mediaSize,
+                        duration: 0, // No duration available
+                        mimeType: mediaMimeType
+                      });
+                      totalSize += mediaSize;
+                      console.log(`[ProjectService] No metadata.json found for ${mediaId}, using media.json data without duration`);
+                    } else {
+                      console.log(`[ProjectService] No metadata.json or media.json for ${mediaId}, using fallback file detection`);
+                    }
                     // Try to at least get file info directly (without expensive audio parsing)
                     try {
                       const mediaFiles = await fs.readdir(path.join(projectDir, 'media', mediaId));

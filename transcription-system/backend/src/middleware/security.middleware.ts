@@ -17,7 +17,7 @@ export const loginRateLimiter = rateLimit({
 // General API rate limiting
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Much higher limit in dev (10000 vs 100)
+  max: process.env.NODE_ENV === 'development' ? 10000 : 1000, // Increased production limit to 1000
   message: 'יותר מדי בקשות, נסה שוב מאוחר יותר',
   standardHeaders: true,
   legacyHeaders: false,
@@ -80,13 +80,16 @@ export const mongoSanitization = mongoSanitize({
 
 // SQL injection protection middleware (preparation for when database is added)
 export const sqlInjectionProtection = (req: Request, res: Response, next: NextFunction) => {
-  // Skip protection for certain endpoints that handle URLs or media content
+  // Skip protection for certain endpoints that handle URLs, media content, or transcription text
   const skipPaths = [
     '/api/projects/batch-download',
     '/api/projects/quality-options',
-    '/api/projects/check-url'
+    '/api/projects/check-url',
+    '/transcription', // Skip for transcription endpoints that contain user text
+    '/backup', // Skip for backup endpoints that contain transcription data
+    '/save' // Skip for save endpoints that contain transcription data
   ];
-  
+
   if (skipPaths.some(path => req.path.includes(path))) {
     return next();
   }

@@ -75,6 +75,8 @@ export interface AddShortcutRequest {
   shortcut: string;
   expansion: string;
   language?: string;
+  // description?: string; // TODO: Add description column to DB
+  // allowOverride?: boolean; // TODO: Implement override functionality
 }
 
 export interface UpdateShortcutRequest {

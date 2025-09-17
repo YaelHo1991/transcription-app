@@ -402,8 +402,11 @@ export default function MediaPlayer({
   // Handle keyboard shortcut actions
   const handleShortcutAction = useCallback((action: string) => {
     console.log('handleShortcutAction called with:', action);
-    if (!audioRef.current && action !== 'openSettings' && action !== 'toggleSettings') {
-      console.log('No audio ref, returning');
+    // Get the active media element (video for video files, audio for audio files)
+    const mediaElement = showVideo && videoRef.current ? videoRef.current : audioRef.current;
+
+    if (!mediaElement && action !== 'openSettings' && action !== 'toggleSettings') {
+      console.log('No media element available, returning');
       return;
     }
 
@@ -424,18 +427,18 @@ export default function MediaPlayer({
     switch (mappedAction) {
       // Playback Control
       case 'playPause':
-        if (!audioRef.current) {
+        if (!mediaElement) {
           return;
         }
-        
-        console.log('PlayPause action - current paused state:', audioRef.current.paused);
-        
-        if (!audioRef.current.paused) {
-          audioRef.current.pause();
-          console.log('Paused audio');
+
+        console.log('PlayPause action - current paused state:', mediaElement.paused);
+
+        if (!mediaElement.paused) {
+          mediaElement.pause();
+          console.log('Paused media');
         } else {
-          audioRef.current.play()
-            .then(() => console.log('Playing audio'))
+          mediaElement.play()
+            .then(() => console.log('Playing media'))
             .catch(err => {
               // Ignore AbortError as it's just a play/pause conflict
               if (err.name !== 'AbortError') {
@@ -445,9 +448,9 @@ export default function MediaPlayer({
         }
         break;
       case 'stop':
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
+        if (mediaElement) {
+          mediaElement.pause();
+          mediaElement.currentTime = 0;
           setIsPlaying(false);
         }
         break;
@@ -472,25 +475,31 @@ export default function MediaPlayer({
         handleForward(10);
         break;
       case 'jumpToStart':
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
+        if (mediaElement) {
+          mediaElement.currentTime = 0;
         }
         break;
       case 'jumpToEnd':
-        if (audioRef.current) {
-          audioRef.current.currentTime = duration;
+        if (mediaElement) {
+          mediaElement.currentTime = duration;
         }
         break;
       
       // Volume & Speed
       case 'volumeUp':
-        if (!audioRef.current) return;
-        // Get current volume from audio element to avoid closure issues
-        const currentVolumeUp = Math.round(audioRef.current.volume * 100);
+        if (!mediaElement) return;
+        // Get current volume from media element to avoid closure issues
+        const currentVolumeUp = Math.round(mediaElement.volume * 100);
         const newVolumeUp = Math.min(100, currentVolumeUp + 5); // Increase by 5%
         setVolume(newVolumeUp);
-        if (audioRef.current) {
+        if (mediaElement) {
+          mediaElement.volume = newVolumeUp / 100;
+        }
+        if (audioRef.current && audioRef.current !== mediaElement) {
           audioRef.current.volume = newVolumeUp / 100;
+        }
+        if (videoRef.current && videoRef.current !== mediaElement) {
+          videoRef.current.volume = newVolumeUp / 100;
         }
         // Track non-zero volume for unmute
         if (newVolumeUp > 0) {
@@ -499,13 +508,19 @@ export default function MediaPlayer({
         }
         break;
       case 'volumeDown':
-        if (!audioRef.current) return;
-        // Get current volume from audio element to avoid closure issues
-        const currentVolumeDown = Math.round(audioRef.current.volume * 100);
+        if (!mediaElement) return;
+        // Get current volume from media element to avoid closure issues
+        const currentVolumeDown = Math.round(mediaElement.volume * 100);
         const newVolumeDown = Math.max(0, currentVolumeDown - 5); // Decrease by 5%
         setVolume(newVolumeDown);
-        if (audioRef.current) {
+        if (mediaElement) {
+          mediaElement.volume = newVolumeDown / 100;
+        }
+        if (audioRef.current && audioRef.current !== mediaElement) {
           audioRef.current.volume = newVolumeDown / 100;
+        }
+        if (videoRef.current && videoRef.current !== mediaElement) {
+          videoRef.current.volume = newVolumeDown / 100;
         }
         // Update mute state if volume reaches 0
         setIsMuted(newVolumeDown === 0);
@@ -520,15 +535,15 @@ export default function MediaPlayer({
       case 'speedUp':
         const newSpeedUp = Math.min(2, playbackRate + 0.25);
         setPlaybackRate(newSpeedUp);
-        if (audioRef.current) {
-          audioRef.current.playbackRate = newSpeedUp;
+        if (mediaElement) {
+          mediaElement.playbackRate = newSpeedUp;
         }
         break;
       case 'speedDown':
         const newSpeedDown = Math.max(0.5, playbackRate - 0.25);
         setPlaybackRate(newSpeedDown);
-        if (audioRef.current) {
-          audioRef.current.playbackRate = newSpeedDown;
+        if (mediaElement) {
+          mediaElement.playbackRate = newSpeedDown;
         }
         break;
       case 'speedReset':
@@ -601,7 +616,7 @@ export default function MediaPlayer({
         // Will be implemented in Stage 4
         break;
     }
-  }, [audioRef, duration, volume, playbackRate, onTimestampCopy, currentTime, isPlaying]);
+  }, [showVideo, duration, volume, playbackRate, onTimestampCopy, currentTime, isPlaying]);
 
   // Handle speed icon click with double-click detection
   const speedClickTimerRef = useRef<number | null>(null);
@@ -1060,19 +1075,36 @@ export default function MediaPlayer({
       
       const newMediaId = getMediaId(initialMedia);
       currentMediaIdRef.current = newMediaId;
-      
-      console.log('MediaPlayer: Setting audio source to', initialMedia.url);
+
+      console.log('MediaPlayer: Setting media source to', initialMedia.url);
       // Reset playback states for new media but DON'T reset currentTime yet
       setDuration(0);
       setIsPlaying(false);
       setIsReady(false);
-      
-      audioRef.current.src = initialMedia.url;
-      audioRef.current.volume = volume / 100; // Initialize volume
-      audioRef.current.load(); // Force reload the media
+
       const isVideo = initialMedia.type === 'video';
       setShowVideo(isVideo);
       setShowVideoCube(isVideo && !videoMinimized);
+
+      // Only load audio files into audio element, videos go only to video element
+      if (!isVideo && audioRef.current) {
+        console.log('MediaPlayer: Loading audio file into audio element');
+        audioRef.current.src = initialMedia.url;
+        audioRef.current.volume = volume / 100; // Initialize volume
+        audioRef.current.load(); // Force reload the media
+        // Clear video element when switching to audio
+        if (videoRef.current) {
+          videoRef.current.src = '';
+          videoRef.current.load();
+        }
+      } else if (isVideo) {
+        console.log('MediaPlayer: Video file detected, will load into video element only');
+        // Clear audio element if it had a source
+        if (audioRef.current) {
+          audioRef.current.src = '';
+          audioRef.current.load();
+        }
+      }
       
       // Clear video minimized state when switching to audio
       if (!isVideo) {
@@ -1678,7 +1710,17 @@ export default function MediaPlayer({
         <div className="media-player-content">
           {/* Hidden Audio Element */}
           <audio ref={audioRef} id="audioPlayer" preload="auto" />
-          {showVideo && <video ref={videoRef} style={{ display: 'none' }} />}
+          {/* Video element - always render but hidden */}
+          <video
+            ref={videoRef}
+            style={{
+              display: showVideo ? 'none' : 'none',
+              position: 'absolute',
+              width: '0',
+              height: '0',
+              pointerEvents: 'none'
+            }}
+          />
         
         {/* Navigation Section - Project and Media Navigation */}
         <div className={'section-wrapper navigation-wrapper ' + (navigationCollapsed ? 'collapsed' : '')} id="navigationWrapper">

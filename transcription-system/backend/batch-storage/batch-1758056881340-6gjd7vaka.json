@@ -1,0 +1,39 @@
+{
+  "startTime": 1758056881340,
+  "completed": true,
+  "totalFiles": 1,
+  "completedFiles": 1,
+  "mediaNames": {
+    "0": "נביא-שופטים פרק א- ב' -HD-- הרב אליהו עמר-מוצ''ש  יד  כסלו תשע''ח ."
+  },
+  "progress": {
+    "0": {
+      "progress": 100,
+      "status": "completed"
+    }
+  },
+  "urls": [
+    {
+      "url": "https://www.youtube.com/watch?v=q4lQAaL5xR8",
+      "quality": "high",
+      "downloadType": "audio",
+      "mediaName": "נביא-שופטים פרק א- ב' -HD-- הרב אליהו עמר-מוצ''ש  יד  כסלו תשע''ח .",
+      "playlistIndex": 2,
+      "playlistUrl": "https://www.youtube.com/watch?v=q4lQAaL5xR8&list=PLVdgAnsi0mRyESPuaajdTtJBq6bxaa9dc&index=5",
+      "totalVideosInPlaylist": 1
+    }
+  ],
+  "userId": "bfc0ba9a-daae-46e2-acb9-5984d1adef9f",
+  "projectId": "2025-09-16_23-56-31_003",
+  "projectName": "YouTube - הרב אליהו עמר - ספר שופטים",
+  "playlistMetadata": {
+    "isPlaylist": true,
+    "playlistTitle": "הרב אליהו עמר - ספר שופטים",
+    "playlistUrl": "https://www.youtube.com/watch?v=q4lQAaL5xR8&list=PLVdgAnsi0mRyESPuaajdTtJBq6bxaa9dc&index=5",
+    "totalVideosInPlaylist": 1,
+    "downloadedIndices": [
+      2
+    ]
+  },
+  "cookieFiles": {}
+}

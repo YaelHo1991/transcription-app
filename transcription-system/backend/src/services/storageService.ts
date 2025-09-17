@@ -301,8 +301,8 @@ export class StorageService {
       const fs = require('fs').promises;
       
       // Determine user storage directory - use the actual location where projects are stored
-      const userStorageDir = process.env.NODE_ENV === 'production' 
-        ? path.join('/var/app/transcription-system/transcription-system/backend/user_data/users', userId)
+      const userStorageDir = process.env.NODE_ENV === 'production'
+        ? path.join('/var/www/transcription-system/backend/user_data/users', userId)
         : path.join(__dirname, '..', '..', 'user_data', 'users', userId);
 
       // Check if directory exists first
@@ -485,8 +485,8 @@ export class StorageService {
       const fs = require('fs').promises;
       
       // Determine user storage directory - use the actual location where projects are stored
-      const userStorageDir = process.env.NODE_ENV === 'production' 
-        ? path.join('/var/app/transcription-system/transcription-system/backend/user_data/users', userId)
+      const userStorageDir = process.env.NODE_ENV === 'production'
+        ? path.join('/var/www/transcription-system/backend/user_data/users', userId)
         : path.join(process.cwd(), 'user_data', 'users', userId);
 
       // Calculate current size before deletion

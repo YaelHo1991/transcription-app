@@ -171,6 +171,11 @@ class WordHebrewConverter {
             }
         }
 
+        // תיקון מספרים הפוכים שנגרמו ע"י RTL formatting
+        if (type === 'document') {
+            this.fixReversedNumbers(doc);
+        }
+
         // טיפול בטבלאות - הוספת כיווניות RTL
         if (type === 'document') {
             const tablePrs = doc.getElementsByTagName('w:tblPr');
@@ -200,6 +205,48 @@ class WordHebrewConverter {
         // או אם יש מבנה של "שם: טקסט" או "שם[טאב]טקסט"
         const dialoguePattern = /^[^:]+:\s*|^\S+\t/;
         return dialoguePattern.test(fullText.trim());
+    }
+
+    // תיקון מספרים הפוכים שנגרמו ע"י עיצוב RTL
+    fixReversedNumbers(doc) {
+        const textElements = doc.getElementsByTagName('w:t');
+
+        for (let i = 0; i < textElements.length; i++) {
+            const textElement = textElements[i];
+            let text = textElement.textContent || '';
+
+            if (text) {
+                // תיקון מספרים עם פסיקים - כל המספרים עם פסיק
+                text = text.replace(/(\d+),(\d+)/g, (match, p1, p2) => {
+                    console.log(`[FixNumbers] Found comma number: ${match} -> reversing to ${p2},${p1}`);
+                    return p2 + ',' + p1;
+                });
+
+                // תיקון timestamps - כל המספרים עם נקודותיים
+                text = text.replace(/(\d+):(\d+)/g, (match, p1, p2) => {
+                    console.log(`[FixNumbers] Found colon number: ${match} -> reversing to ${p2}:${p1}`);
+                    return p2 + ':' + p1;
+                });
+
+                // תיקון מספרים עם גרש - כל המספרים עם גרש
+                text = text.replace(/(\d+)'(\d+)/g, (match, p1, p2) => {
+                    console.log(`[FixNumbers] Found apostrophe number: ${match} -> reversing to ${p2}'${p1}`);
+                    return p2 + '\'' + p1;
+                });
+
+                // תיקון מספרים עם נקודה (לדוגמה: 5.1 → 1.5)
+                text = text.replace(/(\d+)\.(\d+)/g, (match, p1, p2) => {
+                    console.log(`[FixNumbers] Found dot number: ${match} -> reversing to ${p2}.${p1}`);
+                    return p2 + '.' + p1;
+                });
+
+                // עדכון התוכן אם השתנה
+                if (text !== textElement.textContent) {
+                    console.log(`[FixNumbers] Text changed from: "${textElement.textContent}" to: "${text}"`);
+                    textElement.textContent = text;
+                }
+            }
+        }
     }
 
     // החלת עיצוב דיאלוג על פסקה

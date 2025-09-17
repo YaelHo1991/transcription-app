@@ -416,9 +416,15 @@ export class HtmlDocumentGenerator {
    */
   private processTimestamp(text: string, includeTimestamps: boolean): string {
     if (!includeTimestamps) {
-      // Remove timestamps like [00:12:34]
-      return text.replace(/\[\d{2}:\d{2}:\d{2}\]/g, '').trim();
+      // Replace bracketed timestamps with "..."
+      text = text.replace(/\[\d{1,2}:\d{2}(:\d{2})?\]/g, '...');
+    } else {
+      // Remove brackets but keep the time
+      text = text.replace(/\[(\d{1,2}:\d{2}(:\d{2})?)\]/g, '$1');
     }
+
+    // Don't apply any LTR protection to numbers to avoid text reflow issues
+
     return text;
   }
 }

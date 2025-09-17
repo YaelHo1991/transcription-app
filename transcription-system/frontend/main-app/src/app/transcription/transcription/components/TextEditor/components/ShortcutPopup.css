@@ -1,0 +1,133 @@
+.shortcut-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.shortcut-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 8px 8px 0 0;
+  cursor: move;
+  user-select: none;
+}
+
+.shortcut-popup-header span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.shortcut-popup-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.shortcut-popup-close:hover {
+  background-color: #e0e0e0;
+}
+
+.shortcut-popup-form {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shortcut-popup-input {
+  padding: 8px 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  direction: rtl;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.shortcut-popup-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.shortcut-popup-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.shortcut-popup-add-btn {
+  padding: 8px 16px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 4px;
+}
+
+.shortcut-popup-add-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.shortcut-popup-add-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+}
+
+.shortcut-popup-feedback {
+  padding: 8px 12px;
+  margin: 0 12px 12px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  direction: rtl;
+}
+
+.shortcut-popup-feedback.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.shortcut-popup-feedback.error {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.shortcut-popup-feedback.warning {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+/* Prevent text selection when dragging */
+.shortcut-popup.dragging {
+  user-select: none;
+}
+
+/* Make sure the popup stays above other elements */
+.shortcut-popup {
+  position: fixed !important;
+}

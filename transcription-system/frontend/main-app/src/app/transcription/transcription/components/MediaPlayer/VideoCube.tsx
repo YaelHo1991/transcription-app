@@ -24,7 +24,6 @@ interface Size {
 
 export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, onRestore, waveformEnabled = true, isInLayout = true }: VideoCubeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cubeVideoRef = useRef<HTMLVideoElement>(null); // Add ref for cube video
   const hasInitializedRef = useRef(false); // Track if we've initialized
   const [isDetached, setIsDetached] = useState(false); // Whether cube is detached from layout
   const [isDragMode, setIsDragMode] = useState(false); // Toggle drag mode with double-click
@@ -368,66 +367,73 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
     }
   }, [isDragging, isResizing, dragOffset, position, size, initialSize, initialMousePos]);
 
-  // Sync video element with cube video
+  // Track original parent of video element
+  const originalParentRef = useRef<Node | null>(null);
+
+  // Move and style the video element when cube is visible
   useEffect(() => {
-    if (isVisible && videoRef.current && cubeVideoRef.current) {
-      // Small delay to ensure video is ready
-      const timer = setTimeout(() => {
-        // Always sync the video source
-        if (videoRef.current?.src && cubeVideoRef.current) {
-          if (cubeVideoRef.current.src !== videoRef.current.src) {
-            cubeVideoRef.current.src = videoRef.current.src;
-          }
-          
-          // Sync current time
-          cubeVideoRef.current.currentTime = videoRef.current.currentTime;
-          
-          // Force load the video
-          cubeVideoRef.current.load();
-          
-          // Sync play/pause state
-          if (!videoRef.current.paused) {
-            cubeVideoRef.current.play().catch(console.warn);
-          } else {
-            cubeVideoRef.current.pause();
-          }
+    if (isVisible && videoRef.current && containerRef.current) {
+      const contentDiv = containerRef.current.querySelector('.video-cube-content');
+      // Only move the video if it has a source
+      if (contentDiv && videoRef.current.src && videoRef.current.parentNode !== contentDiv) {
+        // Store the original parent only once
+        if (!originalParentRef.current) {
+          originalParentRef.current = videoRef.current.parentNode;
         }
-      }, 100);
 
-      // Set up event listeners to keep videos in sync
-      const syncVideos = () => {
-        if (videoRef.current && cubeVideoRef.current) {
-          cubeVideoRef.current.currentTime = videoRef.current.currentTime;
-        }
-      };
-
-      const syncPlayState = () => {
-        if (videoRef.current && cubeVideoRef.current) {
-          if (!videoRef.current.paused && cubeVideoRef.current.paused) {
-            cubeVideoRef.current.play().catch(console.warn);
-          } else if (videoRef.current.paused && !cubeVideoRef.current.paused) {
-            cubeVideoRef.current.pause();
-          }
-        }
-      };
-
-        // Listen to main video events
-      videoRef.current.addEventListener('timeupdate', syncVideos);
-      videoRef.current.addEventListener('play', syncPlayState);
-      videoRef.current.addEventListener('pause', syncPlayState);
-      videoRef.current.addEventListener('seeked', syncVideos);
-
-      return () => {
-        clearTimeout(timer);
-        if (videoRef.current) {
-          videoRef.current.removeEventListener('timeupdate', syncVideos);
-          videoRef.current.removeEventListener('play', syncPlayState);
-          videoRef.current.removeEventListener('pause', syncPlayState);
-          videoRef.current.removeEventListener('seeked', syncVideos);
-        }
-      };
+        // Move the video element into the cube content area
+        contentDiv.appendChild(videoRef.current);
+        // Style it appropriately
+        videoRef.current.style.display = 'block';
+        videoRef.current.style.position = 'absolute';
+        videoRef.current.style.top = '0';
+        videoRef.current.style.left = '0';
+        videoRef.current.style.width = '100%';
+        videoRef.current.style.height = '100%';
+        videoRef.current.style.objectFit = 'contain';
+        videoRef.current.style.pointerEvents = 'none';
+        console.log('VideoCube: Moved and styled video element');
+      }
     }
+
+    // When component unmounts or becomes invisible, restore video to original position
+    return () => {
+      // Always try to restore video to its original parent when cleaning up
+      if (videoRef.current && originalParentRef.current) {
+        try {
+          // Check if video is still in the cube and needs to be moved back
+          const parent = videoRef.current.parentNode;
+          if (parent && parent !== originalParentRef.current) {
+            originalParentRef.current.appendChild(videoRef.current);
+            videoRef.current.style.display = 'none';
+            console.log('VideoCube: Restored video to original parent');
+          }
+        } catch (error) {
+          console.warn('VideoCube: Error restoring video element:', error);
+        }
+      }
+    };
   }, [isVisible, videoRef]);
+
+  // Additional cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // When VideoCube is unmounting, ensure video is back in original location
+      if (videoRef.current && originalParentRef.current) {
+        try {
+          const parent = videoRef.current.parentNode;
+          if (parent && parent !== originalParentRef.current) {
+            originalParentRef.current.appendChild(videoRef.current);
+            console.log('VideoCube: Restored video on unmount');
+          }
+        } catch (error) {
+          console.warn('VideoCube: Error restoring video on unmount:', error);
+        }
+      }
+      // Clear the ref
+      originalParentRef.current = null;
+    };
+  }, [videoRef]);
 
   if (!isVisible) return null;
 
@@ -459,14 +465,18 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
       onMouseDown={handleMouseDown}
       title={isDetached ? (isDragMode ? "מצב גרירה פעיל - גרור או לחץ פעמיים לביטול" : "לחץ פעמיים להפעלת גרירה") : "לחץ פעמיים לניתוק מהפריסה"}
     >
-      <div className="video-cube-header" 
-           style={{ cursor: isDragMode ? 'grab' : 'default' }}
+      <div className="video-cube-header"
+           style={{
+             cursor: isDragMode ? 'grab' : 'default',
+             position: 'relative',
+             zIndex: 10
+           }}
            onMouseDown={handleMouseDown}>
-        <div className="video-cube-title" 
+        <div className="video-cube-title"
              style={{ cursor: isDragMode ? 'grab' : 'default', pointerEvents: isDragMode ? 'none' : 'auto' }}>
           וידאו {isDragMode && '(מצב גרירה)'}
         </div>
-        <div className="video-cube-controls">
+        <div className="video-cube-controls" style={{ position: 'relative', zIndex: 10 }}>
           <button 
             className="video-control-btn"
             onClick={handleRestore}
@@ -501,23 +511,20 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
         </div>
       </div>
       
-      <div className="video-cube-content">
-        <video
-          ref={cubeVideoRef}
-          src={videoRef.current?.src || undefined}
-          autoPlay
-          muted
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain'
-          }}
-        />
+      <div className="video-cube-content" style={{
+        position: 'relative',
+        background: 'black', // Black background for video
+        overflow: 'hidden'
+      }}>
+        {/* Video element will be moved here dynamically */}
         
-        <div 
+        <div
           className="video-cube-resize-handle"
           onMouseDown={handleResizeStart}
-          style={{ cursor: isResizing ? 'nwse-resize' : 'nwse-resize' }}
+          style={{
+            cursor: isResizing ? 'nwse-resize' : 'nwse-resize',
+            pointerEvents: 'auto' // Keep resize handle clickable
+          }}
         />
       </div>
     </div>

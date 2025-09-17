@@ -26,25 +26,103 @@ export default function VirtualizedPreview({
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: WINDOW_SIZE });
   const [scrollTop, setScrollTop] = useState(0);
 
-  // Parse content into blocks
+  // Parse content into blocks - use the structured data instead of parsing text
   const blocks = useMemo(() => {
     if (!content) return [];
-    
-    const lines = content.split('\n').filter(line => line.trim());
+
+    // Split content into blocks separated by double newlines
+    const blockSections = content.split('\n\n').filter(section => section.trim());
     const parsedBlocks: PreviewBlock[] = [];
-    
-    lines.forEach((line, index) => {
-      const colonIndex = line.indexOf(':');
-      if (colonIndex !== -1) {
-        const speaker = line.substring(0, colonIndex).trim();
-        const text = line.substring(colonIndex + 1).trim();
-        parsedBlocks.push({ speaker, text, index });
+
+    blockSections.forEach((section, index) => {
+      const lines = section.split('\n').filter(line => line.trim());
+
+      if (lines.length === 0) return;
+
+      // For multi-line blocks, join all lines
+      const fullText = lines.join('\n');
+
+      // Check if this block starts with a speaker pattern (word/phrase followed by colon at start of line)
+      // First, check if line starts with any timestamp-like pattern
+      const startsWithTimestamp = fullText.match(/^\[[\d:]+\]/);
+
+      if (!startsWithTimestamp) {
+        // Only look for speakers if not a timestamp
+        const speakerMatch = fullText.match(/^([^:\n\[\]]{1,30}?):\s*(.+)$/s);
+
+        if (speakerMatch) {
+          const potentialSpeaker = speakerMatch[1].trim();
+          const restOfText = speakerMatch[2].trim();
+
+          // Only treat as speaker if it looks like a valid speaker name
+          // (not a timestamp, not starting with numbers/brackets)
+          // Additional validation: speaker names shouldn't contain spaces (or at most 1-2 for full names)
+          // and shouldn't be full sentences or phrases
+          const spaceCount = (potentialSpeaker.match(/\s/g) || []).length;
+          const containsHebrewWords = /[\u0590-\u05FF]/.test(potentialSpeaker);
+
+          // Check if this looks like a phrase/sentence rather than a name
+          // Common patterns that are NOT speakers:
+          // - Contains numbers (like "בדיקת בקאפ 22")
+          // - More than 2 spaces
+          // - Contains common non-name words
+          const containsNumbers = /\d/.test(potentialSpeaker);
+          const isLikelySentence = containsHebrewWords && spaceCount > 2;
+
+          // Check if it's a typical speaker pattern (just a name, possibly with title)
+          // Speaker names are typically short (1-3 words) without numbers
+          const looksLikeName =
+            !containsNumbers && // Names don't usually have numbers
+            spaceCount <= 2 && // Names are usually 1-3 words max
+            potentialSpeaker.length <= 20 && // Names are typically short
+            !potentialSpeaker.includes('בדיקת') && // Not "test"
+            !potentialSpeaker.includes('בקאפ') && // Not "backup"
+            !potentialSpeaker.match(/[:;,\.\?!]/) && // Names don't contain punctuation
+            restOfText.length > 5; // There should be substantial text after the speaker
+
+          const isValidSpeaker =
+            potentialSpeaker.length > 0 &&
+            potentialSpeaker.length < 30 &&
+            !potentialSpeaker.startsWith('[') &&
+            !potentialSpeaker.match(/^\d/) && // Doesn't start with digit
+            !potentialSpeaker.includes('[') &&
+            !potentialSpeaker.includes(']') &&
+            !isLikelySentence && // Not a sentence
+            looksLikeName && // Passes name validation
+            restOfText.length > 0;
+
+          if (isValidSpeaker) {
+            parsedBlocks.push({
+              speaker: potentialSpeaker,
+              text: restOfText,
+              index
+            });
+          } else {
+            // Not a valid speaker, treat as regular text
+            parsedBlocks.push({
+              speaker: '',
+              text: fullText,
+              index
+            });
+          }
+        } else {
+          // No speaker pattern found, treat as regular text
+          parsedBlocks.push({
+            speaker: '',
+            text: fullText,
+            index
+          });
+        }
       } else {
-        // Line without speaker
-        parsedBlocks.push({ speaker: '', text: line, index });
+        // Starts with timestamp, treat entire block as regular text
+        parsedBlocks.push({
+          speaker: '',
+          text: fullText,
+          index
+        });
       }
     });
-    
+
     return parsedBlocks;
   }, [content]);
 

@@ -16,9 +16,21 @@ export class ShortcutService {
    */
   async getUserShortcuts(userId: string): Promise<ShortcutsResponse> {
     try {
+      // Check if user is admin (based on is_admin flag only)
+      const userQuery = await db.query(`
+        SELECT is_admin
+        FROM users
+        WHERE id = $1
+      `, [userId]);
+
+      const user = userQuery.rows[0];
+      const isAdmin = user && user.is_admin === true;
+
+      console.log(`[ShortcutService] User ${userId} is_admin:`, user?.is_admin, '-> isAdmin:', isAdmin);
+
       // Get system shortcuts with categories - ONLY BASE SHORTCUTS, NOT AUTO-GENERATED
       const systemShortcutsQuery = await db.query(`
-        SELECT 
+        SELECT
           s.shortcut,
           s.expansion,
           s.description,
@@ -98,13 +110,24 @@ export class ShortcutService {
         });
       });
 
+      // Return unlimited quota for admin users
+      const quotaResponse = isAdmin
+        ? {
+            max: 999999, // Effectively unlimited
+            used: userShortcutsQuery.rows.length,
+            remaining: 999999
+          }
+        : {
+            max: quota.max_shortcuts,
+            used: quota.used_shortcuts,
+            remaining: quota.max_shortcuts - quota.used_shortcuts
+          };
+
+      console.log(`[ShortcutService] Returning quota for user ${userId}:`, quotaResponse);
+
       return {
         shortcuts: Array.from(shortcutMap.values()),
-        quota: {
-          max: quota.max_shortcuts,
-          used: quota.used_shortcuts,
-          remaining: quota.max_shortcuts - quota.used_shortcuts
-        },
+        quota: quotaResponse,
         categories: categoriesQuery.rows.map(r => r.name)
       };
     } catch (error) {
@@ -118,45 +141,69 @@ export class ShortcutService {
    */
   async addUserShortcut(userId: string, request: AddShortcutRequest): Promise<UserShortcut> {
     try {
-      // Check quota
-      const quotaQuery = await db.query(`
-        SELECT max_shortcuts, used_shortcuts
-        FROM user_shortcut_quotas
-        WHERE user_id = $1
+      // Check if user is admin (based on is_admin flag only)
+      const userQuery = await db.query(`
+        SELECT is_admin
+        FROM users
+        WHERE id = $1
       `, [userId]);
 
-      const quota = quotaQuery.rows[0];
-      if (!quota) {
-        // Initialize quota
-        await db.query(`
-          INSERT INTO user_shortcut_quotas (user_id)
-          VALUES ($1)
+      const user = userQuery.rows[0];
+      const isAdmin = user && user.is_admin === true;
+
+      // Check quota (skip for admin users)
+      if (!isAdmin) {
+        const quotaQuery = await db.query(`
+          SELECT max_shortcuts, used_shortcuts
+          FROM user_shortcut_quotas
+          WHERE user_id = $1
         `, [userId]);
-      }
 
-      const { max_shortcuts = 100, used_shortcuts = 0 } = quota || {};
+        const quota = quotaQuery.rows[0];
+        if (!quota) {
+          // Initialize quota
+          await db.query(`
+            INSERT INTO user_shortcut_quotas (user_id)
+            VALUES ($1)
+          `, [userId]);
+        }
 
-      if (used_shortcuts >= max_shortcuts) {
-        throw {
-          code: 'QUOTA_EXCEEDED',
-          message: `Quota exceeded: You can only have ${max_shortcuts} personal shortcuts`
-        } as ShortcutError;
+        const { max_shortcuts = 100, used_shortcuts = 0 } = quota || {};
+
+        if (used_shortcuts >= max_shortcuts) {
+          throw {
+            code: 'QUOTA_EXCEEDED',
+            message: `Quota exceeded: You can only have ${max_shortcuts} personal shortcuts`
+          } as ShortcutError;
+        }
       }
 
       // Check if shortcut already exists for this user
-      const existingQuery = await db.query(`
+      const existingUserQuery = await db.query(`
         SELECT id FROM user_shortcuts
         WHERE user_id = $1 AND shortcut = $2
       `, [userId, request.shortcut]);
 
-      if (existingQuery.rows.length > 0) {
+      if (existingUserQuery.rows.length > 0) {
         throw {
           code: 'DUPLICATE_SHORTCUT',
-          message: `Shortcut "${request.shortcut}" already exists`
+          message: `קיצור "${request.shortcut}" כבר קיים`
         } as ShortcutError;
       }
 
-      // Add the shortcut
+      // Check if shortcut exists as system shortcut
+      // TODO: Implement override functionality with allowOverride flag
+      const existingSystemQuery = await db.query(`
+        SELECT id, expansion FROM system_shortcuts
+        WHERE shortcut = $1 AND is_active = true
+      `, [request.shortcut]);
+
+      // For now, always allow override (TODO: Check request.allowOverride when implemented)
+      if (existingSystemQuery.rows.length > 0) {
+        console.log(`User overriding system shortcut: ${request.shortcut}`);
+      }
+
+      // Add the shortcut (note: description column doesn't exist in DB yet)
       const result = await db.query(`
         INSERT INTO user_shortcuts (
           user_id, shortcut, expansion, language
@@ -237,7 +284,7 @@ export class ShortcutService {
   }
 
   /**
-   * Delete a user's personal shortcut
+   * Delete a user's personal shortcut by ID
    */
   async deleteUserShortcut(userId: string, shortcutId: string): Promise<void> {
     try {
@@ -254,6 +301,28 @@ export class ShortcutService {
       }
     } catch (error) {
       console.error('Error deleting user shortcut:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a user's personal shortcut by shortcut text
+   */
+  async deleteUserShortcutByText(userId: string, shortcutText: string): Promise<void> {
+    try {
+      const result = await db.query(`
+        DELETE FROM user_shortcuts
+        WHERE shortcut = $1 AND user_id = $2
+      `, [shortcutText, userId]);
+
+      if (result.rowCount === 0) {
+        throw {
+          code: 'NOT_FOUND',
+          message: 'Shortcut not found or you do not have permission to delete it'
+        } as ShortcutError;
+      }
+    } catch (error) {
+      console.error('Error deleting user shortcut by text:', error);
       throw error;
     }
   }

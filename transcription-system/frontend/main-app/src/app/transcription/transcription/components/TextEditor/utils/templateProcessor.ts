@@ -492,16 +492,76 @@ export class TemplateProcessor {
    * Process timestamp in text
    */
   private processTimestamp(text: string, includeTimestamps: boolean): string {
-    if (includeTimestamps) {
-      // Remove brackets around timestamps, keep just the time
-      // Pattern: [ before timestamp and ] after, with optional space and text
-      return text.replace(/\s*\[(\d{1,2}:\d{2}(:\d{2})?)[^\]]*\]/g, ' $1');
+    if (!includeTimestamps) {
+      // Replace bracketed timestamps with "..."
+      text = text.replace(/\[\d{1,2}:\d{2}(:\d{2})?\]/g, '...');
+    } else {
+      // Remove brackets but keep the time
+      text = text.replace(/\[(\d{1,2}:\d{2}(:\d{2})?)\]/g, '$1');
     }
-    // Replace timestamps with ... (remove brackets too)
-    // First remove bracketed timestamps
-    text = text.replace(/\s*\[(\d{1,2}:\d{2}(:\d{2})?)[^\]]*\]/g, ' ...');
-    // Then replace any remaining bare timestamps
-    return text.replace(/\d{1,2}:\d{2}(:\d{2})?/g, '...');
+
+    // Don't apply any LTR protection to numbers to avoid text reflow issues
+
+    return text;
+  }
+
+  /**
+   * Pre-reverse numbers so RTL processing will reverse them back to correct order
+   */
+  private preReverseNumbers(text: string): string {
+    // Store bracketed content to preserve timestamps
+    const brackets: string[] = [];
+    let bracketIndex = 0;
+
+    // Replace bracketed content with placeholders
+    text = text.replace(/\[[^\]]*\]/g, (match) => {
+      brackets.push(match);
+      return `__BRACKET_${bracketIndex++}__`;
+    });
+
+    // Apply general number sequence reversal
+    text = this.reverseNumberSequence(text);
+
+    // Restore bracketed content
+    text = text.replace(/__BRACKET_(\d+)__/g, (match, index) => {
+      return brackets[parseInt(index)];
+    });
+
+    return text;
+  }
+
+  /**
+   * General function to reverse number sequences with any separators
+   * Examples: 125,223,136 → 136,223,125 | 01:00:50 → 50:00:01
+   */
+  private reverseNumberSequence(text: string): string {
+    return text.replace(/\d+(?:[,:'.]\d+)+/g, (match) => {
+      // Split the sequence while preserving separators
+      const parts = match.split(/([,:'.])/).filter(part => part.length > 0);
+
+      // Separate numbers from separators
+      const numbers: string[] = [];
+      const separators: string[] = [];
+
+      for (let i = 0; i < parts.length; i++) {
+        if (i % 2 === 0) {
+          numbers.push(parts[i]); // Even indices are numbers
+        } else {
+          separators.push(parts[i]); // Odd indices are separators
+        }
+      }
+
+      // Reverse only the numbers
+      numbers.reverse();
+
+      // Rebuild the sequence: number + separator + number + separator...
+      let result = numbers[0];
+      for (let i = 0; i < separators.length; i++) {
+        result += separators[i] + numbers[i + 1];
+      }
+
+      return result;
+    });
   }
 
   /**
@@ -530,15 +590,16 @@ export class TemplateProcessor {
     const RLE = '\u202B'; // Right-to-Left Embedding
     const PDF = '\u202C'; // Pop Directional Formatting
     const RLM = '\u200F'; // Right-to-Left Mark
-    
+
+    // Apply RTL wrapping for Hebrew text (numbers will be reversed but fixed in backend)
     // Method 1: Wrap entire text with RLE...PDF
     // This tells Word to treat everything inside as RTL
     const wrappedText = RLE + text + PDF;
-    
+
     // Method 2: Add RLM after punctuation to keep it with Hebrew text
     // This ensures punctuation stays on the correct side
     const textWithRLM = wrappedText.replace(/([.!?,;:])/g, '$1' + RLM);
-    
+
     return textWithRLM;
   }
 
@@ -811,7 +872,7 @@ export class TemplateProcessor {
             speaker: block.speaker 
               ? this.wrapSpeakerForRTL((speakers.get(block.speaker) || block.speaker) + ':')
               : '',
-            text: this.wrapTextForRTL(this.processTimestamp(block.text || '', includeTimestamps))
+            text: this.wrapTextForRTL(this.preReverseNumbers(this.processTimestamp(block.text || '', includeTimestamps)))
           }))
       };
 

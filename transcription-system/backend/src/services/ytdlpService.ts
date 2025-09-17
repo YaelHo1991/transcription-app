@@ -201,70 +201,260 @@ export class YtDlpService {
     // If yt-dlp failed or returned generic message, try fetching from HTML
     console.log('[YtDlpService.getMinimalInfo] yt-dlp failed or returned generic title, trying HTML fetch...');
     try {
-      const fetch = require('node-fetch');
-      const AbortController = require('abort-controller');
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => {
-        controller.abort();
-      }, 5000);
+      const https = require('https');
+      const http = require('http');
+      const { URL } = require('url');
 
       console.log('[YtDlpService.getMinimalInfo] Fetching HTML from:', url);
 
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
-        },
-        signal: controller.signal,
-        timeout: 5000
+      const response = await new Promise<string>((resolve, reject) => {
+        const parsedUrl = new URL(url);
+        const client = parsedUrl.protocol === 'https:' ? https : http;
+
+        const options = {
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+          path: parsedUrl.pathname + parsedUrl.search,
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'DNT': '1',
+            'Connection': 'close',
+            'Upgrade-Insecure-Requests': '1'
+          },
+          timeout: 5000
+        };
+
+        const req = client.request(options, (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+            return;
+          }
+
+          let data = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            resolve(data);
+          });
+        });
+
+        req.on('error', (err) => {
+          console.log('[YtDlpService.getMinimalInfo] Request failed:', err.message);
+          reject(err);
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+
+        req.end();
       }).catch(err => {
         console.log('[YtDlpService.getMinimalInfo] Fetch failed:', err.message);
         return null;
       });
 
-      clearTimeout(timeout);
-
-      if (!response || !response.ok) {
-        console.log('[YtDlpService.getMinimalInfo] Failed to fetch HTML, status:', response?.status);
+      if (!response) {
+        console.log('[YtDlpService.getMinimalInfo] Failed to fetch HTML');
         return ytdlpResult;
       }
 
-      // Get only the first part of the HTML (title is usually in the first 100KB)
-      const html = await response.text();
+      // HTML is now in the response string
+      const html = response;
       console.log('[YtDlpService.getMinimalInfo] Got HTML response, length:', html.length);
 
       // Try to extract title from HTML
       let title = '';
 
       // Method 1: Extract from <title> tag
-      const titleMatch = html.match(/<title>([^<]*)<\/title>/);
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
       if (titleMatch && titleMatch[1]) {
-        title = titleMatch[1].replace(' - YouTube', '').trim();
-        console.log('[YtDlpService.getMinimalInfo] Got title from HTML <title> tag:', title);
-      }
-
-      // Method 2: If no title from tag, try from JSON metadata
-      if (!title) {
-        const jsonMatch = html.match(/"title"\s*:\s*"([^"]*)"/);
-        if (jsonMatch && jsonMatch[1]) {
-          title = jsonMatch[1];
-          console.log('[YtDlpService.getMinimalInfo] Got title from JSON metadata:', title);
+        let extractedTitle = titleMatch[1]
+          .replace(' - YouTube', '')
+          .replace(/\s*-\s*YouTube\s*$/, '')
+          .trim();
+        // Skip generic error titles but keep actual content
+        if (extractedTitle &&
+            extractedTitle.length > 0 &&
+            !extractedTitle.includes('Sign in to confirm') &&
+            !extractedTitle.includes('members-only') &&
+            !extractedTitle.includes('Join this channel') &&
+            extractedTitle !== 'YouTube') {
+          title = extractedTitle;
+          console.log('[YtDlpService.getMinimalInfo] Got title from HTML <title> tag:', title);
+        } else {
+          console.log('[YtDlpService.getMinimalInfo] Skipped title (empty or generic):', extractedTitle || '(empty string)');
         }
+      } else {
+        console.log('[YtDlpService.getMinimalInfo] No <title> tag found or empty content');
       }
 
-      // Method 3: Try meta property
+      // Method 2: Try from og:title meta tag (often more accurate)
       if (!title) {
-        const metaMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]*)"/);
+        const metaMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]*)"[^>]*>/i);
         if (metaMatch && metaMatch[1]) {
-          title = metaMatch[1];
-          console.log('[YtDlpService.getMinimalInfo] Got title from og:title:', title);
+          let extractedTitle = metaMatch[1].trim();
+          if (!extractedTitle.includes('Sign in to confirm') &&
+              !extractedTitle.includes('members-only') &&
+              !extractedTitle.includes('Join this channel')) {
+            title = extractedTitle;
+            console.log('[YtDlpService.getMinimalInfo] Got title from og:title:', title);
+          }
         }
+      }
+
+      // Method 3: Try from JSON-LD structured data
+      if (!title) {
+        const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/is);
+        if (jsonLdMatch && jsonLdMatch[1]) {
+          try {
+            const jsonData = JSON.parse(jsonLdMatch[1]);
+            if (jsonData.name) {
+              title = jsonData.name;
+              console.log('[YtDlpService.getMinimalInfo] Got title from JSON-LD:', title);
+            }
+          } catch (e) {
+            // JSON parsing failed, continue
+          }
+        }
+      }
+
+      // Method 4: Try from embedded video data
+      if (!title) {
+        const videoDataMatch = html.match(/"videoDetails":\s*{[^}]*"title":\s*"([^"]*)"[^}]*}/);
+        if (videoDataMatch && videoDataMatch[1]) {
+          title = videoDataMatch[1];
+          console.log('[YtDlpService.getMinimalInfo] Got title from video data:', title);
+        }
+      }
+
+      // Method 5: Try from Twitter/X card data
+      if (!title) {
+        const twitterMatch = html.match(/<meta\s+name="twitter:title"\s+content="([^"]*)"[^>]*>/i);
+        if (twitterMatch && twitterMatch[1]) {
+          title = twitterMatch[1];
+          console.log('[YtDlpService.getMinimalInfo] Got title from twitter:title:', title);
+        }
+      }
+
+      // Method 6: Try from ytInitialPlayerResponse (YouTube's main data)
+      if (!title) {
+        const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
+        if (ytDataMatch && ytDataMatch[1]) {
+          try {
+            const ytData = JSON.parse(ytDataMatch[1]);
+            if (ytData.videoDetails && ytData.videoDetails.title) {
+              title = ytData.videoDetails.title;
+              console.log('[YtDlpService.getMinimalInfo] Got title from ytInitialPlayerResponse:', title);
+            }
+          } catch (e) {
+            console.log('[YtDlpService.getMinimalInfo] Failed to parse ytInitialPlayerResponse');
+          }
+        }
+      }
+
+      // Method 6b: Try from ytInitialData (alternative YouTube data structure)
+      if (!title) {
+        const ytInitialDataMatch = html.match(/var\s+ytInitialData\s*=\s*({.+?});/);
+        if (ytInitialDataMatch && ytInitialDataMatch[1]) {
+          try {
+            const ytInitialData = JSON.parse(ytInitialDataMatch[1]);
+            // Try to find title in various possible locations
+            if (ytInitialData.contents?.twoColumnWatchNextResults?.results?.results?.contents) {
+              const contents = ytInitialData.contents.twoColumnWatchNextResults.results.results.contents;
+              for (const item of contents) {
+                if (item.videoPrimaryInfoRenderer?.title?.runs?.[0]?.text) {
+                  title = item.videoPrimaryInfoRenderer.title.runs[0].text;
+                  console.log('[YtDlpService.getMinimalInfo] Got title from ytInitialData.videoPrimaryInfoRenderer:', title);
+                  break;
+                } else if (item.videoPrimaryInfoRenderer?.title?.simpleText) {
+                  title = item.videoPrimaryInfoRenderer.title.simpleText;
+                  console.log('[YtDlpService.getMinimalInfo] Got title from ytInitialData.videoPrimaryInfoRenderer (simpleText):', title);
+                  break;
+                }
+              }
+            }
+            // Alternative path in ytInitialData
+            if (!title && ytInitialData.playerOverlays?.playerOverlayRenderer?.videoDetails?.playerOverlayVideoDetailsRenderer?.title?.simpleText) {
+              title = ytInitialData.playerOverlays.playerOverlayRenderer.videoDetails.playerOverlayVideoDetailsRenderer.title.simpleText;
+              console.log('[YtDlpService.getMinimalInfo] Got title from ytInitialData.playerOverlays:', title);
+            }
+          } catch (e) {
+            console.log('[YtDlpService.getMinimalInfo] Failed to parse ytInitialData');
+          }
+        }
+      }
+
+      // Method 7: Try from page data scripts
+      if (!title) {
+        const scriptMatches = html.match(/<script[^>]*>(.*?)<\/script>/gi);
+        if (scriptMatches) {
+          for (const script of scriptMatches) {
+            const titleInScript = script.match(/"title"\s*:\s*"([^"]+)"/);
+            if (titleInScript && titleInScript[1] &&
+                !titleInScript[1].includes('Sign in') &&
+                !titleInScript[1].includes('members-only') &&
+                titleInScript[1].length > 5) {
+              title = titleInScript[1];
+              console.log('[YtDlpService.getMinimalInfo] Got title from script data:', title);
+              break;
+            }
+          }
+        }
+      }
+
+      // Method 8: Look for title in window.ytplayer.config
+      if (!title) {
+        const ytPlayerConfigMatch = html.match(/ytplayer\.config\s*=\s*({.+?});/);
+        if (ytPlayerConfigMatch && ytPlayerConfigMatch[1]) {
+          try {
+            const ytPlayerConfig = JSON.parse(ytPlayerConfigMatch[1]);
+            if (ytPlayerConfig.args?.title) {
+              title = ytPlayerConfig.args.title;
+              console.log('[YtDlpService.getMinimalInfo] Got title from ytplayer.config:', title);
+            }
+          } catch (e) {
+            // Failed to parse, continue
+          }
+        }
+      }
+
+      // Method 9: Extract from embedded player args
+      if (!title) {
+        const embedMatch = html.match(/"player_response":"([^"]+)"/);
+        if (embedMatch && embedMatch[1]) {
+          try {
+            const playerResponse = JSON.parse(embedMatch[1].replace(/\\"/g, '"'));
+            if (playerResponse.videoDetails?.title) {
+              title = playerResponse.videoDetails.title;
+              console.log('[YtDlpService.getMinimalInfo] Got title from embedded player_response:', title);
+            }
+          } catch (e) {
+            // Failed to parse, continue
+          }
+        }
+      }
+
+      // Method 10: Try alternative meta tags
+      if (!title) {
+        // Try name="title" meta tag
+        const nameTitleMatch = html.match(/<meta\s+name="title"\s+content="([^"]*)"[^>]*>/i);
+        if (nameTitleMatch && nameTitleMatch[1]) {
+          title = nameTitleMatch[1];
+          console.log('[YtDlpService.getMinimalInfo] Got title from meta name="title":', title);
+        }
+      }
+
+      // Log final result
+      if (!title) {
+        console.log('[YtDlpService.getMinimalInfo] WARNING: Could not extract title from HTML despite trying all methods');
+        // Log first 500 chars of HTML for debugging
+        console.log('[YtDlpService.getMinimalInfo] HTML preview:', html.substring(0, 500));
       }
 
       return { title: title || ytdlpResult.title || undefined };
@@ -345,14 +535,13 @@ export class YtDlpService {
 
         // If we still didn't get a title and there's an error, try to extract from error messages
         if (!title && stderr) {
-          // Check for members-only message
-          if (stderr.includes('Join this channel') || stderr.includes('members-only')) {
-            // Extract the actual error message as title (temporarily)
-            const match = stderr.match(/ERROR:\s+\[youtube\]\s+[A-Za-z0-9_-]+:\s+(.+?)$/m);
-            if (match && match[1]) {
-              title = match[1].trim();
-              console.log('[YtDlpService.tryGetTitleWithYtDlp] Got members-only message:', title);
-            }
+          console.log('[YtDlpService.tryGetTitleWithYtDlp] No title from JSON, checking stderr for patterns');
+
+          // Don't extract error messages as titles - this was the bug
+          // Instead, let the getMinimalInfo function try HTML parsing
+          // Only log the error for debugging
+          if (stderr.includes('Join this channel') || stderr.includes('members-only') || stderr.includes('Sign in to confirm')) {
+            console.log('[YtDlpService.tryGetTitleWithYtDlp] Detected instruction message in stderr, not extracting title');
           }
         }
 

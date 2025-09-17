@@ -64,6 +64,7 @@ export interface AddShortcutRequest {
   shortcut: string;
   expansion: string;
   description?: string;
+  // allowOverride?: boolean; // TODO: Implement when backend supports it
 }
 
 export interface ShortcutUsageStats {

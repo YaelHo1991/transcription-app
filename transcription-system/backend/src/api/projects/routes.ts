@@ -3,6 +3,8 @@ import { projectService } from '../../services/projectService';
 import storageService from '../../services/storageService';
 import { backgroundJobService } from '../../services/backgroundJobs';
 import { OrphanedIndexService } from '../../services/orphanedIndexService';
+import { batchStorageService } from '../../services/batchStorageService';
+import workingDaysService from '../../services/workingDaysService';
 import path from 'path';
 import fs, { createReadStream } from 'fs';
 import fs_promises from 'fs/promises';
@@ -195,37 +197,69 @@ router.post('/:projectId/media/:mediaId/backup', verifyUser, async (req: Request
     const { projectId, mediaId } = req.params;
     const backupData = req.body;
     const userId = (req as any).user?.id || 'dev-anonymous';
-    
-    // Create backup directory in the media folder
-    const backupDir = path.join(
-      process.cwd(), 
-      'user_data', 
-      'users', 
-      userId, 
+
+    // Debug logging for URL projects
+    console.log('[Backup] Creating backup for:', { projectId, mediaId, userId });
+
+    // Validate mediaId
+    if (!mediaId || mediaId === 'undefined' || mediaId === 'null') {
+      console.error('[Backup] Invalid mediaId:', mediaId);
+      return res.status(400).json({ error: 'Invalid media ID' });
+    }
+
+    // Create paths
+    const mediaDir = path.join(
+      process.cwd(),
+      'user_data',
+      'users',
+      userId,
       'projects',
       projectId,
       'media',
-      mediaId,
-      'backups'
+      mediaId
     );
-    
+
+    const backupDir = path.join(mediaDir, 'backups');
+
+    console.log('[Backup] Media directory path:', mediaDir);
+    console.log('[Backup] Backup directory path:', backupDir);
+
+    // Ensure media directory exists first (important for URL projects)
+    try {
+      await fs_promises.access(mediaDir);
+      console.log('[Backup] Media directory exists');
+    } catch {
+      console.log('[Backup] Media directory does not exist, creating it...');
+      await fs_promises.mkdir(mediaDir, { recursive: true });
+    }
+
+    // Now create backup directory
     await fs_promises.mkdir(backupDir, { recursive: true });
-    
+
+    // Track this as a working day
+    await workingDaysService.trackWorkingDay(userId, projectId, mediaId);
+
     // Get list of existing backups to determine version number
     const existingBackups = await fs_promises.readdir(backupDir).catch(() => []);
     const backupFiles = existingBackups.filter(f => f.startsWith('backup_v'));
-    
-    // Keep only last 50 versions
-    if (backupFiles.length >= 50) {
+
+    // First, prune backups older than 7 working days
+    await workingDaysService.pruneOldBackups(userId, projectId, mediaId, 7);
+
+    // Then, keep only last 50 versions (as additional safeguard)
+    const remainingBackups = await fs_promises.readdir(backupDir).catch(() => []);
+    const remainingBackupFiles = remainingBackups.filter(f => f.startsWith('backup_v'));
+
+    if (remainingBackupFiles.length >= 50) {
       // Sort by version number and delete oldest
-      backupFiles.sort((a, b) => {
+      remainingBackupFiles.sort((a, b) => {
         const versionA = parseInt(a.match(/backup_v(\d+)/)?.[1] || '0');
         const versionB = parseInt(b.match(/backup_v(\d+)/)?.[1] || '0');
         return versionA - versionB;
       });
-      
+
       // Delete oldest versions to keep only 49 (we'll add a new one)
-      const toDelete = backupFiles.slice(0, backupFiles.length - 49);
+      const toDelete = remainingBackupFiles.slice(0, remainingBackupFiles.length - 49);
       for (const file of toDelete) {
         await fs_promises.unlink(path.join(backupDir, file)).catch(() => {});
       }
@@ -255,7 +289,15 @@ router.post('/:projectId/media/:mediaId/backup', verifyUser, async (req: Request
     
     // Write backup file
     await fs_promises.writeFile(backupPath, JSON.stringify(versionedData, null, 2));
-    
+
+    console.log('[Backup] Successfully created backup:', {
+      projectId,
+      mediaId,
+      version: newVersion,
+      fileName: backupFileName,
+      path: backupPath
+    });
+
     res.json({
       success: true,
       version: newVersion,
@@ -792,8 +834,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
     const isPlaylistDownload = urls.every((urlInfo: any) => urlInfo.playlistIndex !== undefined);
     
     urls.forEach((urlInfo: any, index: number) => {
-      // Use the mediaName if provided (from playlist), otherwise use a placeholder
-      mediaNames[index] = urlInfo.mediaName || `Media ${index + 1}`;
+      // Use the mediaName/title if provided (from playlist or check-url), otherwise use a placeholder
+      const providedName = urlInfo.mediaName || urlInfo.mediaTitle || urlInfo.title;
+      mediaNames[index] = providedName || `Media ${index + 1}`;
       progressTracking[index] = { progress: 0, status: 'downloading' };
     });
     
@@ -824,6 +867,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       playlistCookieFile: playlistCookieFile, // Store cookie files for use in async function
       cookieFiles: cookieFiles
     };
+
+    // Save to persistent storage
+    await saveBatchProgress(batchId);
     
     // Return immediately with batchId so frontend can start showing progress
     res.json({ batchId });
@@ -859,7 +905,7 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
           outputPath: tempDir,
           quality: urlInfo.quality || 'medium',
           downloadType: urlInfo.downloadType || 'video',
-          onProgress: (progress: number) => {
+          onProgress: async (progress: number) => {
             // Update the progress for this specific media item
             if (downloadProgress[batchId]) {
               downloadProgress[batchId].progress[i] = {
@@ -867,6 +913,11 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
                 status: 'downloading'
               };
               console.log(`[BatchDownload] Progress for media ${i}: ${Math.round(progress)}%`);
+
+              // Save to persistent storage every 10% progress
+              if (Math.round(progress) % 10 === 0) {
+                await saveBatchProgress(batchId);
+              }
             }
           }
         };
@@ -898,8 +949,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         downloadedFiles.push({
           name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
           buffer: fileBuffer,
-          mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
-        });
+          mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`,
+          duration: videoInfo.duration || 0
+        } as any);
 
         // Store video info for later use in media.json
         videoInfos.push(videoInfo);
@@ -911,12 +963,91 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         if (downloadProgress[batchId]) {
           downloadProgress[batchId].progress[i] = { progress: 100, status: 'completed' };
           downloadProgress[batchId].completedFiles++;
+          await saveBatchProgress(batchId);
         }
         
         console.log(`[BatchDownload] Successfully downloaded: ${videoInfo.title}`);
       } catch (error: any) {
         console.error(`[BatchDownload] Failed to download ${url}:`, error);
-        
+
+        // Try to extract title from error message if we don't have one
+        if (downloadProgress[batchId] && !downloadProgress[batchId].mediaNames[i] ||
+            downloadProgress[batchId].mediaNames[i] === `Media ${i + 1}`) {
+
+          // First check if this is a protected/members-only content error
+          const errorMessage = error.message?.toLowerCase() || '';
+          const isProtectedContent = errorMessage.includes('members-only') ||
+                                    errorMessage.includes('private video') ||
+                                    errorMessage.includes('sign in to confirm') ||
+                                    errorMessage.includes('this video is available to this channel\'s members') ||
+                                    errorMessage.includes('bot detection');
+
+          if (isProtectedContent) {
+            console.log(`[BatchDownload] Protected content detected for media ${i}, trying to fetch title with getMinimalInfo`);
+
+            try {
+              // Try to get the title using getMinimalInfo which fetches from HTML
+              const cookieFile = downloadProgress[batchId]?.playlistCookieFile || downloadProgress[batchId]?.cookieFiles[i.toString()];
+              const minimalInfo = await YtDlpService.getMinimalInfo(url, cookieFile);
+
+              if (minimalInfo.title && !minimalInfo.title.includes('members-only content')) {
+                downloadProgress[batchId].mediaNames[i] = minimalInfo.title;
+                console.log(`[BatchDownload] Successfully got title for protected media ${i}: ${minimalInfo.title}`);
+              } else {
+                // Fallback to Hebrew name if getMinimalInfo also failed
+                downloadProgress[batchId].mediaNames[i] = `סרטון מוגן ${i + 1}`;
+                console.log(`[BatchDownload] Could not get title for protected media ${i}, using fallback`);
+              }
+            } catch (fetchError) {
+              console.error(`[BatchDownload] Failed to fetch title with getMinimalInfo:`, fetchError);
+              downloadProgress[batchId].mediaNames[i] = `סרטון מוגן ${i + 1}`;
+            }
+          } else if (errorMessage.includes('use --cookies') ||
+              errorMessage.includes('authentication') ||
+              errorMessage.includes('manually pass cookies') ||
+              errorMessage.includes('how to') ||
+              errorMessage.includes('see https://')) {
+            // This is an instruction message, use Hebrew fallback name
+            console.log(`[BatchDownload] Detected instruction message for media ${i}, using fallback name`);
+            downloadProgress[batchId].mediaNames[i] = `סרטון מוגן ${i + 1}`;
+          } else {
+            // Extract title from error message using same patterns as getMinimalInfo
+            const titlePatterns = [
+              /"([^"]+)" is members-only/,
+              /"([^"]+)" is a private video/,
+              /Video "([^"]+)"/,
+              /'([^']+)' is private/,
+              /\[youtube\] [A-Za-z0-9_-]+: (.+?) \(/,
+              /\[youtube\] [A-Za-z0-9_-]+: (.+?)$/m,
+              /ERROR:\s+\[youtube\]\s+[A-Za-z0-9_-]+:\s+(.+?)(?:\s+\(|$)/,
+              /ERROR: ([^:]+) is/,
+              // Removed generic patterns that catch error instructions
+              /סרטון "([^"]+)"/,
+            ];
+
+            for (const pattern of titlePatterns) {
+              const match = error.message.match(pattern);
+              if (match && match[1]) {
+                let extractedTitle = match[1].trim();
+                extractedTitle = extractedTitle.replace(/\s+\(Sign in.*\)$/, '');
+                extractedTitle = extractedTitle.replace(/^\[.*?\]\s+/, '');
+
+                // Additional check to ensure it's not an instruction
+                const titleLower = extractedTitle.toLowerCase();
+                if (!titleLower.includes('sign in') &&
+                    !titleLower.includes('--cookies') &&
+                    !titleLower.includes('authentication') &&
+                    !extractedTitle.includes('�') &&
+                    extractedTitle.length > 2) {
+                  downloadProgress[batchId].mediaNames[i] = extractedTitle;
+                  console.log(`[BatchDownload] Extracted title from error for media ${i}: ${extractedTitle}`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
         // Check if this is a bot detection error
         if (error.message && (
           error.message.includes('Sign in to confirm') ||
@@ -924,43 +1055,65 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         )) {
           // This is bot detection - treat as protected content
           console.log('[BatchDownload] Bot detection triggered, treating as protected content');
-          
-          // Clean up the download progress
+
+          // Mark as failed but don't mark batch as completed
           if (downloadProgress[batchId]) {
-            downloadProgress[batchId].completed = true;
-            downloadProgress[batchId].progress[i] = { 
-              progress: 0, 
+            downloadProgress[batchId].progress[i] = {
+              progress: 0,
               status: 'failed',
               error: 'Bot detection - cookies required'
             };
-            
-            // Clean up after a short delay
-            setTimeout(() => {
-              delete downloadProgress[batchId];
-            }, 5000);
+            await saveBatchProgress(batchId);
           }
-          
+
           // Don't send response here as we already sent one
           // The frontend will see the failed status in progress tracking
           console.log('[BatchDownload] Bot detection error - marked as failed in progress tracking');
-          return;
+
+          // Continue trying other URLs in the batch
+          continue;
         }
-        
+
         // Update progress to failed for this file
         if (downloadProgress[batchId]) {
-          downloadProgress[batchId].progress[i] = { 
-            progress: 0, 
+          downloadProgress[batchId].progress[i] = {
+            progress: 0,
             status: 'failed',
             error: error.message || 'Download failed'
           };
+          await saveBatchProgress(batchId);
         }
-        
+
         // Continue with other URLs even if one fails
       }
     }
     
     if (downloadedFiles.length === 0) {
       console.error('[BatchDownload] Failed to download any files');
+
+      // Mark batch as failed with all items failed
+      if (downloadProgress[batchId]) {
+        downloadProgress[batchId].completed = true;
+
+        // Ensure all failed items show proper error status
+        for (let i = 0; i < urls.length; i++) {
+          if (!downloadProgress[batchId].progress[i] || downloadProgress[batchId].progress[i].status !== 'failed') {
+            downloadProgress[batchId].progress[i] = {
+              progress: 0,
+              status: 'failed',
+              error: 'Download failed'
+            };
+          }
+        }
+
+        await saveBatchProgress(batchId);
+
+        // Keep the failed batch for a while so frontend can see the error
+        setTimeout(async () => {
+          await deleteBatchProgress(batchId);
+        }, 60000); // Keep for 1 minute
+      }
+
       // Don't send response here as we already sent one
       return;
     }
@@ -988,10 +1141,16 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         userId
       );
     }
-    
+
+    console.log('[BatchDownload] About to enhance media.json files');
+    console.log('[BatchDownload] result.projectId:', result.projectId);
+    console.log('[BatchDownload] result.mediaIds:', result.mediaIds);
+    console.log('[BatchDownload] downloadedFiles.length:', downloadedFiles.length);
+    console.log('[BatchDownload] videoInfos.length:', videoInfos.length);
+
     // Additionally save URL metadata for each media
     const userDir = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', result.projectId);
-    
+
     // Save playlist metadata to project.json if this is a playlist
     if (playlistMetadata) {
       const projectJsonPath = path.join(userDir, 'project.json');
@@ -1027,6 +1186,9 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
       }
     }
     
+    console.log(`[BatchDownload] Writing enhanced media.json for ${result.mediaIds.length} media files`);
+    console.log(`[BatchDownload] VideoInfos available: ${videoInfos.length}`);
+
     for (let i = 0; i < Math.min(urls.length, result.mediaIds.length); i++) {
       const mediaDir = path.join(userDir, 'media', result.mediaIds[i]);
       const urlInfo = urls[i];
@@ -1036,6 +1198,8 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
 
       // Get duration from videoInfo if available
       const duration = videoInfos[i]?.duration || 0;
+
+      console.log(`[BatchDownload] Media ${i}: duration=${duration}, size=${fileSize}`);
 
       // Create a unique hash for the URL to enable re-matching
       const urlForHash = urlInfo.url || urlInfo;
@@ -1061,11 +1225,16 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         })
       };
       
+      const mediaJsonPath = path.join(mediaDir, 'media.json');
+      console.log(`[BatchDownload] Writing media.json to: ${mediaJsonPath}`);
+
       await fs_promises.writeFile(
-        path.join(mediaDir, 'media.json'),
+        mediaJsonPath,
         JSON.stringify(mediaJson, null, 2),
         'utf8'
       );
+
+      console.log(`[BatchDownload] Successfully wrote media.json with duration=${duration}, size=${fileSize}`);
       
       // Update playlist.json if this is a playlist download
       if (urlInfo.playlistIndex !== undefined && playlistMetadata) {
@@ -1153,12 +1322,23 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
             }
           }
           
+          // Save final state
+          await saveBatchProgress(batchId);
+
           // Clean up after 5 minutes
-          setTimeout(() => {
-            delete downloadProgress[batchId];
+          setTimeout(async () => {
+            await deleteBatchProgress(batchId);
           }, 5 * 60 * 1000);
         }
-        
+
+        // Force refresh storage calculation after adding new media
+        try {
+          await storageService.forceRefreshUserStorage(userId);
+          console.log(`[BatchDownload] Storage refreshed for user ${userId}`);
+        } catch (error) {
+          console.error('[BatchDownload] Failed to refresh storage:', error);
+        }
+
         // Clean up cookie files after successful completion
         Object.values(cookieFiles).forEach((cookieFilePath: string) => {
           fs_promises.unlink(cookieFilePath).catch(err => {
@@ -1171,6 +1351,7 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
         // Mark as completed even on error to stop progress tracking
         if (downloadProgress[batchId]) {
           downloadProgress[batchId].completed = true;
+          await saveBatchProgress(batchId);
         }
         
         // Clean up cookie files even on error
@@ -1188,10 +1369,10 @@ router.post('/batch-download', verifyUser, async (req: Request, res: Response) =
   }
 });
 
-// Track download progress for each batch
-const downloadProgress: { 
-  [batchId: string]: { 
-    startTime: number, 
+// Track download progress for each batch (in-memory cache)
+const downloadProgress: {
+  [batchId: string]: {
+    startTime: number,
     completed: boolean,
     totalFiles: number,
     completedFiles: number,
@@ -1204,8 +1385,30 @@ const downloadProgress: {
     playlistMetadata?: any, // Store playlist metadata for retry
     playlistCookieFile?: string, // Cookie file for entire playlist
     cookieFiles?: { [index: string]: any } // Individual cookie files per URL
-  } 
+  }
 } = {};
+
+// Helper functions to sync with persistent storage
+async function saveBatchProgress(batchId: string) {
+  if (downloadProgress[batchId]) {
+    await batchStorageService.saveBatch(batchId, downloadProgress[batchId] as any);
+  }
+}
+
+async function loadBatchProgress(batchId: string) {
+  if (!downloadProgress[batchId]) {
+    const stored = await batchStorageService.loadBatch(batchId);
+    if (stored) {
+      downloadProgress[batchId] = stored as any;
+    }
+  }
+  return downloadProgress[batchId];
+}
+
+async function deleteBatchProgress(batchId: string) {
+  delete downloadProgress[batchId];
+  await batchStorageService.deleteBatch(batchId);
+}
 
 /**
  * Get batch download progress
@@ -1213,28 +1416,23 @@ const downloadProgress: {
 router.get('/batch-download/:batchId/progress', verifyUser, async (req: Request, res: Response) => {
   try {
     const { batchId } = req.params;
-    
+
+    // Try to load from persistent storage if not in memory
+    const batchInfo = await loadBatchProgress(batchId);
+
     // Check if this batch is being tracked
-    if (!downloadProgress[batchId]) {
-      // Batch not found or already completed and cleaned up
+    if (!batchInfo) {
+      // Batch not found - might still be processing or initializing
+      // Return processing status instead of completed to prevent false completion message
       return res.json({
-        status: 'completed',
+        status: 'processing',
         projectId: batchId,
-        totalFiles: 1,
-        completedFiles: 1,
-        progress: {
-          0: {
-            progress: 100,
-            status: 'completed'
-          }
-        },
-        mediaNames: {
-          0: 'Downloaded Media'
-        }
+        totalFiles: 0,
+        completedFiles: 0,
+        progress: {},
+        mediaNames: {}
       });
     }
-    
-    const batchInfo = downloadProgress[batchId];
     
     // Determine overall status
     let overallStatus = 'downloading';
@@ -1278,13 +1476,14 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
     }
     
     const mediaIdx = parseInt(mediaIndex);
-    
+
+    // Try to load from persistent storage if not in memory
+    const batchInfo = await loadBatchProgress(batchId);
+
     // Check if batch exists and has this media index
-    if (!downloadProgress[batchId]) {
+    if (!batchInfo) {
       return res.status(404).json({ error: 'Batch not found or already completed' });
     }
-    
-    const batchInfo = downloadProgress[batchId];
     
     if (!batchInfo.progress[mediaIdx]) {
       return res.status(404).json({ error: 'Media index not found in batch' });
@@ -1370,20 +1569,19 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
         
         if (!projectId) {
           console.log(`[BatchDownload Retry] No valid project found, creating new project for retry`);
-          // Create a new project for the retried media  
-          const { ProjectService } = require('../../services/projectService');
-          const projectServiceInstance = new ProjectService();
-          
+          // Create a new project for the retried media
           // Use the original project name if available, otherwise create a default one
           const projectName = batchInfo.projectName || `${videoInfo.title} - ${new Date().toLocaleString('he-IL')}`;
-          
-          const result = await projectServiceInstance.createMultiMediaProject(
+
+          console.log(`[BatchDownload Retry] Creating project with duration: ${videoInfo.duration || 0}s`);
+          const result = await projectService.createMultiMediaProject(
             projectName,
             [{
               name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
               buffer: fileBuffer,
-              mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
-            }],
+              mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`,
+              duration: videoInfo.duration || 0
+            } as any],
             userId
           );
           
@@ -1442,8 +1640,9 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
             [{
               name: videoInfo.title + '.' + (videoInfo.format || 'mp4'),
               buffer: fileBuffer,
-              mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`
-            }],
+              mimeType: videoInfo.hasVideo ? `video/${videoInfo.format || 'mp4'}` : `audio/${videoInfo.format || 'mp3'}`,
+              duration: videoInfo.duration || 0
+            } as any],
             userId
           );
           
@@ -1501,11 +1700,23 @@ router.post('/batch-download/retry', verifyUser, upload.single('cookieFile'), as
           progress: 100,
           status: 'completed'
         };
-        
+
         // Increment completed files count
         batchInfo.completedFiles++;
-        
-        console.log(`[BatchDownload Retry] Successfully downloaded: ${videoInfo.title}`);
+
+        // Update the projectId to the actual project (important for frontend to find it)
+        if (projectId) {
+          batchInfo.projectId = projectId;
+        }
+
+        // Save batch progress to persistent storage
+        await saveBatchProgress(batchId);
+
+        // Refresh user storage after successful download
+        await storageService.forceRefreshUserStorage(userId);
+        console.log('[BatchDownload Retry] Storage refreshed for user');
+
+        console.log(`[BatchDownload Retry] Successfully downloaded: ${videoInfo.title} (duration: ${videoInfo.duration || 0}s)`);
         
       } catch (error: any) {
         console.error(`[BatchDownload Retry] Failed to retry download:`, error);
@@ -1679,10 +1890,10 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
         duration: videoInfo.duration,
         hasVideo: videoInfo.hasVideo
       });
-      
+
       // Get quality options for the URL
       const formats = await YtDlpService.getQualityOptions(url);
-      
+
       res.json({
         valid: true,
         status: 'public', // Add status field
@@ -1697,18 +1908,21 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
       // Parse error message and determine status
       let userMessage = 'לא ניתן לגשת לכתובת URL זו';
       let status = 'invalid';
-      
+
+      // Check if this is a playlist URL
+      const isPlaylist = url.includes('list=') && !url.includes('list=WL'); // WL is Watch Later, treat as single video
+
       if (error.message.includes('סרטון פרטי') || error.message.includes('Private video')) {
-        userMessage = 'סרטון פרטי - נדרש קובץ Cookies לאימות';
-        status = 'protected';
+        userMessage = isPlaylist ? 'פלייליסט פרטי - נדרש קובץ Cookies לאימות' : 'סרטון פרטי - נדרש קובץ Cookies לאימות';
+        status = isPlaylist ? 'protected-playlist' : 'protected';
       } else if (error.message.includes('סרטון למנויים') || error.message.includes('members-only')) {
-        userMessage = 'סרטון למנויים בלבד - נדרש קובץ Cookies';
-        status = 'protected';
+        userMessage = isPlaylist ? 'פלייליסט למנויים בלבד - נדרש קובץ Cookies' : 'סרטון למנויים בלבד - נדרש קובץ Cookies';
+        status = isPlaylist ? 'protected-playlist' : 'protected';
       } else if (error.message.includes('Sign in to confirm') || error.message.includes('not a bot')) {
         userMessage = 'YouTube דורש אימות - נדרש קובץ Cookies';
-        status = 'protected';
+        status = isPlaylist ? 'protected-playlist' : 'protected';
       } else if (error.message.includes('לא זמין') || error.message.includes('unavailable')) {
-        userMessage = 'הסרטון לא זמין או הוסר';
+        userMessage = isPlaylist ? 'הפלייליסט לא זמין או הוסר' : 'הסרטון לא זמין או הוסר';
         status = 'invalid';
       } else if (error.message.includes('כתובת URL לא נתמכת') || error.message.includes('Unsupported URL')) {
         userMessage = 'כתובת URL לא נתמכת';
@@ -1717,38 +1931,90 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
       
       // For protected content, try to extract title from error or URL
       let title = '';
-      if (status === 'protected') {
+      if (status === 'protected' || status === 'protected-playlist') {
+        console.log('[CheckURL] Protected content detected, trying to get title...');
+        console.log('[CheckURL] Error message:', error.message);
+
         // Try to get title even for protected content using minimal yt-dlp call
         try {
           const minimalInfo = await YtDlpService.getMinimalInfo(url);
+          console.log('[CheckURL] getMinimalInfo result:', minimalInfo);
           if (minimalInfo.title) {
             title = minimalInfo.title;
             console.log('[CheckURL] Got title for protected content:', title);
+          } else {
+            console.log('[CheckURL] getMinimalInfo returned no title');
           }
         } catch (titleError) {
-          console.log('[CheckURL] Could not get title for protected content');
+          console.log('[CheckURL] Could not get title for protected content:', titleError);
         }
 
         // If still no title, try to extract from error message
-        if (!title) {
-          const titleMatch = error.message.match(/"([^"]+)"/); // Look for quoted title
-          if (titleMatch) {
-            title = titleMatch[1];
+        if (!title && error.message) {
+          // First check if this is an instruction message - don't extract from these
+          const errorLower = error.message.toLowerCase();
+          if (errorLower.includes('sign in to confirm') ||
+              errorLower.includes('use --cookies') ||
+              errorLower.includes('authentication') ||
+              errorLower.includes('manually pass cookies') ||
+              errorLower.includes('how to') ||
+              errorLower.includes('see https://')) {
+            // This is an instruction message, not a title
+            console.log('[CheckURL] Detected instruction message, not extracting title');
+            title = '';
           } else {
-            // For protected content, indicate that title will be retrieved during download
-            const videoIdMatch = url.match(/[?&]v=([^&]+)/);
-            if (videoIdMatch) {
-              title = `סרטון מוגן - השם יתקבל בעת ההורדה`;
+            // Try multiple patterns to extract title from error
+            const titlePatterns = [
+              /"([^"]+)" is members-only/,
+              /"([^"]+)" is a private video/,
+              /Video "([^"]+)"/,
+              /'([^']+)' is private/,
+              /\[youtube\] [A-Za-z0-9_-]+: (.+?) \(/,
+              /\[youtube\] [A-Za-z0-9_-]+: (.+?)$/m,
+              /ERROR:\s+\[youtube\]\s+[A-Za-z0-9_-]+:\s+(.+?)(?:\s+\(|$)/,
+              /ERROR: ([^:]+) is/,
+              // Removed generic quote pattern that catches error instructions
+              /סרטון "([^"]+)"/,
+            ];
+
+            for (const pattern of titlePatterns) {
+              const match = error.message.match(pattern);
+              if (match && match[1]) {
+                let extractedTitle = match[1].trim();
+                // Clean up the title
+                extractedTitle = extractedTitle.replace(/\s+\(Sign in.*\)$/, '');
+                extractedTitle = extractedTitle.replace(/^\[.*?\]\s+/, '');
+
+                // Additional check to ensure it's not an instruction
+                const titleLower = extractedTitle.toLowerCase();
+                if (!titleLower.includes('sign in') &&
+                    !titleLower.includes('--cookies') &&
+                    !titleLower.includes('authentication') &&
+                    !extractedTitle.includes('�') &&
+                    extractedTitle.length > 2) {
+                  title = extractedTitle;
+                  console.log('[CheckURL] Extracted title from error:', title);
+                  break;
+                }
+              }
             }
           }
         }
+
+        // Only use a fallback if we really couldn't get any title
+        if (!title) {
+          // Don't use error messages or instructions as title
+          // Instead, leave it empty so frontend can use proper fallback
+          title = '';
+          console.log('[CheckURL] No title could be extracted for protected content');
+        }
       }
 
-      // For protected content, return 200 instead of 400 so frontend can handle it
-      const responseStatus = status === 'protected' ? 200 : 400;
+      // For protected content (both single videos and playlists), return 200 instead of 400 so frontend can handle it
+      const responseStatus = (status === 'protected' || status === 'protected-playlist') ? 200 : 400;
 
       res.status(responseStatus).json({
-        valid: status === 'protected', // Protected content is valid, just needs cookies
+        valid: status === 'protected' || status === 'protected-playlist', // Protected content is valid, just needs cookies
         status: status,
         title: title || undefined, // Include title if we found one
         message: userMessage,
@@ -1760,6 +2026,46 @@ router.post('/check-url', verifyUser, async (req: Request, res: Response) => {
     res.status(500).json({ 
       valid: false,
       error: 'שגיאה בבדיקת הכתובת' 
+    });
+  }
+});
+
+/**
+ * Test title extraction for protected URLs (development only)
+ */
+router.post('/test-title', verifyUser, async (req: Request, res: Response) => {
+  const { url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  console.log('[TestTitle] Testing title extraction for:', url);
+
+  // Import YtDlpService
+  const { YtDlpService } = require('../../services/ytdlpService');
+
+  try {
+    // Try to get minimal info (should work even for protected content)
+    const minimalInfo = await YtDlpService.getMinimalInfo(url);
+    console.log('[TestTitle] getMinimalInfo result:', minimalInfo);
+
+    if (minimalInfo.title) {
+      res.json({
+        title: minimalInfo.title,
+        source: 'getMinimalInfo'
+      });
+    } else {
+      res.json({
+        error: 'Could not extract title',
+        source: 'getMinimalInfo returned no title'
+      });
+    }
+  } catch (error: any) {
+    console.error('[TestTitle] Error:', error);
+    res.json({
+      error: error.message || 'Error extracting title',
+      source: 'exception'
     });
   }
 });
@@ -2607,15 +2913,51 @@ router.post('/orphaned/restore-to-media', verifyUser, async (req: Request, res: 
           const folders = await fs_promises.readdir(orphanedPath);
           for (const folder of folders) {
             if (folder === 'orphaned-index.json') continue;
-            
-            // Check if this folder matches or contains the transcriptionId
-            const transcriptionBase = transcriptionId.replace(/_media-\d+$/, '');
-            
-            if (folder === transcriptionId || 
-                folder === transcriptionBase ||
-                folder.includes(transcriptionId) || 
-                transcriptionId.includes(folder) ||
-                folder.includes(transcriptionBase)) {
+
+            // Enhanced folder matching logic for both regular and UUID-based media IDs
+            // Orphaned folders are named: orphaned_${projectId}_${mediaId}_${timestamp}
+            // TranscriptionId is: ${projectId}_${mediaId}_${timestamp} (without "orphaned_" prefix)
+
+            // Try exact match first (unlikely due to orphaned_ prefix)
+            let isMatch = false;
+
+            // Check if folder starts with "orphaned_" and contains the transcriptionId
+            if (folder.startsWith('orphaned_') && folder.includes(transcriptionId)) {
+              isMatch = true;
+              console.log(`[RestoreToMedia] Matched by orphaned prefix + transcriptionId: ${folder}`);
+            }
+
+            // For UUID-based media IDs, try component-based matching
+            if (!isMatch && transcriptionId.includes('_media-')) {
+              // Parse transcriptionId components
+              const parts = transcriptionId.split('_');
+              if (parts.length >= 2) {
+                const projectId = parts[0];
+                const mediaId = parts.slice(1, -1).join('_'); // Handle media IDs with underscores
+                const timestamp = parts[parts.length - 1];
+
+                // Check if folder contains all components
+                if (folder.includes(projectId) && folder.includes(mediaId) && folder.includes(timestamp)) {
+                  isMatch = true;
+                  console.log(`[RestoreToMedia] Matched by components: ${folder}`);
+                }
+              }
+            }
+
+            // Fallback to original logic for backward compatibility
+            if (!isMatch) {
+              const transcriptionBase = transcriptionId.replace(/_media-\d+$/, '');
+              if (folder === transcriptionId ||
+                  folder === transcriptionBase ||
+                  folder.includes(transcriptionId) ||
+                  transcriptionId.includes(folder) ||
+                  folder.includes(transcriptionBase)) {
+                isMatch = true;
+                console.log(`[RestoreToMedia] Matched by fallback logic: ${folder}`);
+              }
+            }
+
+            if (isMatch) {
               const testPath = path.join(orphanedPath, folder, 'transcription', 'data.json');
               try {
                 await fs_promises.access(testPath);
@@ -2624,6 +2966,7 @@ router.post('/orphaned/restore-to-media', verifyUser, async (req: Request, res: 
                 console.log(`[RestoreToMedia] Found transcription at: ${testPath}`);
                 break;
               } catch {
+                console.log(`[RestoreToMedia] Match found but no data.json at: ${testPath}`);
                 // Continue searching
               }
             }
@@ -3242,7 +3585,6 @@ router.delete('/:projectId', verifyUser, async (req: Request, res: Response) => 
       console.log(`[ProjectDelete] Successfully deleted project: ${projectId}`);
       
       // Force refresh storage calculation for this user
-      const storageService = require('../../services/storageService').default;
       storageService.forceRefreshUserStorage(userId).then(() => {
         console.log(`[ProjectDelete] Storage refreshed for user: ${userId}`);
       }).catch((err: any) => {
@@ -3493,7 +3835,7 @@ router.post('/restore-archived', verifyUser, async (req: Request, res: Response)
 router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res: Response) => {
   try {
     const { projectId, mediaId } = req.params;
-    const { deleteTranscription = false } = req.body;
+    const { deleteTranscription = false, keepEmptyProject = false } = req.body;
     const userId = (req as any).user?.id || 'unknown';
     
     const projectPath = path.join(process.cwd(), 'user_data', 'users', userId, 'projects', projectId);
@@ -3644,18 +3986,38 @@ router.delete('/:projectId/media/:mediaId', verifyUser, async (req: Request, res
         // Check if this was the last media file
         if (projectData.mediaFiles.length === 0) {
           isLastMedia = true;
-          console.log(`[MediaDelete] Last media file deleted from project ${projectId}, deleting entire project`);
-          
-          // Delete the entire project directory
-          await fs_promises.rm(projectPath, { recursive: true, force: true });
-          
-          res.json({
-            success: true,
-            message: `Last media deleted - entire project ${projectId} removed`,
-            projectDeleted: true,
-            transcriptionPreserved: !deleteTranscription
-          });
-          return;
+
+          if (keepEmptyProject) {
+            console.log(`[MediaDelete] Last media file deleted from project ${projectId}, keeping empty project`);
+
+            // Update the project file to indicate it's empty
+            projectData.updatedAt = new Date().toISOString();
+            projectData.totalMedia = 0;
+            projectData.isEmpty = true;
+            await fs_promises.writeFile(projectFile, JSON.stringify(projectData, null, 2));
+
+            res.json({
+              success: true,
+              message: `Last media deleted - project ${projectId} kept as empty`,
+              projectDeleted: false,
+              projectKeptEmpty: true,
+              transcriptionPreserved: !deleteTranscription
+            });
+            return;
+          } else {
+            console.log(`[MediaDelete] Last media file deleted from project ${projectId}, deleting entire project`);
+
+            // Delete the entire project directory
+            await fs_promises.rm(projectPath, { recursive: true, force: true });
+
+            res.json({
+              success: true,
+              message: `Last media deleted - entire project ${projectId} removed`,
+              projectDeleted: true,
+              transcriptionPreserved: !deleteTranscription
+            });
+            return;
+          }
         } else {
           // Update the project file if there are remaining media files
           projectData.updatedAt = new Date().toISOString();
@@ -3913,11 +4275,78 @@ router.put('/:projectId/media/:mediaId/transcription', verifyUser, async (req: R
     };
     
     await fs_promises.writeFile(transcriptionPath, JSON.stringify(transcriptionData, null, 2));
-    
+
     console.log('[Save] Transcription saved successfully to:', transcriptionPath);
-    
-    res.json({ 
-      success: true, 
+
+    // Create automatic backup after successful save
+    try {
+      const backupDir = path.join(
+        path.dirname(transcriptionPath),
+        'backups'
+      );
+
+      // Ensure backup directory exists (critical for URL projects)
+      await fs_promises.mkdir(backupDir, { recursive: true });
+      console.log('[Save] Backup directory ensured:', backupDir);
+
+      // Get existing backups to determine version
+      const existingBackups = await fs_promises.readdir(backupDir).catch(() => []);
+      const backupFiles = existingBackups.filter(f => f.startsWith('backup_v'));
+
+      // Calculate version number
+      const latestVersion = backupFiles.reduce((max, file) => {
+        const version = parseInt(file.match(/backup_v(\d+)/)?.[1] || '0');
+        return Math.max(max, version);
+      }, 0);
+
+      const newVersion = latestVersion + 1;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupFileName = `backup_v${newVersion}_${timestamp}.json`;
+      const backupPath = path.join(backupDir, backupFileName);
+
+      // Create backup data with metadata
+      const backupData = {
+        ...transcriptionData,
+        metadata: {
+          ...transcriptionData.metadata,
+          version: newVersion,
+          backupDate: new Date().toISOString(),
+          fileName: backupFileName,
+          autoBackup: true
+        }
+      };
+
+      // Write backup file
+      await fs_promises.writeFile(backupPath, JSON.stringify(backupData, null, 2));
+
+      console.log('[Save] Auto-backup created successfully:', {
+        version: newVersion,
+        fileName: backupFileName,
+        path: backupPath
+      });
+
+      // Clean up old backups (keep last 50)
+      if (backupFiles.length >= 50) {
+        const sorted = backupFiles.sort((a, b) => {
+          const vA = parseInt(a.match(/backup_v(\d+)/)?.[1] || '0');
+          const vB = parseInt(b.match(/backup_v(\d+)/)?.[1] || '0');
+          return vA - vB;
+        });
+
+        const toDelete = sorted.slice(0, sorted.length - 49);
+        for (const file of toDelete) {
+          await fs_promises.unlink(path.join(backupDir, file)).catch(() => {});
+        }
+        console.log('[Save] Cleaned up', toDelete.length, 'old backup files');
+      }
+    } catch (backupError) {
+      // Log error but don't fail the save operation
+      console.error('[Save] Failed to create auto-backup:', backupError);
+      // Continue with success response even if backup fails
+    }
+
+    res.json({
+      success: true,
       message: 'Transcription saved successfully',
       mediaId,
       blocksCount: blocks?.length || 0
