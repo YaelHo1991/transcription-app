@@ -1012,6 +1012,37 @@
   max-height: none !important;
 }
 
+/* Remove height constraints from parent containers to allow natural block expansion */
+.fullscreen-mode .text-editor-inner,
+.fullscreen-editor-section .text-editor-inner,
+.fullscreen-text-editor .text-editor-inner {
+  height: auto !important;
+  max-height: none !important;
+}
+
+.fullscreen-mode .text-editor-body,
+.fullscreen-editor-section .text-editor-body,
+.fullscreen-text-editor .text-editor-body {
+  overflow: visible !important;
+  height: auto !important;
+}
+
+.fullscreen-mode .text-editor-content,
+.fullscreen-editor-section .text-editor-content,
+.fullscreen-text-editor .text-editor-content {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+}
+
+.fullscreen-mode .blocks-container,
+.fullscreen-editor-section .blocks-container,
+.fullscreen-text-editor .blocks-container {
+  height: auto !important;
+  max-height: none !important;
+}
+
 /* RTL Support for fullscreen */
 [dir="rtl"] .panel-control-toolbar {
   right: auto;
