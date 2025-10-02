@@ -2622,7 +2622,7 @@ export default function TextEditor({
       setActiveBlockId(newBlock.id);
       // For continuation blocks or when initialText is provided, focus on text field
       // Otherwise focus on speaker field
-      setActiveArea(isContinuation || initialText ? 'text' : 'speaker');
+      setActiveArea(isContinuation || (initialText && initialText.length > 0) ? 'text' : 'speaker');
       const newBlocks = [...blockManagerRef.current.getBlocks()];
       setBlocks(newBlocks);
 
