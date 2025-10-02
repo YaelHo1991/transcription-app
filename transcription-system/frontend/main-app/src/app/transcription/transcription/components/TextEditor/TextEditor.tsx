@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import TextBlock, { TextBlockData } from './blocks/TextBlock';
 import SlidingWindowTextEditor from './SlidingWindowTextEditor';
 import BlockManager from './blocks/BlockManager';
@@ -8,7 +8,6 @@ import { SpeakerManager } from '../Speaker/utils/speakerManager';
 import { ShortcutManager } from './utils/ShortcutManager';
 import { ProcessTextResult } from './types/shortcuts';
 import ShortcutsModal from './components/ShortcutsModal';
-import { ShortcutPopup } from './components/ShortcutPopup';
 import BackupStatusIndicator from './components/BackupStatusIndicator';
 import TSessionStatus from './components/TSessionStatus';
 import NewTranscriptionModal from './components/NewTranscriptionModal';
@@ -37,6 +36,10 @@ import { shouldUseIndexedDB, getApiUrl } from '../../../../../config/environment
 // import TTranscriptionNotification from './components/TTranscriptionNotification'; // Removed - no popup needed
 import { useRemarks } from '../Remarks/RemarksContext';
 import useProjectStore from '@/lib/stores/projectStore';
+import progressService from '@/services/progressService';
+import { rulesApiService } from '@/services/rulesApiService';
+import { transcriptionRulesService } from '@/services/transcriptionRulesService';
+import { HEBREW_PREFIXES } from '@/config/hebrewPrefixes';
 import './TextEditor.css';
 
 /**
@@ -57,13 +60,14 @@ export default function TextEditor({
   currentMediaId = '',
   projectName = '',
   speakerComponentRef,
+  onBlocksChange,
   virtualizationEnabled = false,
   transcriptions = [],
   currentTranscriptionIndex = 0,
   onTranscriptionChange,
   onTranscriptionDelete,
   onBulkTranscriptionDelete
-}: TextEditorProps & { 
+}: TextEditorProps & {
   virtualizationEnabled?: boolean;
   onTranscriptionDelete?: (index: number) => void;
   onBulkTranscriptionDelete?: (indices: number[]) => void;
@@ -113,6 +117,44 @@ export default function TextEditor({
   const [cursorAtStart, setCursorAtStart] = useState(false);
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState<'default' | 'david'>('default');
+  const [transcriptionType, setTranscriptionType] = useState<string>('general'); // Type of transcription: general, court, medical, etc.
+  console.log('[TextEditor] transcriptionType state initialized:', transcriptionType);
+
+  // Rules configuration states
+  const [ruleVisibilitySettings, setRuleVisibilitySettings] = useState<Record<string, 'optional' | 'forced' | 'off'>>({});
+  const [prefixConfigs, setPrefixConfigs] = useState<Record<string, { enabledPrefixes: string[], separator: string }>>({});
+  const [prefixList, setPrefixList] = useState(HEBREW_PREFIXES);
+  console.log('[TextEditor] Rules states initialized');
+
+  // Build rule settings for TextBlock word-by-word transformation
+  const ruleSettings = useMemo(() => {
+    const enabledRuleIds = Object.entries(ruleVisibilitySettings)
+      .filter(([_, state]) => state === 'optional' || state === 'forced')
+      .map(([ruleId, _]) => ruleId);
+
+    const rulePrefixSettings: { [ruleId: string]: string[] } = {};
+    Object.entries(prefixConfigs).forEach(([ruleId, config]) => {
+      const prefixStrings = config.enabledPrefixes
+        .map(prefixId => {
+          const found = prefixList.find(p => p.id === prefixId);
+          return found ? found.prefix : null;
+        })
+        .filter((p): p is string => p !== null);
+      rulePrefixSettings[ruleId] = prefixStrings;
+    });
+
+    const ruleSeparatorSettings: { [ruleId: string]: string } = {};
+    Object.entries(prefixConfigs).forEach(([ruleId, config]) => {
+      ruleSeparatorSettings[ruleId] = config.separator;
+    });
+
+    return {
+      enabledRuleIds,
+      prefixSettings: rulePrefixSettings,
+      separatorSettings: ruleSeparatorSettings
+    };
+  }, [ruleVisibilitySettings, prefixConfigs, prefixList]);
+
   const [isolatedSpeakers, setIsolatedSpeakers] = useState<Set<string>>(new Set());
   const [showDescriptionTooltips, setShowDescriptionTooltips] = useState(true);
   const [blockViewEnabled, setBlockViewEnabled] = useState(true);
@@ -167,7 +209,6 @@ export default function TextEditor({
 
   const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
-  const [showShortcutPopup, setShowShortcutPopup] = useState(false);
   const [showNewTranscriptionModal, setShowNewTranscriptionModal] = useState(false);
   const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
   const [showTranscriptionSwitcher, setShowTranscriptionSwitcher] = useState(false);
@@ -184,6 +225,25 @@ export default function TextEditor({
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [selectedBlocks, setSelectedBlocks] = useState<Set<number>>(new Set());
   const [showSpeakerSwapModal, setShowSpeakerSwapModal] = useState(false);
+
+  // Shortcut registration mode (inline Alt+4)
+  const [isRegisteringShortcut, setIsRegisteringShortcut] = useState(false);
+  const [shortcutPrefix, setShortcutPrefix] = useState('');
+  const [shortcutPrefixStart, setShortcutPrefixStart] = useState(0);
+  const [shortcutPrefixEnd, setShortcutPrefixEnd] = useState(0);
+  const [shortcutBlockId, setShortcutBlockId] = useState<string | null>(null);
+
+  // Debug: Log registration state on every render
+  useEffect(() => {
+    if (isRegisteringShortcut) {
+      console.log('🟢 [TextEditor] RENDER with isRegisteringShortcut=TRUE, blockId:', shortcutBlockId);
+      console.log('🟢 [TextEditor] Checking which block gets the prop...');
+      blocks.forEach((block, index) => {
+        const shouldReceiveProp = isRegisteringShortcut && shortcutBlockId === block.id;
+        console.log(`🟢   Block ${index} (${block.id}): ${shouldReceiveProp ? 'TRUE ✅' : 'false'}`);
+      });
+    }
+  });
   const [inputLanguage, setInputLanguage] = useState<'hebrew' | 'english'>('hebrew');
   const [showAutoCorrectModal, setShowAutoCorrectModal] = useState(false);
   const [showDocumentExportModal, setShowDocumentExportModal] = useState(false);
@@ -236,7 +296,77 @@ export default function TextEditor({
   useEffect(() => {
     console.log('TextEditor language state changed to:', inputLanguage);
   }, [inputLanguage]);
-  
+
+  // Load transcription rules when type changes
+  useEffect(() => {
+    console.log('[Rules] useEffect triggered with transcriptionType:', transcriptionType);
+    async function loadRulesConfig() {
+      try {
+        // Map transcription types to database values
+        const typeMap: Record<string, string> = {
+          'general': 'general',
+          'court': 'legal',
+          'medical': 'medical',
+          'business': 'interview',
+          'academic': 'general'
+        };
+
+        const dbType = typeMap[transcriptionType] || 'general';
+        console.log('[Rules] Loading rules for type:', transcriptionType, '→', dbType);
+
+        // Load rules and prefix configs
+        console.log('[Rules] Fetching system config...');
+        const result = await rulesApiService.fetchSystemConfig(dbType);
+        console.log('[Rules] System config result:', result);
+
+        console.log('[Rules] Fetching prefix list...');
+        const prefixResult = await rulesApiService.fetchPrefixList();
+        console.log('[Rules] Prefix list result:', prefixResult);
+
+        if (result.success) {
+          console.log('[Rules] Loaded rules from DB:', result.rules);
+
+          // Build prefix configs map
+          const prefixMap: Record<string, { enabledPrefixes: string[], separator: string }> = {};
+          result.prefixConfigs.forEach((config: any) => {
+            prefixMap[config.rule_id] = {
+              enabledPrefixes: config.enabled_prefix_ids || [],
+              separator: config.prefix_separator || '-'
+            };
+          });
+          console.log('[Rules] Built prefix map:', prefixMap);
+          setPrefixConfigs(prefixMap);
+
+          // Build rule visibility settings
+          const settings: Record<string, 'optional' | 'forced' | 'off'> = {};
+          result.rules.forEach((rule: any) => {
+            settings[rule.rule_id] = rule.default_state;
+          });
+          console.log('[Rules] Built visibility settings:', settings);
+          setRuleVisibilitySettings(settings);
+        } else {
+          console.warn('[Rules] System config fetch was not successful:', result);
+        }
+
+        if (prefixResult.success) {
+          const prefixObjects = prefixResult.prefixes.map((p: any) => ({
+            id: p.id,
+            prefix: p.prefix
+          }));
+          console.log('[Rules] Built prefix objects:', prefixObjects);
+          setPrefixList(prefixObjects);
+        } else {
+          console.warn('[Rules] Prefix list fetch was not successful:', prefixResult);
+        }
+      } catch (error) {
+        console.error('[Rules] Error loading rules config:', error);
+        console.error('[Rules] Error details:', error instanceof Error ? error.message : String(error));
+      }
+    }
+
+    loadRulesConfig();
+  }, [transcriptionType]);
+
   // Detect media changes to prevent cross-saving
   useEffect(() => {
     if (currentMediaId && previousMediaIdRef.current && currentMediaId !== previousMediaIdRef.current) {
@@ -390,7 +520,52 @@ export default function TextEditor({
   useEffect(() => {
     tIsSavingRef.current = tIsSaving;
   }, [tIsSaving]);
-  
+
+  // Activity-based progress tracking
+  useEffect(() => {
+    let progressInterval: NodeJS.Timeout;
+
+    if (currentProjectId && currentMediaId && mediaDuration > 0) {
+      // Save activity progress every 30 seconds
+      progressInterval = setInterval(async () => {
+        try {
+          // Calculate current activity-based progress
+          const activityProgress = progressService.calculateActivityBasedProgress(
+            currentProjectId,
+            currentMediaId,
+            mediaDuration
+          );
+
+          // Only save if there's significant activity (>5% progress or >10 keystrokes)
+          const totalKeystrokes = activityProgress.activeSessions.reduce((sum, s) => sum + s.keystrokes, 0);
+          if (activityProgress.overallProgress > 5 || totalKeystrokes > 10) {
+            await progressService.saveActivityProgress(
+              currentProjectId,
+              currentMediaId,
+              mediaDuration,
+              activityProgress
+            );
+
+            console.log('[TextEditor] Activity progress saved:', {
+              progress: activityProgress.overallProgress.toFixed(1) + '%',
+              confidence: activityProgress.confidenceLevel.toFixed(1) + '%',
+              sessions: activityProgress.activeSessions.length,
+              keystrokes: totalKeystrokes
+            });
+          }
+        } catch (error) {
+          console.error('[TextEditor] Failed to save activity progress:', error);
+        }
+      }, 30000); // Every 30 seconds
+    }
+
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    };
+  }, [currentProjectId, currentMediaId, mediaDuration]);
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -576,10 +751,14 @@ export default function TextEditor({
     }
     
     // Load new project
-    console.log('[Project] Loading project:', currentProjectId);
-    loadProjectData(currentProjectId);
+    console.log('[Project] Loading project:', currentProjectId, 'media:', currentMediaId);
+    if (currentProjectId && currentMediaId) {
+      loadProjectData(currentProjectId, currentMediaId);
+    } else {
+      console.warn('[Project] ⚠️ Skipping load - missing project or media ID:', { currentProjectId, currentMediaId });
+    }
     previousProjectIdRef.current = currentProjectId;
-  }, [currentProjectId]);
+  }, [currentProjectId, currentMediaId]);
   
   // Save when media changes and clear data
   useEffect(() => {
@@ -609,10 +788,15 @@ export default function TextEditor({
     // Save before clearing
     saveBeforeSwitch();
     
-    // Format media ID from filename (remove extension, sanitize)
-    const mediaId = '0-0-' + mediaFileName;
-    setTCurrentMediaId(mediaId);
-    
+    // Use the correct mediaId from props instead of generating one from filename
+    console.log('[Media Switch] Setting mediaId from prop:', currentMediaId, 'for file:', mediaFileName);
+    setTCurrentMediaId(currentMediaId);
+
+    // Also immediately update ref for save operations to prevent race conditions
+    if (currentMediaId) {
+      console.log('[Media Switch] Force updating local mediaId state immediately');
+    }
+
     // Clear remarks and speakers when switching to different media
     if (remarksContext) {
       const existingRemarks = remarksContext.state.remarks;
@@ -631,8 +815,8 @@ export default function TextEditor({
     // Set default transcription number
     setTCurrentTranscriptionNumber(2);
     
-    console.log('[Project] Media changed to:', mediaFileName);
-  }, [mediaFileName]);
+    console.log('[Project] Media changed to:', mediaFileName, 'mediaId:', currentMediaId);
+  }, [mediaFileName || '', currentMediaId || '']);
   
   // Save on page unload only (removed auto-save interval)
   useEffect(() => {
@@ -889,12 +1073,8 @@ export default function TextEditor({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
 
-      // Alt+5 to toggle shortcut popup
-      if (e.altKey && e.key === '5') {
-        e.preventDefault();
-        setShowShortcutPopup(prev => !prev);
-        return;
-      }
+      // Alt+5 is now handled in TextBlock.tsx for inline registration mode
+      // (removed old popup logic)
 
       // Get current values from refs
       const currentBlocks = blocksRef.current;
@@ -1087,17 +1267,21 @@ export default function TextEditor({
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S' || e.key === 'ד')) {
         e.preventDefault(); // Prevent browser's default save dialog
         e.stopPropagation();
-        console.log('[TextEditor] Ctrl+S pressed - triggering save');
-        // Call saveProjectData directly to avoid stale closure issues
-        saveProjectData();
+        console.log('[TextEditor] Ctrl+S pressed - triggering save via ref to avoid closure issues');
+        // Use the ref to avoid stale closure issues with remarksContext
+        if (saveProjectDataRef.current) {
+          saveProjectDataRef.current();
+        } else {
+          console.warn('[TextEditor] saveProjectDataRef not available during Ctrl+S');
+        }
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown, true); // Use capture phase
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [currentProjectId, currentMediaId]); // Add dependencies to get fresh values
+  }, []); // Remove dependencies to avoid closure issues
   
   // Handle auto-save on navigation
   useEffect(() => {
@@ -1225,10 +1409,17 @@ export default function TextEditor({
 
               // Find the project that contains this mediaId
               for (const project of projectsData.projects || []) {
-                if (project.mediaFiles && project.mediaFiles.includes(currentMediaId)) {
-                  effectiveProjectId = project.projectId;
-                  console.log('[TextEditor] ✅ Found project for media:', effectiveProjectId, 'on attempt', retryCount + 1);
-                  break;
+                if (project.mediaFiles) {
+                  // Handle both string IDs and media objects
+                  const hasMedia = project.mediaFiles.some((item: any) => {
+                    const mediaId = typeof item === 'string' ? item : item.id;
+                    return mediaId === currentMediaId;
+                  });
+                  if (hasMedia) {
+                    effectiveProjectId = project.projectId;
+                    console.log('[TextEditor] ✅ Found project for media:', effectiveProjectId, 'on attempt', retryCount + 1);
+                    break;
+                  }
                 }
               }
 
@@ -1329,7 +1520,8 @@ export default function TextEditor({
                     fileName: mediaName || '',
                     originalName: mediaName || '',
                     savedAt: new Date().toISOString()
-                  }
+                  },
+                  transcriptionType: transcriptionType
                 };
               },
               120000 // Check every 2 minutes
@@ -1405,16 +1597,20 @@ export default function TextEditor({
         
         // Load remarks if available
         if (data.remarks && Array.isArray(data.remarks) && remarksContext) {
-          // Clear existing remarks
-          remarksContext.state.remarks.forEach(remark => {
-            remarksContext.deleteRemark(remark.id);
-          });
-          // Add new remarks
-          data.remarks.forEach((remark: any) => {
-            remarksContext.addRemark(remark);
-          });
+          console.log('[TextEditor] Loading remarks for media:', currentMediaId, 'count:', data.remarks.length);
+          // Use loadRemarks to properly load without affecting other media files
+          remarksContext.loadRemarks(data.remarks);
         }
-        
+
+        // Load transcription type if available
+        if (data.transcriptionType) {
+          console.log('[TextEditor] Loading transcription type:', data.transcriptionType);
+          setTranscriptionType(data.transcriptionType);
+        } else {
+          // Default to 'general' if not specified
+          setTranscriptionType('general');
+        }
+
         // Reset transition flag after successful load
         console.log('[TextEditor] Transcription loaded, resetting transition flag');
         isTransitioningRef.current = false;
@@ -1460,7 +1656,8 @@ export default function TextEditor({
                 fileName: mediaName || '',
                 originalName: mediaName || '',
                 savedAt: new Date().toISOString()
-              }
+              },
+              transcriptionType: transcriptionType
             };
           },
           120000 // Check every 2 minutes
@@ -1597,7 +1794,8 @@ export default function TextEditor({
             fileName: mediaName || '',
             originalName: mediaName || '',
             savedAt: new Date().toISOString()
-          }
+          },
+          transcriptionType: transcriptionType
         };
       };
       
@@ -1738,9 +1936,16 @@ export default function TextEditor({
         
         if (targetIndex >= 0 && targetIndex < blocks.length) {
           const targetBlock = blocks[targetIndex];
-          blockManagerRef.current.setActiveBlock(targetBlock.id, fromField);
+
+          // If navigating to speaker field of a continuation block, switch to text field instead
+          let targetArea = fromField;
+          if (targetBlock.isContinuation && fromField === 'speaker') {
+            targetArea = 'text';
+          }
+
+          blockManagerRef.current.setActiveBlock(targetBlock.id, targetArea);
           setActiveBlockId(targetBlock.id);
-          setActiveArea(fromField);
+          setActiveArea(targetArea);
           setCursorAtStart(false);
           setBlocks([...blocks]);
           
@@ -1764,10 +1969,49 @@ export default function TextEditor({
     // Normal navigation
     blockManagerRef.current.setActiveBlock(blockId, fromField);
     blockManagerRef.current.navigate(direction);
-    
+
     const newBlockId = blockManagerRef.current.getActiveBlockId();
-    const newArea = blockManagerRef.current.getActiveArea();
-    
+    let newArea = blockManagerRef.current.getActiveArea();
+
+    // Check if target block is a continuation block or special tag
+    const blocks = blockManagerRef.current.getBlocks();
+    const targetBlock = blocks.find(b => b.id === newBlockId);
+
+    // If navigating to speaker field of a continuation block, switch to text field instead
+    if (targetBlock?.isContinuation && newArea === 'speaker') {
+      newArea = 'text';
+      blockManagerRef.current.setActiveBlock(newBlockId, 'text');
+    }
+
+    // Check if target block is a special tag
+    const SPECIAL_TAG_VALUES = ['\u200E[\u200Eמדברים יחד\u200E]\u200E', '\u200E[\u200Eצוחקים\u200E]\u200E', '\u200E[\u200Eמעיינים במסמכים\u200E]\u200E', '\u200E[\u200Eאין דיבורים\u200E]\u200E'];
+    const isTargetSpecialTag = targetBlock && SPECIAL_TAG_VALUES.includes(targetBlock.speaker);
+
+    console.log('[Navigation] Target block check:', {
+      newBlockId,
+      speaker: targetBlock?.speaker,
+      isTargetSpecialTag,
+      newArea,
+      fromField,
+      direction
+    });
+
+    // If navigating UP/DOWN to a special tag while in text area, switch to speaker field and position at end
+    if (isTargetSpecialTag && newArea === 'text' && (direction === 'up' || direction === 'down')) {
+      console.log('[Navigation] Switching to speaker field and positioning cursor at end of special tag');
+      newArea = 'speaker';
+      blockManagerRef.current.setActiveBlock(newBlockId, 'speaker');
+
+      // Position cursor at end after focus
+      setTimeout(() => {
+        const speakerInput = document.querySelector(`[data-block-id="${newBlockId}"] input.block-speaker`) as HTMLInputElement;
+        if (speakerInput && targetBlock) {
+          console.log('[Navigation] Setting cursor position to:', targetBlock.speaker.length);
+          speakerInput.setSelectionRange(targetBlock.speaker.length, targetBlock.speaker.length);
+        }
+      }, 20);
+    }
+
     setActiveBlockId(newBlockId);
     setActiveArea(newArea);
     setCursorAtStart(false); // Reset cursor position flag
@@ -1804,6 +2048,46 @@ export default function TextEditor({
     return result;
   }, [shortcutsEnabled]);
 
+  // Handle entering shortcut registration mode (Alt+4)
+  const handleEnterRegistrationMode = useCallback((blockId: string, prefix: string, startPos: number, endPos: number) => {
+    console.log('🟢🟢🟢 [TextEditor] handleEnterRegistrationMode CALLED 🟢🟢🟢');
+    console.log('🟢 [TextEditor Registration] Entering mode:', { blockId, prefix, startPos, endPos });
+    setIsRegisteringShortcut(true);
+    setShortcutPrefix(prefix);
+    setShortcutPrefixStart(startPos);
+    setShortcutPrefixEnd(endPos);
+    setShortcutBlockId(blockId);
+    console.log('🟢 [TextEditor Registration] State set to:', {
+      isRegisteringShortcut: true,
+      shortcutBlockId: blockId,
+      shortcutPrefix: prefix,
+      startPos,
+      endPos
+    });
+    // Force a re-render by logging after state update
+    setTimeout(() => {
+      console.log('🟢 [TextEditor Registration] State after 50ms - check if component re-rendered');
+    }, 50);
+  }, []);
+
+  // Handle exiting shortcut registration mode (Escape or complete)
+  const handleExitRegistrationMode = useCallback(() => {
+    console.log('🔴🔴🔴 [Registration] EXIT mode called - setting to FALSE 🔴🔴🔴');
+    console.trace('[Registration] Stack trace for exit:');
+    setIsRegisteringShortcut(false);
+    setShortcutPrefix('');
+    setShortcutPrefixStart(0);
+    setShortcutPrefixEnd(0);
+    setShortcutBlockId(null);
+  }, []);
+
+  // Get shortcut expansion if it exists
+  const handleGetShortcutExpansion = useCallback((shortcut: string): string | null => {
+    const shortcutsMap = shortcutManagerRef.current.getAllShortcuts();
+    const shortcutData = shortcutsMap.get(shortcut);
+    return shortcutData?.expansion || null;
+  }, []);
+
   // Handle adding personal shortcut
   const handleAddShortcut = useCallback(async (shortcut: string, expansion: string, description?: string, allowOverride?: boolean) => {
     try {
@@ -1827,12 +2111,7 @@ export default function TextEditor({
         const quota = shortcutManagerRef.current.getQuota();
         setUserQuota(quota);
 
-        // Show success feedback
-        setFeedbackMessage('קיצור נוסף מקומית');
-        if (feedbackTimeoutRef.current) {
-          clearTimeout(feedbackTimeoutRef.current);
-        }
-        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+        // Shortcut added successfully (inline registration mode handles UI)
         return;
       }
 
@@ -1888,12 +2167,7 @@ export default function TextEditor({
         const quota = shortcutManagerRef.current.getQuota();
         setUserQuota(quota);
 
-        // Show success feedback
-        setFeedbackMessage('קיצור נוסף בהצלחה');
-        if (feedbackTimeoutRef.current) {
-          clearTimeout(feedbackTimeoutRef.current);
-        }
-        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+        // Shortcut registered successfully (inline mode handles UI)
       } catch (fetchError: any) {
         // If network error, save locally as fallback
         console.warn('Failed to save to server, saving locally:', fetchError.message);
@@ -1912,12 +2186,7 @@ export default function TextEditor({
         const quota = shortcutManagerRef.current.getQuota();
         setUserQuota(quota);
 
-        // Show warning feedback
-        setFeedbackMessage('קיצור נשמר מקומית (השרת לא זמין)');
-        if (feedbackTimeoutRef.current) {
-          clearTimeout(feedbackTimeoutRef.current);
-        }
-        feedbackTimeoutRef.current = setTimeout(() => setFeedbackMessage(''), 3000);
+        // Shortcut registered successfully (inline mode handles UI)
       }
     } catch (error: any) {
       console.error('Failed to add shortcut:', error);
@@ -2195,21 +2464,38 @@ export default function TextEditor({
     const currentBlocks = blockManagerRef.current.getBlocks();
     const blockIndex = currentBlocks.findIndex(b => b.id === id);
     const originalSpeaker = currentBlocks[blockIndex]?.speaker;
-    
-    // Update the specific block
+
+    // Transformations now happen word-by-word in TextBlock component
+    // Just update the block directly
     blockManagerRef.current.updateBlock(id, field, value);
-    
+
+    // If updating speaker field with a special tag value, mark block as special tag
+    if (field === 'speaker') {
+      const SPECIAL_TAG_VALUES = ['\u200E[\u200Eמדברים יחד\u200E]\u200E', '\u200E[\u200Eצוחקים\u200E]\u200E', '\u200E[\u200Eמעיינים במסמכים\u200E]\u200E', '\u200E[\u200Eאין דיבורים\u200E]\u200E'];
+      const block = currentBlocks[blockIndex];
+      if (block && SPECIAL_TAG_VALUES.includes(value)) {
+        block.isSpecialTag = true;
+      } else if (block) {
+        block.isSpecialTag = false;
+      }
+    }
+
     // Mark transcription as modified
     console.log('[TextEditor] Block updated, marking as modified:', { id, field, valueLength: value.length });
     sessionStorage.setItem('transcriptionModified', 'true');
 
     // Track changes for backup service
     backupService.trackChanges();
-    
+
     // Store current blocks in sessionStorage for navigation saves
     const allBlocks = blockManagerRef.current.getBlocks();
     sessionStorage.setItem('currentTranscriptionBlocks', JSON.stringify(allBlocks));
-    
+
+    // Trigger progress update callback if provided
+    if (onBlocksChange) {
+      onBlocksChange(allBlocks);
+    }
+
     // Track change for incremental backup
     const updatedBlock = blockManagerRef.current.getBlocks().find(b => b.id === id);
     if (updatedBlock) {
@@ -2271,41 +2557,104 @@ export default function TextEditor({
         console.log(`[TextEditor] Main block already has timestamp: ${block?.speakerTime}`);
       }
     }
-    
+
     // Mark changes for auto-save
     backupService.markChanges();
-  }, [saveToHistory]);
+  }, [saveToHistory, onBlocksChange, ruleVisibilitySettings, prefixConfigs, prefixList]);
 
   // Handle new block creation
-  const handleNewBlock = useCallback(() => {
+  const handleNewBlock = useCallback((initialText?: string, cursorPos?: number, isContinuation?: boolean, parentSpeaker?: string, before?: boolean) => {
     const currentBlock = blockManagerRef.current.getActiveBlock();
     if (currentBlock) {
-      console.log(`[TextEditor] Creating new block with timestamp: ${currentMediaTimeRef.current}`);
-      const newBlock = blockManagerRef.current.addBlock(currentBlock.id, currentMediaTimeRef.current);
-      console.log(`[TextEditor] New block created:`, { id: newBlock.id, speakerTime: newBlock.speakerTime });
-      
+      console.log(`[TextEditor] Creating new block with timestamp: ${currentMediaTimeRef.current}, isContinuation: ${isContinuation}, before: ${before}`);
+
+      let newBlock: any;
+
+      if (before) {
+        // Insert block BEFORE current one
+        const blocks = blockManagerRef.current.getBlocks();
+        const currentIndex = blocks.findIndex(b => b.id === currentBlock.id);
+
+        if (currentIndex > 0) {
+          // Not the first block - add after previous block (which is before current)
+          const previousBlock = blocks[currentIndex - 1];
+          newBlock = blockManagerRef.current.addBlock(
+            previousBlock.id,
+            currentMediaTimeRef.current,
+            initialText,
+            isContinuation,
+            parentSpeaker
+          );
+        } else {
+          // First block - manually insert at position 0
+          newBlock = {
+            id: 'block-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11),
+            speaker: '',
+            text: initialText || '',
+            speakerTime: currentMediaTimeRef.current,
+            isContinuation,
+            parentSpeaker
+          };
+          blocks.unshift(newBlock); // Add to start
+          blockManagerRef.current.setBlocks(blocks);
+          blockManagerRef.current.setActiveBlock(newBlock.id, 'speaker');
+        }
+      } else {
+        // Normal: add after current block
+        newBlock = blockManagerRef.current.addBlock(
+          currentBlock.id,
+          currentMediaTimeRef.current,
+          initialText,
+          isContinuation,
+          parentSpeaker
+        );
+      }
+
+      console.log(`[TextEditor] New block created:`, { id: newBlock.id, speakerTime: newBlock.speakerTime, initialText, isContinuation, parentSpeaker, before });
+
       // Mark transcription as modified
       sessionStorage.setItem('transcriptionModified', 'true');
-      
+
       // Store current blocks in sessionStorage for navigation saves
       const allBlocks = blockManagerRef.current.getBlocks();
       sessionStorage.setItem('currentTranscriptionBlocks', JSON.stringify(allBlocks));
-      
+
       setActiveBlockId(newBlock.id);
-      setActiveArea('speaker');
+      // For continuation blocks or when initialText is provided, focus on text field
+      // Otherwise focus on speaker field
+      setActiveArea(isContinuation || initialText ? 'text' : 'speaker');
       const newBlocks = [...blockManagerRef.current.getBlocks()];
       setBlocks(newBlocks);
-      
+
+      // Trigger progress update callback if provided
+      if (onBlocksChange) {
+        onBlocksChange(newBlocks);
+      }
+
       // Track new block for incremental backup
       incrementalBackupService.trackBlockCreated(newBlock);
-      
+
       // Save to history immediately for structural changes
       saveToHistory(newBlocks);
-      
+
       // Mark changes for auto-save
       backupService.markChanges();
+
+      // If cursor position was provided and we're focusing on text, set it
+      if ((initialText || isContinuation) && cursorPos !== undefined) {
+        setTimeout(() => {
+          const textareas = document.querySelectorAll('textarea');
+          const newBlockTextarea = Array.from(textareas).find((ta: any) => {
+            return ta.closest('[data-block-id="' + newBlock.id + '"]');
+          }) as HTMLTextAreaElement;
+          if (newBlockTextarea) {
+            newBlockTextarea.focus();
+            newBlockTextarea.setSelectionRange(cursorPos, cursorPos);
+          }
+        }, 50);
+      }
     }
-  }, [saveToHistory]);
+  }, [saveToHistory, onBlocksChange]);
 
   // Handle block click for multi-select
   const handleBlockClick = useCallback((blockIndex: number, ctrlKey: boolean, shiftKey: boolean) => {
@@ -2464,14 +2813,56 @@ export default function TextEditor({
     backupService.markChanges();
   }, [saveToHistory]);
 
+  // Handle joining current block with previous block (opposite of Enter split)
+  const handleJoinBlock = useCallback((id: string): { joinPosition: number; previousBlockId: string } | null => {
+    const result = blockManagerRef.current.joinWithPreviousBlock(id);
+    if (!result) return null;
+
+    // Track deletion for incremental backup
+    incrementalBackupService.trackBlockDeleted(id);
+
+    // Mark transcription as modified
+    sessionStorage.setItem('transcriptionModified', 'true');
+
+    // Store current blocks in sessionStorage
+    const allBlocks = blockManagerRef.current.getBlocks();
+    sessionStorage.setItem('currentTranscriptionBlocks', JSON.stringify(allBlocks));
+
+    const newActiveId = blockManagerRef.current.getActiveBlockId();
+    const newArea = blockManagerRef.current.getActiveArea();
+    // Create new block objects to ensure React detects the change
+    const newBlocks = allBlocks.map(b => ({ ...b }));
+
+    setActiveBlockId(newActiveId);
+    setActiveArea(newArea);
+    setBlocks(newBlocks);
+
+    // Save to history immediately for structural changes
+    saveToHistory(newBlocks, true);
+
+    // Mark changes for auto-save
+    backupService.markChanges();
+
+    return result;
+  }, [saveToHistory]);
+
   // Handle DELETE key for cross-block deletion
   const handleDeleteAcrossBlocks = useCallback((currentBlockId: string, fromField: 'speaker' | 'text') => {
     const blocks = blockManagerRef.current.getBlocks();
     const currentIndex = blocks.findIndex(b => b.id === currentBlockId);
-    
+
     if (currentIndex < blocks.length - 1) {
       const nextBlock = blocks[currentIndex + 1];
-      
+
+      // Check if next block is a special tag - remove it entirely
+      const SPECIAL_TAG_VALUES = ['\u200E[\u200Eמדברים יחד\u200E]\u200E', '\u200E[\u200Eצוחקים\u200E]\u200E', '\u200E[\u200Eמעיינים במסמכים\u200E]\u200E', '\u200E[\u200Eאין דיבורים\u200E]\u200E'];
+      if (SPECIAL_TAG_VALUES.includes(nextBlock.speaker)) {
+        // Remove the entire special tag block
+        blockManagerRef.current.removeBlock(nextBlock.id);
+        setBlocks([...blockManagerRef.current.getBlocks()]);
+        return;
+      }
+
       // Check if next block is completely empty
       if (!nextBlock.speaker && !nextBlock.text) {
         // Both speaker and text are empty, remove the next block
@@ -2566,28 +2957,29 @@ export default function TextEditor({
 
   // Search and Replace handlers
   // Project: Load transcription from backend
-  const loadProjectData = async (projectId: string) => {
-    if (!projectId) {
-      console.log('[Project] No project ID, starting fresh');
+  const loadProjectData = async (projectId: string, mediaId: string) => {
+    if (!projectId || !mediaId || mediaId.trim() === '') {
+      console.warn('[Project] ⚠️ Invalid project or media ID - preventing transcription bleed:', { projectId, mediaId });
       return;
     }
-    
-    console.log('[Project] Loading project ' + projectId);
-    
+
+    console.log(`[Project] Loading project ${projectId}, media ${mediaId}`);
+
     // Try to load from IndexedDB first for instant loading
     if (shouldUseIndexedDB()) {
       try {
         await indexedDBService.init();
-        const cachedData = await indexedDBService.loadTranscription(projectId);
+        console.log('[IndexedDB] Loading with:', { projectId, mediaId, currentMediaId });
+        const cachedData = await indexedDBService.loadTranscription(projectId, mediaId);
         if (cachedData && cachedData.blocks && cachedData.blocks.length > 0) {
-          console.log('[IndexedDB] Loaded ' + cachedData.blocks.length + ' blocks from cache');
-          
+          console.log('[IndexedDB] Loaded ' + cachedData.blocks.length + ' blocks from cache for:', { projectId, mediaId });
+
           // Load cached data immediately for instant display
           blockManagerRef.current.setBlocks(cachedData.blocks);
           setBlocks(cachedData.blocks);
-          
+
           // Initialize services
-          incrementalBackupService.initialize(projectId, cachedData.blocks, cachedData.version || 0);
+          incrementalBackupService.initialize(projectId, mediaId, cachedData.blocks, cachedData.version || 0);
           
           // Fire event for virtualization
           const event = new CustomEvent('blocksLoaded', {
@@ -2652,7 +3044,7 @@ export default function TextEditor({
       });
       
       // Initialize incremental backup service with loaded blocks
-      incrementalBackupService.initialize(projectId, loadedBlocks, projectData.version || 0);
+      incrementalBackupService.initialize(projectId, mediaId, loadedBlocks, projectData.version || 0);
       
       console.log('[Project] DEBUG: State blocks after setBlocks:', loadedBlocks.length);
       
@@ -2814,6 +3206,8 @@ export default function TextEditor({
     console.log('[SaveProjectData] Current state:', {
       currentProjectId,
       currentMediaId,
+      tCurrentMediaId,
+      mediaFileName,
       transcriptions: transcriptions?.length || 0,
       isTransitioning: isTransitioningRef.current
     });
@@ -2852,25 +3246,57 @@ export default function TextEditor({
         speakers = speakerManagerRef.current.getAllSpeakers();
       }
       
+      // Debug remarks context
+      console.log('[Project] Remarks context check:', {
+        hasRemarksContext: !!remarksContext,
+        hasState: !!remarksContext?.state,
+        hasRemarks: !!remarksContext?.state?.remarks,
+        remarksArray: remarksContext?.state?.remarks,
+        remarksLength: remarksContext?.state?.remarks?.length || 0
+      });
+
       console.log('[Project] Data to save:', {
         blocksCount: currentBlocks.length,
         speakersCount: speakers.length,
         speakers: speakers,
         remarksCount: remarksContext?.state.remarks?.length || 0
       });
-      
+
+      // Validate content before saving - prevent empty saves
+      const hasContent = currentBlocks.some(block =>
+        block.text && block.text.trim().length > 0
+      );
+
+      if (!hasContent) {
+        console.warn('[TextEditor] Skipping save - no content in blocks');
+        return;
+      }
+
       // Start saving indicator
       setTIsSaving(true);
       
       try {
+        const remarksToSave = remarksContext?.state?.remarks || [];
+        const playedRanges = (window as any).__currentPlayedRanges || [];
+
+        // Use tCurrentMediaId if available and valid, otherwise fall back to currentMediaId
+        const mediaIdToUse = (tCurrentMediaId && tCurrentMediaId.trim() !== '') ? tCurrentMediaId : currentMediaId;
+
         console.log('[TextEditor] Calling saveMediaData with:', {
           projectId: currentProjectId,
-          mediaId: currentMediaId,
+          currentMediaId,
+          tCurrentMediaId,
+          mediaIdToUse,
           blocksCount: currentBlocks.length,
           speakersCount: speakers.length,
-          speakerDetails: speakers
+          speakerDetails: speakers,
+          remarksCount: remarksToSave.length,
+          remarks: remarksToSave,
+          playedRangesCount: playedRanges.length,
+          playedRanges: playedRanges, // Log the actual ranges too
+          transcriptionType: transcriptionType
         });
-        const success = await saveMediaData(currentProjectId, currentMediaId, {
+        const success = await saveMediaData(currentProjectId, mediaIdToUse, {
           blocks: currentBlocks,
           speakers: speakers.map((speaker: any) => ({
             id: speaker.id || `speaker-${speaker.code}`,
@@ -2880,7 +3306,9 @@ export default function TextEditor({
             color: speaker.color || '#667eea',
             count: speaker.count || speaker.blockCount || 0
           })),
-          remarks: remarksContext?.state.remarks || []
+          remarks: remarksToSave,
+          playedRanges: playedRanges,
+          transcriptionType: transcriptionType
         });
         
         console.log('[Project] Save result:', success);
@@ -2992,12 +3420,28 @@ export default function TextEditor({
         hasTime: b.speakerTime !== undefined && b.speakerTime > 0
       })));
       
+      // Get remarks from global reference (like we do with speakers)
+      let remarks = [];
+      if ((window as any).remarksRef) {
+        console.log('[Project] Getting remarks from Remarks global ref');
+        remarks = (window as any).remarksRef.getAllRemarks();
+      } else if (remarksContext?.state.remarks) {
+        console.log('[Project] Getting remarks from context');
+        remarks = remarksContext.state.remarks;
+      }
+      console.log('[Project] Saving with remarks count:', remarks.length);
+
+      // Get playedRanges from global state if available
+      const playedRanges = (window as any).__currentPlayedRanges || [];
+      console.log('[Project] Including playedRanges:', playedRanges.length, 'segments');
+
       // Trigger save through parent component
       const event = new CustomEvent('saveTranscription', {
         detail: {
           blocks: currentBlocks,
           speakers: speakers,
-          remarks: remarksContext?.state.remarks || [],
+          remarks: remarks,
+          playedRanges: playedRanges,  // Include playedRanges for progress tracking
           mediaId: currentMediaId,  // Include media ID for proper isolation
           projectId: currentProjectId  // Include project ID as well
         }
@@ -3106,8 +3550,22 @@ export default function TextEditor({
     // Save to IndexedDB first for instant local backup
     if (shouldUseIndexedDB()) {
       try {
+        // Use tCurrentMediaId if available and valid, otherwise fall back to currentMediaId
+        const mediaIdToUse = (tCurrentMediaId && tCurrentMediaId.trim() !== '') ? tCurrentMediaId : currentMediaId;
+
+        console.log('[IndexedDB] About to save with:', {
+          currentProjectId,
+          currentMediaId,
+          tCurrentMediaId,
+          mediaIdToUse,
+          blocksLength: currentBlocks.length,
+          speakersLength: speakers.length,
+          remarksLength: remarks.length
+        });
+
         await indexedDBService.saveTranscription(
           currentProjectId,
+          mediaIdToUse,
           currentBlocks,
           speakers,
           remarks
@@ -3183,12 +3641,23 @@ export default function TextEditor({
         speakers = speakerManagerRef.current.getAllSpeakers();
       }
 
+      // Get remarks from global reference
+      let remarks = [];
+      if ((window as any).remarksRef) {
+        remarks = (window as any).remarksRef.getAllRemarks();
+      } else if (remarksContext?.state.remarks) {
+        remarks = remarksContext.state.remarks;
+      }
+
+      // Use tCurrentMediaId if available and valid, otherwise fall back to currentMediaId
+      const mediaIdToUse = (tCurrentMediaId && tCurrentMediaId.trim() !== '') ? tCurrentMediaId : currentMediaId;
+
       const backupData = {
         blocks: currentBlocks,
         speakers: speakers,
-        remarks: remarksContext?.state.remarks || [],
+        remarks: remarks,
         metadata: {
-          mediaId: currentMediaId,
+          mediaId: mediaIdToUse,
           fileName: currentMediaFileName || mediaFileName,
           originalName: mediaName || currentMediaFileName || mediaFileName
         }
@@ -3198,7 +3667,7 @@ export default function TextEditor({
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
       const apiUrl = getApiUrl();
       const response = await fetch(
-        `${apiUrl}/api/projects/${currentProjectId}/media/${currentMediaId}/backup`,
+        `${apiUrl}/api/projects/${currentProjectId}/media/${mediaIdToUse}/backup`,
         {
           method: 'POST',
           headers: {
@@ -3794,7 +4263,13 @@ export default function TextEditor({
   */
 
   const stats = getStatistics();
-  
+
+  // Calculate current page based on active block
+  let currentPage = 1;
+  if (activeBlockId && blockManagerRef.current && blockManagerRef.current.getBlockPage) {
+    currentPage = blockManagerRef.current.getBlockPage(activeBlockId);
+  }
+
   return (
     <div className="text-editor-container">
       <div className="text-editor-inner">
@@ -3845,6 +4320,8 @@ export default function TextEditor({
             speakerNamesRef={speakerNamesRef}
             currentMediaFileName={currentMediaFileName}
             setShortcutsFeedback={showFeedback}
+            transcriptionType={transcriptionType}
+            setTranscriptionType={setTranscriptionType}
           />
         </div>
         
@@ -3885,13 +4362,13 @@ export default function TextEditor({
         >
           {/* Media Name Header - Always Display */}
           <div className="media-name-header">
-            {/* Media Name Zone with Duration - CENTER */}
+            {/* Media Name Zone - LEFT */}
             <div className="header-zone media-zone">
               <div className="media-name-wrapper">
-                <div 
+                <div
                   ref={mediaNameRef}
                   className={'media-name-scrollable ' + (
-                    isMediaNameOverflowing && currentMediaFileName 
+                    isMediaNameOverflowing && currentMediaFileName
                       ? (/[\u0590-\u05FF]/.test(currentMediaFileName) ? 'scroll-rtl' : 'scroll-ltr')
                       : ''
                   )}
@@ -3906,21 +4383,18 @@ export default function TextEditor({
                     }
                     return null;
                   })()}
-                  {mediaDuration && mediaDuration !== '00:00:00' && (
-                    <span className="te-duration-inline"> ({mediaDuration})</span>
-                  )}
                 </div>
               </div>
             </div>
-            
-            {/* Project Name Zone with Dropdown */}
+
+            {/* Project Name Zone */}
             <div className="header-zone project-zone">
               {projectName && <span className="header-text">{projectName}</span>}
             </div>
-            
+
             <div className="header-divider"></div>
-            
-            {/* File Management Actions - RIGHT */}
+
+            {/* File Management Actions - RIGHTMOST */}
             <div className="te-header-actions">
               <button 
                 className={`te-header-btn te-save-btn ${tIsSaving ? 'saving' : ''}`}
@@ -4069,6 +4543,7 @@ export default function TextEditor({
                      }}>
                   <TextBlock
                     block={block}
+                    blockIndex={index}
                     isActive={block.id === activeBlockId}
                     isFirstBlock={index === 0}
                     mediaName={mediaName}
@@ -4078,13 +4553,14 @@ export default function TextEditor({
                     onUpdate={handleBlockUpdate}
                     onNewBlock={handleNewBlock}
                     onRemoveBlock={handleRemoveBlock}
+                    onJoinBlock={handleJoinBlock}
                     onSpeakerTransform={handleSpeakerTransform}
                     onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
                     onProcessShortcuts={processShortcuts}
-                    speakerColor={speakerColors.get(block.speaker)}
+                    speakerColor={speakerColors.get(block.isContinuation && block.parentSpeaker ? block.parentSpeaker : block.speaker)}
                     fontSize={fontSize}
                     fontFamily={fontFamily}
-                    isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
+                    isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.isContinuation && block.parentSpeaker ? block.parentSpeaker : block.speaker)}
                     showDescriptionTooltips={showDescriptionTooltips}
                     blockViewEnabled={blockViewEnabled}
                     speakerHighlights={speakerHighlights}
@@ -4092,6 +4568,15 @@ export default function TextEditor({
                     onClick={(ctrlKey, shiftKey) => handleBlockClick(index, ctrlKey, shiftKey)}
                     autoCorrectEngine={autoCorrectEngineRef.current}
                     previousSpeaker={index > 0 ? blocks[index - 1].speaker : ''}
+                    ruleSettings={ruleSettings}
+                    isRegisteringShortcut={isRegisteringShortcut && shortcutBlockId === block.id}
+                    shortcutPrefix={shortcutPrefix}
+                    shortcutPrefixStart={shortcutPrefixStart}
+                    shortcutPrefixEnd={shortcutPrefixEnd}
+                    onEnterRegistrationMode={handleEnterRegistrationMode}
+                    onExitRegistrationMode={handleExitRegistrationMode}
+                    onRegisterShortcut={handleAddShortcut}
+                    onGetShortcutExpansion={handleGetShortcutExpansion}
                   />
                 </div>
               );
@@ -4106,6 +4591,7 @@ export default function TextEditor({
           <span className="word-count">מילים: {stats.totalWords}</span>
           <span className="char-count">תווים: {stats.totalCharacters}</span>
           <span className="speaker-count">דוברים: {stats.speakers.size}</span>
+          <span className="page-count">עמוד: {currentPage}/{stats.totalPages || 1}</span>
           {activeMark && (
             <span className="current-mark-indicator">
               סימון נוכחי: {activeMark.type} ({formatTime(activeMark.time)})
@@ -4141,13 +4627,7 @@ export default function TextEditor({
         transcriptionId={currentTranscriptionId}
       />
 
-      {/* Compact Shortcut Popup (Alt+5) */}
-      <ShortcutPopup
-        isOpen={showShortcutPopup}
-        onClose={() => setShowShortcutPopup(false)}
-        onAddShortcut={handleAddShortcut}
-        feedbackMessage={feedbackMessage}
-      />
+      {/* Shortcut registration is now inline (handled in TextBlock) */}
       
       {/* New Transcription Modal */}
       <NewTranscriptionModal

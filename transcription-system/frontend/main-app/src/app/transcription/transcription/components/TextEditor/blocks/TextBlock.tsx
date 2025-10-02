@@ -4,6 +4,8 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, KeyboardEvent
 import { ProcessTextResult } from '../types/shortcuts';
 import TextHighlightOverlay from '../components/TextHighlightOverlay';
 import { AutoCorrectEngine } from '../utils/AutoCorrectEngine';
+import progressService from '@/services/progressService';
+import { transcriptionRulesService } from '@/services/transcriptionRulesService';
 import './TextBlock.css';
 
 export interface TextBlockData {
@@ -11,18 +13,34 @@ export interface TextBlockData {
   speaker: string;
   text: string;
   speakerTime?: number;
+  isContinuation?: boolean;      // Marks continuation blocks (Shift+Enter)
+  parentSpeaker?: string;         // Tracks parent speaker for color inheritance
+  isSpecialTag?: boolean;         // Marks special annotation blocks (e.g., [מדברים יחד])
 }
+
+// Special tag mappings - triggered by [ at position 0 in speaker field
+// Using LRM (Left-to-Right Mark) \u200E to force correct bracket orientation in RTL context
+const SPECIAL_TAGS = {
+  'מ': '\u200E[\u200Eמדברים יחד\u200E]\u200E',
+  'צ': '\u200E[\u200Eצוחקים\u200E]\u200E',
+  'ע': '\u200E[\u200Eמעיינים במסמכים\u200E]\u200E',
+  'ד': '\u200E[\u200Eאין דיבורים\u200E]\u200E'
+} as const;
+
+const VALID_TAG_LETTERS = ['מ', 'צ', 'ע', 'ד'];
 
 interface TextBlockProps {
   block: TextBlockData;
+  blockIndex?: number;
   isActive: boolean;
   isFirstBlock?: boolean;
   activeArea: 'speaker' | 'text';
   cursorAtStart?: boolean;
   onNavigate: (direction: 'prev' | 'next' | 'up' | 'down' | 'speaker' | 'text', fromField: 'speaker' | 'text') => void;
   onUpdate: (id: string, field: 'speaker' | 'text', value: string) => void;
-  onNewBlock: () => void;
+  onNewBlock: (initialText?: string, cursorPos?: number, isContinuation?: boolean, parentSpeaker?: string, before?: boolean) => void;
   onRemoveBlock: (id: string) => void;
+  onJoinBlock?: (blockId: string) => { joinPosition: number; previousBlockId: string; joinedText: string } | null;
   onSpeakerTransform: (code: string) => Promise<string | null>;
   onDeleteAcrossBlocks?: (blockId: string, fromField: 'speaker' | 'text') => void;
   onProcessShortcuts?: (text: string, cursorPosition: number) => ProcessTextResult | null;
@@ -38,10 +56,24 @@ interface TextBlockProps {
   onClick?: (ctrlKey: boolean, shiftKey: boolean) => void;
   autoCorrectEngine?: AutoCorrectEngine;
   previousSpeaker?: string;
+  ruleSettings?: {
+    enabledRuleIds: string[];
+    prefixSettings: { [ruleId: string]: string[] };
+    separatorSettings: { [ruleId: string]: string };
+  };
+  isRegisteringShortcut?: boolean;
+  shortcutPrefix?: string;
+  shortcutPrefixStart?: number;
+  shortcutPrefixEnd?: number;
+  onEnterRegistrationMode?: (blockId: string, prefix: string, startPos: number, endPos: number) => void;
+  onExitRegistrationMode?: () => void;
+  onRegisterShortcut?: (shortcut: string, expansion: string) => Promise<void>;
+  onGetShortcutExpansion?: (shortcut: string) => string | null;
 }
 
 const TextBlock = React.memo(function TextBlock({
   block,
+  blockIndex = -1,
   isActive,
   isFirstBlock = false,
   mediaName,
@@ -51,6 +83,7 @@ const TextBlock = React.memo(function TextBlock({
   onUpdate,
   onNewBlock,
   onRemoveBlock,
+  onJoinBlock,
   onSpeakerTransform,
   onDeleteAcrossBlocks,
   onProcessShortcuts,
@@ -64,12 +97,37 @@ const TextBlock = React.memo(function TextBlock({
   textHighlights = [],
   onClick,
   autoCorrectEngine,
-  previousSpeaker = ''
+  previousSpeaker = '',
+  ruleSettings,
+  isRegisteringShortcut = false,
+  shortcutPrefix = '',
+  shortcutPrefixStart = 0,
+  shortcutPrefixEnd = 0,
+  onEnterRegistrationMode,
+  onExitRegistrationMode,
+  onRegisterShortcut,
+  onGetShortcutExpansion
 }: TextBlockProps) {
   const speakerRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [localSpeaker, setLocalSpeaker] = useState(block.speaker);
   const [localText, setLocalText] = useState(block.text);
+  const [isEnteringTag, setIsEnteringTag] = useState(false);  // Track tag entry mode
+
+  // Debug: Log when isRegisteringShortcut prop changes
+  useEffect(() => {
+    console.log('🟡 [TextBlock] useEffect fired for block:', block.id, 'isRegisteringShortcut:', isRegisteringShortcut);
+    if (isRegisteringShortcut) {
+      console.log('🟡🟡🟡 [TextBlock] isRegisteringShortcut prop changed to TRUE for block:', block.id);
+      console.log('🟡 [TextBlock] blockIndex:', blockIndex);
+      console.log('🟡 [TextBlock] CSS class should be: "block-text registering-shortcut"');
+      // Check actual DOM element
+      if (textRef.current) {
+        console.log('🟡 [TextBlock] ACTUAL className on DOM:', textRef.current.className);
+        console.log('🟡 [TextBlock] ACTUAL computed background:', window.getComputedStyle(textRef.current).backgroundColor);
+      }
+    }
+  }, [isRegisteringShortcut, block.id]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipMessage, setTooltipMessage] = useState('');
   // Always start with RTL by default
@@ -84,6 +142,13 @@ const TextBlock = React.memo(function TextBlock({
   const [processedRemarks, setProcessedRemarks] = useState<Set<string>>(new Set());
   const [fullSpeakerName, setFullSpeakerName] = useState<string>('');
   const [isFullySelected, setIsFullySelected] = useState(false);
+  const [debugWordExtraction, setDebugWordExtraction] = useState<string>('');
+  const [isWordHighlighted, setIsWordHighlighted] = useState(false); // Simple local state for green highlight
+  const [isTypingMeaning, setIsTypingMeaning] = useState(false); // User pressed Tab, now typing meaning
+  const [registrationWordStart, setRegistrationWordStart] = useState<number>(0); // Track where the word starts
+  const [registrationWordEnd, setRegistrationWordEnd] = useState<number>(0); // Track where the word ends
+  const [textLengthWhenArrowAdded, setTextLengthWhenArrowAdded] = useState<number>(0); // Track text length when arrow was inserted
+  const [currentCursorPosition, setCurrentCursorPosition] = useState<number>(0); // Track actual cursor position
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUpdatingFromProps = useRef(false);
   const wasFullySelected = useRef(false);
@@ -106,10 +171,63 @@ const TextBlock = React.memo(function TextBlock({
     expansionStart: number;
     expansionEnd: number;
   } | null>(null);
-  
+
+  // Pending compound transformation state
+  interface PendingCompound {
+    originalWord: string;        // e.g., "חמישים"
+    transformedValue: string;    // e.g., "50" or "ב-50"
+    position: number;            // Position in text
+    hadPrefix: boolean;          // true if had prefix like "ב"
+    prefix?: string;             // The actual prefix: "ב", "ו", "כ", etc.
+    separator?: string;          // The separator: "-" or ""
+  }
+  const [pendingCompound, setPendingCompound] = useState<PendingCompound | null>(null);
+
   // Removed debouncing as it was causing cursor jump issues
   // The React.memo optimization is sufficient for performance
-  
+
+  // Compound transformation pattern definitions
+  const COMPOUND_PATTERNS = {
+    // Tens (20-90) that can combine with units
+    tens: ['עשרים', 'שלושים', 'ארבעים', 'חמישים', 'שישים', 'שבעים', 'שמונים', 'תשעים'],
+
+    // Unit combiners (ו + 1-9)
+    unitCombiners: [
+      'ואחד', 'ואחת', 'ושניים', 'ושתיים', 'ושלושה', 'ושלוש',
+      'וארבעה', 'וארבע', 'וחמישה', 'וחמש', 'ושישה', 'ושש',
+      'ושבעה', 'ושבע', 'ושמונה', 'ותשעה', 'ותשע'
+    ],
+
+    // Percent words
+    percentWords: ['אחוז', 'אחוזים'],
+
+    // Thousand words
+    thousandWords: ['אלף', 'אלפים'],
+
+    // Hundred words
+    hundredWords: ['מאה', 'מאות', 'מאתיים'],
+
+    // Numbers 1-10 that can precede אלף/אלפים/מאות (including both forms)
+    thousandUnits: ['אחד', 'אחת', 'שניים', 'שתיים', 'שני', 'שתי',
+                    'שלושה', 'שלוש', 'ארבעה', 'ארבע',
+                    'חמישה', 'חמש', 'שישה', 'שש', 'שבעה', 'שבע',
+                    'שמונה', 'תשעה', 'תשע', 'עשרה', 'עשר',
+                    'שבעת', 'שמונת', 'תשעת', 'עשרת']
+  };
+
+  // Map Hebrew unit words to numbers
+  const unitValueMap: { [key: string]: number } = {
+    'ואחד': 1, 'ואחת': 1,
+    'ושניים': 2, 'ושתיים': 2,
+    'ושלושה': 3, 'ושלוש': 3,
+    'וארבעה': 4, 'וארבע': 4,
+    'וחמישה': 5, 'וחמש': 5,
+    'ושישה': 6, 'ושש': 6,
+    'ושבעה': 7, 'ושבע': 7,
+    'ושמונה': 8,
+    'ותשעה': 9, 'ותשע': 9
+  };
+
   // Helper function to get current media time via event
   const getCurrentMediaTime = (): number => {
     let time = 0;
@@ -148,10 +266,59 @@ const TextBlock = React.memo(function TextBlock({
       document.removeEventListener('setNextBlockText', handleSetNextBlockText as EventListener);
     };
   }, [isActive, activeArea, block.id, onUpdate]);
-  
+
+  // Cancel registration when block loses focus or becomes inactive
+  useEffect(() => {
+    if (!isActive && (isWordHighlighted || isTypingMeaning)) {
+      console.log('✅ Block lost focus - canceling registration');
+
+      // Remove arrow and meaning if they exist
+      if (isTypingMeaning) {
+        const originalWord = localText.substring(registrationWordStart, registrationWordEnd);
+        const beforeWord = localText.substring(0, registrationWordStart);
+        const newText = beforeWord + originalWord;
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+      }
+
+      // Reset all registration state
+      setIsWordHighlighted(false);
+      setIsTypingMeaning(false);
+      setRegistrationWordStart(0);
+      setRegistrationWordEnd(0);
+      setTextLengthWhenArrowAdded(0);
+    }
+  }, [isActive, isWordHighlighted, isTypingMeaning, localText, registrationWordStart, registrationWordEnd, block.id, onUpdate]);
+
   // Helper function to add debug log
   const addDebugLog = (message: string) => {
     // Debug logging disabled
+  };
+
+  // Helper function to extract word behind cursor for shortcut registration
+  const extractWordBehindCursor = (text: string, cursorPos: number): {
+    word: string;
+    startPos: number;
+    endPos: number;
+  } => {
+    // If cursor is after a space, move back one position
+    let searchPos = cursorPos;
+    if (searchPos > 0 && text[searchPos - 1] === ' ') {
+      searchPos--;
+    }
+
+    // Find end of word (at searchPos)
+    const endPos = searchPos;
+
+    // Find start of word (go backwards until space or start)
+    let startPos = endPos;
+    while (startPos > 0 && text[startPos - 1] !== ' ') {
+      startPos--;
+    }
+
+    const word = text.substring(startPos, endPos);
+
+    return { word, startPos, endPos };
   };
 
   // Helper function to switch input language
@@ -224,6 +391,8 @@ const TextBlock = React.memo(function TextBlock({
       }
     }
   }, [block.id, block.speaker, block.text, isActive, activeArea]); // Sync when block data changes
+
+  // Removed forceBlockTextUpdate listener - transformations now happen word-by-word in handleTextChange
 
   // Additional listener for speaker updates to ensure immediate response
   useEffect(() => {
@@ -314,45 +483,120 @@ const TextBlock = React.memo(function TextBlock({
     }
   }, [localSpeaker, blockViewEnabled]);
 
-  // Focus management
+  // Focus management - simplified to prevent cursor jumping
   useEffect(() => {
     if (isActive) {
       const targetRef = activeArea === 'speaker' ? speakerRef : textRef;
-      
-      // Immediate focus attempt
-      if (targetRef.current) {
-        console.log('[TextBlock] Immediate focus attempt for ' + activeArea + ' field, block ' + block.id);
-        targetRef.current.focus();
-      }
-      
-      // Delayed focus to ensure DOM is ready
+
+      // Single focus attempt with small delay for DOM readiness
       const focusTimeout = setTimeout(() => {
-        if (targetRef.current) {
-          console.log('[TextBlock] Delayed focus for ' + activeArea + ' field, block ' + block.id);
+        if (targetRef.current && document.activeElement !== targetRef.current) {
+          console.log('[TextBlock] Focusing ' + activeArea + ' field, block ' + block.id);
           targetRef.current.focus();
-          
-          // Force focus again after a moment to ensure it takes
-          setTimeout(() => {
-            if (targetRef.current && document.activeElement !== targetRef.current) {
-              console.log('[TextBlock] Force re-focus ' + activeArea + ' field, block ' + block.id + ' (not focused)');
-              targetRef.current.focus();
-              targetRef.current.click(); // Try clicking to force focus
-            }
-          }, 200);
-          
-          // Position cursor at start if coming from DELETE key
-          if (cursorAtStart && targetRef.current) {
+
+          // Position cursor at start if coming from DELETE key navigation
+          if (cursorAtStart) {
             (targetRef.current as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(0, 0);
           }
         }
-      }, 50);
-      
+      }, 10);
+
       return () => clearTimeout(focusTimeout);
     } else {
       // Clear name completion when block loses focus
       setNameCompletion('');
     }
   }, [isActive, activeArea, cursorAtStart, block.id]);
+
+  // Special tag cursor position control - prevent cursor from entering inside tag
+  useEffect(() => {
+    const isSpecialTag = Object.values(SPECIAL_TAGS).includes(localSpeaker);
+    if (isSpecialTag && speakerRef.current) {
+      const handleClick = () => {
+        const input = speakerRef.current;
+        if (!input) return;
+
+        // Only allow cursor at position 0 (before tag) or at end (after tag)
+        setTimeout(() => {
+          const cursorPos = input.selectionStart || 0;
+          const tagLength = localSpeaker.length;
+
+          if (cursorPos > 0 && cursorPos < tagLength) {
+            // Cursor is inside tag - move it to end
+            input.setSelectionRange(tagLength, tagLength);
+          }
+        }, 0);
+      };
+
+      const handleKeyUp = (e: KeyboardEvent) => {
+        // Don't interfere with arrow navigation keys
+        if (e.key.startsWith('Arrow')) {
+          return;
+        }
+
+        const input = speakerRef.current;
+        if (!input) return;
+
+        // Only allow cursor at position 0 (before tag) or at end (after tag)
+        const cursorPos = input.selectionStart || 0;
+        const tagLength = localSpeaker.length;
+
+        if (cursorPos > 0 && cursorPos < tagLength) {
+          // Cursor is inside tag - move it to end
+          input.setSelectionRange(tagLength, tagLength);
+        }
+      };
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // For non-arrow keys, check cursor position immediately
+        if (!e.key.startsWith('Arrow') && e.key !== 'Backspace') {
+          const input = speakerRef.current;
+          if (!input) return;
+
+          const cursorPos = input.selectionStart || 0;
+          const tagLength = localSpeaker.length;
+
+          // If cursor is inside tag, prevent the keypress
+          if (cursorPos > 0 && cursorPos < tagLength) {
+            e.preventDefault();
+            // Move cursor to end
+            input.setSelectionRange(tagLength, tagLength);
+          }
+        }
+      };
+
+      const handleSelect = () => {
+        const input = speakerRef.current;
+        if (!input) return;
+
+        setTimeout(() => {
+          const cursorPos = input.selectionStart || 0;
+          const tagLength = localSpeaker.length;
+
+          if (cursorPos > 0 && cursorPos < tagLength) {
+            // Cursor is inside tag - move it to end
+            input.setSelectionRange(tagLength, tagLength);
+          }
+        }, 0);
+      };
+
+      speakerRef.current.addEventListener('click', handleClick);
+      speakerRef.current.addEventListener('keyup', handleKeyUp as EventListener);
+      speakerRef.current.addEventListener('keydown', handleKeyDown as EventListener);
+      speakerRef.current.addEventListener('select', handleSelect);
+      speakerRef.current.addEventListener('mouseup', handleClick);
+
+      return () => {
+        if (speakerRef.current) {
+          speakerRef.current.removeEventListener('click', handleClick);
+          speakerRef.current.removeEventListener('keyup', handleKeyUp as EventListener);
+          speakerRef.current.removeEventListener('keydown', handleKeyDown as EventListener);
+          speakerRef.current.removeEventListener('select', handleSelect);
+          speakerRef.current.removeEventListener('mouseup', handleClick);
+        }
+      };
+    }
+  }, [localSpeaker]);
 
   // Punctuation validation
   const endsWithPunctuation = (text: string): boolean => {
@@ -492,12 +736,19 @@ const TextBlock = React.memo(function TextBlock({
   // Helper function to try speaker transformation
   const tryTransformSpeaker = async (text: string) => {
     if (!text) return;
-    
+
     // Remove colons before processing - colon is not part of the name
     text = text.replace(/:/g, '');
-    
-    // Allow letters, numbers, and punctuation as valid codes/names (except colon)
-    const isValid = /^[א-תA-Za-z0-9.,/;\-*+!?()[\]]+$/.test(text);
+
+    // Skip transformation for special tags - they're complete as-is
+    const isSpecialTag = Object.values(SPECIAL_TAGS).includes(text);
+    if (isSpecialTag) return;
+
+    // Block [ from being used as a speaker code (reserved for tag entry)
+    if (text === '[') return;
+
+    // Allow letters, numbers, and punctuation as valid codes/names (except colon and [)
+    const isValid = /^[א-תA-Za-z0-9.,/;\-*+!?()\]]+$/.test(text);
     if (!isValid) return;
     
     // First check if this is an existing speaker name - request speaker list
@@ -533,25 +784,177 @@ const TextBlock = React.memo(function TextBlock({
 
   // Handle speaker keydown
   const handleSpeakerKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
+    // ============ RTL PUNCTUATION FIX ============
+    // Fix cursor jumping for punctuation marks and numbers in RTL context
+    // EXCEPT for [ at position 0 in empty field (that's for tag entry)
+    const punctuationKeys = ['.', ',', '!', '?', ':', ';', '(', ')', '[', ']', '{', '}', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    if (punctuationKeys.includes(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const input = speakerRef.current;
+      if (!input) return;
+
+      const cursorPos = input.selectionStart || 0;
+      const value = input.value;
+
+      // Special case: [ at position 0 in empty speaker field AND empty text field - tag entry mode
+      if (e.key === '[' && cursorPos === 0 && value === '' && localText === '') {
+        e.preventDefault();
+
+        // Add RLM + [ to display bracket correctly in RTL context
+        const RLM = '\u200F';
+        const newValue = RLM + '[';
+        setLocalSpeaker(newValue);
+        onUpdate(block.id, 'speaker', newValue);
+
+        // Set tag entry mode
+        setIsEnteringTag(true);
+
+        // Position cursor after the bracket
+        setTimeout(() => {
+          if (input) {
+            input.setSelectionRange(2, 2); // After RLM + [
+          }
+        }, 0);
+
+        return;
+      }
+
+      // For [ character: if we're here, block it completely (not for tag entry)
+      if (e.key === '[') {
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+
+      // RLM (Right-to-Left Mark) to establish RTL context for punctuation/numbers in empty/neutral fields
+      const RLM = '\u200F';
+
+      // Check if we need RLM: field is empty or starts with punctuation/numbers/neutral characters
+      // Strip RLM from start before checking to handle already-marked strings
+      const valueWithoutRLM = value.replace(/^\u200F/, '');
+      const needsRLM = value === '' || /^[.,:;!?()[\]{}0-9]/.test(valueWithoutRLM);
+
+      // Build new value with RLM prefix if needed
+      let newValue: string;
+      let newCursorPos: number;
+
+      if (needsRLM && !value.startsWith(RLM)) {
+        // Prepend RLM and insert character
+        newValue = RLM + value.slice(0, cursorPos) + e.key + value.slice(cursorPos);
+        newCursorPos = cursorPos + 2; // +1 for RLM, +1 for character
+      } else {
+        // Just insert character normally
+        newValue = value.slice(0, cursorPos) + e.key + value.slice(cursorPos);
+        newCursorPos = cursorPos + 1;
+      }
+
+      // Edge case: If field contains ONLY numbers/punctuation (no Hebrew), add trailing RLM too
+      const visibleContent = newValue.replace(/\u200F/g, ''); // Strip all RLM markers
+      const hasHebrewText = /[\u0590-\u05FF]/.test(visibleContent);
+
+      if (!hasHebrewText && visibleContent.length > 0 && !newValue.endsWith(RLM)) {
+        // Only numbers/punctuation - add RLM at end to fully establish RTL context
+        newValue = newValue + RLM;
+        // Don't change cursor position - it's already correct
+      }
+
+      // Update the value
+      setLocalSpeaker(newValue);
+      onUpdate(block.id, 'speaker', newValue);
+
+      // Force cursor to stay right after the inserted character
+      setTimeout(() => {
+        if (input) {
+          input.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
+
+      return;
+    }
+    // ============ END RTL PUNCTUATION FIX ============
+
+    // ============ SPECIAL TAG ENTRY MODE ============
+    if (isEnteringTag) {
+      // Allow Backspace to cancel tag entry
+      if (e.key === 'Backspace') {
+        setIsEnteringTag(false);
+        setLocalSpeaker('');
+        onUpdate(block.id, 'speaker', '');
+        return;
+      }
+
+      // Only allow valid tag letters
+      if (VALID_TAG_LETTERS.includes(e.key)) {
+        e.preventDefault();
+        const fullTag = SPECIAL_TAGS[e.key as keyof typeof SPECIAL_TAGS];
+        setLocalSpeaker(fullTag);
+        onUpdate(block.id, 'speaker', fullTag);
+        setIsEnteringTag(false);
+
+        // Move focus to next block
+        setTimeout(() => onNavigate('down', 'speaker'), 10);
+        return;
+      }
+
+      // Block all other keys during tag entry
+      e.preventDefault();
+      return;
+    }
+    // ============ END TAG ENTRY MODE ============
+
+    // ============ SHORTCUT REGISTRATION MODE HANDLERS ============
+    // Handle Alt+5 FIRST before any other logic
+
+    // Alt+4: Extract word behind cursor and enter registration mode
+    if (e.altKey && e.key === '4') {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[Registration] Alt+4 pressed in speaker field');
+      const cursorPosition = e.currentTarget.selectionStart || 0;
+      const { word, startPos, endPos } = extractWordBehindCursor(localSpeaker, cursorPosition);
+
+      if (!word || word.trim().length === 0) {
+        console.log('[Registration] No word found behind cursor');
+        return;
+      }
+
+      console.log('[Registration] Extracted word:', { word, startPos, endPos });
+      onEnterRegistrationMode?.(block.id, word, startPos, endPos);
+      return;
+    }
+
+    // Escape: Exit registration mode
+    if (e.key === 'Escape' && isRegisteringShortcut) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[Registration] Escape pressed in speaker field, exiting registration mode');
+      onExitRegistrationMode?.();
+      return;
+    }
+
+    // ============ END REGISTRATION MODE HANDLERS ============
+
     // Check if this is a special key that should bubble up to MediaPlayer
-    const isSpecialKey = 
+    // BUT: Arrow keys should NOT bubble up - we handle them here for navigation
+    const isArrowKey = e.key.startsWith('Arrow');
+    const isSpecialKey =
       // F-keys
       (e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2) ||
-      // Numpad keys  
+      // Numpad keys
       (e.code && e.code.startsWith('Numpad')) ||
-      // Combinations with Ctrl/Alt/Meta (except our specific shortcuts)
-      (e.ctrlKey || e.altKey || e.metaKey);
-    
+      // Combinations with Ctrl/Alt/Meta (except our specific shortcuts AND Alt+5)
+      ((e.ctrlKey || e.altKey || e.metaKey) && !(e.altKey && e.key === '5'));
+
     // Check if this is one of our text editor shortcuts that we handle
-    const isTextEditorShortcut = 
+    const isTextEditorShortcut =
       (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA' || e.key === 'א'));
-    
-    // If it's a special key but NOT one of our text editor shortcuts, let it bubble up
-    if (isSpecialKey && !isTextEditorShortcut) {
+
+    // If it's a special key but NOT one of our text editor shortcuts and NOT an arrow key, let it bubble up
+    if (isSpecialKey && !isTextEditorShortcut && !isArrowKey) {
       console.log('Special key in speaker field, allowing propagation:', e.key, e.code);
       return;
     }
-    
+
     const input = e.currentTarget;
     const text = input.value;
     
@@ -648,8 +1051,17 @@ const TextBlock = React.memo(function TextBlock({
     // ENTER - Transform speaker and create new block
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      await tryTransformSpeaker(text);
-      onNewBlock();
+
+      const cursorPos = input.selectionStart || 0;
+
+      if (cursorPos === 0) {
+        // At position 0 - add block BEFORE current one (above)
+        onNewBlock(undefined, undefined, undefined, undefined, true);
+      } else {
+        // Normal - add block after
+        await tryTransformSpeaker(text);
+        onNewBlock();
+      }
     }
 
     // SHIFT+ENTER - Allow default behavior for multiline (if needed in future)
@@ -660,20 +1072,58 @@ const TextBlock = React.memo(function TextBlock({
       onNavigate('text', 'speaker');
     }
 
-    // BACKSPACE - Navigate when at beginning (like in SpeakerBlock)
+    // BACKSPACE - Navigate when at beginning or remove empty blocks
     if (e.key === 'Backspace') {
-      // Check if cursor is at the beginning
-      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+      // Special handling for special tags: Backspace ANYWHERE removes entire tag and block
+      if (Object.values(SPECIAL_TAGS).includes(localSpeaker)) {
         e.preventDefault();
-        
-        // If both speaker and text fields are empty, remove the block
-        if (localSpeaker === '' && localText === '') {
-          onRemoveBlock(block.id);
+        // Remove the entire block (tags have no content in text field)
+        onRemoveBlock(block.id);
+        return;
+      }
+      // Check if cursor is at the beginning
+      else if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        e.preventDefault();
+
+        // If speaker field is empty
+        if (localSpeaker === '') {
+          // If text field is also empty, just remove the block
+          if (localText === '') {
+            onRemoveBlock(block.id);
+          }
+          // If text field has content, try to join with previous block
+          else if (onJoinBlock) {
+            const result = onJoinBlock(block.id);
+            // If join was successful, position cursor at join point in previous block
+            if (result) {
+              const { joinPosition, previousBlockId, joinedText } = result;
+
+              // Immediately call onUpdate to sync the previous block's text in React state
+              onUpdate(previousBlockId, 'text', joinedText);
+
+              // Focus and position cursor in the previous block's text area
+              setTimeout(() => {
+                const previousBlock = document.querySelector(`[data-block-id="${previousBlockId}"]`);
+                if (previousBlock) {
+                  const textArea = previousBlock.querySelector('textarea') as HTMLTextAreaElement;
+                  if (textArea) {
+                    textArea.focus();
+                    textArea.setSelectionRange(joinPosition, joinPosition);
+                  }
+                }
+              }, 10);
+            } else {
+              // Join failed (probably previous block is a special tag) - just navigate backward
+              onNavigate('prev', 'speaker');
+            }
+          }
         } else {
-          // Otherwise navigate to previous block's text field
+          // Speaker field has content, navigate to previous block's text field
           onNavigate('prev', 'speaker');
         }
       }
+      // Removed auto-delete logic: User can now delete last character and edit speaker name
+      // Block will only be deleted if user continues backspacing at position 0 with empty speaker (handled above)
       // Otherwise let normal backspace work
     }
 
@@ -724,35 +1174,436 @@ const TextBlock = React.memo(function TextBlock({
     // Allow Shift+Ctrl+Arrow for text selection
     if (e.key === 'ArrowUp' && !e.shiftKey) {
       e.preventDefault();
-      await tryTransformSpeaker(text);
+      // Don't try to transform special tags
+      const isSpecialTag = Object.values(SPECIAL_TAGS).includes(text);
+      if (!isSpecialTag) {
+        await tryTransformSpeaker(text);
+      }
+      // Note: If previous block is a continuation block, navigation will fail silently
+      // because continuation blocks don't have speaker fields
       onNavigate('up', 'speaker');  // Go to previous block, same field (speaker)
     } else if (e.key === 'ArrowDown' && !e.shiftKey) {
       e.preventDefault();
-      await tryTransformSpeaker(text);
+      // Don't try to transform special tags
+      const isSpecialTag = Object.values(SPECIAL_TAGS).includes(text);
+      if (!isSpecialTag) {
+        await tryTransformSpeaker(text);
+      }
       onNavigate('down', 'speaker');  // Go to next block, same field (speaker)
     } else if (e.key === 'ArrowLeft') {
-      // In RTL, left goes to next field when at end of text
-      if (input.selectionStart === input.value.length) {
-        e.preventDefault();
-        await tryTransformSpeaker(text);
-        onNavigate('text', 'speaker');  // Go to text field
+      const isSpecialTag = Object.values(SPECIAL_TAGS).includes(text);
+
+      if (isSpecialTag) {
+        // For special tags: ArrowLeft (physically left) goes to position 0 (before opening [)
+        const cursorPos = input.selectionStart || 0;
+        if (cursorPos === 0) {
+          // Already at position 0, go to previous block
+          e.preventDefault();
+          onNavigate('prev', 'speaker');
+        } else {
+          // Jump to position 0 (before opening bracket)
+          e.preventDefault();
+          input.setSelectionRange(0, 0);
+        }
+      } else {
+        // Regular behavior: In RTL, left goes to next field when at end of text
+        if (input.selectionStart === input.value.length) {
+          e.preventDefault();
+          await tryTransformSpeaker(text);
+          onNavigate('text', 'speaker');  // Go to text field
+        }
+        // Otherwise let cursor move naturally through text
       }
-      // Otherwise let cursor move naturally through text
     } else if (e.key === 'ArrowRight') {
-      // In RTL, right goes to previous field when at start of text
-      if (input.selectionStart === 0) {
-        e.preventDefault();
-        await tryTransformSpeaker(text);
-        onNavigate('prev', 'speaker');  // Go to previous block's text field
+      const isSpecialTag = Object.values(SPECIAL_TAGS).includes(text);
+
+      if (isSpecialTag) {
+        // For special tags: ArrowRight (physically right) goes to end (after closing ])
+        const cursorPos = input.selectionStart || 0;
+        if (cursorPos === text.length) {
+          // Already at end, go to text field
+          e.preventDefault();
+          onNavigate('text', 'speaker');
+        } else {
+          // Jump to end (after closing bracket)
+          e.preventDefault();
+          input.setSelectionRange(text.length, text.length);
+        }
+      } else {
+        // Regular behavior: In RTL, right goes to previous field when at start of text
+        if (input.selectionStart === 0) {
+          e.preventDefault();
+          await tryTransformSpeaker(text);
+          onNavigate('prev', 'speaker');  // Go to previous block's text field
+        }
+        // Otherwise let cursor move naturally through text
       }
-      // Otherwise let cursor move naturally through text
     }
   };
 
   // Handle text keydown
   const handleTextKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    console.log('Key pressed in text area:', e.key);
+    console.log('========== KEY PRESSED IN TEXT AREA ==========', e.key, 'Alt:', e.altKey, 'Ctrl:', e.ctrlKey);
+
     const textarea = e.currentTarget;
+
+    // ============ RTL PUNCTUATION FIX FOR TEXT AREA ============
+    // Fix cursor jumping for punctuation marks and numbers in RTL context
+    const punctuationKeys = ['.', ',', '!', '?', ':', ';', '(', ')', '[', ']', '{', '}', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    if (punctuationKeys.includes(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const cursorPos = textarea.selectionStart || 0;
+      const value = textarea.value;
+
+      // Only intercept if at the start or if field is empty/starts with punctuation/numbers
+      // Strip RLM before checking to handle already-marked strings
+      const RLM = '\u200F';
+      const valueWithoutRLM = value.replace(/^\u200F/, '');
+      const needsSpecialHandling = cursorPos === 0 || value === '' || /^[.,:;!?()[\]{}0-9]/.test(valueWithoutRLM);
+
+      if (needsSpecialHandling) {
+        e.preventDefault();
+
+        // RLM (Right-to-Left Mark) to establish RTL context for punctuation/numbers
+        const needsRLM = value === '' || /^[.,:;!?()[\]{}0-9]/.test(valueWithoutRLM);
+
+        // Build new value with RLM prefix if needed
+        let newValue: string;
+        let newCursorPos: number;
+
+        if (needsRLM && !value.startsWith(RLM)) {
+          // Prepend RLM and insert character
+          newValue = RLM + value.slice(0, cursorPos) + e.key + value.slice(cursorPos);
+          newCursorPos = cursorPos + 2; // +1 for RLM, +1 for character
+        } else {
+          // Just insert character normally
+          newValue = value.slice(0, cursorPos) + e.key + value.slice(cursorPos);
+          newCursorPos = cursorPos + 1;
+        }
+
+        // Edge case: If field contains ONLY numbers/punctuation (no Hebrew), add trailing RLM too
+        const visibleContent = newValue.replace(/\u200F/g, ''); // Strip all RLM markers
+        const hasHebrewText = /[\u0590-\u05FF]/.test(visibleContent);
+
+        if (!hasHebrewText && visibleContent.length > 0 && !newValue.endsWith(RLM)) {
+          // Only numbers/punctuation - add RLM at end to fully establish RTL context
+          newValue = newValue + RLM;
+          // Don't change cursor position - it's already correct
+        }
+
+        // Update the value
+        setLocalText(newValue);
+        onUpdate(block.id, 'text', newValue);
+
+        // Force cursor to stay right after the inserted character
+        setTimeout(() => {
+          if (textarea) {
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+          }
+        }, 0);
+
+        return;
+      }
+    }
+    // ============ END RTL PUNCTUATION FIX ============
+
+    // ============ SHORTCUT REGISTRATION MODE HANDLERS ============
+
+    // Alt+4: Toggle registration mode (start OR cancel)
+    if (e.altKey && e.key === '4') {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // If already in registration mode, JUST CANCEL IT (don't start new one)
+      if (isWordHighlighted || isTypingMeaning) {
+        console.log('✅ Alt+4 pressed - closing existing registration WITHOUT starting new one');
+
+        // Remove arrow and meaning if they exist, but keep pre-existing text using ** markers
+        if (isTypingMeaning) {
+          const beforeWord = localText.substring(0, registrationWordStart);
+          const originalWord = localText.substring(registrationWordStart, registrationWordEnd);
+
+          // Find the second * marker to get pre-existing text
+          const textAfterWord = localText.substring(registrationWordEnd);
+          const firstStarIndex = textAfterWord.indexOf('*');
+          const secondStarIndex = textAfterWord.indexOf('*', firstStarIndex + 1);
+
+          let preExistingText = '';
+          if (secondStarIndex >= 0) {
+            // Get everything after the second *
+            preExistingText = textAfterWord.substring(secondStarIndex + 1);
+          }
+
+          // Update text to remove arrow, **, and meaning, keep original word + pre-existing text
+          const newText = beforeWord + originalWord + preExistingText;
+          console.log('✅ Alt+4 cancel - reconstructing:', { beforeWord, originalWord, preExistingText, newText });
+          setLocalText(newText);
+          onUpdate(block.id, 'text', newText);
+        }
+
+        // Reset all registration state
+        setIsWordHighlighted(false);
+        setIsTypingMeaning(false);
+        setRegistrationWordStart(0);
+        setRegistrationWordEnd(0);
+
+        // Position cursor at end of original word
+        setTimeout(() => {
+          if (textRef.current) {
+            textRef.current.setSelectionRange(registrationWordEnd, registrationWordEnd);
+            textRef.current.focus();
+          }
+        }, 50);
+
+        return; // STOP HERE - don't start new registration
+      }
+
+      // Start new registration
+      console.log('✅ Alt+4 pressed - starting new registration');
+      const cursorPosition = textarea.selectionStart || 0;
+      const { word, startPos, endPos } = extractWordBehindCursor(localText, cursorPosition);
+      console.log('✅ Extracted word:', word);
+
+      if (!word || word.trim().length === 0) {
+        setDebugWordExtraction('לא נמצאה מילה מאחורי הסמן');
+        setTimeout(() => setDebugWordExtraction(''), 3000);
+        return;
+      }
+
+      // Check if this word is a registered shortcut
+      const expansion = onGetShortcutExpansion?.(word);
+
+      if (expansion) {
+        // Word IS registered - expand it automatically
+        console.log('✅ Word is registered, expanding:', word, '→', expansion);
+        const beforeWord = localText.substring(0, startPos);
+        const afterWord = localText.substring(endPos);
+        const newText = beforeWord + expansion + afterWord;
+
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+
+        // Position cursor after expansion
+        setTimeout(() => {
+          const newCursorPos = startPos + expansion.length;
+          textarea.setSelectionRange(newCursorPos, newCursorPos);
+          textarea.focus();
+        }, 10);
+      } else {
+        // Word NOT registered - highlight for registration
+        console.log('✅ Word not registered, highlighting for registration');
+        setIsWordHighlighted(true);
+        setRegistrationWordStart(startPos); // Track where word starts
+        setRegistrationWordEnd(endPos); // Track where word ends
+
+        // Select the word to show which word is being registered
+        setTimeout(() => {
+          textarea.setSelectionRange(startPos, endPos);
+          textarea.focus();
+        }, 10);
+
+        console.log('✅ Set isWordHighlighted to TRUE and selected word');
+      }
+      return;
+    }
+
+    // Tab: Keep registration mode, add arrow, place cursor after arrow to type meaning
+    if (e.key === 'Tab' && isWordHighlighted && !isTypingMeaning) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('✅ Tab pressed - adding arrow and ** markers');
+
+      // Insert left arrow after the word
+      const beforeWord = localText.substring(0, registrationWordEnd);
+      const afterWord = localText.substring(registrationWordEnd);
+
+      // ALWAYS add ** markers
+      const newText = beforeWord + ' ← **' + afterWord;
+
+      setLocalText(newText);
+      onUpdate(block.id, 'text', newText);
+      setIsTypingMeaning(true);
+
+      // Store the text length after arrow is added - this is where typed meaning starts
+      const arrowAndMarkerLength = 5; // " ← **"
+      setTextLengthWhenArrowAdded(registrationWordEnd + arrowAndMarkerLength);
+      console.log('✅ Arrow + ** added, Meaning starts at:', registrationWordEnd + arrowAndMarkerLength);
+
+      // Place cursor AFTER the first * (between the two **)
+      setTimeout(() => {
+        if (textRef.current) {
+          const newCursorPos = registrationWordEnd + 4; // After " ← *"
+          textRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          textRef.current.focus();
+          setCurrentCursorPosition(newCursorPos);
+          console.log('✅ Cursor positioned between ** at:', newCursorPos);
+        }
+      }, 50);
+      return;
+    }
+
+    // Escape: Cancel registration and restore original word
+    if (e.key === 'Escape' && (isWordHighlighted || isTypingMeaning)) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('✅ Escape pressed - canceling registration using ** markers');
+
+      // If we added an arrow and meaning, remove them and keep original word + pre-existing text
+      if (isTypingMeaning) {
+        const beforeWord = localText.substring(0, registrationWordStart);
+        const originalWord = localText.substring(registrationWordStart, registrationWordEnd);
+
+        // Find the second * marker to get pre-existing text
+        const textAfterWord = localText.substring(registrationWordEnd);
+        const firstStarIndex = textAfterWord.indexOf('*');
+        const secondStarIndex = textAfterWord.indexOf('*', firstStarIndex + 1);
+
+        let preExistingText = '';
+        if (secondStarIndex >= 0) {
+          // Get everything after the second *
+          preExistingText = textAfterWord.substring(secondStarIndex + 1);
+        }
+
+        // Reconstruct: before + word + pre-existing text (remove arrow, **, and typed meaning)
+        const newText = beforeWord + originalWord + preExistingText;
+        console.log('✅ Escape - reconstructing:', { beforeWord, originalWord, preExistingText, newText });
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+      }
+
+      setIsWordHighlighted(false);
+      setIsTypingMeaning(false);
+
+      // Place cursor AFTER the original word
+      setTimeout(() => {
+        if (textRef.current) {
+          textRef.current.setSelectionRange(registrationWordEnd, registrationWordEnd);
+          textRef.current.focus();
+        }
+      }, 50);
+
+      setRegistrationWordStart(0);
+      setRegistrationWordEnd(0);
+      setTextLengthWhenArrowAdded(0);
+      return;
+    }
+
+    // Backspace: Prevent deleting into prefix/arrow area during typing meaning
+    if (e.key === 'Backspace' && isTypingMeaning) {
+      const cursorPos = textarea.selectionStart || 0;
+      const meaningStart = registrationWordEnd + 3; // After " ← "
+
+      // If cursor is at or before the meaning start, prevent backspace
+      if (cursorPos <= meaningStart) {
+        e.preventDefault();
+        console.log('⚠️ Cannot delete into prefix/arrow area');
+        return;
+      }
+    }
+
+    // Enter: Register shortcut and keep only the meaning (remove prefix and arrow)
+    if (e.key === 'Enter' && !e.shiftKey && isTypingMeaning) {
+      e.preventDefault();
+      console.log('✅ Enter pressed - extracting meaning between ** markers');
+
+      // Extract the prefix (original word)
+      const prefix = localText.substring(registrationWordStart, registrationWordEnd);
+
+      // Find the two ** markers
+      const textAfterWord = localText.substring(registrationWordEnd);
+      const firstStarIndex = textAfterWord.indexOf('*');
+      const secondStarIndex = textAfterWord.indexOf('*', firstStarIndex + 1);
+
+      let meaning = '';
+      let preExistingTextAfterCursor = '';
+
+      if (firstStarIndex >= 0 && secondStarIndex >= 0) {
+        // Extract text between the two *
+        const absoluteFirstStar = registrationWordEnd + firstStarIndex;
+        const absoluteSecondStar = registrationWordEnd + secondStarIndex;
+        meaning = localText.substring(absoluteFirstStar + 1, absoluteSecondStar);
+        preExistingTextAfterCursor = localText.substring(absoluteSecondStar + 1);
+        console.log('📝 Found ** markers - meaning between them:', `"${meaning}"`, 'preExisting after second *:', `"${preExistingTextAfterCursor}"`);
+      } else {
+        // No markers, meaning is everything after arrow until end
+        meaning = localText.substring(registrationWordEnd + 3);
+        preExistingTextAfterCursor = '';
+        console.log('📝 No ** markers - meaning is everything after arrow:', `"${meaning}"`);
+      }
+
+      console.log('📝 Extracted - prefix:', `"${prefix}"`, 'meaning:', `"${meaning}"`);
+
+      // If meaning is blank or only whitespace (or just *), treat like Escape (cancel registration)
+      if (!meaning || !meaning.trim() || meaning.trim().length === 0 || meaning.trim() === '*') {
+        console.log('⚠️ No valid meaning entered, treating like Escape - canceling registration');
+
+        // Restore original word + pre-existing text (already extracted above as preExistingTextAfterCursor)
+        const beforeWord = localText.substring(0, registrationWordStart);
+        const originalWord = localText.substring(registrationWordStart, registrationWordEnd);
+        const newText = beforeWord + originalWord + preExistingTextAfterCursor;
+        console.log('✅ Empty meaning - reconstructing:', { beforeWord, originalWord, preExistingTextAfterCursor, newText });
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+
+        // Exit registration mode
+        setIsWordHighlighted(false);
+        setIsTypingMeaning(false);
+
+        // Position cursor at end of original word
+        setTimeout(() => {
+          if (textRef.current) {
+            textRef.current.setSelectionRange(registrationWordEnd, registrationWordEnd);
+            textRef.current.focus();
+          }
+        }, 50);
+
+        setRegistrationWordStart(0);
+        setRegistrationWordEnd(0);
+        return;
+      }
+
+      // Register the shortcut
+      onRegisterShortcut?.(prefix, meaning).then(() => {
+        console.log('✅ Shortcut registered:', prefix, '→', meaning);
+
+        // Reconstruct text: before + meaning + pre-existing text after cursor
+        const beforePrefix = localText.substring(0, registrationWordStart);
+        const newText = beforePrefix + meaning + preExistingTextAfterCursor;
+        console.log('✅ Reconstructing:', { beforePrefix, meaning, preExistingTextAfterCursor, newText });
+
+        setLocalText(newText);
+        onUpdate(block.id, 'text', newText);
+
+        // Exit registration mode
+        setIsWordHighlighted(false);
+        setIsTypingMeaning(false);
+        setRegistrationWordStart(0);
+        setRegistrationWordEnd(0);
+
+        // Set cursor after the meaning
+        setTimeout(() => {
+          if (textRef.current) {
+            const newCursorPos = registrationWordStart + meaning.length;
+            textRef.current.setSelectionRange(newCursorPos, newCursorPos);
+            textRef.current.focus();
+          }
+        }, 50);
+      }).catch(error => {
+        console.error('❌ Failed to register shortcut:', error);
+      });
+      return;
+    }
+
+    // ============ END REGISTRATION MODE HANDLERS ============
+
+    // Register typing activity for progress tracking (exclude navigation keys)
+    const isTypingKey = !['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock',
+                          'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+                          'Home', 'End', 'PageUp', 'PageDown', 'F1', 'F2', 'F3', 'F4', 'F5',
+                          'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'].includes(e.key);
+
+    if (isTypingKey) {
+      progressService.registerTypingActivity();
+    }
     
     // Handle Ctrl+Z for undo shortcut expansion BEFORE checking special keys
     // Check both 'z' and 'ז' (Hebrew zayin) and also check e.code for KeyZ
@@ -1090,10 +1941,10 @@ const TextBlock = React.memo(function TextBlock({
     // ENTER - Create new block and maintain language (Word-like)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      
+
       // Clear the Shift+Enter processing flag since user is creating a new block
       clearShiftEnterFlag();
-      
+
       // Apply AutoCorrect validations before creating new block
       if (autoCorrectEngine) {
         // Validate duplicate speaker
@@ -1108,7 +1959,7 @@ const TextBlock = React.memo(function TextBlock({
             return;
           }
         }
-        
+
         // Validate block transition (punctuation, parentheses, quotes)
         const transitionResult = autoCorrectEngine.validateBlockTransition(text);
         if (transitionResult.message) {
@@ -1120,158 +1971,114 @@ const TextBlock = React.memo(function TextBlock({
           }
         }
       }
-      
+
+      // Get cursor position to split text
+      const cursorPos = textarea.selectionStart || 0;
+      const beforeCursor = localText.substring(0, cursorPos);
+      const afterCursor = localText.substring(cursorPos);
+
+      // Update current block with text before cursor
+      setLocalText(beforeCursor);
+      onUpdate(block.id, 'text', beforeCursor);
+
       // Store current cursor language for the new block
       const currentLanguage = inputLanguage;
-      onNewBlock();
+
+      // Create new block with text after cursor
+      // Cursor position in new block should be at the start (0)
+      onNewBlock(afterCursor, 0);
+
       // The new block will inherit the language from the previous block
       setTimeout(() => {
         switchLanguage(currentLanguage);
       }, 0);
     }
 
-    // SHIFT+ENTER - Insert line break and continue list if applicable
+    // SHIFT+ENTER - Create continuation block (without speaker field)
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
-      
+
       const cursorPos = textarea.selectionStart;
-      const beforeCursor = text.substring(0, cursorPos);
       const afterCursor = text.substring(cursorPos);
-      
-      // Split into lines to check current line
-      const lines = beforeCursor.split('\n');
-      const currentLine = lines[lines.length - 1];
-      
-      // Check if current line is a list item (has content after the number)
-      // Match both with and without RLM mark, and handle both single and multiple spaces
-      const listMatch = currentLine.match(/^[\u200F]?(\d+)\.\s*(.*)$/) || currentLine.match(/^(\d+)\.\s*(.*)$/);
-      
-      if (listMatch && listMatch[2] && listMatch[2].trim().length > 0) {
-        // We're in a list item with content, insert a new list item
-        // Just insert a placeholder number, then renumber the whole text
-        const nextListItem = formatListItem(999, textDirection === 'rtl'); // Placeholder
-        let newText = beforeCursor + '\n' + nextListItem + afterCursor;
-        
-        // Renumber all lists in the text
-        newText = renumberLists(newText);
-        
-        setLocalText(newText);
-        onUpdate(block.id, 'text', newText);
-        
-        // Position cursor after the new list number
-        setTimeout(() => {
-          if (textRef.current) {
-            // Find the actual new list item position after renumbering
-            const lines = newText.substring(0, beforeCursor.length + 10).split('\n');
-            const newLineIndex = lines.length - 1;
-            const newLine = lines[newLineIndex];
-            const listItemMatch = newLine.match(/^[\u200F]?(\d+)\.\s*/);
-            const newPos = beforeCursor.length + 1 + (listItemMatch ? listItemMatch[0].length : 0);
-            
-            textRef.current.setSelectionRange(newPos, newPos);
-            // Auto-resize
-            textRef.current.style.height = 'auto';
-            textRef.current.style.height = textRef.current.scrollHeight + 'px';
-          }
-        }, 0);
-      } else if (listMatch && (!listMatch[2] || !listMatch[2].trim())) {
-        // Empty list item - remove the number and end the list (Word-like behavior)
-        // Remove the list number and RLM if present
-        const newText = beforeCursor.replace(/[\u200F]?\d+\.\s*$/, '') + afterCursor;
-        setLocalText(newText);
-        onUpdate(block.id, 'text', newText);
-        
-        setTimeout(() => {
-          if (textRef.current) {
-            // Position cursor at the end of the line where the number was removed
-            const newPos = newText.length - afterCursor.length;
-            textRef.current.setSelectionRange(newPos, newPos);
-            textRef.current.style.height = 'auto';
-            textRef.current.style.height = textRef.current.scrollHeight + 'px';
-          }
-        }, 0);
-      } else {
-        // Not in a list, just add a line break
-        const newText = beforeCursor + '\n' + afterCursor;
-        const desiredCursorPos = beforeCursor.length + 1; // Position after the new line
-        
-        // Set flag to prevent cursor repositioning by other handlers
-        isProcessingShiftEnter.current = true;
-        shiftEnterStartTime.current = Date.now();
-        
-        // Store the desired cursor position
-        const preservedPos = desiredCursorPos;
-        
-        // Directly update the textarea value BEFORE React state update
-        // This prevents React re-render from interfering
-        if (textRef.current) {
-          // Store current direction settings
-          const currentDir = textRef.current.dir;
-          const currentStyle = textRef.current.style.direction;
-          
-          textRef.current.value = newText;
-          // Auto-resize immediately
-          textRef.current.style.height = 'auto';
-          textRef.current.style.height = textRef.current.scrollHeight + 'px';
-          
-          // Ensure RTL direction is maintained
-          textRef.current.dir = 'rtl';
-          textRef.current.style.direction = 'rtl';
-          
-          // Set cursor position
-          textRef.current.setSelectionRange(preservedPos, preservedPos);
-          
-          // Force focus to ensure cursor is visible and active
-          textRef.current.focus();
-        }
-        
-        // Then update React state (this will trigger re-render but textarea already has correct value)
-        setLocalText(newText);
-        onUpdate(block.id, 'text', newText);
-        
-        // Use requestAnimationFrame to re-apply cursor position after React renders
-        requestAnimationFrame(() => {
-          if (textRef.current) {
-            // Force cursor position again after React update
-            textRef.current.setSelectionRange(preservedPos, preservedPos);
-            textRef.current.focus();
-            
-            // Use setTimeout to handle any delayed updates
-            setTimeout(() => {
-              if (textRef.current) {
-                textRef.current.setSelectionRange(preservedPos, preservedPos);
-              }
-            }, 10);
-            
-            // Use Promise for microtask timing
-            Promise.resolve().then(() => {
-              if (textRef.current) {
-                textRef.current.setSelectionRange(preservedPos, preservedPos);
-              }
-            });
-            
-            // Don't clear flag based on timeout anymore
-            // We'll clear it when user completes typing or navigates away
-            // This prevents the cursor from going crazy after the timeout
-          }
-        });
-      }
-      
+
+      // Create a new continuation block with the text after cursor
+      // The current speaker (or parent speaker for continuation blocks) will be used for color inheritance
+      const currentSpeaker = block.isContinuation ? block.parentSpeaker : block.speaker;
+
+      // Update current block to remove text after cursor
+      const newText = text.substring(0, cursorPos);
+      setLocalText(newText);
+      onUpdate(block.id, 'text', newText);
+
+      // Create new continuation block with remaining text
+      // Pass the current speaker as parentSpeaker for color inheritance
+      onNewBlock(afterCursor, 0, true, currentSpeaker);
+
       return;
     }
 
-    // BACKSPACE - Navigate when at beginning or renumber lists
+    // BACKSPACE - Navigate when at beginning, remove empty blocks, or renumber lists
     if (e.key === 'Backspace') {
       // Check if cursor is at the beginning
       if (textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
         e.preventDefault();
-        // Navigate to speaker field
-        onNavigate('speaker', 'text');
+
+        // For continuation blocks (no speaker field exists)
+        if (block.isContinuation) {
+          if (localText === '') {
+            // Empty continuation block - just remove it
+            onRemoveBlock(block.id);
+          } else if (onJoinBlock) {
+            // Has content - try to join with previous block
+            const result = onJoinBlock(block.id);
+            if (result) {
+              // Join successful
+              const { joinPosition, previousBlockId, joinedText } = result;
+              onUpdate(previousBlockId, 'text', joinedText);
+              setTimeout(() => {
+                const previousBlock = document.querySelector(`[data-block-id="${previousBlockId}"]`);
+                if (previousBlock) {
+                  const textArea = previousBlock.querySelector('textarea') as HTMLTextAreaElement;
+                  if (textArea) {
+                    textArea.focus();
+                    textArea.setSelectionRange(joinPosition, joinPosition);
+                  }
+                }
+              }, 10);
+            } else {
+              // Join failed (probably previous block is a special tag) - just navigate backward
+              onNavigate('up', 'text');
+            }
+          }
+        }
+        // For regular blocks - navigate to speaker field
+        else {
+          // Check if both fields are empty (text is already empty and speaker is empty)
+          if (localText === '' && !localSpeaker) {
+            // Remove this empty block and navigate to previous block
+            onRemoveBlock(block.id);
+          } else {
+            // Navigate to speaker field
+            onNavigate('speaker', 'text');
+          }
+        }
+      } else if (textarea.selectionStart === 1 && textarea.selectionEnd === 1 && localText.length === 1) {
+        // About to delete the last character in text field
+        // Check if speaker is also empty - if so, prepare to delete block
+        if (!localSpeaker) {
+          // Let the delete happen, then remove the block
+          setTimeout(() => {
+            const updatedText = textRef.current?.value || '';
+            if (updatedText === '' && !localSpeaker) {
+              onRemoveBlock(block.id);
+            }
+          }, 10);
+        }
       } else {
         // Check if we're about to delete something that might affect list numbering
         const cursorPos = textarea.selectionStart;
         const selectionEnd = textarea.selectionEnd;
-        
+
         // If we're deleting a selection or at the start of a list number
         if (cursorPos !== selectionEnd || text[cursorPos - 1] === '\n') {
           // Let the deletion happen, then renumber
@@ -1312,56 +2119,37 @@ const TextBlock = React.memo(function TextBlock({
       return;
     }
     
-    // Arrow navigation - UP/DOWN for blocks (only at edges), LEFT/RIGHT for fields (RTL aware)
-    if (e.key === 'ArrowUp') {
-      // Only navigate between blocks if we're truly at the first line
-      const cursorPos = textarea.selectionStart;
-      const textBeforeCursor = textarea.value.substring(0, cursorPos);
-      
-      // Check if there are no newlines before cursor (meaning we're on first line)
-      if (!textBeforeCursor.includes('\n')) {
-        // Now check if cursor can actually move up within the current line
-        const { selectionStart } = textarea;
-        textarea.selectionStart = 0; // Try to move to start
-        textarea.selectionEnd = 0;
-        
-        // Check if cursor actually moved
-        const couldMoveUp = textarea.selectionStart !== selectionStart;
-        textarea.selectionStart = selectionStart; // Restore position
-        textarea.selectionEnd = selectionStart;
-        
-        if (!couldMoveUp) {
-          // Can't move up within text, navigate to previous block
-          e.preventDefault();
+    // Arrow navigation - UP/DOWN for blocks
+    if (e.key === 'ArrowUp' && !e.shiftKey) {
+      // Let the browser try to move the cursor up first
+      const cursorPosBefore = textarea.selectionStart;
+
+      // Use setTimeout to check if cursor actually moved after browser handles the event
+      setTimeout(() => {
+        const cursorPosAfter = textarea.selectionStart;
+
+        // If cursor didn't move, we're on the first line - navigate to previous block
+        if (cursorPosBefore === cursorPosAfter) {
           onNavigate('up', 'text');
         }
-      }
-      // Otherwise let the cursor move naturally within the text
-    } else if (e.key === 'ArrowDown') {
-      // Only navigate between blocks if we're truly at the last line
-      const cursorPos = textarea.selectionStart;
-      const textAfterCursor = textarea.value.substring(cursorPos);
-      
-      // Check if there are no newlines after cursor (meaning we're on last line)
-      if (!textAfterCursor.includes('\n')) {
-        // Now check if cursor can actually move down within the current line
-        const { selectionStart } = textarea;
-        const endPos = textarea.value.length;
-        textarea.selectionStart = endPos; // Try to move to end
-        textarea.selectionEnd = endPos;
-        
-        // Check if cursor actually moved
-        const couldMoveDown = textarea.selectionStart !== selectionStart;
-        textarea.selectionStart = selectionStart; // Restore position
-        textarea.selectionEnd = selectionStart;
-        
-        if (!couldMoveDown || cursorPos === textarea.value.length) {
-          // Can't move down within text or at end, navigate to next block
-          e.preventDefault();
+      }, 0);
+
+      // Don't prevent default - let browser attempt to move cursor
+    } else if (e.key === 'ArrowDown' && !e.shiftKey) {
+      // Let the browser try to move the cursor down first
+      const cursorPosBefore = textarea.selectionStart;
+
+      // Use setTimeout to check if cursor actually moved after browser handles the event
+      setTimeout(() => {
+        const cursorPosAfter = textarea.selectionStart;
+
+        // If cursor didn't move, we're on the last line - navigate to next block
+        if (cursorPosBefore === cursorPosAfter) {
           onNavigate('down', 'text');
         }
-      }
-      // Otherwise let the cursor move naturally within the text
+      }, 0);
+
+      // Don't prevent default - let browser attempt to move cursor
     } else if (e.key === 'ArrowLeft') {
       const cursorPos = textarea.selectionStart;
       
@@ -1388,10 +2176,18 @@ const TextBlock = React.memo(function TextBlock({
   // Handle speaker input change
   const handleSpeakerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-    
+
     // Always remove colons from the value - colon is only visual
     value = value.replace(/:/g, '');
-    
+
+    // Check if user typed [ at position 0 - enter tag mode
+    if (value === '[' && speakerRef.current?.selectionStart === 1) {
+      setIsEnteringTag(true);
+      setLocalSpeaker('[');
+      onUpdate(block.id, 'speaker', '[');
+      return;
+    }
+
     setLocalSpeaker(value);
     onUpdate(block.id, 'speaker', value);
     
@@ -1446,8 +2242,17 @@ const TextBlock = React.memo(function TextBlock({
 
   // Handle text input change and auto-resize
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    // Register typing activity for progress tracking
+    progressService.registerTypingActivity();
+
     let value = e.target.value;
     let cursorPos = e.target.selectionStart;
+
+    // Track cursor position during typing meaning mode
+    if (isTypingMeaning) {
+      setCurrentCursorPosition(cursorPos);
+      console.log('📍 Cursor moved to:', cursorPos, 'Character at cursor:', value.substring(cursorPos - 1, cursorPos + 1));
+    }
     
     // Skip ALL processing during Shift+Enter to prevent cursor jumping
     // This includes auto-corrections, English handling, list formatting, shortcuts
@@ -1494,7 +2299,10 @@ const TextBlock = React.memo(function TextBlock({
         }, 0);
       }
     }
-    
+
+    // Check if user just typed a space to trigger rule application later
+    const justTypedSpace = value.length > localText.length && value[cursorPos - 1] === ' ';
+
     // Handle English text to keep it on the right side in RTL mode
     // We need to wrap continuous English sequences with RLM marks
     // Skip during Shift+Enter processing to prevent cursor issues
@@ -1563,17 +2371,25 @@ const TextBlock = React.memo(function TextBlock({
     
     // Check for shortcuts processing (on space)
     // Skip during Shift+Enter processing to prevent cursor jumping
+    let shortcutWasExpanded = false;
     if (onProcessShortcuts && localText.length < value.length && cursorPos > 0 && value[cursorPos - 1] === ' ' && !isProcessingShiftEnter.current) {
-      // Process the text BEFORE the space
-      const textBeforeSpace = value.substring(0, cursorPos - 1);
-      const result = onProcessShortcuts(textBeforeSpace, textBeforeSpace.length);
-      
+      // Remove the space we just typed and pass the full text to ShortcutManager
+      // This allows it to check for shortcuts and preserve all surrounding text
+      const textWithoutSpace = value.substring(0, cursorPos - 1) + value.substring(cursorPos);
+      const result = onProcessShortcuts(textWithoutSpace, cursorPos - 1);
+
       if (result && result.expanded) {
-        console.log('Shortcut expanded! Saving undo history');
-        console.log('Original text before expansion:', textBeforeSpace);
-        console.log('Expanded shortcut:', result.expandedShortcut);
-        console.log('Current value:', value);
-        
+        console.log('🎯 Shortcut expanded!');
+        console.log('📝 Original value:', JSON.stringify(value));
+        console.log('📝 textWithoutSpace:', JSON.stringify(textWithoutSpace));
+        console.log('📝 result.text:', JSON.stringify(result.text));
+        console.log('📝 result.expandedShortcut:', JSON.stringify(result.expandedShortcut));
+        console.log('📝 result.expandedTo:', JSON.stringify(result.expandedTo));
+        console.log('📍 Original cursorPos:', cursorPos);
+        console.log('📍 result.cursorPosition:', result.cursorPosition);
+
+        shortcutWasExpanded = true;
+
         // Save undo information - store the text WITH the shortcut BEFORE expansion
         // We want to restore to the state just before the shortcut was expanded
         const undoItem: UndoHistoryItem = {
@@ -1583,17 +2399,17 @@ const TextBlock = React.memo(function TextBlock({
           timestamp: Date.now(),
           expandedShortcut: result.expandedShortcut
         };
-        
+
         console.log('Saving undo item with text:', undoItem.text);
         console.log('Cursor position:', undoItem.cursorPosition);
-        
+
         // Keep only last 10 undo items
         setUndoHistory(prev => {
           const newHistory = [...prev.slice(-9), undoItem];
           console.log('New undo history length:', newHistory.length);
           return newHistory;
         });
-        
+
         // Save expansion metadata for undo
         if (result.processed && result.originalText) {
           lastShortcutExpansion.current = {
@@ -1603,15 +2419,19 @@ const TextBlock = React.memo(function TextBlock({
             expansionEnd: result.expansionEnd || 0
           };
         }
-        
-        // Add the space after the expansion
-        value = result.text + ' ' + value.substring(cursorPos);
-        
+
+        // Use the correctly expanded text from ShortcutManager
+        // result.text already contains the full text with proper spacing
+        // Just add the space that triggered the expansion
+        value = result.text + ' ';
+
+        // Update cursor position
+        const newPos = result.cursorPosition + 1; // +1 for the space we just added
+
         // Set cursor position after React updates
         setTimeout(() => {
           if (textRef.current) {
             textRef.current.value = value;
-            const newPos = result.cursorPosition + 1; // +1 for the space
             textRef.current.selectionStart = newPos;
             textRef.current.selectionEnd = newPos;
             textRef.current.focus();
@@ -1619,7 +2439,428 @@ const TextBlock = React.memo(function TextBlock({
         }, 0);
       }
     }
-    
+
+    // Word-by-word transformation - check if user typed a word boundary
+    // Skip if shortcut was just expanded to avoid interference
+    if (ruleSettings && ruleSettings.enabledRuleIds.length > 0 && !shortcutWasExpanded) {
+      // Word boundary characters: space, comma, period, newline, etc.
+      const wordBoundaries = /[\s,.:;!?\n]/;
+      const justTypedBoundary = value.length > localText.length &&
+                                 cursorPos > 0 &&
+                                 wordBoundaries.test(value[cursorPos - 1]);
+
+      if (justTypedBoundary && cursorPos > 1) {
+        // Extract the word before the boundary
+        let wordStart = cursorPos - 2; // Start before the boundary character
+
+        // Find start of word (stop at previous boundary or start of text)
+        while (wordStart > 0 && !wordBoundaries.test(value[wordStart - 1])) {
+          wordStart--;
+        }
+
+        // Extract the word (exclude the boundary we just typed)
+        const word = value.substring(wordStart, cursorPos - 1);
+
+        // NEW APPROACH: Check backwards when we encounter a compound trigger word
+        // If current word is a compound trigger (אחוז, ושתיים, מאות, etc.),
+        // look for a number in the previous word
+        let compoundHandled = false;
+        const isCompoundTrigger =
+          COMPOUND_PATTERNS.unitCombiners.includes(word) ||
+          COMPOUND_PATTERNS.percentWords.includes(word) ||
+          COMPOUND_PATTERNS.thousandWords.includes(word) ||
+          COMPOUND_PATTERNS.hundredWords.includes(word);
+
+        if (isCompoundTrigger && wordStart > 0) {
+          console.log('🔍 BACKWARD CHECK: Found compound trigger word:', word);
+
+          // Find the previous word
+          let prevWordEnd = wordStart - 1;
+          while (prevWordEnd > 0 && wordBoundaries.test(value[prevWordEnd])) {
+            prevWordEnd--;
+          }
+
+          if (prevWordEnd > 0) {
+            let prevWordStart = prevWordEnd;
+            while (prevWordStart > 0 && !wordBoundaries.test(value[prevWordStart - 1])) {
+              prevWordStart--;
+            }
+
+            const prevWord = value.substring(prevWordStart, prevWordEnd + 1);
+            console.log('   Previous word:', prevWord);
+
+            // Check if previous word is a number (with or without prefix)
+            // Patterns: "50", "ו-50", "ו- 50"
+            const numberMatch = prevWord.match(/^(?:([\u0590-\u05FF]+)([-]\s*)?)?(\d+(?:,\d{3})*)$/);
+
+            if (numberMatch) {
+              console.log('   ✅ Previous word is a number!');
+              console.log('   Full match:', numberMatch[0]);
+              console.log('   Prefix:', numberMatch[1]);
+              console.log('   Separator:', numberMatch[2]);
+              console.log('   Number:', numberMatch[3]);
+
+              const hasPrefix = !!(numberMatch[1] && numberMatch[2]);
+              const prefix = numberMatch[1];
+              const separator = numberMatch[2]?.trim() || '-';
+              const numberPart = numberMatch[3].replace(/,/g, '');
+
+              let compoundResult: string | null = null;
+
+              // Handle different compound types
+              if (COMPOUND_PATTERNS.unitCombiners.includes(word)) {
+                // Unit combiner: add to base number
+                const unitValue = unitValueMap[word];
+                if (unitValue !== undefined) {
+                  const baseNumber = parseInt(numberPart);
+                  const newNumber = baseNumber + unitValue;
+                  compoundResult = hasPrefix
+                    ? prefix + separator + newNumber
+                    : newNumber.toString();
+                }
+              } else if (COMPOUND_PATTERNS.percentWords.includes(word)) {
+                // Percent: just add %
+                compoundResult = prevWord + '%';
+              } else if (COMPOUND_PATTERNS.thousandWords.includes(word)) {
+                // Thousand: multiply by 1000
+                const baseNumber = parseInt(numberPart);
+                const thousands = (baseNumber * 1000).toLocaleString('en-US');
+                compoundResult = hasPrefix
+                  ? prefix + separator + thousands
+                  : thousands;
+              } else if (COMPOUND_PATTERNS.hundredWords.includes(word)) {
+                // Hundred: multiply by 100
+                const baseNumber = parseInt(numberPart);
+                const hundreds = baseNumber * 100;
+                compoundResult = hasPrefix
+                  ? prefix + separator + hundreds
+                  : hundreds.toString();
+              }
+
+              if (compoundResult) {
+                console.log('   📊 Compound result:', compoundResult);
+
+                // Replace "prevWord word" with compoundResult
+                const beforePrev = value.substring(0, prevWordStart);
+                const afterCurrent = value.substring(cursorPos - 1);
+                value = beforePrev + compoundResult + afterCurrent;
+
+                // Adjust cursor
+                const originalLength = (prevWordEnd - prevWordStart + 1) + (wordStart - prevWordEnd - 1) + word.length;
+                const newLength = compoundResult.length;
+                cursorPos = prevWordStart + newLength + 1; // +1 for the boundary
+
+                compoundHandled = true;
+
+                // Update immediately
+                setTimeout(() => {
+                  if (textRef.current) {
+                    textRef.current.value = value;
+                    textRef.current.setSelectionRange(cursorPos, cursorPos);
+                  }
+                }, 0);
+              }
+            }
+          }
+        }
+
+        // OLD APPROACH: First check if current word completes a pending compound
+        if (!compoundHandled && pendingCompound && word.trim()) {
+          console.log('🔗 Checking compound completion:');
+          console.log('   Pending:', pendingCompound);
+          console.log('   Current word:', word);
+
+          let compoundResult: string | null = null;
+
+          // Case 1: Tens + Units (e.g., "50 ואחד" → "51" or "ב-50 ואחד" → "ב-51")
+          if (COMPOUND_PATTERNS.unitCombiners.includes(word)) {
+            console.log('✅ Word is a unit combiner!');
+
+            const unitValue = unitValueMap[word];
+            console.log('   Unit value:', unitValue);
+            if (unitValue !== undefined) {
+              if (pendingCompound.hadPrefix) {
+                console.log('   Has prefix! Processing with prefix...');
+                console.log('   transformedValue:', pendingCompound.transformedValue);
+                console.log('   prefix:', pendingCompound.prefix);
+                console.log('   separator:', pendingCompound.separator);
+
+                // Extract number from "ב-50"
+                const parts = pendingCompound.transformedValue.split(pendingCompound.separator || '-');
+                const numberPart = parts[parts.length - 1];
+                const baseNumber = parseInt(numberPart);
+                const compoundNumber = baseNumber + unitValue;
+                compoundResult = pendingCompound.prefix + (pendingCompound.separator || '-') + compoundNumber;
+
+                console.log('   Result:', compoundResult);
+              } else {
+                console.log('   No prefix, simple case');
+                // Simple case: "50 ואחד" → "51"
+                const baseNumber = parseInt(pendingCompound.transformedValue);
+                compoundResult = (baseNumber + unitValue).toString();
+                console.log('   Result:', compoundResult);
+              }
+            }
+          }
+          // Case 2: Number + Percent (e.g., "50 אחוז" → "50%" or "ב-50 אחוז" → "ב-50%")
+          else if (COMPOUND_PATTERNS.percentWords.includes(word)) {
+            compoundResult = pendingCompound.transformedValue + '%';
+          }
+          // Case 3: Number + Thousand (e.g., "7 אלף" → "7,000" or "כ-7 אלף" → "כ-7,000")
+          else if (COMPOUND_PATTERNS.thousandWords.includes(word)) {
+            // Check if pending is a Hebrew unit word that needs to be converted first
+            const hebrewUnitMap: { [key: string]: number } = {
+              'אחד': 1, 'אחת': 1,
+              'שניים': 2, 'שתיים': 2, 'שני': 2, 'שתי': 2,
+              'שלושה': 3, 'שלוש': 3,
+              'ארבעה': 4, 'ארבע': 4,
+              'חמישה': 5, 'חמש': 5,
+              'שישה': 6, 'שש': 6,
+              'שבעה': 7, 'שבע': 7, 'שבעת': 7,
+              'שמונה': 8, 'שמונת': 8,
+              'תשעה': 9, 'תשע': 9, 'תשעת': 9,
+              'עשרה': 10, 'עשר': 10, 'עשרת': 10
+            };
+
+            let baseNumber: number;
+            const hebrewValue = hebrewUnitMap[pendingCompound.transformedValue];
+
+            if (hebrewValue !== undefined) {
+              // It's a Hebrew word, convert to number first
+              baseNumber = hebrewValue;
+            } else if (pendingCompound.hadPrefix) {
+              // Extract number from "כ-7"
+              const parts = pendingCompound.transformedValue.split(pendingCompound.separator || '-');
+              const numberPart = parts[parts.length - 1];
+              baseNumber = parseInt(numberPart);
+            } else {
+              // Already a number
+              baseNumber = parseInt(pendingCompound.transformedValue);
+            }
+
+            if (!isNaN(baseNumber)) {
+              const thousands = (baseNumber * 1000).toLocaleString('en-US');
+              if (pendingCompound.hadPrefix) {
+                compoundResult = pendingCompound.prefix + (pendingCompound.separator || '-') + thousands;
+              } else {
+                compoundResult = thousands;
+              }
+            }
+          }
+          // Case 4: Number + Hundred (e.g., "5 מאות" → "500" or "ב-5 מאות" → "ב-500")
+          else if (COMPOUND_PATTERNS.hundredWords.includes(word)) {
+            // Special cases: מאה = 100, מאתיים = 200, מאות needs a number
+            if (word === 'מאה') {
+              compoundResult = pendingCompound.hadPrefix
+                ? pendingCompound.prefix + (pendingCompound.separator || '-') + '100'
+                : '100';
+            } else if (word === 'מאתיים') {
+              compoundResult = pendingCompound.hadPrefix
+                ? pendingCompound.prefix + (pendingCompound.separator || '-') + '200'
+                : '200';
+            } else { // מאות - needs a preceding number
+              const hebrewUnitMap: { [key: string]: number } = {
+                'אחד': 1, 'אחת': 1,
+                'שניים': 2, 'שתיים': 2, 'שני': 2, 'שתי': 2,
+                'שלושה': 3, 'שלוש': 3,
+                'ארבעה': 4, 'ארבע': 4,
+                'חמישה': 5, 'חמש': 5,
+                'שישה': 6, 'שש': 6,
+                'שבעה': 7, 'שבע': 7, 'שבעת': 7,
+                'שמונה': 8, 'שמונת': 8,
+                'תשעה': 9, 'תשע': 9, 'תשעת': 9,
+                'עשרה': 10, 'עשר': 10, 'עשרת': 10
+              };
+
+              let baseNumber: number;
+              const hebrewValue = hebrewUnitMap[pendingCompound.transformedValue];
+
+              if (hebrewValue !== undefined) {
+                baseNumber = hebrewValue;
+              } else if (pendingCompound.hadPrefix) {
+                const parts = pendingCompound.transformedValue.split(pendingCompound.separator || '-');
+                const numberPart = parts[parts.length - 1];
+                baseNumber = parseInt(numberPart);
+              } else {
+                baseNumber = parseInt(pendingCompound.transformedValue);
+              }
+
+              if (!isNaN(baseNumber)) {
+                const hundreds = baseNumber * 100;
+                if (pendingCompound.hadPrefix) {
+                  compoundResult = pendingCompound.prefix + (pendingCompound.separator || '-') + hundreds;
+                } else {
+                  compoundResult = hundreds.toString();
+                }
+              }
+            }
+          }
+
+          // If we found a compound pattern, replace it
+          if (compoundResult) {
+            // Find the position of the pending compound in the current value
+            const searchPattern = pendingCompound.transformedValue + ' ' + word;
+            const compoundPos = value.lastIndexOf(searchPattern);
+
+            if (compoundPos >= 0) {
+              const beforeCompound = value.substring(0, compoundPos);
+              const afterCompound = value.substring(compoundPos + searchPattern.length);
+              value = beforeCompound + compoundResult + afterCompound;
+
+              // Adjust cursor
+              const lengthDiff = compoundResult.length - searchPattern.length;
+              cursorPos = cursorPos + lengthDiff;
+
+              // Check if compound result can still form another compound (e.g., "51" can become "51%")
+              // Only mark as pending for percent, not for thousands (51 thousand doesn't make sense)
+              const isNumeric = /^\d+$/.test(compoundResult) || /^[\u0590-\u05FF]+-\d+$/.test(compoundResult);
+              if (isNumeric) {
+                // Extract prefix if present
+                // Pattern: Hebrew letters + separator + number
+                const resultPrefixMatch = compoundResult.match(/^([\u0590-\u05FF]+)([-])?(\d+)$/);
+                const resultHadPrefix = !!(resultPrefixMatch && resultPrefixMatch[1] && resultPrefixMatch[2]);
+
+                setPendingCompound({
+                  originalWord: compoundResult,
+                  transformedValue: compoundResult,
+                  position: compoundPos,
+                  hadPrefix: resultHadPrefix || false,
+                  prefix: resultHadPrefix ? resultPrefixMatch[1] : undefined,
+                  separator: resultHadPrefix ? resultPrefixMatch[2] : undefined
+                });
+              } else {
+                setPendingCompound(null);
+              }
+
+              compoundHandled = true;
+
+              // Update immediately
+              setTimeout(() => {
+                if (textRef.current) {
+                  textRef.current.value = value;
+                  textRef.current.setSelectionRange(cursorPos, cursorPos);
+                }
+              }, 0);
+            }
+          } else {
+            // Not a compound, clear pending
+            setPendingCompound(null);
+          }
+        }
+
+        // Transform the word if it matches any rules (only if not part of compound)
+        if (!compoundHandled && word.trim()) {
+          // Special case: Check if word is a Hebrew unit that can combine with אלף/אלפים
+          // Even if it doesn't transform (units 1-9 don't transform by default)
+          if (COMPOUND_PATTERNS.thousandUnits.includes(word)) {
+            setPendingCompound({
+              originalWord: word,
+              transformedValue: word, // Keep as Hebrew since it doesn't transform
+              position: wordStart,
+              hadPrefix: false
+            });
+          }
+
+          const result = transcriptionRulesService.transformSingleWord(
+            word,
+            ruleSettings.enabledRuleIds,
+            ruleSettings.prefixSettings,
+            ruleSettings.separatorSettings
+          );
+
+          if (result.wasTransformed) {
+            // Check if transformed value has a prefix
+            // Pattern: Hebrew letters + separator + number (e.g., "ו-50")
+            const prefixMatch = result.transformed.match(/^([\u0590-\u05FF]+)([-])?(\d+)$/);
+            const hadPrefix = !!(prefixMatch && prefixMatch[1] && prefixMatch[2]);
+
+            console.log('🔍 Prefix detection for word:', word);
+            console.log('   Transformed to:', result.transformed);
+            console.log('   Prefix match:', prefixMatch);
+            console.log('   hadPrefix:', hadPrefix);
+            if (hadPrefix) {
+              console.log('   Extracted prefix:', prefixMatch![1]);
+              console.log('   Extracted separator:', prefixMatch![2]);
+            }
+
+            // Check if this word can start a compound
+            if (COMPOUND_PATTERNS.tens.includes(word)) {
+              // This is a tens word (20-90), might combine with units
+              console.log('✅ Setting pending compound for tens word:', word);
+              setPendingCompound({
+                originalWord: word,
+                transformedValue: result.transformed,
+                position: wordStart,
+                hadPrefix: hadPrefix,
+                prefix: hadPrefix ? prefixMatch![1] : undefined,
+                separator: hadPrefix ? prefixMatch![2] : undefined
+              });
+            } else if (COMPOUND_PATTERNS.thousandUnits.includes(word) || /^\d+$/.test(result.transformed)) {
+              // This is a unit (1-10) or already a number, might combine with אלף/אלפים
+              setPendingCompound({
+                originalWord: word,
+                transformedValue: result.transformed,
+                position: wordStart,
+                hadPrefix: hadPrefix,
+                prefix: hadPrefix ? prefixMatch![1] : undefined,
+                separator: hadPrefix ? prefixMatch![2] : undefined
+              });
+            }
+
+            // Replace the word with transformed version
+            const beforeWord = value.substring(0, wordStart);
+            const afterWord = value.substring(cursorPos - 1); // Keep the boundary and rest
+            value = beforeWord + result.transformed + afterWord;
+
+            // Adjust cursor position based on length difference
+            const lengthDiff = result.transformed.length - word.length;
+            const newCursorPos = cursorPos + lengthDiff;
+
+            // Update immediately and set cursor
+            setTimeout(() => {
+              if (textRef.current) {
+                textRef.current.value = value;
+                textRef.current.setSelectionRange(newCursorPos, newCursorPos);
+              }
+            }, 0);
+          } else if (!result.wasTransformed) {
+            // Even if not transformed, check if it's a plain number that came after a prefix with space
+            // e.g., when "וחמישים" became "ו- 50", the "50" is a separate word
+            if (/^\d+$/.test(word)) {
+              console.log('🔍 Found standalone number:', word);
+              // Check if previous text ends with Hebrew prefix + separator (with or without space)
+              const beforeWord = value.substring(0, wordStart).trimEnd();
+              const prefixWithSepMatch = beforeWord.match(/([\u0590-\u05FF]+)([-])$/);
+
+              if (prefixWithSepMatch) {
+                console.log('   ✅ Previous text has prefix+separator:', prefixWithSepMatch[1], prefixWithSepMatch[2]);
+                // Combine the prefix with this number
+                const fullValue = prefixWithSepMatch[1] + prefixWithSepMatch[2] + word;
+                console.log('   Combined value:', fullValue);
+
+                setPendingCompound({
+                  originalWord: word,
+                  transformedValue: fullValue,
+                  position: wordStart,
+                  hadPrefix: true,
+                  prefix: prefixWithSepMatch[1],
+                  separator: prefixWithSepMatch[2]
+                });
+              } else {
+                // Just a regular number without prefix
+                setPendingCompound({
+                  originalWord: word,
+                  transformedValue: word,
+                  position: wordStart,
+                  hadPrefix: false
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Check for "..." transformation to timestamp with brackets
     if (value.includes('...')) {
       const currentTime = getCurrentMediaTime();
@@ -1730,16 +2971,36 @@ const TextBlock = React.memo(function TextBlock({
       }
     }
     
+    // If user just typed a space, signal parent to apply rules by setting a flag
+    // The parent (TextEditor) will handle rule application in handleBlockUpdate
+    if (justTypedSpace) {
+      console.log('[TextBlock] Space detected, text will be processed with rules');
+      // Set a data attribute to signal rule application
+      if (textRef.current) {
+        textRef.current.dataset.triggerRules = 'true';
+      }
+    }
+
     setLocalText(value);
-    
+
     // Update immediately - debouncing was causing cursor issues
     onUpdate(block.id, 'text', value);
-    
+
+    // Force immediate resize after text change to fix height not expanding
+    requestAnimationFrame(() => {
+      if (textRef.current) {
+        const textarea = textRef.current;
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+        console.log('[TextBlock] Resized - scrollHeight:', textarea.scrollHeight, 'text length:', value.length);
+      }
+    });
+
     // Check if cursor is in a timestamp for highlighting
     if (cursorPos !== null) {
       checkTimestampHover(cursorPos, value);
     }
-    
+
     // ALWAYS keep RTL - never change direction to prevent jumping
     // The text will stay on the right and not jump around
     if (textDirection !== 'rtl') {
@@ -2138,69 +3399,126 @@ const TextBlock = React.memo(function TextBlock({
   const hasHighlight = speakerHighlights.length > 0 || textHighlights.length > 0;
   const hasCurrentHighlight = speakerHighlights.some(h => h.isCurrent) || textHighlights.some(h => h.isCurrent);
 
+  // Check if this is a special tag block
+  const isSpecialTag = Object.values(SPECIAL_TAGS).includes(localSpeaker);
+
   return (
-    <div 
-      className={'text-block ' + (isActive ? 'active' : '') + ' ' + (!isIsolated ? 'non-isolated' : '') + ' ' + (hasCurrentHighlight ? 'has-current-highlight' : hasHighlight ? 'has-highlight' : '') + ' ' + (!blockViewEnabled ? 'regular-view' : '')} 
-      style={{ 
+    <div
+      className={'text-block ' + (isActive ? 'active' : '') + ' ' + (!isIsolated ? 'non-isolated' : '') + ' ' + (hasCurrentHighlight ? 'has-current-highlight' : hasHighlight ? 'has-highlight' : '') + ' ' + (!blockViewEnabled ? 'regular-view' : '') + ' ' + (block.isContinuation ? 'continuation-block' : '') + ' ' + (isSpecialTag ? 'special-tag' : '')}
+      style={{
         fontSize: fontSize + 'px',
         borderLeftColor: blockViewEnabled ? (isIsolated ? speakerColor : '#cbd5e1') : 'transparent',
         borderRightColor: blockViewEnabled ? (isIsolated ? speakerColor : '#cbd5e1') : 'transparent',
         borderLeftWidth: blockViewEnabled ? '4px' : '0',
-        borderRightWidth: blockViewEnabled ? '4px' : '0'
+        borderRightWidth: blockViewEnabled ? '4px' : '0',
+        // Add RIGHT padding for continuation blocks to align with text of regular blocks (RTL layout)
+        // 100px (speaker) + 12px (gap) + 12px (separator + gap) = 124px
+        paddingRight: block.isContinuation && blockViewEnabled ? '136px' : undefined
       }}
       onClick={handleBlockClick}
+      data-block-id={block.id}
     >
+      {debugWordExtraction && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#4ade80',
+          color: 'white',
+          padding: '20px 30px',
+          borderRadius: '8px',
+          fontSize: '18px',
+          fontWeight: 'bold',
+          zIndex: 10000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          direction: 'rtl'
+        }}>
+          {debugWordExtraction}
+        </div>
+      )}
       {hasCurrentHighlight && (
         <div className="search-highlight-marker" />
       )}
-      <div className="speaker-input-wrapper" style={{ position: 'relative' }}>
-        {speakerHighlights.length > 0 && (
-          <TextHighlightOverlay
-            text={localSpeaker}
-            highlights={speakerHighlights}
-            targetRef={speakerRef}
-            isTextArea={false}
-          />
-        )}
-        <input
-        ref={speakerRef}
-        className="block-speaker"
-        type="text"
-        value={blockViewEnabled ? localSpeaker : (() => {
-          if (!fullSpeakerName) return '';
-          // Only add colon for multi-character names (not single codes)
-          const isSingleCode = fullSpeakerName.length === 1 && 
-            (/^[א-ת]$/.test(fullSpeakerName) || /^[A-Za-z]$/.test(fullSpeakerName));
-          return isSingleCode ? fullSpeakerName : fullSpeakerName + ':';
-        })()}
-        onChange={handleSpeakerChange}
-        onKeyDown={handleSpeakerKeyDown}
-        onFocus={handleSpeakerFocus}
-        onBlur={handleSpeakerBlur}
-        placeholder="דובר"
-        dir={speakerDirection}
-        style={{ 
-          color: isIsolated ? '#333' : '#cbd5e1',
-          direction: speakerDirection,
-          textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
-          fontSize: fontSize + 'px',
-          fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
-          fontWeight: isIsolated ? 600 : 400,
-          position: 'relative',
-          zIndex: 2,
-          background: 'transparent'
-        }}
-        data-timestamp={block.speakerTime || 0}
-        />
-        {blockViewEnabled && nameCompletion && (
-          <span className="name-completion" style={{ fontSize: fontSize + 'px' }}>
-            {nameCompletion}
-          </span>
-        )}
-      </div>
-      
-      {blockViewEnabled && (
-        <span className="block-separator" style={{ fontSize: fontSize + 'px' }}>:</span>
+      {/* Hide speaker field for continuation blocks */}
+      {!block.isContinuation && (
+        <>
+          <div className="speaker-input-wrapper" style={{ position: 'relative' }}>
+            {speakerHighlights.length > 0 && (
+              <TextHighlightOverlay
+                text={localSpeaker}
+                highlights={speakerHighlights}
+                targetRef={speakerRef}
+                isTextArea={false}
+              />
+            )}
+            <input
+            ref={speakerRef}
+            className="block-speaker"
+            type="text"
+            value={blockViewEnabled ? localSpeaker : (() => {
+              if (!fullSpeakerName) return '';
+              // Only add colon for multi-character names (not single codes)
+              const isSingleCode = fullSpeakerName.length === 1 &&
+                (/^[א-ת]$/.test(fullSpeakerName) || /^[A-Za-z]$/.test(fullSpeakerName));
+              return isSingleCode ? fullSpeakerName : fullSpeakerName + ':';
+            })()}
+            onChange={handleSpeakerChange}
+            onKeyDown={handleSpeakerKeyDown}
+            onFocus={handleSpeakerFocus}
+            onBlur={handleSpeakerBlur}
+            placeholder="דובר"
+            dir={speakerDirection}
+            style={{
+              color: isIsolated ? '#333' : '#cbd5e1',
+              direction: speakerDirection,
+              textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
+              fontSize: fontSize + 'px',
+              fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
+              fontWeight: isIsolated ? 600 : 400,
+              position: 'relative',
+              zIndex: 2,
+              background: 'transparent'
+            }}
+            data-timestamp={block.speakerTime || 0}
+            />
+            {blockViewEnabled && nameCompletion && (
+              <span className="name-completion" style={{ fontSize: fontSize + 'px' }}>
+                {nameCompletion}
+              </span>
+            )}
+          </div>
+
+          {/* Hide separator for special tag blocks */}
+          {blockViewEnabled && !isSpecialTag && (
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <span className="block-separator" style={{ fontSize: fontSize + 'px' }}>:</span>
+              {/* Registration mode messages - vertical in separator area */}
+              {(isWordHighlighted || isTypingMeaning) && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: isTypingMeaning ? '#0f766e' : '#0891b2',
+                  color: 'white',
+                  padding: '4px 6px',
+                  borderRadius: '4px',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'pre-line',
+                  textAlign: 'center',
+                  lineHeight: '1.3',
+                  zIndex: 200,
+                  pointerEvents: 'none',
+                  direction: 'rtl'
+                }}>
+                  {isTypingMeaning ? 'לחץ\nאנטר\nלסיום' : 'לחץ\nTab'}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
       
       <div style={{ position: 'relative', flex: 1 }}>
@@ -2212,14 +3530,92 @@ const TextBlock = React.memo(function TextBlock({
             isTextArea={true}
           />
         )}
+        {/* Highlight overlay for registration mode */}
+        {isTypingMeaning && textRef.current && (
+          <div style={{
+            position: 'absolute',
+            top: '6px',
+            right: '8px',
+            left: '8px',
+            pointerEvents: 'none',
+            direction: 'rtl',
+            fontSize: fontSize + 'px',
+            fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
+            lineHeight: '1.6',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            wordSpacing: '0.1em',
+            zIndex: 1,
+            textAlign: 'justify',
+            textAlignLast: 'right',
+            mixBlendMode: 'multiply' // Better blending with cursor
+          }}>
+            {(() => {
+              // Find the two ** markers
+              const textAfterWord = localText.substring(registrationWordEnd);
+              const firstStarIndex = textAfterWord.indexOf('*');
+              const secondStarIndex = textAfterWord.indexOf('*', firstStarIndex + 1);
+
+              if (firstStarIndex >= 0 && secondStarIndex >= 0) {
+                // We have ** markers - highlight only text between them
+                const absoluteFirstStar = registrationWordEnd + firstStarIndex;
+                const absoluteSecondStar = registrationWordEnd + secondStarIndex;
+
+                return (
+                  <>
+                    {/* Text BEFORE the prefix word */}
+                    <span>{localText.substring(0, registrationWordStart)}</span>
+                    {/* Blue highlight: prefix word */}
+                    <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)', fontWeight: 'bold', padding: '2px 0' }}>
+                      {localText.substring(registrationWordStart, registrationWordEnd)}
+                    </span>
+                    {/* Arrow and first * (no highlight) */}
+                    <span>{localText.substring(registrationWordEnd, absoluteFirstStar + 1)}</span>
+                    {/* Green highlight: ONLY text between the two ** */}
+                    <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.25)', padding: '2px 0' }}>
+                      {localText.substring(absoluteFirstStar + 1, absoluteSecondStar)}
+                    </span>
+                    {/* Blinking cursor after the typed text */}
+                    <span style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '20px',
+                      backgroundColor: 'rgba(34, 197, 94, 0.4)',
+                      verticalAlign: 'middle',
+                      animation: 'cursor-blink 1s infinite',
+                      marginRight: '-2px'
+                    }}></span>
+                    {/* Second * and rest of text (no highlight) */}
+                    <span>{localText.substring(absoluteSecondStar)}</span>
+                  </>
+                );
+              } else {
+                // No markers - show everything after arrow with green highlight
+                return (
+                  <>
+                    <span>{localText.substring(0, registrationWordStart)}</span>
+                    <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)', fontWeight: 'bold', padding: '2px 0' }}>
+                      {localText.substring(registrationWordStart, registrationWordEnd)}
+                    </span>
+                    <span>{localText.substring(registrationWordEnd, registrationWordEnd + 3)}</span>
+                    <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.25)', padding: '2px 0' }}>
+                      {localText.substring(registrationWordEnd + 3)}
+                    </span>
+                  </>
+                );
+              }
+            })()}
+          </div>
+        )}
         <textarea
           ref={textRef}
-          className="block-text"
+          className={`block-text ${isWordHighlighted ? 'registering-shortcut' : ''} ${isTypingMeaning ? 'typing-meaning' : ''} ${isSpecialTag ? 'disabled-tag-text' : ''}`}
           value={localText}
           onChange={handleTextChange}
           onKeyDown={handleTextKeyDown}
           onFocus={handleTextFocus}
           onBlur={handleTextBlur}
+          readOnly={isSpecialTag}
           onMouseUp={(e) => {
             // Check for timestamp highlight when clicking
             const textarea = e.currentTarget;
@@ -2243,14 +3639,14 @@ const TextBlock = React.memo(function TextBlock({
             }
           })()}...` : "הקלד טקסט כאן...") : ""}
           dir="rtl"
-          style={{ 
+          style={{
             direction: 'rtl',
             textAlign: 'right',
             resize: 'none',
             overflow: 'hidden',
             fontSize: fontSize + 'px',
             fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
-            color: isIsolated ? 'inherit' : '#94a3b8',
+            color: isTypingMeaning ? 'transparent' : (isIsolated ? 'inherit' : '#94a3b8'), // Hide text when overlay is active
             caretColor: inputLanguage === 'english' ? '#2196f3' : '#e91e63',
             fontWeight: isIsolated ? 'normal' : 300,
             position: 'relative',
@@ -2309,7 +3705,13 @@ const TextBlock = React.memo(function TextBlock({
   
   // Re-render if previousSpeaker changes (for auto-correct validation)
   if (prevProps.previousSpeaker !== nextProps.previousSpeaker) return false;
-  
+
+  // Re-render if shortcut registration state changes
+  if (prevProps.isRegisteringShortcut !== nextProps.isRegisteringShortcut) return false;
+  if (prevProps.shortcutPrefix !== nextProps.shortcutPrefix) return false;
+  if (prevProps.shortcutPrefixStart !== nextProps.shortcutPrefixStart) return false;
+  if (prevProps.shortcutPrefixEnd !== nextProps.shortcutPrefixEnd) return false;
+
   // Skip re-render for callback functions (they should be stable with useCallback)
   // and other props that don't affect rendering
   return true;

@@ -100,6 +100,8 @@
   transition: all 0.2s ease;
   direction: rtl;
   min-height: 26px;
+  max-height: none !important;
+  height: auto !important;
   border-left: 4px solid #e0f2f1;
   border-right: 4px solid #e0f2f1;
 }
@@ -123,6 +125,13 @@
   flex-shrink: 0;
 }
 
+/* Wider speaker field for special tags */
+.text-block.special-tag .speaker-input-wrapper {
+  width: auto;
+  min-width: 150px;
+  max-width: 250px;
+}
+
 /* Speaker area */
 .block-speaker {
   font-weight: 500;
@@ -133,7 +142,7 @@
   border-radius: 3px;
   direction: rtl !important;
   text-align: right !important;
-  unicode-bidi: plaintext !important;
+  unicode-bidi: bidi-override !important; /* Force RTL for all characters including numbers */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -143,6 +152,13 @@
   line-height: 1.8; /* Increased from 1.5 to 1.8 to match text area */
   position: relative;
   z-index: 2;
+}
+
+/* Allow wrapping for special tags so full text is visible */
+.text-block.special-tag .block-speaker {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 /* Name completion overlay */
@@ -174,6 +190,13 @@
   background-color: rgba(23, 162, 184, 0.15);
 }
 
+/* Special tags with timestamp - remove underline but keep timestamp functionality */
+.text-block.special-tag .block-speaker[data-timestamp] {
+  display: inline-block;
+  width: auto;
+  border-bottom: none;
+}
+
 /* Placeholder styles for input/textarea */
 .block-speaker::placeholder,
 .block-text::placeholder {
@@ -196,17 +219,19 @@
 /* Text area */
 .block-text {
   flex: 1;
-  padding: 4px 4px;
+  padding: 6px 8px;
   outline: none;
-  min-height: 22px;
-  line-height: 1.8; /* Increased from 1.5 to 1.8 for better line spacing */
+  min-height: 40px;
+  line-height: 1.6; /* Adjusted for better text flow */
   border-radius: 3px;
   border: none;
-  transition: all 0.2s ease;
+  transition: height 0.1s ease;
   word-wrap: break-word;
   white-space: pre-wrap;
   overflow-y: hidden;
   resize: none;
+  display: block;
+  box-sizing: border-box;
   background: transparent;
   /* RTL direction */
   direction: rtl !important;
@@ -214,10 +239,8 @@
   text-align: justify !important;
   text-align-last: right !important; /* Last line stays right-aligned */
   text-justify: inter-word !important;
-  /* Remove unicode-bidi: plaintext as it interferes with justification */
-  /* unicode-bidi: plaintext !important; - REMOVED */
-  /* Use embed instead for better justification support */
-  unicode-bidi: embed !important;
+  /* Force RTL for all characters including numbers */
+  unicode-bidi: bidi-override !important;
   /* Better word spacing for justified text */
   word-spacing: 0.1em;
   letter-spacing: normal;
@@ -482,6 +505,31 @@
   transform: translateY(-50%) scale(0.95);
 }
 
+/* Continuation block styling */
+.text-block.continuation-block {
+  /* Continuation blocks have same border color as parent speaker (set via inline style) */
+  /* Padding is adjusted via inline style to align text with regular blocks */
+}
+
+/* Special tag block styling */
+.text-block.special-tag {
+  /* No background - keep text continuous */
+}
+
+.text-block.special-tag .block-speaker {
+  font-weight: 600;
+  color: #1e40af;
+  font-size: 15px;
+}
+
+/* Disabled text field for special tags */
+.block-text.disabled-tag-text {
+  /* No gray background - keep text continuous */
+  cursor: not-allowed !important;
+  color: #9ca3af !important;
+  opacity: 0.6;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .speaker-input-wrapper {
@@ -489,13 +537,56 @@
     min-width: 80px;
     max-width: 80px;
   }
-  
+
   .block-speaker {
     font-size: 13px;
   }
-  
+
   .text-block {
     padding: 2px 8px;
     gap: 6px;
+  }
+
+  /* Adjust continuation block padding for mobile (RTL - use padding-right) */
+  /* 80px (speaker) + 6px (gap) + 10px (separator + gap) = 96px */
+  .text-block.continuation-block {
+    padding-right: 104px !important;
+  }
+}
+
+/* ============ SHORTCUT REGISTRATION MODE STYLES ============ */
+
+/* Registration mode styling - single phase with green highlight */
+.block-text.registering-shortcut {
+  /* Remove all visual styling - the text selection will show which word is being registered */
+  /* No background, border, or animation needed */
+}
+
+/* Typing meaning mode - hide cursor, use green box indicator instead */
+.block-text.typing-meaning {
+  caret-color: transparent !important; /* Hide the cursor */
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* Blinking cursor indicator animation */
+@keyframes cursor-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0.3;
+  }
+}
+
+/* Pulse animation for border */
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgba(76, 175, 80, 0.5);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  }
+  50% {
+    border-color: rgba(76, 175, 80, 0.8);
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
   }
 }
