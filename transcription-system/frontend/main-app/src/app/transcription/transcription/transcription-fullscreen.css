@@ -937,41 +937,50 @@
 }
 
 /* Text blocks should grow in fullscreen - remove ALL height constraints and scrollbars */
-.fullscreen-mode .text-block,
+.fullscreen-mode .text-block {
+  max-height: none !important;
+  min-height: 26px !important;
+}
+
 .fullscreen-mode .text-block textarea,
 .fullscreen-mode .block-text {
   max-height: none !important;
   min-height: 40px !important;
-  height: auto !important;
+  /* DO NOT set height: auto !important - it prevents JavaScript from dynamically setting height */
   overflow-y: hidden !important; /* No scrollbar on individual blocks */
   overflow-x: hidden !important;
-  overflow: visible !important;
   resize: none !important;
 }
 
 /* Also for the editor section in split video mode */
-.fullscreen-editor-section .text-block,
+.fullscreen-editor-section .text-block {
+  max-height: none !important;
+  min-height: 26px !important;
+}
+
 .fullscreen-editor-section .text-block textarea,
 .fullscreen-editor-section .block-text {
   max-height: none !important;
   min-height: 40px !important;
-  height: auto !important;
+  /* DO NOT set height: auto !important - it prevents JavaScript from dynamically setting height */
   overflow-y: hidden !important; /* No scrollbar on individual blocks */
   overflow-x: hidden !important;
-  overflow: visible !important;
   resize: none !important;
 }
 
 /* And for fullscreen text editor (audio mode) */
-.fullscreen-text-editor .text-block,
+.fullscreen-text-editor .text-block {
+  max-height: none !important;
+  min-height: 26px !important;
+}
+
 .fullscreen-text-editor .text-block textarea,
 .fullscreen-text-editor .block-text {
   max-height: none !important;
   min-height: 40px !important;
-  height: auto !important;
+  /* DO NOT set height: auto !important - it prevents JavaScript from dynamically setting height */
   overflow-y: hidden !important; /* No scrollbar on individual blocks */
   overflow-x: hidden !important;
-  overflow: visible !important;
   resize: none !important;
 }
 
@@ -1008,37 +1017,6 @@
 .fullscreen-mode .blocks-list,
 .fullscreen-editor-section .blocks-list,
 .fullscreen-text-editor .blocks-list {
-  height: auto !important;
-  max-height: none !important;
-}
-
-/* Remove height constraints from parent containers to allow natural block expansion */
-.fullscreen-mode .text-editor-inner,
-.fullscreen-editor-section .text-editor-inner,
-.fullscreen-text-editor .text-editor-inner {
-  height: auto !important;
-  max-height: none !important;
-}
-
-.fullscreen-mode .text-editor-body,
-.fullscreen-editor-section .text-editor-body,
-.fullscreen-text-editor .text-editor-body {
-  overflow: visible !important;
-  height: auto !important;
-}
-
-.fullscreen-mode .text-editor-content,
-.fullscreen-editor-section .text-editor-content,
-.fullscreen-text-editor .text-editor-content {
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
-  overflow-y: visible !important;
-}
-
-.fullscreen-mode .blocks-container,
-.fullscreen-editor-section .blocks-container,
-.fullscreen-text-editor .blocks-container {
   height: auto !important;
   max-height: none !important;
 }

@@ -1883,7 +1883,7 @@ export default function TranscriptionWorkPage() {
                       >
                         <RemarksEventListener />
                         <TextEditor
-                          key={`fullscreen-video-${currentMediaId || 'none'}`}
+                          key={`fullscreen-video-${currentMediaId || 'none'}-${isFullscreen}`}
                           currentProjectId={currentProject?.projectId || ''}
                           currentMediaId={currentMediaId || ''}
                           mediaPlayerRef={mediaPlayerRef}
@@ -1915,7 +1915,7 @@ export default function TranscriptionWorkPage() {
                     <RemarksEventListener />
                     <div className="fullscreen-text-editor">
                       <TextEditor
-                        key={`fullscreen-audio-${currentMediaId || 'none'}`}
+                        key={`fullscreen-audio-${currentMediaId || 'none'}-${isPageFullscreen}`}
                         currentProjectId={currentProject?.projectId || ''}
                         currentMediaId={currentMediaId || ''}
                         mediaPlayerRef={mediaPlayerRef}
@@ -2584,7 +2584,7 @@ export default function TranscriptionWorkPage() {
                 return null;
               })()}
               <TextEditor
-                key={`regular-${currentMediaId || 'none'}`}
+                key={`regular-${currentMediaId || 'none'}-${!isFullscreen && !isPageFullscreen}`}
                 currentProjectId={currentProject?.projectId || ''}
                 currentMediaId={currentMediaId || ''}
                 mediaPlayerRef={mediaPlayerRef}
