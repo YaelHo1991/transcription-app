@@ -1,0 +1,1101 @@
+/* ===== TRANSCRIPTION FULLSCREEN MODE STYLES ===== */
+
+/* Page Fullscreen Mode (within browser window) */
+.transcription-page-wrapper.page-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+/* Hide the HoveringBarsLayout navigation when in page fullscreen */
+.page-fullscreen .hovering-header {
+  display: none !important;
+}
+
+.page-fullscreen .hovering-sidebar {
+  display: none !important;
+}
+
+/* Adjust workspace header in page fullscreen */
+.page-fullscreen .t-workspace-header {
+  margin: 0;
+  border-radius: 0;
+  width: 100%;
+}
+
+/* Adjust main content in page fullscreen */
+.page-fullscreen .main-content {
+  height: calc(100vh - 60px); /* Minus header height */
+  overflow: auto;
+}
+
+/* Browser Fullscreen Mode Container */
+.fullscreen-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: #ffffff;
+}
+
+/* Fullscreen Wrapper */
+.fullscreen-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: #ffffff;
+}
+
+/* Fullscreen Text Editor (for audio files - full width) */
+.fullscreen-text-editor {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 40px;
+  background: #ffffff;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  height: calc(100vh - 60px) !important; /* Full height minus media controls */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Split-screen layout for video files - Horizontal (default) */
+.fullscreen-video-split.horizontal {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  height: calc(100vh - 60px); /* Minus minimal media controls height */
+  width: 100%;
+  background: #ffffff;
+}
+
+/* Split-screen layout for video files - Vertical */
+.fullscreen-video-split.vertical {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: calc(100vh - 60px);
+  width: 100%;
+  background: #ffffff;
+}
+
+/* Video minimized - hide video section and expand editor to full width */
+.fullscreen-video-split.video-minimized .fullscreen-video-section {
+  display: none;
+}
+
+.fullscreen-video-split.video-minimized .fullscreen-editor-section {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Video section - Horizontal layout (left half) */
+.fullscreen-video-split.horizontal .fullscreen-video-section {
+  width: 50%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-right: 2px solid #e0e0e0;
+}
+
+/* Video section - Vertical layout (top half) */
+.fullscreen-video-split.vertical .fullscreen-video-section {
+  width: 100%;
+  height: 50%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+/* Video control buttons - positioned in top-right of video section */
+.fullscreen-video-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+.video-control-btn {
+  min-width: 55px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.video-control-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.video-control-btn:active {
+  transform: scale(0.98);
+}
+
+.video-control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.video-control-btn:disabled:hover {
+  transform: none;
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+
+.fullscreen-video-section .video-cube-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.fullscreen-video-section .video-cube-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
+.fullscreen-video-section video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Editor section - Horizontal layout (right half) */
+.fullscreen-video-split.horizontal .fullscreen-editor-section {
+  width: 50%;
+  height: 100%;
+  overflow: auto;
+  padding: 20px 30px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Editor section - Vertical layout (bottom half) */
+.fullscreen-video-split.vertical .fullscreen-editor-section {
+  width: 100%;
+  height: 50%;
+  overflow: auto;
+  padding: 20px 30px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.fullscreen-editor-section .text-editor-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.fullscreen-editor-section .text-editor-container {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Ensure text editor takes full height */
+.fullscreen-text-editor .text-editor-wrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.fullscreen-text-editor .text-editor-container {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.fullscreen-text-editor .blocks-list {
+  flex: 1;
+  height: auto !important;
+  overflow-y: auto;
+}
+
+/* Original fullscreen container for draggable panels (kept for future) */
+.fullscreen-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f5f5f5;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+/* Hide header and sidebar in fullscreen */
+.fullscreen-mode .hovering-header {
+  display: none !important;
+}
+
+.fullscreen-mode .hovering-sidebar {
+  display: none !important;
+}
+
+.fullscreen-mode .t-workspace-header {
+  display: none !important;
+}
+
+/* Full workspace in fullscreen */
+.fullscreen-mode .main-content {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.fullscreen-mode .content-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100vh !important;
+}
+
+.fullscreen-mode .workspace-grid {
+  display: block !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+/* Hide normal layout elements in fullscreen */
+.fullscreen-mode .main-workspace,
+.fullscreen-mode .side-workspace,
+.fullscreen-mode .remarks-column {
+  display: none !important;
+}
+
+/* Panel Control Toolbar */
+.panel-control-toolbar {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10000;
+  min-width: 180px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.panel-control-toolbar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.panel-control-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.exit-fullscreen-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.exit-fullscreen-btn:hover {
+  background: #dc2626;
+}
+
+/* Panel Toggle Controls */
+.panel-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.panel-toggle:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.panel-toggle-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.panel-toggle-label {
+  font-size: 13px;
+  color: #374151;
+  user-select: none;
+}
+
+/* Layout Presets */
+.layout-presets {
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.layout-presets-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.layout-presets-dropdown {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+}
+
+.layout-presets-dropdown:hover {
+  border-color: #d1d5db;
+}
+
+/* Minimal Media Controls - Floating Circular Design */
+.minimal-media-controls-floating {
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle at center,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.9) 50%,
+    rgba(0, 0, 0, 0.85) 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden; /* Keep everything inside the circle */
+}
+
+.minimal-media-controls-floating:hover {
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.7),
+    0 0 0 2px rgba(255, 255, 255, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.15);
+}
+
+/* Restore Video Button - Floating element above controls */
+.minimal-restore-video-floating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.minimal-restore-video {
+  background: rgba(76, 175, 80, 0.5);
+  border: 2px solid rgba(76, 175, 80, 0.8);
+  border-radius: 50%;
+  padding: 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #4CAF50;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4),
+              0 0 0 0 rgba(76, 175, 80, 0);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4),
+                0 0 0 0 rgba(76, 175, 80, 0);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(76, 175, 80, 0.6),
+                0 0 0 8px rgba(76, 175, 80, 0.1);
+  }
+}
+
+.minimal-restore-video:hover {
+  background: rgba(76, 175, 80, 0.7);
+  border-color: #4CAF50;
+  color: white;
+  transform: scale(1.15);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+  animation: none;
+}
+
+.minimal-restore-video svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Page Fullscreen Button - Left side inside circle */
+.minimal-page-fullscreen {
+  position: absolute;
+  left: 15px;
+  top: 45%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.minimal-page-fullscreen:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.minimal-page-fullscreen.active {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.5);
+  color: #4CAF50;
+}
+
+.minimal-page-fullscreen svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Central Play/Pause Button */
+.minimal-play-btn-center {
+  background: linear-gradient(145deg,
+    rgba(255, 255, 255, 0.15),
+    rgba(255, 255, 255, 0.05));
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  z-index: 2;
+}
+
+.minimal-play-btn-center:hover {
+  background: linear-gradient(145deg,
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0.1));
+  transform: scale(1.05);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    inset 0 1px 3px rgba(255, 255, 255, 0.3);
+}
+
+.minimal-play-btn-center:active {
+  transform: scale(0.95);
+}
+
+.minimal-play-btn-center svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Browser Fullscreen Button - Right side inside circle */
+.minimal-browser-fullscreen {
+  position: absolute;
+  right: 15px;
+  top: 45%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.minimal-browser-fullscreen:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.minimal-browser-fullscreen.active {
+  background: rgba(33, 150, 243, 0.3);
+  border-color: rgba(33, 150, 243, 0.5);
+  color: #2196F3;
+}
+
+.minimal-browser-fullscreen.exit-active {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.minimal-browser-fullscreen.exit-active:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #ffffff;
+}
+
+.minimal-browser-fullscreen svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Time Display - Curved at bottom inside circle */
+.minimal-time-display-curved {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+}
+
+.minimal-time-display-curved svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.minimal-time-display-curved text {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 1), 0 1px 2px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.3px;
+}
+
+.minimal-time-display-curved:hover text {
+  fill-opacity: 1;
+}
+
+.minimal-time-display-curved:hover tspan:first-child {
+  fill: #5CBF60;
+}
+
+.minimal-time-display-curved:hover tspan:last-child {
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.time-current {
+  color: #4CAF50;
+  font-weight: 700;
+  font-size: 9px;
+}
+
+.time-separator {
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 2px;
+  font-size: 9px;
+}
+
+.time-total {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+}
+
+/* Time Input */
+.minimal-time-input {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+  border-radius: 4px;
+  color: #4CAF50;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  padding: 2px 4px;
+  width: 75px;
+  text-align: center;
+  outline: none;
+}
+
+.minimal-time-input:focus {
+  border-color: #4CAF50;
+  background: rgba(0, 0, 0, 0.95);
+}
+
+/* Fullscreen Toggle Buttons - Inside the circle */
+.minimal-fullscreen-toggle-inside,
+.minimal-exit-fullscreen-inside {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(32, 201, 151, 0.8);
+  color: #0f4c4c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.minimal-fullscreen-toggle-inside:hover,
+.minimal-exit-fullscreen-inside:hover {
+  background: white;
+  border-color: #20c997;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(32, 201, 151, 0.4);
+}
+
+.minimal-fullscreen-toggle-inside:active,
+.minimal-exit-fullscreen-inside:active {
+  transform: scale(0.95);
+}
+
+/* Exit button has red accent */
+.minimal-exit-fullscreen-inside {
+  border-color: rgba(239, 68, 68, 0.8);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.minimal-exit-fullscreen-inside:hover {
+  border-color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Old styles - kept for reference but can be removed */
+.minimal-media-controls {
+  display: none; /* Hide old bottom bar style */
+}
+
+.minimal-audio-controls.hidden {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.minimal-audio-controls-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: 800px;
+  width: 100%;
+}
+
+/* Play/Pause Button */
+.minimal-play-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.minimal-play-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+/* Progress Bar */
+.minimal-progress {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+}
+
+.minimal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #14b8a6, #10b981);
+  border-radius: 2px;
+  position: relative;
+  transition: width 0.1s linear;
+}
+
+.minimal-progress-handle {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+}
+
+.minimal-progress-handle:active {
+  cursor: grabbing;
+}
+
+/* Time Display */
+.minimal-time {
+  color: white;
+  font-size: 13px;
+  font-family: monospace;
+  min-width: 100px;
+  text-align: center;
+}
+
+/* Volume Control */
+.minimal-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimal-volume-icon {
+  background: transparent;
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.minimal-volume-slider {
+  width: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.minimal-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.minimal-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* Speed Control */
+.minimal-speed {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  outline: none;
+}
+
+.minimal-speed:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Exit Fullscreen Button */
+.minimal-exit-fullscreen {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.minimal-exit-fullscreen:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.minimal-exit-fullscreen svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Panel-specific adjustments in fullscreen */
+.fullscreen-mode .text-editor-wrapper {
+  height: 100%;
+  overflow: auto;
+}
+
+.fullscreen-mode .speaker-container-inner {
+  height: 100%;
+  overflow: auto;
+}
+
+.fullscreen-mode .remarks-wrapper {
+  height: 100%;
+  overflow: auto;
+}
+
+.fullscreen-mode .helper-files-content {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Text blocks should grow in fullscreen - remove ALL height constraints and scrollbars */
+.fullscreen-mode .text-block,
+.fullscreen-mode .text-block textarea,
+.fullscreen-mode .block-text {
+  max-height: none !important;
+  min-height: 40px !important;
+  height: auto !important;
+  overflow-y: hidden !important; /* No scrollbar on individual blocks */
+  overflow-x: hidden !important;
+  overflow: visible !important;
+  resize: none !important;
+}
+
+/* Also for the editor section in split video mode */
+.fullscreen-editor-section .text-block,
+.fullscreen-editor-section .text-block textarea,
+.fullscreen-editor-section .block-text {
+  max-height: none !important;
+  min-height: 40px !important;
+  height: auto !important;
+  overflow-y: hidden !important; /* No scrollbar on individual blocks */
+  overflow-x: hidden !important;
+  overflow: visible !important;
+  resize: none !important;
+}
+
+/* And for fullscreen text editor (audio mode) */
+.fullscreen-text-editor .text-block,
+.fullscreen-text-editor .text-block textarea,
+.fullscreen-text-editor .block-text {
+  max-height: none !important;
+  min-height: 40px !important;
+  height: auto !important;
+  overflow-y: hidden !important; /* No scrollbar on individual blocks */
+  overflow-x: hidden !important;
+  overflow: visible !important;
+  resize: none !important;
+}
+
+/* Explicitly target all textarea elements in fullscreen */
+.fullscreen-mode textarea,
+.fullscreen-editor-section textarea,
+.fullscreen-text-editor textarea {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+  resize: none !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.fullscreen-mode textarea::-webkit-scrollbar,
+.fullscreen-editor-section textarea::-webkit-scrollbar,
+.fullscreen-text-editor textarea::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Ensure the text editor container allows growth */
+.fullscreen-mode .text-editor-container,
+.fullscreen-editor-section .text-editor-container,
+.fullscreen-text-editor .text-editor-container {
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* Ensure blocks list allows growth */
+.fullscreen-mode .blocks-list,
+.fullscreen-editor-section .blocks-list,
+.fullscreen-text-editor .blocks-list {
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* RTL Support for fullscreen */
+[dir="rtl"] .panel-control-toolbar {
+  right: auto;
+  left: 10px;
+}
+
+[dir="rtl"] .minimal-audio-controls-inner {
+  direction: rtl;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fullscreen-container {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .panel-control-toolbar {
+    top: 5px;
+    right: 5px;
+    min-width: 150px;
+    font-size: 12px;
+  }
+
+  .minimal-audio-controls {
+    height: 50px;
+    padding: 0 10px;
+  }
+
+  .minimal-audio-controls-inner {
+    gap: 10px;
+  }
+
+  .minimal-play-btn {
+    width: 35px;
+    height: 35px;
+  }
+
+  .minimal-volume {
+    display: none; /* Hide volume on mobile */
+  }
+
+  /* Stack video and editor vertically on mobile */
+  .fullscreen-video-split {
+    flex-direction: column;
+  }
+
+  .fullscreen-video-section,
+  .fullscreen-editor-section {
+    width: 100%;
+    height: 50%;
+  }
+
+  .fullscreen-video-section {
+    border-right: none;
+    border-bottom: 2px solid #e0e0e0;
+  }
+}
+
+/* Focus indicators for accessibility */
+.draggable-panel:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}
+
+.panel-toggle:focus-visible,
+.minimal-play-btn:focus-visible,
+.exit-fullscreen-btn:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}
+
+/* Ensure panels are above everything else */
+.fullscreen-mode .draggable-panel {
+  z-index: calc(9000 + var(--panel-z-index, 0));
+}

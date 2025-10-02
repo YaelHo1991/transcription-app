@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, forwardRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl, buildApiUrl } from '@/utils/api';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
@@ -19,6 +19,11 @@ import { ConfirmationModal } from './components/TextEditor/components/Confirmati
 import { AuthRequiredModal } from '../../../components/AuthRequiredModal';
 import LoginPromptModal from '../../../components/LoginPromptModal';
 import { SimpleSpeakerHandle } from './components/Speaker/SimpleSpeaker';
+import DraggablePanel from '../../../components/DraggablePanel';
+import usePanelManager from '../../../hooks/usePanelManager';
+import FullscreenWorkspace from '../../../components/FullscreenWorkspace';
+import MinimalMediaControls from '../../../components/MinimalMediaControls';
+import VideoCube from './components/MediaPlayer/VideoCube';
 
 // Lazy load heavy components with loading skeletons
 const TextEditor = dynamic(
@@ -33,7 +38,8 @@ const TextEditor = dynamic(
   }
 );
 
-const MediaPlayer = dynamic(
+// Create a forwardRef wrapper for the dynamic MediaPlayer
+const MediaPlayerComponent = dynamic(
   () => import('./components/MediaPlayer'),
   {
     loading: () => (
@@ -44,6 +50,13 @@ const MediaPlayer = dynamic(
     ssr: false
   }
 );
+
+// Wrap the dynamic component with forwardRef
+const MediaPlayer = forwardRef<any, any>((props, ref) => {
+  return <MediaPlayerComponent {...props} ref={ref} />;
+});
+
+MediaPlayer.displayName = 'MediaPlayerWrapper';
 
 const SimpleSpeaker = dynamic(
   () => import('./components/Speaker/SimpleSpeaker'),
@@ -66,8 +79,11 @@ const SimpleSpeaker = dynamic(
 import useProjectStore from '@/lib/stores/projectStore';
 import useHoveringBarsStore from '@/lib/stores/hoveringBarsStore';
 import indexedDBService from '@/services/indexedDBService';
+import progressService from '@/services/progressService';
+import { tSessionService } from '@/services/tSessionService';
 import './transcription-theme.css';
 import './transcription-page.css';
+import './transcription-fullscreen.css';
 import './components/TranscriptionSidebar/TranscriptionSidebar.css';
 import '../shared/components/HoveringBarsLayout/HoveringBarsLayout.css';
 
@@ -131,19 +147,34 @@ const CombinedUploadButton = ({ sidebarRef }: { sidebarRef: React.RefObject<any>
   }, [isDropdownOpen]);
 
   const handleOptionClick = (action: 'media' | 'folder' | 'url') => {
+    console.log('[CombinedUploadButton] handleOptionClick:', action);
+    console.log('[CombinedUploadButton] sidebarRef.current:', sidebarRef.current);
     setIsDropdownOpen(false);
 
     switch (action) {
       case 'media':
-        sidebarRef.current?.handleSingleMediaClick?.();
+        console.log('[CombinedUploadButton] Calling handleSingleMediaClick');
+        if (sidebarRef.current?.handleSingleMediaClick) {
+          sidebarRef.current.handleSingleMediaClick();
+        } else {
+          console.error('[CombinedUploadButton] handleSingleMediaClick not found on sidebarRef');
+        }
         break;
       case 'folder':
+        console.log('[CombinedUploadButton] Calling handleFolderUpload');
         if (sidebarRef.current?.handleFolderUpload) {
           sidebarRef.current.handleFolderUpload();
+        } else {
+          console.error('[CombinedUploadButton] handleFolderUpload not found on sidebarRef');
         }
         break;
       case 'url':
-        sidebarRef.current?.handleUrlDownload?.();
+        console.log('[CombinedUploadButton] Calling handleUrlDownload');
+        if (sidebarRef.current?.handleUrlDownload) {
+          sidebarRef.current.handleUrlDownload();
+        } else {
+          console.error('[CombinedUploadButton] handleUrlDownload not found on sidebarRef');
+        }
         break;
     }
   };
@@ -370,7 +401,8 @@ export default function TranscriptionWorkPage() {
     navigateMedia,
     setCurrentProject,
     setCurrentMediaById,
-    loadProjects
+    loadProjects,
+    restorePersistedState
   } = useProjectStore();
   
   // Log when projects change
@@ -411,6 +443,9 @@ export default function TranscriptionWorkPage() {
     // Authentication error callback removed - projectService deleted
   }, []);
   
+  // Track if we've attempted to restore persisted state
+  const [hasRestoredState, setHasRestoredState] = useState(false);
+
   // Load projects on mount
   useEffect(() => {
     console.log('[TranscriptionPage] Loading projects on mount');
@@ -419,9 +454,49 @@ export default function TranscriptionWorkPage() {
     }, 100);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  
+
+  // Restore persisted state or auto-select first project
+  useEffect(() => {
+    if (projects && projects.length > 0 && !hasRestoredState) {
+      console.log('[TranscriptionPage] Projects loaded, attempting to restore persisted state');
+
+      // Mark that we've attempted restoration to prevent repeated attempts
+      setHasRestoredState(true);
+
+      // First try to restore persisted state
+      restorePersistedState().then(() => {
+        // After restoration attempt, check if we have a current project
+        const store = useProjectStore.getState();
+
+        // If no project was restored, auto-select the first one
+        if (!store.currentProject) {
+          console.log('[TranscriptionPage] No persisted state found, auto-selecting first project:', projects[0].projectId);
+          setCurrentProject(projects[0]);
+          if (projects[0].mediaFiles && projects[0].mediaFiles.length > 0) {
+            const firstMediaItem = projects[0].mediaFiles[0];
+            const firstMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
+            setCurrentMediaById(projects[0].projectId, firstMediaId);
+          }
+        } else {
+          console.log('[TranscriptionPage] Restored persisted state - project:', store.currentProject.projectId, 'media:', store.currentMediaId);
+        }
+      });
+    }
+  }, [projects, hasRestoredState, setCurrentProject, setCurrentMediaById, restorePersistedState]);
+
   // Store project remarks to pass to RemarksProvider
   const [projectRemarks, setProjectRemarks] = useState<any[]>([]);
+
+  // Update remarks when transcription data changes (navigation between files)
+  useEffect(() => {
+    if (currentTranscriptionData?.remarks) {
+      console.log('[Page] Loading remarks from currentTranscriptionData:', currentTranscriptionData.remarks.length);
+      setProjectRemarks(currentTranscriptionData.remarks);
+    } else {
+      // Clear remarks if no transcription data or no remarks
+      setProjectRemarks([]);
+    }
+  }, [currentTranscriptionData]);
 
   // Test URL modal state (localhost only)
   const [showTestUrlModal, setShowTestUrlModal] = useState(false);
@@ -437,16 +512,199 @@ export default function TranscriptionWorkPage() {
   
   // Create a unique session ID for this transcription session
   const [sessionId] = useState<string>('session-default');
-  
+
   // Use global hovering bars store
   const { headerLocked, sidebarLocked } = useHoveringBarsStore();
-  
+
   const [helperFilesExpanded, setHelperFilesExpanded] = useState(false);
-  
+
+  // Fullscreen video controls state
+  const [isVideoMinimized, setIsVideoMinimized] = useState(false);
+  const [splitOrientation, setSplitOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [splitRatio, setSplitRatio] = useState(50); // Video size percentage (30-70)
+
+  // MediaPlayer refs - one for each mode
+  const mediaPlayerRef = useRef<any>(null);  // Regular mode player
+  const fullscreenMediaPlayerRef = useRef<any>(null);  // Fullscreen mode player
+
+  // Fullscreen state and panel management
+  const [fullscreenMode, setFullscreenMode] = useState<'none' | 'page' | 'browser'>('none');
+  const [fullscreenVideoRef, setFullscreenVideoRef] = useState<HTMLVideoElement | null>(null);
+  const panelManager = usePanelManager();
+
+  // Computed fullscreen states for backward compatibility
+  const isFullscreen = fullscreenMode === 'browser';
+  const isPageFullscreen = fullscreenMode === 'page';
+  const isAnyFullscreen = fullscreenMode !== 'none';
+
+  // Synchronize media time between players when switching modes
+  const syncMediaTime = useCallback((fromPlayer: any, toPlayer: any) => {
+    if (fromPlayer?.current && toPlayer?.current) {
+      const currentTimeValue = fromPlayer.current.currentTime;
+      const isPlayingValue = fromPlayer.current.isPlaying;
+
+      // Seek to the same time
+      if (typeof toPlayer.current.seekTo === 'function' && currentTimeValue !== undefined) {
+        setTimeout(() => {
+          toPlayer.current.seekTo(currentTimeValue);
+          console.log(`[Sync] Synchronized time to ${currentTimeValue}s`);
+
+          // Also sync play state
+          if (isPlayingValue && typeof toPlayer.current.togglePlayPause === 'function') {
+            const toPlayerElement = toPlayer.current.audioRef?.current || toPlayer.current.videoRef?.current;
+            if (toPlayerElement && toPlayerElement.paused) {
+              toPlayer.current.togglePlayPause();
+            }
+          }
+        }, 100); // Small delay to ensure player is ready
+      }
+    }
+  }, []);
+
+  // Cycle through fullscreen modes: none → page → browser → none
+  const cycleFullscreenMode = useCallback(async () => {
+    switch (fullscreenMode) {
+      case 'none':
+        // Enter page fullscreen - no sync needed, same player
+        setFullscreenMode('page');
+        break;
+      case 'page':
+        // Enter browser fullscreen
+        try {
+          await document.documentElement.requestFullscreen();
+          setFullscreenMode('browser');
+        } catch (err) {
+          console.error('Failed to enter browser fullscreen:', err);
+        }
+        break;
+      case 'browser':
+        // Exit all fullscreen - no sync needed, same player
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          }
+          setFullscreenMode('none');
+        } catch (err) {
+          console.error('Failed to exit browser fullscreen:', err);
+          setFullscreenMode('none');
+        }
+        break;
+    }
+  }, [fullscreenMode, syncMediaTime]);
+
+  // Legacy functions for backward compatibility
+  const toggleFullscreen = cycleFullscreenMode;
+  const togglePageFullscreen = cycleFullscreenMode;
+  const toggleBrowserFullscreen = cycleFullscreenMode;
+
+  // Exit any fullscreen mode
+  const exitAnyFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+    setFullscreenMode('none');
+  }, []);
+
+  // Direct exit to normal mode (for MinimalMediaControls)
+  const directExitFullscreen = useCallback(async () => {
+    // No sync needed - using same player
+
+    // Always exit to 'none' regardless of current mode
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch (err) {
+        console.error('Error exiting fullscreen:', err);
+      }
+    }
+    setFullscreenMode('none');
+  }, []);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      // Only update if browser fullscreen changed externally (e.g., ESC key)
+      if (!document.fullscreenElement && fullscreenMode === 'browser') {
+        setFullscreenMode('none');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, [fullscreenMode]);
+
+  // Keyboard shortcuts for fullscreen modes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F11 to cycle through fullscreen modes
+      if (e.key === 'F11') {
+        e.preventDefault();
+        cycleFullscreenMode();
+      }
+      // ESC to exit any fullscreen
+      else if (e.key === 'Escape' && isPageFullscreen) {
+        e.preventDefault();
+        exitAnyFullscreen();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cycleFullscreenMode, exitAnyFullscreen, isPageFullscreen]);
+
+  // Sync fullscreen video with hidden MediaPlayer video
+  useEffect(() => {
+    if (fullscreenMode === 'none' || !fullscreenVideoRef) return;
+
+    // If we're showing a video in fullscreen, we need to get the video URL
+    const fileNameForCheck = currentTranscriptionData?.metadata?.fileName || currentTranscriptionData?.metadata?.originalName || currentMediaId;
+    const hasVideoExtension = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)$/i.test(fileNameForCheck || '');
+    const hasVideoMimeType = currentTranscriptionData?.metadata?.mimeType?.startsWith('video/');
+    const mediaIdHasVideo = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)$/i.test(currentMediaId || '');
+    const isVideo = hasVideoExtension || hasVideoMimeType || mediaIdHasVideo;
+
+    if (!isVideo) return;
+
+    // Build the video URL directly
+    if (currentProject && currentMediaId) {
+      const apiUrl = getApiUrl();
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+      const mediaUrl = `${apiUrl}/api/projects/${currentProject.projectId}/media/${currentMediaId}?token=${encodeURIComponent(token)}`;
+
+      console.log('Setting fullscreen video source:', mediaUrl);
+      fullscreenVideoRef.src = mediaUrl;
+
+      // Replace the MediaPlayer's video ref with our fullscreen video
+      // This allows the controls to work directly with the visible video
+      if (mediaPlayerRef.current) {
+        const originalVideoRef = mediaPlayerRef.current.videoRef;
+
+        // Temporarily replace the ref with our fullscreen video
+        mediaPlayerRef.current.videoRef = { current: fullscreenVideoRef };
+
+        // Restore the original ref when exiting fullscreen
+        return () => {
+          if (mediaPlayerRef.current && originalVideoRef) {
+            mediaPlayerRef.current.videoRef = originalVideoRef;
+          }
+        };
+      }
+    }
+  }, [fullscreenMode, fullscreenVideoRef, currentProject, currentMediaId, currentTranscriptionData]);
+
   // MediaPlayer and TextEditor synchronization
   const [currentTime, setCurrentTime] = useState(0);
-  const mediaPlayerRef = useRef<any>(null);
-  
+  const progressSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Media collection management (for media files) - NOT transcription projects
   const [mediaCollections, setMediaCollections] = useState<MediaCollection[]>([]);
   const [currentCollectionIndex, setCurrentCollectionIndex] = useState(0);
@@ -457,7 +715,197 @@ export default function TranscriptionWorkPage() {
   // Transcription management (saved transcriptions from backend)
   const [transcriptions, setTranscriptions] = useState<any[]>(() => [createDefaultTranscription()]);
   const [currentTranscriptionIndex, setCurrentTranscriptionIndex] = useState(0);
-  
+
+  // Progress tracking state
+  const [projectProgress, setProjectProgress] = useState<number>(0);
+  const [currentFileProgress, setCurrentFileProgress] = useState<number>(0);
+  const [progressScenario, setProgressScenario] = useState<string>('MIXED');
+  const [currentPlayedRanges, setCurrentPlayedRanges] = useState<Array<{start: number, end: number}>>([]);
+
+  // Get current media collection and media info (moved up to prevent reference errors)
+  const currentCollection = mediaCollections ? mediaCollections[currentCollectionIndex] : undefined;
+  const currentMedia = currentCollection?.mediaItems ? currentCollection.mediaItems[currentMediaIndex] : undefined;
+  const hasCollections = mediaCollections && mediaCollections.length > 0;
+  const hasMedia = currentCollection?.mediaItems && currentCollection.mediaItems.length > 0;
+
+  // Fetch progress when project or media changes
+  useEffect(() => {
+    const fetchProgress = async () => {
+      // TODO: Re-enable when backend progress API is implemented
+      // For now, coverage-based progress is handled in the media time update listener
+      console.log('[Page] Progress tracking using coverage-based system');
+
+      // Don't reset progress here - let the coverage tracker handle it
+      // The coverage tracker will maintain progress based on played segments
+    };
+
+    fetchProgress();
+  }, [currentProject?.projectId, currentMediaId]);
+
+  // Track maximum playback position for progress (never goes backward)
+  const maxPlaybackPositionRef = useRef<number>(0);
+  const coverageTrackerInitialized = useRef(false);
+
+  // Initialize coverage tracker when media changes
+  useEffect(() => {
+    maxPlaybackPositionRef.current = 0;
+    coverageTrackerInitialized.current = false;
+
+    // Reset progress to 0 immediately when switching projects/media
+    setCurrentFileProgress(0);
+    console.log('[Page] Reset progress to 0 for new media');
+
+    // Initialize coverage tracker for the new media
+    if (currentProject?.projectId && currentMediaId) {
+      // Use actualMediaDuration if available, otherwise use a default large value
+      // The tracker will update its duration when the actual duration is known
+      const duration = actualMediaDuration > 0 ? actualMediaDuration : 3600; // Default to 1 hour
+
+      console.log(`[Page] Initializing tracker for project: ${currentProject.projectId}, media: ${currentMediaId}, duration: ${duration}`);
+
+      const tracker = progressService.getCoverageTracker(
+        currentProject.projectId,
+        currentMediaId,
+        duration
+      );
+      coverageTrackerInitialized.current = true;
+
+      // DON'T reset the tracker here - progressService already handles isolation
+      // and loads the correct data for each project
+      console.log(`[Page] Got tracker for ${currentProject.projectId}/${currentMediaId}, current coverage: ${tracker.getCoveragePercentage().toFixed(1)}%`);
+
+      // If duration changes later, update the tracker
+      if (actualMediaDuration > 0 && Math.abs(tracker.getDuration() - actualMediaDuration) > 0.1) {
+        tracker.setMediaDuration(actualMediaDuration);
+        console.log('[Page] Updated tracker duration to:', actualMediaDuration);
+      }
+
+      // DON'T initialize here - let progressService.loadCoverageData handle it
+      // This was causing double-loading and confusion
+      console.log(`[Page] Tracker created for ${currentProject.projectId}/${currentMediaId} - coverage will be loaded by progressService`);
+
+      // The progressService.getCoverageTracker already calls loadCoverageData internally,
+      // so we don't need to manually import data here
+
+      // Listen for coverage loaded event from progressService
+      const handleCoverageLoaded = (event: CustomEvent) => {
+        if (event.detail.projectId === currentProject.projectId &&
+            event.detail.mediaId === currentMediaId) {
+          console.log(`[Page] Coverage loaded event for ${currentProject.projectId}/${currentMediaId}:`, event.detail.coverage.toFixed(1) + '%');
+          setCurrentFileProgress(event.detail.coverage);
+        }
+      };
+
+      window.addEventListener('coverageLoaded', handleCoverageLoaded as any);
+
+      // Also check immediately in case data is already available
+      const immediateCheck = () => {
+        const coverage = tracker.getCoveragePercentage();
+        if (coverage !== currentFileProgress) {
+          setCurrentFileProgress(coverage);
+          console.log(`[Page] Immediate coverage check for ${currentProject.projectId}/${currentMediaId}:`, coverage.toFixed(1) + '%');
+        }
+      };
+      immediateCheck();
+
+      // Cleanup listener
+      return () => {
+        window.removeEventListener('coverageLoaded', handleCoverageLoaded as any);
+      };
+    }
+  }, [currentMediaId, actualMediaDuration, currentProject?.projectId, currentTranscriptionData]);
+
+  // Listen for media time updates from MediaPlayer and update coverage
+  useEffect(() => {
+    const handleTimeUpdate = (event: CustomEvent) => {
+      if (actualMediaDuration > 0) {
+        const currentTime = event.detail.time; // Changed from currentTime to time
+
+        // Update coverage-based progress
+        if (currentTime !== undefined && currentProject?.projectId && currentMediaId) {
+          // CRITICAL FIX: Get the tracker for the current project/media
+          const tracker = progressService.getCoverageTracker(
+            currentProject.projectId,
+            currentMediaId,
+            actualMediaDuration
+          );
+
+          // Update the tracker with current playback position
+          if (tracker) {
+            tracker.updatePosition(currentTime, true);
+
+            // Now get the updated coverage progress
+            const coverage = progressService.getCoverageProgress(
+              currentProject.projectId,
+              currentMediaId
+            );
+
+            // Always update progress to ensure UI reflects coverage
+            if (coverage !== currentFileProgress) {
+              console.log('[Page] Coverage progress updated:', coverage.toFixed(1) + '%');
+              setCurrentFileProgress(coverage);
+            }
+
+            // Show single progress bar when complete (>95%)
+            if (coverage >= 95) {
+              setProgressScenario('SINGLE_BLOCK_PODCAST');
+            } else {
+              setProgressScenario('MIXED');
+            }
+
+            // Save coverage periodically (every 5% of coverage change)
+            if (Math.floor(coverage / 5) > Math.floor(currentFileProgress / 5)) {
+              progressService.saveCoverageData(currentProject.projectId, currentMediaId).catch(error => {
+                console.error('Failed to save coverage data:', error);
+              });
+            }
+          }
+        }
+      }
+    };
+
+    // Listen for time update events from media player
+    document.addEventListener('mediaTimeUpdate', handleTimeUpdate as any);
+
+    return () => {
+      document.removeEventListener('mediaTimeUpdate', handleTimeUpdate as any);
+    };
+  }, [actualMediaDuration, currentProject?.projectId, currentMediaId, currentFileProgress]);
+
+  // Update progress when blocks change (for real-time updates)
+  const updateProgressLocally = useCallback((blocks: any[]) => {
+    if (currentProject?.projectId && currentMediaId && actualMediaDuration > 0) {
+      // Progress is now tracked by media playback position, not text changes
+      // This function just handles the debounced save to backend
+
+      // Debounced save to backend (every 5 seconds)
+      if (progressSaveTimeoutRef.current) {
+        clearTimeout(progressSaveTimeoutRef.current);
+      }
+      progressSaveTimeoutRef.current = setTimeout(async () => {
+        try {
+          // TODO: Enable when backend progress API is implemented
+          // await progressService.saveProgress(
+          //   currentProject.projectId,
+          //   currentMediaId,
+          //   blocks,
+          //   actualMediaDuration
+          // );
+          // // Refresh project progress after save
+          // const projectProg = await progressService.getProjectProgress(
+          //   currentProject.projectId
+          // );
+          // setProjectProgress(projectProg);
+
+          // For now, just log that we would save progress
+          console.log('[Progress] Would save progress (backend API not yet implemented)');
+        } catch (error) {
+          console.error('Error saving progress:', error);
+        }
+      }, 5000);
+    }
+  }, [currentProject?.projectId, currentMediaId, actualMediaDuration]);
+
   // Modal states for styled alerts
   const [showAuthErrorModal, setShowAuthErrorModal] = useState(false);
   const [showDeleteErrorModal, setShowDeleteErrorModal] = useState(false);
@@ -478,13 +926,7 @@ export default function TranscriptionWorkPage() {
   const [currentProjectId, setCurrentProjectId] = useState<string>('');
   const [projectsMap, setProjectsMap] = useState<Map<string, string>>(new Map()); // DEPRECATED - will be removed
   const [mediaProjectsMap, setMediaProjectsMap] = useState<Map<string, string>>(new Map()); // Maps media filename -> transcription projectId
-  
-  // Get current media collection and media info
-  const currentCollection = mediaCollections ? mediaCollections[currentCollectionIndex] : undefined;
-  const currentMedia = currentCollection?.mediaItems ? currentCollection.mediaItems[currentMediaIndex] : undefined;
-  const hasCollections = mediaCollections && mediaCollections.length > 0;
-  const hasMedia = currentCollection?.mediaItems && currentCollection.mediaItems.length > 0;
-  
+
   // Debug logging (removed to prevent render loops)
   
   // Use project ID for components instead of mediaId
@@ -549,7 +991,28 @@ export default function TranscriptionWorkPage() {
     }
   };
   
-  const mediaDuration = formatDuration(actualMediaDuration);
+  // Get duration - prefer actualMediaDuration from player if available, then check mediaInfo
+  let durationToUse = 0;
+
+  // First priority: actualMediaDuration from the media player (most reliable)
+  if (actualMediaDuration && actualMediaDuration > 0) {
+    durationToUse = actualMediaDuration;
+    console.log('[Duration] Using actualMediaDuration from player:', actualMediaDuration);
+  }
+  // Second priority: mediaInfo from project data
+  else if (currentProject?.mediaInfo && currentMediaId) {
+    const mediaInfo = currentProject.mediaInfo.find((m: any) => m.mediaId === currentMediaId);
+    if (mediaInfo?.duration) {
+      durationToUse = mediaInfo.duration;
+      console.log('[Duration] Using duration from mediaInfo:', mediaInfo.duration);
+    } else {
+      console.log('[Duration] No duration in mediaInfo for media:', currentMediaId);
+    }
+  } else {
+    console.log('[Duration] No duration available yet, mediaInfo:', currentProject?.mediaInfo);
+  }
+
+  const mediaDuration = formatDuration(durationToUse);
 
   // Function to load complete project data (blocks, speakers, remarks)
   // Function to load complete transcription project data from backend
@@ -639,6 +1102,12 @@ export default function TranscriptionWorkPage() {
       clearOldSessionData();
     }
   }, []); // Run only once on mount
+
+  // Initialize session handler for save events
+  useEffect(() => {
+    console.log('[Page] Initializing session handler');
+    tSessionService.tInitSessionHandler(2); // Using transcription number 2
+  }, []);
 
   // Project loading disabled - start with default transcription immediately
   useEffect(() => {
@@ -1067,7 +1536,9 @@ export default function TranscriptionWorkPage() {
           
           // Load first media of the new project if available
           if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
-            await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+            const firstMediaItem = nextProject.mediaFiles[0];
+            const firstMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
+            await setCurrentMediaById(nextProject.projectId, firstMediaId);
           }
         }
         // If no projects left, everything is already cleared
@@ -1143,7 +1614,9 @@ export default function TranscriptionWorkPage() {
           
           // Load first media of the new project
           if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
-            await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+            const firstMediaItem = nextProject.mediaFiles[0];
+            const firstMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
+            await setCurrentMediaById(nextProject.projectId, firstMediaId);
           }
         } else {
           // No projects left - ensure everything is cleared
@@ -1165,7 +1638,8 @@ export default function TranscriptionWorkPage() {
         
         if (updatedProject && updatedProject.mediaFiles && updatedProject.mediaFiles.length > 0) {
           // Switch to the first available media in the same project
-          const nextMediaId = updatedProject.mediaFiles[0];
+          const firstMediaItem = updatedProject.mediaFiles[0];
+          const nextMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
           await setCurrentMediaById(projectId, nextMediaId);
         } else {
           // No media left in this project (shouldn't happen due to backend changes)
@@ -1175,7 +1649,9 @@ export default function TranscriptionWorkPage() {
             setCurrentProject(nextProject);
             
             if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
-              await setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+              const firstMediaItem = nextProject.mediaFiles[0];
+              const firstMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
+              await setCurrentMediaById(nextProject.projectId, firstMediaId);
             }
           } else {
             // No projects left at all
@@ -1316,7 +1792,221 @@ export default function TranscriptionWorkPage() {
   };
 
   return (
-    <>
+    <div className={`transcription-page-wrapper ${isPageFullscreen ? 'page-fullscreen' : ''}`}>
+      {/* Fullscreen Mode (both page and browser) - conditionally rendered to trigger unmount/mount */}
+      {(isFullscreen || isPageFullscreen) && (
+      <div>
+        <div className="fullscreen-mode">
+          <div className="fullscreen-wrapper">
+            {/* Detect if current media is video */}
+            {(() => {
+              const fileNameForCheck = currentTranscriptionData?.metadata?.fileName || currentTranscriptionData?.metadata?.originalName || currentMediaId;
+              const hasVideoExtension = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)$/i.test(fileNameForCheck || '');
+              const hasVideoMimeType = currentTranscriptionData?.metadata?.mimeType?.startsWith('video/');
+              const mediaIdHasVideo = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)$/i.test(currentMediaId || '');
+              const isVideo = hasVideoExtension || hasVideoMimeType || mediaIdHasVideo;
+
+              if (isVideo) {
+                // Split-screen layout for video
+                return (
+                  <div className={`fullscreen-video-split ${splitOrientation === 'vertical' ? 'vertical' : 'horizontal'} ${isVideoMinimized ? 'video-minimized' : ''}`}>
+                    {/* Video section with controls */}
+                    {!isVideoMinimized && (
+                      <div
+                        className="fullscreen-video-section"
+                        style={{
+                          [splitOrientation === 'horizontal' ? 'width' : 'height']: `${splitRatio}%`
+                        }}
+                      >
+                        {/* Video control icons - top right */}
+                        <div className="fullscreen-video-controls">
+                          <button
+                            className="video-control-btn video-control-text-btn"
+                            onClick={() => setSplitOrientation(splitOrientation === 'horizontal' ? 'vertical' : 'horizontal')}
+                            title={splitOrientation === 'horizontal' ? 'החלף לפיצול אנכי' : 'החלף לפיצול אופקי'}
+                          >
+                            {splitOrientation === 'horizontal' ? 'אנכי' : 'אופקי'}
+                          </button>
+                          <button
+                            className="video-control-btn video-control-text-btn"
+                            onClick={() => setIsVideoMinimized(true)}
+                            title="מזער וידאו"
+                          >
+                            מזער
+                          </button>
+                          <button
+                            className="video-control-btn"
+                            onClick={() => setSplitRatio(Math.max(30, splitRatio - 10))}
+                            disabled={splitRatio <= 30}
+                            title="הקטן וידאו"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                          <button
+                            className="video-control-btn"
+                            onClick={() => setSplitRatio(Math.min(70, splitRatio + 10))}
+                            disabled={splitRatio >= 70}
+                            title="הגדל וידאו"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <video
+                          ref={setFullscreenVideoRef}
+                          className="fullscreen-video"
+                          controls={false}
+                          autoPlay={false}
+                          playsInline
+                          preload="auto"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain'
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* Text Editor */}
+                    <div
+                      className="fullscreen-editor-section"
+                      style={{
+                        [splitOrientation === 'horizontal' ? 'width' : 'height']: `${100 - splitRatio}%`
+                      }}
+                    >
+                      <RemarksProvider
+                        transcriptionId={currentMediaId ? `${currentProjectId || sessionId}-${currentMediaId}` : (currentProjectId || sessionId)}
+                        initialRemarks={projectRemarks}
+                      >
+                        <RemarksEventListener />
+                        <TextEditor
+                          currentProjectId={currentProject?.projectId || ''}
+                          currentMediaId={currentMediaId || ''}
+                          mediaPlayerRef={mediaPlayerRef}
+                          marks={[]}
+                          mediaName={currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || ''}
+                          currentTime={currentTime}
+                          onBlocksChange={updateProgressLocally}
+                          mediaFileName={(() => {
+                            if (transcriptions && transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
+                              const currentTranscription = transcriptions[currentTranscriptionIndex];
+                              if (currentTranscription.mediaItems && currentTranscription.mediaItems[0]) {
+                                return currentTranscription.mediaItems[0].name || '';
+                              }
+                            }
+                            return currentMedia?.name || '';
+                          })()}
+                        />
+                      </RemarksProvider>
+                    </div>
+                  </div>
+                );
+              } else {
+                // Full-width text editor for audio
+                return (
+                  <RemarksProvider
+                    transcriptionId={currentMediaId ? `${currentProjectId || sessionId}-${currentMediaId}` : (currentProjectId || sessionId)}
+                    initialRemarks={projectRemarks}
+                  >
+                    <RemarksEventListener />
+                    <div className="fullscreen-text-editor">
+                      <TextEditor
+                        currentProjectId={currentProject?.projectId || ''}
+                        currentMediaId={currentMediaId || ''}
+                        mediaPlayerRef={mediaPlayerRef}
+                        marks={[]}
+                        mediaName={currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || ''}
+                        currentTime={currentTime}
+                        onBlocksChange={updateProgressLocally}
+                        mediaFileName={(() => {
+                          if (transcriptions && transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
+                            const currentTranscription = transcriptions[currentTranscriptionIndex];
+                            if (currentTranscription.mediaItems && currentTranscription.mediaItems[0]) {
+                              return currentTranscription.mediaItems[0].name || '';
+                            }
+                          }
+                          return currentMedia?.name || '';
+                        })()}
+                      />
+                    </div>
+                  </RemarksProvider>
+                );
+              }
+            })()}
+            <MinimalMediaControls
+              mediaPlayerRef={mediaPlayerRef}
+              duration={actualMediaDuration}
+              currentTime={currentTime}
+              onExitFullscreen={directExitFullscreen}
+              onToggleBrowserFullscreen={() => {
+                // Toggle between page and browser fullscreen modes
+                if (fullscreenMode === 'page') {
+                  // Switch from page to browser fullscreen
+                  setFullscreenMode('browser');
+                  document.documentElement.requestFullscreen().catch(err => {
+                    console.error('Failed to enter browser fullscreen:', err);
+                  });
+                } else if (fullscreenMode === 'browser') {
+                  // Switch from browser to page fullscreen
+                  if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(err => {
+                      console.error('Failed to exit browser fullscreen:', err);
+                    });
+                  }
+                  setFullscreenMode('page');
+                }
+              }}
+              fullscreenMode={fullscreenMode}
+              isVideoMinimized={isVideoMinimized}
+              onRestoreVideo={() => setIsVideoMinimized(false)}
+            />
+            {/* Hidden audio element for fullscreen playback */}
+            <audio
+              ref={(el) => {
+                if (el && mediaPlayerRef.current) {
+                  // Sync time when audio element is mounted
+                  if (currentTime > 0 && el.currentTime !== currentTime) {
+                    el.currentTime = currentTime;
+                  }
+                  // Make audio element available through mediaPlayerRef
+                  mediaPlayerRef.current.audioRef = { current: el };
+                }
+              }}
+              style={{ display: 'none' }}
+              src={currentProject && currentMediaId ? (() => {
+                const apiUrl = getApiUrl();
+                const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+                return `${apiUrl}/api/projects/${currentProject.projectId}/media/${currentMediaId}?token=${encodeURIComponent(token)}`;
+              })() : undefined}
+              onTimeUpdate={(e) => {
+                const audio = e.currentTarget;
+                setCurrentTime(audio.currentTime);
+              }}
+              onDurationChange={(e) => {
+                const audio = e.currentTarget;
+                setActualMediaDuration(audio.duration);
+              }}
+              onLoadedMetadata={(e) => {
+                const audio = e.currentTarget;
+                // Sync time when metadata is loaded
+                if (currentTime > 0 && audio.currentTime !== currentTime) {
+                  audio.currentTime = currentTime;
+                }
+              }}
+              preload="auto"
+            />
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* Regular Mode - conditionally rendered to trigger unmount/mount */}
+      {!(isFullscreen || isPageFullscreen) && (
+      <div>
       {/* Test URL Modal (localhost only) */}
       {isLocalhost && showTestUrlModal && (
         <div style={{
@@ -1531,17 +2221,51 @@ export default function TranscriptionWorkPage() {
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
               </svg>
             </button>
+            <button
+              onClick={() => window.open('http://localhost:3003', '_blank', 'noopener,noreferrer')}
+              className="sidebar-header-action-btn"
+              title="מנהל הורדות"
+              style={{
+                width: '32px',
+                height: '32px',
+                padding: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '50%',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
           </>
         )
       }
       theme="transcription"
     >
       {/* Workspace Header */}
-      <WorkspaceHeader 
+      <WorkspaceHeader
         headerLocked={headerLocked}
         sidebarLocked={sidebarLocked}
         projectTitle={collectionName}
         progress={45}
+        projectId={currentProject?.projectId}
+        mediaId={currentMediaId}
+        projectProgress={projectProgress}
+        currentFileProgress={currentFileProgress}
+        scenarioType={progressScenario}
+        mediaDuration={actualMediaDuration}
+        playedRanges={currentPlayedRanges}
+        fullscreenMode={fullscreenMode}
+        onToggleFullscreen={cycleFullscreenMode}
       />
       
 
@@ -1552,8 +2276,8 @@ export default function TranscriptionWorkPage() {
         sidebarLocked ? 'sidebar-locked' : ''
       )}>
         <div className="content-container">
-          <RemarksProvider 
-            transcriptionId={currentProjectId || sessionId}
+          <RemarksProvider
+            transcriptionId={currentMediaId ? `${currentProjectId || sessionId}-${currentMediaId}` : (currentProjectId || sessionId)}
             initialRemarks={projectRemarks}
           >
           <RemarksEventListener />
@@ -1567,14 +2291,15 @@ export default function TranscriptionWorkPage() {
           )}
           {/* Main Workspace */}
           <div className="main-workspace">
-            
+
             {/* MediaPlayer Component - Now includes integrated navigation */}
             <div onClick={() => {
               // Clear block selection when clicking on media player
               const event = new CustomEvent('clearBlockSelection');
               document.dispatchEvent(event);
             }}>
-            <MediaPlayer 
+            <MediaPlayer
+              ref={mediaPlayerRef}
               initialMedia={useMemo(() => {
                 console.log('[MediaPlayer] Integration check:', {
                   hasCurrentProject: !!currentProject,
@@ -1591,6 +2316,7 @@ export default function TranscriptionWorkPage() {
                 // Construct media URL from project store data - use currentMediaId directly
                 const apiUrl = getApiUrl(); // Use the proper API URL function
                 const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || 'dev-anonymous';
+                // Use same path for both localhost and production
                 const mediaUrl = `${apiUrl}/api/projects/${currentProject.projectId}/media/${currentMediaId}?token=${encodeURIComponent(token)}`;
                 
                 console.log('Page: Creating media object from project store', {
@@ -1599,23 +2325,49 @@ export default function TranscriptionWorkPage() {
                   displayName: currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || currentMediaId
                 });
                 
-                const mediaName = currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || currentMediaId;
-                const isVideo = mediaName.match(/\.(mp4|webm|ogg|ogv)$/i);
-                
+                // Use fileName for extension check, but originalName for display
+                const displayName = currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || currentMediaId;
+                const fileNameForCheck = currentTranscriptionData?.metadata?.fileName || currentTranscriptionData?.metadata?.originalName || currentMediaId;
+
+                // Check multiple sources for video determination
+                // 1. Check file extension from fileName (more reliable than originalName)
+                const hasVideoExtension = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)$/i.test(fileNameForCheck);
+                // 2. Check MIME type if available (most reliable)
+                const hasVideoMimeType = currentTranscriptionData?.metadata?.mimeType?.startsWith('video/');
+                // 3. Check if mediaId contains video extension (fallback)
+                const mediaIdHasVideo = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)$/i.test(currentMediaId);
+                // 4. Check the media URL itself
+                const mediaUrlHasVideo = /\.(mp4|webm|ogg|ogv|mov|avi|mkv|m4v)/i.test(mediaUrl);
+
+                const isVideo = hasVideoExtension || hasVideoMimeType || mediaIdHasVideo || mediaUrlHasVideo;
+
+                console.log('[Page] Media type detection:', {
+                  displayName,
+                  fileNameForCheck,
+                  originalName: currentTranscriptionData?.metadata?.originalName,
+                  fileName: currentTranscriptionData?.metadata?.fileName,
+                  hasVideoExtension,
+                  hasVideoMimeType,
+                  mediaIdHasVideo,
+                  mediaUrlHasVideo,
+                  mimeType: currentTranscriptionData?.metadata?.mimeType,
+                  finalType: isVideo ? 'video' : 'audio',
+                  mediaUrl: mediaUrl
+                });
+
                 return {
                   url: mediaUrl,
-                  name: mediaName,
+                  name: displayName,
                   type: isVideo ? 'video' : 'audio'
                 };
               } else {
                 console.log('[MediaPlayer] Cannot create media object - missing required data');
                 return undefined;
               }
-              }, [currentProject?.projectId, currentMediaId, currentTranscriptionData?.metadata?.originalName, currentTranscriptionData?.metadata?.fileName])}
+              }, [currentProject?.projectId, currentMediaId, currentTranscriptionData?.metadata?.originalName, currentTranscriptionData?.metadata?.fileName, currentTranscriptionData?.metadata?.mimeType])}
               onTimeUpdate={(time) => {
-                // TEMPORARILY DISABLED - this causes playback issues
-                // TextEditor gets time updates via mediaTimeUpdate events instead
-                // setCurrentTime(time);
+                // Update current time for synchronization
+                setCurrentTime(time);
               }}
               onTimestampCopy={(timestamp) => {
                 // Handle timestamp copy for text editor
@@ -1624,6 +2376,24 @@ export default function TranscriptionWorkPage() {
               onDurationChange={(duration) => {
                 setActualMediaDuration(duration);
               }}
+              onCoverageChange={(percentage) => {
+                // Only update with non-zero values or if we're truly at 0%
+                setCurrentFileProgress(prev => {
+                  // Keep the previous value if we get 0 and already have progress
+                  if (percentage === 0 && prev > 0) {
+                    return prev;
+                  }
+                  return percentage;
+                });
+              }}
+              onPlayedRangesChange={(ranges) => {
+                setCurrentPlayedRanges(ranges);
+                // Set global state for save operations
+                (window as any).__currentPlayedRanges = ranges;
+              }}
+              initialPlayedRanges={currentTranscriptionData?.playedRanges}
+              projectId={currentProject?.projectId}
+              mediaId={currentMediaId}
               currentProject={(() => {
                 if (!currentProject) return projects && projects.length > 0 ? 1 : 0;
                 const index = projects ? projects.findIndex(p => p.projectId === currentProject.projectId) : -1;
@@ -1634,7 +2404,11 @@ export default function TranscriptionWorkPage() {
                 if (!currentProject || !currentMediaId || !currentProject.mediaFiles) {
                   return currentProject?.mediaFiles?.length > 0 ? 1 : 0;
                 }
-                const index = currentProject.mediaFiles.indexOf(currentMediaId);
+                // Find index handling both string and object formats
+                const index = currentProject.mediaFiles.findIndex((item: any) => {
+                  const mediaId = typeof item === 'string' ? item : item.id;
+                  return mediaId === currentMediaId;
+                });
                 console.log('[MediaPlayer] Media navigation:', {
                   currentMediaId,
                   mediaFiles: currentProject.mediaFiles,
@@ -1722,7 +2496,9 @@ export default function TranscriptionWorkPage() {
                   await setCurrentProject(prevProject);
                   // Auto-select first media of the new project
                   if (prevProject.mediaFiles && prevProject.mediaFiles.length > 0) {
-                    setCurrentMediaById(prevProject.projectId, prevProject.mediaFiles[0]);
+                    const firstMediaItem = prevProject.mediaFiles[0];
+                    const firstMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
+                    setCurrentMediaById(prevProject.projectId, firstMediaId);
                   }
                 }
               }}
@@ -1748,7 +2524,9 @@ export default function TranscriptionWorkPage() {
                   await setCurrentProject(nextProject);
                   // Auto-select first media of the new project
                   if (nextProject.mediaFiles && nextProject.mediaFiles.length > 0) {
-                    setCurrentMediaById(nextProject.projectId, nextProject.mediaFiles[0]);
+                    const firstMediaItem = nextProject.mediaFiles[0];
+                    const firstMediaId = typeof firstMediaItem === 'string' ? firstMediaItem : firstMediaItem.id;
+                    setCurrentMediaById(nextProject.projectId, firstMediaId);
                   }
                 }
               }}
@@ -1813,6 +2591,7 @@ export default function TranscriptionWorkPage() {
                 marks={[]}
                 mediaName={currentTranscriptionData?.metadata?.originalName || currentTranscriptionData?.metadata?.fileName || ''}
                 currentTime={currentTime}
+                onBlocksChange={updateProgressLocally}
                 mediaFileName={(() => {
                   // If there are transcriptions loaded, use the transcription's media name
                   if (transcriptions && transcriptions.length > 0 && currentTranscriptionIndex !== undefined && transcriptions[currentTranscriptionIndex]) {
@@ -2081,9 +2860,11 @@ export default function TranscriptionWorkPage() {
             <div className={'helper-files ' + (
               helperFilesExpanded ? 'expanded' : 'collapsed'
             )}>
-              <HelperFiles 
+              <HelperFiles
                 isExpanded={helperFilesExpanded}
                 onToggle={() => setHelperFilesExpanded(!helperFilesExpanded)}
+                projectId={currentProject?.projectId}
+                mediaId={currentMediaId || undefined}
                 projects={mediaCollections ? mediaCollections.map((coll, idx) => ({
                   id: 'proj-' + idx,
                   name: coll.name,
@@ -2152,6 +2933,8 @@ export default function TranscriptionWorkPage() {
         onTranscriptionRestored={handleTranscriptionRestored}
       />
     </HoveringBarsLayout>
-    </>
+      </div>
+      )}
+    </div>
   );
 }
