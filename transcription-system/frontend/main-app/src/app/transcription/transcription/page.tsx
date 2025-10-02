@@ -1793,9 +1793,8 @@ export default function TranscriptionWorkPage() {
 
   return (
     <div className={`transcription-page-wrapper ${isPageFullscreen ? 'page-fullscreen' : ''}`}>
-      {/* Fullscreen Mode (both page and browser) - conditionally rendered to trigger unmount/mount */}
-      {(isFullscreen || isPageFullscreen) && (
-      <div>
+      {/* Fullscreen Mode (both page and browser) - always rendered but conditionally shown */}
+      <div style={{ display: (isFullscreen || isPageFullscreen) ? 'block' : 'none' }}>
         <div className="fullscreen-mode">
           <div className="fullscreen-wrapper">
             {/* Detect if current media is video */}
@@ -1884,6 +1883,7 @@ export default function TranscriptionWorkPage() {
                       >
                         <RemarksEventListener />
                         <TextEditor
+                          key={`fullscreen-video-${currentMediaId || 'none'}`}
                           currentProjectId={currentProject?.projectId || ''}
                           currentMediaId={currentMediaId || ''}
                           mediaPlayerRef={mediaPlayerRef}
@@ -1915,6 +1915,7 @@ export default function TranscriptionWorkPage() {
                     <RemarksEventListener />
                     <div className="fullscreen-text-editor">
                       <TextEditor
+                        key={`fullscreen-audio-${currentMediaId || 'none'}`}
                         currentProjectId={currentProject?.projectId || ''}
                         currentMediaId={currentMediaId || ''}
                         mediaPlayerRef={mediaPlayerRef}
@@ -2002,11 +2003,9 @@ export default function TranscriptionWorkPage() {
           </div>
         </div>
       </div>
-      )}
 
-      {/* Regular Mode - conditionally rendered to trigger unmount/mount */}
-      {!(isFullscreen || isPageFullscreen) && (
-      <div>
+      {/* Regular Mode - always rendered but conditionally shown */}
+      <div style={{ display: (isFullscreen || isPageFullscreen) ? 'none' : 'block' }}>
       {/* Test URL Modal (localhost only) */}
       {isLocalhost && showTestUrlModal && (
         <div style={{
@@ -2585,6 +2584,7 @@ export default function TranscriptionWorkPage() {
                 return null;
               })()}
               <TextEditor
+                key={`regular-${currentMediaId || 'none'}`}
                 currentProjectId={currentProject?.projectId || ''}
                 currentMediaId={currentMediaId || ''}
                 mediaPlayerRef={mediaPlayerRef}
@@ -2934,7 +2934,6 @@ export default function TranscriptionWorkPage() {
       />
     </HoveringBarsLayout>
       </div>
-      )}
     </div>
   );
 }
