@@ -374,8 +374,8 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
   useEffect(() => {
     if (isVisible && videoRef.current && containerRef.current) {
       const contentDiv = containerRef.current.querySelector('.video-cube-content');
-      // Only move the video if it has a source
-      if (contentDiv && videoRef.current.src && videoRef.current.parentNode !== contentDiv) {
+      // Move the video element regardless of source - source will be set later
+      if (contentDiv && videoRef.current.parentNode !== contentDiv) {
         // Store the original parent only once
         if (!originalParentRef.current) {
           originalParentRef.current = videoRef.current.parentNode;
@@ -383,7 +383,7 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
 
         // Move the video element into the cube content area
         contentDiv.appendChild(videoRef.current);
-        // Style it appropriately
+        // Style it appropriately - IMPORTANT: make it visible
         videoRef.current.style.display = 'block';
         videoRef.current.style.position = 'absolute';
         videoRef.current.style.top = '0';
@@ -391,8 +391,14 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
         videoRef.current.style.width = '100%';
         videoRef.current.style.height = '100%';
         videoRef.current.style.objectFit = 'contain';
-        videoRef.current.style.pointerEvents = 'none';
-        console.log('VideoCube: Moved and styled video element');
+        videoRef.current.style.backgroundColor = '#000';
+        videoRef.current.style.pointerEvents = 'auto'; // Allow interaction
+        console.log('VideoCube: Moved and styled video element, src:', videoRef.current.src || 'No source yet');
+
+        // If video already has a source, ensure it loads
+        if (videoRef.current.src) {
+          videoRef.current.load();
+        }
       }
     }
 
@@ -469,23 +475,20 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
            style={{
              cursor: isDragMode ? 'grab' : 'default',
              position: 'relative',
-             zIndex: 10
+             zIndex: 10,
+             justifyContent: 'center'
            }}
            onMouseDown={handleMouseDown}>
-        <div className="video-cube-title"
-             style={{ cursor: isDragMode ? 'grab' : 'default', pointerEvents: isDragMode ? 'none' : 'auto' }}>
-          וידאו {isDragMode && '(מצב גרירה)'}
-        </div>
         <div className="video-cube-controls" style={{ position: 'relative', zIndex: 10 }}>
-          <button 
-            className="video-control-btn"
+          <button
+            className="video-cube-control-btn"
             onClick={handleRestore}
             title={isDetached ? "חזור לפריסה" : "אפס גודל"}
           >
             ⌂
           </button>
-          <button 
-            className="video-control-btn"
+          <button
+            className="video-cube-control-btn"
             onClick={() => {
               // Save current state before minimizing
               if (isDetached) {
@@ -501,8 +504,8 @@ export default function VideoCube({ videoRef, isVisible, onMinimize, onClose, on
           >
             −
           </button>
-          <button 
-            className="video-control-btn"
+          <button
+            className="video-cube-control-btn"
             onClick={handleClose}
             title="סגור ואפס מיקום"
           >

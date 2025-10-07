@@ -70,73 +70,75 @@
         
         /* Video Cube Container - side by side with controls */
         .video-cube-container {
-            flex: 0 0 200px; /* Reduced container width from 260px to 200px */
-            height: 150px; /* Reduced container height from 180px to 150px */
+            flex: 0 0 150px !important; /* Container width */
+            height: 110px !important; /* Container height */
+            max-width: 150px;
+            max-height: 110px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-right: 1px solid rgba(32, 201, 151, 0.2);
-            margin-right: 8px; /* Reduced margin from 10px to 8px */
+            margin-right: 6px;
             padding: 0;
         }
         
         /* Shrink controls when video is active */
         .media-player-container.video-active .control-btn {
-            padding: 6px 8px; /* Further reduced from 8px 10px */
-            font-size: 12px; /* Reduced from 14px */
-            width: 32px; /* Fixed smaller width */
-            height: 32px; /* Fixed smaller height */
+            padding: 4px 6px; /* Reduced to save space */
+            font-size: 11px; /* Reduced to save space */
+            width: 28px; /* Reduced width */
+            height: 28px; /* Reduced height */
         }
-        
+
         .media-player-container.video-active .play-pause-btn {
-            padding: 8px 12px; /* Further reduced from 10px 18px */
-            width: 48px; /* Reduced from default 60px */
-            height: 48px; /* Reduced from default 60px */
-            font-size: 20px; /* Reduced from default 24px */
+            padding: 6px 10px; /* Reduced to save space */
+            width: 42px; /* Reduced width */
+            height: 42px; /* Reduced height */
+            font-size: 18px; /* Reduced font size */
         }
-        
+
         .media-player-container.video-active .custom-slider {
-            width: 60px; /* Further reduced from 70px */
+            width: 50px; /* Reduced to save space */
         }
         
         /* Additional video-active optimizations */
         .media-player-container.video-active .media-progress-container {
-            padding: 10px; /* Reduced from default 15px */
+            padding: 6px; /* Reduced to save space */
         }
-        
+
         .media-player-container.video-active .sliders-container {
-            padding: 3px 10px; /* Reduced from default 5px 15px */
-            gap: 10px; /* Reduced from default 15px */
+            padding: 3px 6px; /* Reduced to save space */
+            gap: 6px; /* Reduced to save space */
         }
-        
+
         .media-player-container.video-active .controls-section {
-            padding: 10px; /* Reduced from default 15px */
-            gap: 10px; /* Reduced from default 15px */
+            padding: 6px; /* Reduced to save space */
+            gap: 6px; /* Reduced to save space */
         }
-        
+
         .media-player-container.video-active .control-buttons {
-            gap: 8px; /* Reduced from default 10px */
-            margin: 0 10px; /* Reduced from default 0 20px */
+            gap: 4px; /* Reduced to save space */
+            margin: 0 6px; /* Reduced to save space */
         }
         
         .media-player-container.video-active .t-project-navigator {
-            padding: 6px 12px; /* Reduced from default 8px 16px */
-            height: 42px; /* Reduced from default 50px */
+            padding: 4px 8px; /* Reduced to save space */
+            height: 36px; /* Reduced to save space */
         }
-        
+
         .media-player-container.video-active .t-nav-btn {
-            width: 18px; /* Reduced from default 20px */
-            height: 18px; /* Reduced from default 20px */
-            font-size: 10px; /* Reduced from default 11px */
+            width: 16px; /* Reduced to save space */
+            height: 16px; /* Reduced to save space */
+            font-size: 9px; /* Reduced to save space */
         }
-        
+
         .media-player-container.video-active .t-nav-name {
-            font-size: 12px; /* Reduced from default 13px */
+            font-size: 11px; /* Reduced to save space */
         }
-        
+
         .media-player-container.video-active .t-nav-counter,
         .media-player-container.video-active .t-nav-details {
-            font-size: 10px; /* Reduced from default 11px */
+            font-size: 9px; /* Reduced to save space */
         }
         
         /* Audio element - hidden */
@@ -193,7 +195,7 @@
         
         /* Allow controls to shrink more when video is shown to save space */
         .media-player-container.video-active .media-player-content {
-            min-width: 350px; /* Reduced from 500px to allow more flexibility */
+            min-width: 280px; /* Reduced to allow more space for video cube */
         }
         
         .media-player-container.video-active .control-buttons {
@@ -387,7 +389,7 @@
             top: 0;
             right: 0; /* RTL: start from right */
             height: 100%;
-            background: linear-gradient(90deg, 
+            background: linear-gradient(90deg,
                 rgba(32, 201, 151, 0.8) 0%,
                 rgba(23, 162, 184, 0.9) 100%);
             border-radius: 4px;
@@ -399,9 +401,9 @@
         .progress-bar-wrapper:hover {
             height: 10px;
         }
-        
+
         .progress-bar-wrapper:hover .progress-fill {
-            background: linear-gradient(90deg, 
+            background: linear-gradient(90deg,
                 rgba(32, 201, 151, 1) 0%,
                 rgba(23, 162, 184, 1) 100%);
         }
@@ -437,9 +439,9 @@
         .progress-bar-wrapper.dragging {
             height: 12px;
         }
-        
+
         .progress-bar-wrapper.dragging .progress-fill {
-            background: linear-gradient(90deg, 
+            background: linear-gradient(90deg,
                 rgba(40, 167, 69, 1) 0%,
                 rgba(32, 201, 151, 1) 100%);
         }
@@ -2288,10 +2290,12 @@
         /* Video cube in layout mode - smaller size for sidebar compatibility */
         .video-cube.in-layout {
             position: relative;
-            width: 190px; /* Reduced from 240px to fit better when sidebar is locked */
-            height: 130px; /* Reduced from 160px to maintain proportion */
+            width: 140px !important; /* Video cube size */
+            height: 100px !important; /* Maintain proportion */
+            max-width: 140px;
+            max-height: 100px;
             border: 2px solid #20c997;
-            margin: 8px auto 0; /* Reduced margin for compactness */
+            margin: 5px auto 0;
         }
         
         /* Video cube detached mode */
@@ -2331,8 +2335,8 @@
             display: flex;
             gap: 4px;
         }
-        
-        .video-control-btn {
+
+        .video-cube-control-btn {
             background: transparent;
             border: 1px solid #20c997;
             color: #20c997;
@@ -2346,8 +2350,8 @@
             font-size: 12px;
             transition: all 0.2s;
         }
-        
-        .video-control-btn:hover {
+
+        .video-cube-control-btn:hover {
             background: rgba(32, 201, 151, 0.2);
             transform: scale(1.1);
         }

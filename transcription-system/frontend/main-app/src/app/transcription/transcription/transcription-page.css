@@ -487,7 +487,7 @@
 /* ===== WORKSPACE GRID ===== */
 .workspace-grid {
   display: grid;
-  grid-template-columns: 1fr 400px; /* Main area grows, side panel fixed */
+  grid-template-columns: 1fr 350px; /* Main area grows, side panel fixed */
   gap: 20px; /* Base gap */
   height: 100%;
   flex: 1;
@@ -499,21 +499,21 @@
 @media (min-width: 1400px) {
   .workspace-grid {
     gap: 35px;
-    grid-template-columns: 1fr 420px;
+    grid-template-columns: 1fr 370px;
   }
 }
 
 @media (min-width: 1800px) {
   .workspace-grid {
     gap: 50px;
-    grid-template-columns: 1fr 450px;
+    grid-template-columns: 1fr 400px;
   }
 }
 
 @media (min-width: 2200px) {
   .workspace-grid {
     gap: 70px;
-    grid-template-columns: 1fr 480px;
+    grid-template-columns: 1fr 430px;
   }
 }
 
@@ -948,24 +948,24 @@
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .content-container {
     padding: 10px;
   }
-  
+
   .workspace-grid {
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   /* Responsive workspace header styles moved to WorkspaceHeader.css */
-  
+
   .side-workspace {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
   }
-  
+
   .placeholder-container.helper-files {
     grid-column: span 2;
   }
