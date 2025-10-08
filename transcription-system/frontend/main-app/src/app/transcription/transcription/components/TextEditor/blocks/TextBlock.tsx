@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, useMemo, KeyboardEvent, FocusEvent } from 'react';
+import { flushSync } from 'react-dom';
 import { ProcessTextResult } from '../types/shortcuts';
 import TextHighlightOverlay from '../components/TextHighlightOverlay';
 import { AutoCorrectEngine } from '../utils/AutoCorrectEngine';
@@ -242,14 +243,16 @@ const TextBlock = React.memo(function TextBlock({
     return time;
   };
   
-  // Listen for setNextBlockText event (for auto-numbering)
+  // Listen for setNextBlockText event (for auto-numbering and block joining)
   useEffect(() => {
     const handleSetNextBlockText = (event: CustomEvent) => {
-      if (isActive && activeArea === 'text' && textRef.current) {
-        const { text, cursorPosition } = event.detail;
+      const { blockId, text, cursorPosition } = event.detail;
+
+      // Only handle if this is the target block
+      if (blockId === block.id && textRef.current) {
         setLocalText(text);
         onUpdate(block.id, 'text', text);
-        
+
         // Set cursor position after the list number
         setTimeout(() => {
           if (textRef.current) {
@@ -260,12 +263,12 @@ const TextBlock = React.memo(function TextBlock({
         }, 10);
       }
     };
-    
+
     document.addEventListener('setNextBlockText', handleSetNextBlockText as EventListener);
     return () => {
       document.removeEventListener('setNextBlockText', handleSetNextBlockText as EventListener);
     };
-  }, [isActive, activeArea, block.id, onUpdate]);
+  }, [block.id, onUpdate]);
 
   // Cancel registration when block loses focus or becomes inactive
   useEffect(() => {
@@ -359,18 +362,22 @@ const TextBlock = React.memo(function TextBlock({
     return 'rtl';
   };
 
-  // Initialize directions - FORCE RTL always
+  // Initialize directions - dynamically detect based on content
   useEffect(() => {
-    // FORCE RTL for text - never change
-    setTextDirection('rtl');
-    
-    // Update speaker direction based on content (speaker can still change)
+    // Detect text direction based on content
+    const textToCheck = localText || block.text;
+    const newTextDir = detectTextDirection(textToCheck);
+    if (newTextDir !== textDirection) {
+      setTextDirection(newTextDir);
+    }
+
+    // Update speaker direction based on content
     const speakerToCheck = localSpeaker || block.speaker;
     const newSpeakerDir = detectTextDirection(speakerToCheck);
     if (newSpeakerDir !== speakerDirection) {
       setSpeakerDirection(newSpeakerDir);
     }
-  }, [block.text, block.speaker, localText, localSpeaker]);
+  }, [block.text, block.speaker, localText, localSpeaker, textDirection, speakerDirection]);
   
   // Sync local state with block data when block changes or on mount
   // This ensures speaker name updates from the speaker panel are reflected
@@ -494,10 +501,17 @@ const TextBlock = React.memo(function TextBlock({
           console.log('[TextBlock] Focusing ' + activeArea + ' field, block ' + block.id);
           targetRef.current.focus();
 
-          // Position cursor at start if coming from DELETE key navigation
+          // Only position cursor if explicitly requested
           if (cursorAtStart) {
-            (targetRef.current as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(0, 0);
+            setTimeout(() => {
+              if (targetRef.current) {
+                // DELETE key or explicit request to position at start
+                (targetRef.current as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(0, 0);
+                console.log('[TextBlock] Positioned cursor at start');
+              }
+            }, 20);
           }
+          // Otherwise let cursor stay at natural position (arrow down keeps column position)
         }
       }, 10);
 
@@ -506,7 +520,39 @@ const TextBlock = React.memo(function TextBlock({
       // Clear name completion when block loses focus
       setNameCompletion('');
     }
-  }, [isActive, activeArea, cursorAtStart, block.id]);
+  }, [isActive, activeArea, cursorAtStart, block.id, block.text]);
+
+  // Detect Alt+Shift language switch and force layout reflow for proper justification
+  useEffect(() => {
+    if (!textRef.current) return;
+
+    const textarea = textRef.current;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Detect Alt+Shift combination (language switch in Windows)
+      if ((e.altKey && e.shiftKey) || (e.key === 'Shift' && e.altKey) || (e.key === 'Alt' && e.shiftKey)) {
+        // Force layout reflow after a tiny delay to let the language switch take effect
+        setTimeout(() => {
+          if (textarea) {
+            // Force reflow by reading layout property
+            void textarea.offsetHeight;
+
+            // Additional reflow trigger
+            const originalDisplay = textarea.style.display;
+            textarea.style.display = 'none';
+            void textarea.offsetHeight;
+            textarea.style.display = originalDisplay;
+          }
+        }, 50); // Small delay to ensure language switch has happened
+      }
+    };
+
+    textarea.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      textarea.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Special tag cursor position control - prevent cursor from entering inside tag
   useEffect(() => {
@@ -1101,6 +1147,15 @@ const TextBlock = React.memo(function TextBlock({
               // Immediately call onUpdate to sync the previous block's text in React state
               onUpdate(previousBlockId, 'text', joinedText);
 
+              // Update previous block's text using custom event
+              document.dispatchEvent(new CustomEvent('setNextBlockText', {
+                detail: {
+                  blockId: previousBlockId,
+                  text: joinedText,
+                  cursorPosition: joinPosition
+                }
+              }));
+
               // Focus and position cursor in the previous block's text area
               setTimeout(() => {
                 const previousBlock = document.querySelector(`[data-block-id="${previousBlockId}"]`);
@@ -1501,7 +1556,8 @@ const TextBlock = React.memo(function TextBlock({
     }
 
     // Enter: Register shortcut and keep only the meaning (remove prefix and arrow)
-    if (e.key === 'Enter' && !e.shiftKey && isTypingMeaning) {
+    // Exclude NumpadEnter so it can create continuation blocks
+    if (e.key === 'Enter' && !e.shiftKey && e.code !== 'NumpadEnter' && isTypingMeaning) {
       e.preventDefault();
       console.log('✅ Enter pressed - extracting meaning between ** markers');
 
@@ -1681,11 +1737,11 @@ const TextBlock = React.memo(function TextBlock({
     // Check if this is a special key that should bubble up to MediaPlayer
     // BUT exclude Ctrl+Z from special keys (regardless of keyboard language)
     const isCtrlZ = e.ctrlKey && (e.key === 'z' || e.key === 'Z' || e.key === 'ז' || e.code === 'KeyZ');
-    const isSpecialKey = 
+    const isSpecialKey =
       // F-keys
       (e.key.startsWith('F') && e.key.length <= 3 && e.key.length >= 2) ||
-      // Numpad keys
-      (e.code && e.code.startsWith('Numpad')) ||
+      // Numpad keys (but NOT NumpadEnter - we handle that ourselves for continuation blocks)
+      (e.code && e.code.startsWith('Numpad') && e.code !== 'NumpadEnter') ||
       // Combinations with Ctrl/Alt/Meta (but not Shift alone and not Ctrl+Z)
       ((e.ctrlKey || e.altKey || e.metaKey) && !isCtrlZ);
     
@@ -1892,27 +1948,22 @@ const TextBlock = React.memo(function TextBlock({
     }
 
 
-    
-    
-    // Detect language when typing letters
+
+    // Detect language and update direction BEFORE character is inserted
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       // Check if it's a Hebrew character
       if (/[\u0590-\u05FF]/.test(e.key)) {
-        if (currentInputMode !== 'rtl' || textarea.dir !== 'rtl') {
-          setCurrentInputMode('rtl');
-          textarea.dir = 'rtl';
-          textarea.style.direction = 'rtl';
-          textarea.style.textAlign = 'right';
-        }
-      } 
+        // Use flushSync to force synchronous state update before character insertion
+        flushSync(() => {
+          switchLanguage('hebrew');
+        });
+      }
       // Check if it's an English character
       else if (/[A-Za-z]/.test(e.key)) {
-        if (currentInputMode !== 'ltr' || textarea.dir !== 'ltr') {
-          setCurrentInputMode('ltr');
-          textarea.dir = 'ltr';
-          textarea.style.direction = 'ltr';
-          textarea.style.textAlign = 'left';
-        }
+        // Use flushSync to force synchronous state update before character insertion
+        flushSync(() => {
+          switchLanguage('english');
+        });
       }
     }
 
@@ -1939,7 +1990,8 @@ const TextBlock = React.memo(function TextBlock({
     }
 
     // ENTER - Create new block and maintain language (Word-like)
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Exclude NumpadEnter as it should behave like Shift+Enter
+    if (e.key === 'Enter' && !e.shiftKey && e.code !== 'NumpadEnter') {
       e.preventDefault();
 
       // Clear the Shift+Enter processing flag since user is creating a new block
@@ -1994,8 +2046,8 @@ const TextBlock = React.memo(function TextBlock({
       }, 0);
     }
 
-    // SHIFT+ENTER - Create continuation block (without speaker field)
-    if (e.key === 'Enter' && e.shiftKey) {
+    // SHIFT+ENTER or NUMPAD ENTER - Create continuation block (without speaker field)
+    if (e.key === 'Enter' && (e.shiftKey || e.code === 'NumpadEnter')) {
       e.preventDefault();
 
       const cursorPos = textarea.selectionStart;
@@ -2035,6 +2087,16 @@ const TextBlock = React.memo(function TextBlock({
               // Join successful
               const { joinPosition, previousBlockId, joinedText } = result;
               onUpdate(previousBlockId, 'text', joinedText);
+
+              // Update previous block's text using custom event
+              document.dispatchEvent(new CustomEvent('setNextBlockText', {
+                detail: {
+                  blockId: previousBlockId,
+                  text: joinedText,
+                  cursorPosition: joinPosition
+                }
+              }));
+
               setTimeout(() => {
                 const previousBlock = document.querySelector(`[data-block-id="${previousBlockId}"]`);
                 if (previousBlock) {
@@ -2993,6 +3055,8 @@ const TextBlock = React.memo(function TextBlock({
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
         console.log('[TextBlock] Resized - scrollHeight:', textarea.scrollHeight, 'text length:', value.length);
+
+        // Removed reflow logic - made things worse
       }
     });
 
@@ -3001,10 +3065,10 @@ const TextBlock = React.memo(function TextBlock({
       checkTimestampHover(cursorPos, value);
     }
 
-    // ALWAYS keep RTL - never change direction to prevent jumping
-    // The text will stay on the right and not jump around
-    if (textDirection !== 'rtl') {
-      setTextDirection('rtl');
+    // Dynamically detect and update text direction based on content
+    const detectedDir = detectTextDirection(value);
+    if (detectedDir !== textDirection) {
+      setTextDirection(detectedDir);
     }
     
     // Detect cursor language based on what's around the cursor
@@ -3452,36 +3516,46 @@ const TextBlock = React.memo(function TextBlock({
                 isTextArea={false}
               />
             )}
-            <input
-            ref={speakerRef}
-            className="block-speaker"
-            type="text"
-            value={blockViewEnabled ? localSpeaker : (() => {
-              if (!fullSpeakerName) return '';
-              // Only add colon for multi-character names (not single codes)
-              const isSingleCode = fullSpeakerName.length === 1 &&
-                (/^[א-ת]$/.test(fullSpeakerName) || /^[A-Za-z]$/.test(fullSpeakerName));
-              return isSingleCode ? fullSpeakerName : fullSpeakerName + ':';
+            {/* Dynamic font size - smaller for long names */}
+            {(() => {
+              const speakerNameLength = fullSpeakerName?.length || localSpeaker.length;
+              // Three-tier font sizing: normal (≤10), medium (11-13), extra small (>13)
+              // Special tags always use default fontSize (not reduced)
+              const speakerFontSize = isSpecialTag ? fontSize : (speakerNameLength > 13 ? 11 : speakerNameLength > 10 ? 13 : fontSize);
+
+              return (
+                <textarea
+                  ref={speakerRef}
+                  className="block-speaker"
+                  rows={1}
+                  value={blockViewEnabled ? localSpeaker : (() => {
+                    if (!fullSpeakerName) return '';
+                    // Only add colon for multi-character names (not single codes)
+                    const isSingleCode = fullSpeakerName.length === 1 &&
+                      (/^[א-ת]$/.test(fullSpeakerName) || /^[A-Za-z]$/.test(fullSpeakerName));
+                    return isSingleCode ? fullSpeakerName : fullSpeakerName + ':';
+                  })()}
+                  onChange={handleSpeakerChange}
+                  onKeyDown={handleSpeakerKeyDown}
+                  onFocus={handleSpeakerFocus}
+                  onBlur={handleSpeakerBlur}
+                  placeholder="דובר"
+                  dir={speakerDirection}
+                  style={{
+                    color: isIsolated ? '#333' : '#cbd5e1',
+                    direction: speakerDirection,
+                    textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
+                    fontSize: speakerFontSize + 'px',
+                    fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
+                    fontWeight: isIsolated ? 600 : 400,
+                    position: 'relative',
+                    zIndex: 2,
+                    background: 'transparent'
+                  }}
+                  data-timestamp={block.speakerTime || 0}
+                />
+              );
             })()}
-            onChange={handleSpeakerChange}
-            onKeyDown={handleSpeakerKeyDown}
-            onFocus={handleSpeakerFocus}
-            onBlur={handleSpeakerBlur}
-            placeholder="דובר"
-            dir={speakerDirection}
-            style={{
-              color: isIsolated ? '#333' : '#cbd5e1',
-              direction: speakerDirection,
-              textAlign: speakerDirection === 'rtl' ? 'right' : 'left',
-              fontSize: fontSize + 'px',
-              fontFamily: fontFamily === 'david' ? 'David, serif' : 'inherit',
-              fontWeight: isIsolated ? 600 : 400,
-              position: 'relative',
-              zIndex: 2,
-              background: 'transparent'
-            }}
-            data-timestamp={block.speakerTime || 0}
-            />
             {blockViewEnabled && nameCompletion && (
               <span className="name-completion" style={{ fontSize: fontSize + 'px' }}>
                 {nameCompletion}
@@ -3638,10 +3712,11 @@ const TextBlock = React.memo(function TextBlock({
               return mediaName;
             }
           })()}...` : "הקלד טקסט כאן...") : ""}
-          dir="rtl"
+          dir={inputLanguage === 'english' ? 'ltr' : 'rtl'}
           style={{
-            direction: 'rtl',
-            textAlign: 'right',
+            direction: inputLanguage === 'english' ? 'ltr' : 'rtl',
+            textAlign: 'justify',
+            textAlignLast: 'start',
             resize: 'none',
             overflow: 'hidden',
             fontSize: fontSize + 'px',

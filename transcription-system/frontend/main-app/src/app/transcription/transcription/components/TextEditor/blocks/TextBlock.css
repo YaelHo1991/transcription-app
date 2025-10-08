@@ -99,7 +99,7 @@
   border-radius: 4px;
   transition: all 0.2s ease;
   direction: rtl;
-  min-height: 26px;
+  min-height: 24px;
   max-height: none !important;
   height: auto !important;
   border-left: 4px solid #e0f2f1;
@@ -143,11 +143,14 @@
   direction: rtl !important;
   text-align: right !important;
   unicode-bidi: bidi-override !important; /* Force RTL for all characters including numbers */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: hidden; /* Hide scrollbar */
+  overflow-y: hidden; /* Explicitly hide vertical scrollbar */
+  white-space: normal; /* Allow wrapping to multiple lines */
+  word-break: break-word; /* Break long words if needed */
+  max-height: calc(1.8em * 2); /* Limit to 2 lines */
   outline: none;
   border: none;
+  resize: none; /* Disable textarea resize handle */
   transition: all 0.2s ease;
   line-height: 1.8; /* Increased from 1.5 to 1.8 to match text area */
   position: relative;
@@ -219,9 +222,9 @@
 /* Text area */
 .block-text {
   flex: 1;
-  padding: 6px 8px;
+  padding: 4px 8px;
   outline: none;
-  min-height: 40px;
+  min-height: 28px;
   line-height: 1.6; /* Adjusted for better text flow */
   border-radius: 3px;
   border: none;
@@ -234,13 +237,13 @@
   box-sizing: border-box;
   background: transparent;
   /* RTL direction */
-  direction: rtl !important;
+  direction: rtl; /* Default RTL, allows inline override for English */
   /* Full justification for Hebrew text */
-  text-align: justify !important;
-  text-align-last: right !important; /* Last line stays right-aligned */
-  text-justify: inter-word !important;
-  /* Force RTL for all characters including numbers */
-  unicode-bidi: bidi-override !important;
+  text-align: justify; /* Default justify, allows inline override */
+  text-align-last: start; /* Last line adapts to direction: RTL→right, LTR→left */
+  text-justify: inter-word;
+  /* Auto-detect direction from content */
+  unicode-bidi: plaintext; /* Changed from bidi-override to support both Hebrew and English */
   /* Better word spacing for justified text */
   word-spacing: 0.1em;
   letter-spacing: normal;
