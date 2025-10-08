@@ -22,6 +22,7 @@ interface SlidingWindowTextEditorProps {
   onUpdate: (id: string, field: 'speaker' | 'text', value: string) => void;
   onNewBlock: () => void;
   onRemoveBlock: (id: string) => void;
+  onJoinBlock?: (blockId: string) => { joinPosition: number; previousBlockId: string; joinedText: string } | null;
   onSpeakerTransform: (code: string) => Promise<string | null>;
   onDeleteAcrossBlocks: (blockId: string, fromField: 'speaker' | 'text') => void;
   onProcessShortcuts: (text: string, position: number) => any;
@@ -54,6 +55,7 @@ export default function SlidingWindowTextEditor({
   onUpdate,
   onNewBlock,
   onRemoveBlock,
+  onJoinBlock,
   onSpeakerTransform,
   onDeleteAcrossBlocks,
   onProcessShortcuts,
@@ -64,52 +66,79 @@ export default function SlidingWindowTextEditor({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: Math.min(WINDOW_SIZE, blocks.length) });
 
+  // Word-like scrolling: track whether to auto-scroll to cursor
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const isProgrammaticScroll = useRef(false);
+
   // Calculate which blocks should be visible based on scroll position
-  const calculateVisibleRange = useCallback((scrollPosition: number) => {
+  const calculateVisibleRange = useCallback((scrollPosition: number, activeId?: string | null) => {
     // Simple calculation: which block is at the top of the viewport
     const firstVisibleBlock = Math.floor(scrollPosition / BLOCK_HEIGHT);
-    
+
     // Start a bit before the first visible block for smooth scrolling
-    const startIndex = Math.max(0, firstVisibleBlock - 5);
+    let startIndex = Math.max(0, firstVisibleBlock - 5);
     // Render WINDOW_SIZE blocks from the start
-    const endIndex = Math.min(blocks.length, startIndex + WINDOW_SIZE);
-    
+    let endIndex = Math.min(blocks.length, startIndex + WINDOW_SIZE);
+
     // If we're near the end, adjust to show the last WINDOW_SIZE blocks
     if (endIndex === blocks.length && blocks.length > WINDOW_SIZE) {
-      const adjustedStart = Math.max(0, blocks.length - WINDOW_SIZE);
-      return { start: adjustedStart, end: endIndex };
+      startIndex = Math.max(0, blocks.length - WINDOW_SIZE);
     }
-    
+
+    // Let virtual scrolling work naturally
+    // Word-like auto-scroll (useEffect at line 128) will bring active block into view when typing
+
     return { start: startIndex, end: endIndex };
-  }, [blocks.length]);
+  }, [blocks]);
 
   // Handle scroll events
   const handleScroll = useCallback(() => {
     if (scrollContainerRef.current) {
       const newScrollTop = scrollContainerRef.current.scrollTop;
-      const newRange = calculateVisibleRange(newScrollTop);
-      
+      const newRange = calculateVisibleRange(newScrollTop, activeBlockId);
+
       // Only update if the range actually changed
       if (newRange.start !== visibleRange.start || newRange.end !== visibleRange.end) {
         setVisibleRange(newRange);
       }
-    }
-  }, [calculateVisibleRange, visibleRange]);
 
-  // Scroll to active block when it changes
+      // If this scroll wasn't triggered programmatically, it's a manual scroll
+      // Disable auto-scroll to allow free browsing (Word-like behavior)
+      if (!isProgrammaticScroll.current) {
+        setShouldAutoScroll(false);
+      }
+      // Reset the flag for next scroll event
+      isProgrammaticScroll.current = false;
+    }
+  }, [calculateVisibleRange, visibleRange, activeBlockId]);
+
+  // Scroll to active block when it changes (Word-like behavior)
+  // Only auto-scroll if shouldAutoScroll is true (i.e., user pressed a key)
   useEffect(() => {
-    if (activeBlockId && scrollContainerRef.current) {
+    if (shouldAutoScroll && activeBlockId && scrollContainerRef.current) {
       const index = blocks.findIndex(b => b.id === activeBlockId);
+
       if (index !== -1) {
-        // Check if block is outside current visible range
-        if (index < visibleRange.start || index >= visibleRange.end) {
-          // Scroll to bring the block into view
-          const targetScrollTop = index * BLOCK_HEIGHT;
-          scrollContainerRef.current.scrollTop = targetScrollTop;
+        const currentScrollTop = scrollContainerRef.current.scrollTop;
+        const blockTop = index * BLOCK_HEIGHT;
+        const blockBottom = blockTop + BLOCK_HEIGHT;
+        const viewportTop = currentScrollTop;
+        const viewportBottom = currentScrollTop + containerHeight;
+
+        // Only scroll if the block is outside the visible viewport
+        if (blockTop < viewportTop || blockBottom > viewportBottom) {
+          // Mark this as a programmatic scroll so handleScroll doesn't disable auto-scroll
+          isProgrammaticScroll.current = true;
+          // Center the block in the viewport for better visibility
+          const targetScrollTop = (index * BLOCK_HEIGHT) - (containerHeight / 2) + (BLOCK_HEIGHT / 2);
+          scrollContainerRef.current.scrollTop = Math.max(0, targetScrollTop);
         }
+
+        // Reset shouldAutoScroll after checking
+        setShouldAutoScroll(false);
       }
     }
-  }, [activeBlockId, blocks, visibleRange]);
+  }, [shouldAutoScroll, activeBlockId, blocks, containerHeight]);
 
   // Handle search result navigation
   useEffect(() => {
@@ -118,6 +147,8 @@ export default function SlidingWindowTextEditor({
       if (currentResult && scrollContainerRef.current) {
         const index = blocks.findIndex(b => b.id === currentResult.blockId);
         if (index !== -1) {
+          // Mark as programmatic scroll
+          isProgrammaticScroll.current = true;
           // Scroll to center the search result
           const targetScrollTop = (index * BLOCK_HEIGHT) - (containerHeight / 2) + (BLOCK_HEIGHT / 2);
           scrollContainerRef.current.scrollTop = Math.max(0, targetScrollTop);
@@ -126,12 +157,31 @@ export default function SlidingWindowTextEditor({
     }
   }, [currentSearchIndex, searchResults, blocks, containerHeight]);
 
+  // Keyboard detection: enable auto-scroll when user presses any key
+  // This implements Word-like behavior - scroll back to cursor on keypress
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Enable auto-scroll when any key is pressed (except mouse/modifier keys)
+      if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+        setShouldAutoScroll(true);
+      }
+    };
+
+    // Listen globally on document to catch all keyboard events
+    // Use capture phase to ensure we catch it before other handlers
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
+
   // Calculate spacer heights
   const topSpacerHeight = visibleRange.start * BLOCK_HEIGHT;
   const bottomSpacerHeight = Math.max(0, (blocks.length - visibleRange.end) * BLOCK_HEIGHT);
-  // Add extra virtual space at the end (like 10 empty blocks worth)
-  const endPadding = BLOCK_HEIGHT * 10; 
-  const totalHeight = blocks.length * BLOCK_HEIGHT + endPadding;
+  // Add bottom padding for smooth scrolling at end (6 blank blocks worth)
+  const BOTTOM_PADDING = BLOCK_HEIGHT * 6; // 480px (3 blocks before marker, 3 after)
+  const contentHeight = blocks.length * BLOCK_HEIGHT;
+  const totalHeight = contentHeight + BOTTOM_PADDING;
 
   // Update visible range when blocks change
   useEffect(() => {
@@ -142,7 +192,7 @@ export default function SlidingWindowTextEditor({
   const visibleBlocks = blocks.slice(visibleRange.start, visibleRange.end);
 
   return (
-    <div 
+    <div
       ref={scrollContainerRef}
       className="text-editor-content sliding-window"
       style={{
@@ -155,9 +205,10 @@ export default function SlidingWindowTextEditor({
       onScroll={handleScroll}
     >
       {/* Virtual scrolling container with full document height */}
-      <div style={{ 
+      <div style={{
         height: totalHeight + 'px',
-        position: 'relative'
+        position: 'relative',
+        background: '#ffffff'
       }}>
         {/* Position the window of blocks at the correct offset */}
         <div style={{
@@ -192,6 +243,7 @@ export default function SlidingWindowTextEditor({
           >
             <TextBlock
               block={block}
+              blockIndex={absoluteIndex}
               isActive={isActive}
               isFirstBlock={absoluteIndex === 0}
               mediaName={mediaName}
@@ -201,13 +253,14 @@ export default function SlidingWindowTextEditor({
               onUpdate={onUpdate}
               onNewBlock={onNewBlock}
               onRemoveBlock={onRemoveBlock}
+              onJoinBlock={onJoinBlock}
               onSpeakerTransform={onSpeakerTransform}
               onDeleteAcrossBlocks={onDeleteAcrossBlocks}
               onProcessShortcuts={onProcessShortcuts}
-              speakerColor={speakerColors.get(block.speaker)}
+              speakerColor={speakerColors.get(block.isContinuation && block.parentSpeaker ? block.parentSpeaker : block.speaker)}
               fontSize={fontSize}
               fontFamily={fontFamily}
-              isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.speaker)}
+              isIsolated={isolatedSpeakers.size === 0 || isolatedSpeakers.has(block.isContinuation && block.parentSpeaker ? block.parentSpeaker : block.speaker)}
               showDescriptionTooltips={showDescriptionTooltips}
               blockViewEnabled={blockViewEnabled}
               speakerHighlights={speakerHighlights}
@@ -220,22 +273,6 @@ export default function SlidingWindowTextEditor({
           );
         })}
         </div>
-        {/* End of document marker - only show when last block is visible */}
-        {visibleRange.end >= blocks.length && (
-          <div style={{
-            position: 'absolute',
-            top: blocks.length * BLOCK_HEIGHT + 20 + 'px',
-            left: 0,
-            right: 0,
-            textAlign: 'center',
-            padding: '20px',
-            color: '#94a3b8',
-            fontSize: '14px',
-            fontStyle: 'italic'
-          }}>
-            — סוף המסמך —
-          </div>
-        )}
       </div>
     </div>
   );

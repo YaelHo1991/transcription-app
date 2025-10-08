@@ -145,6 +145,33 @@
   margin: 0 4px;
 }
 
+/* Transcription Type Selector */
+.transcription-type-select {
+  padding: 2px 4px;
+  border: 1px solid #d0f2ed;
+  border-radius: 4px;
+  background: white;
+  font-size: 11px;
+  color: #0f766e;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  direction: rtl;
+  height: 24px;
+  min-width: 60px;
+  max-width: 80px;
+}
+
+.transcription-type-select:hover {
+  border-color: #14b8a6;
+  background: #f0fdfa;
+}
+
+.transcription-type-select:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1);
+}
+
 .toolbar-spacer {
   flex: 1;
 }
@@ -373,21 +400,22 @@
 /* Virtual scrolling wrapper for text blocks */
 .text-block-wrapper {
   direction: rtl !important;
-  text-align: right !important;
+  text-align: justify !important;
+  text-align-last: right !important;
   unicode-bidi: plaintext !important;
   width: 100%;
 }
 
 /* Media Name Header - Three Zone Layout */
 .media-name-header {
-  padding: 8px 12px;
+  padding: 4px 12px;
   background: linear-gradient(to bottom, #f5fffe, #f0fdfa);
   border-bottom: 1px solid #e0f2f1;
   display: flex;
   align-items: center;
   gap: 0;
   flex-shrink: 0;
-  min-height: 42px;
+  min-height: 28px;
   position: sticky;
   top: 0;
   justify-content: space-between;
@@ -400,7 +428,8 @@
   gap: 4px;
   align-items: center;
   flex: 0 0 auto;
-  margin-right: 8px;
+  margin-left: 4px;
+  align-self: center;
 }
 
 .te-header-btn {
@@ -607,11 +636,7 @@
 }
 
 /* Duration inline with media name */
-.te-duration-inline {
-  color: #178c96;
-  font-weight: 500;
-  margin-right: 8px;
-}
+/* Removed te-duration-inline - now using separate duration-zone */
 
 /* Project Navigation */
 .te-project-nav {
@@ -659,12 +684,13 @@
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 15px;
+  padding: 0 8px;
 }
 
 .project-zone {
-  flex: 0 0 auto;
-  min-width: 120px;
+  flex: 0 1 auto;
+  min-width: 50px;
+  max-width: 100px;
   position: relative;
 }
 
@@ -674,10 +700,26 @@
   overflow: hidden;
 }
 
-.duration-zone {
-  flex: 0 0 auto;
-  min-width: 80px;
-  text-align: center;
+.te-duration-center-zone {
+  flex: 0 0 auto !important;
+  min-width: 85px !important;
+  max-width: 85px !important;
+  height: 100% !important;
+  position: relative !important;
+  display: block !important;
+}
+
+.te-duration-center-zone .te-duration-text {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  font-size: 13px !important;
+  color: #1a5d5d !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Header Divider */
@@ -686,6 +728,7 @@
   height: 20px;
   background: rgba(20, 184, 166, 0.3);
   flex-shrink: 0;
+  margin: 0 4px;
 }
 
 /* Header Text */
@@ -755,9 +798,11 @@
   position: relative;
 }
 
-/* When virtual scrolling is active, let react-window handle scrolling */
-.blocks-container:has(> div[style*="position: relative"][style*="height"]) {
+/* When virtual scrolling is active, override parent styling */
+.blocks-container:has(.sliding-window) {
   overflow: hidden !important; /* Remove container scrolling when virtual mode is active */
+  background: #ffffff !important; /* Override gray gradient with white */
+  padding-bottom: 0 !important; /* Remove bottom padding */
 }
 
 /* CRITICAL: Force RTL on ALL virtual scrolling container levels */
@@ -791,7 +836,8 @@
 .blocks-container div[style*="position: absolute"][style*="top"] textarea.block-text,
 .blocks-container div[style*="position: absolute"][style*="top"] .text-block textarea {
   direction: rtl !important;
-  text-align: right !important;
+  text-align: justify !important;
+  text-align-last: right !important;
   unicode-bidi: plaintext !important; /* Use plaintext for proper RTL handling like speaker field */
   caret-color: #e91e63 !important; /* Pink cursor for Hebrew */
   writing-mode: horizontal-tb !important;
@@ -855,7 +901,8 @@
 
 .word-count,
 .char-count,
-.speaker-count {
+.speaker-count,
+.page-count {
   margin-right: 16px;
   font-weight: 500;
 }
@@ -870,6 +917,10 @@
 
 .speaker-count {
   color: #0e7490;
+}
+
+.page-count {
+  color: #0f766e;
 }
 
 .current-mark-indicator {

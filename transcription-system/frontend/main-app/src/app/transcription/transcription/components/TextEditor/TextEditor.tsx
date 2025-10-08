@@ -66,17 +66,21 @@ export default function TextEditor({
   currentTranscriptionIndex = 0,
   onTranscriptionChange,
   onTranscriptionDelete,
-  onBulkTranscriptionDelete
+  onBulkTranscriptionDelete,
+  onSaveRef
 }: TextEditorProps & {
   virtualizationEnabled?: boolean;
   onTranscriptionDelete?: (index: number) => void;
   onBulkTranscriptionDelete?: (indices: number[]) => void;
+  onSaveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const blocksContainerRef = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<TextBlockData[]>([]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [editorRefreshKey, setEditorRefreshKey] = useState(0); // Force re-render after version restore
-  
+  const [containerHeight, setContainerHeight] = useState<number>(600); // Dynamic height for virtual scrolling
+
   // Project store
   const { saveMediaData } = useProjectStore();
   
@@ -112,6 +116,28 @@ export default function TextEditor({
     
     initIndexedDB();
   }, []);
+
+  // Measure container height dynamically for virtual scrolling
+  useEffect(() => {
+    if (!blocksContainerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.contentRect.height;
+        if (height > 0) {
+          setContainerHeight(height);
+          console.log('[TextEditor] Container height updated:', height);
+        }
+      }
+    });
+
+    resizeObserver.observe(blocksContainerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [speakerColors, setSpeakerColors] = useState<Map<string, string>>(new Map());
   const [cursorAtStart, setCursorAtStart] = useState(false);
@@ -1542,16 +1568,24 @@ export default function TextEditor({
         // Load speakers if available
         if (data.speakers && Array.isArray(data.speakers)) {
           console.log('[TextEditor] Loading speakers:', data.speakers);
-          
-          // Clear and reload speaker manager
+
+          // Build color map for both code and name
+          const colorMap = new Map<string, string>();
           data.speakers.forEach((speaker: any) => {
             if (speaker.code) {
               speakerManagerRef.current.addSpeaker(speaker.code, speaker.name || '');
+              // Map BOTH code AND name to color for proper lookup
               if (speaker.color) {
-                setSpeakerColors(prev => new Map(prev).set(speaker.code, speaker.color));
+                if (speaker.code) {
+                  colorMap.set(speaker.code, speaker.color);
+                }
+                if (speaker.name) {
+                  colorMap.set(speaker.name, speaker.color);
+                }
               }
             }
           });
+          setSpeakerColors(colorMap);
           
           // Update SimpleSpeaker component if available
           if (speakerComponentRef?.current) {
@@ -2478,6 +2512,21 @@ export default function TextEditor({
       } else if (block) {
         block.isSpecialTag = false;
       }
+
+      // Update parentSpeaker for all following continuation blocks
+      // This ensures continuation blocks inherit the correct speaker for color display
+      let nextIndex = blockIndex + 1;
+      while (nextIndex < currentBlocks.length && currentBlocks[nextIndex].isContinuation) {
+        console.log(`[TextEditor] Updating continuation block ${currentBlocks[nextIndex].id} parentSpeaker from "${currentBlocks[nextIndex].parentSpeaker}" to "${value}"`);
+        currentBlocks[nextIndex].parentSpeaker = value;
+        nextIndex++;
+      }
+
+      // Force re-render to apply the updated parentSpeaker values
+      if (nextIndex > blockIndex + 1) {
+        console.log(`[TextEditor] Updated ${nextIndex - blockIndex - 1} continuation blocks`);
+        setBlocks([...currentBlocks]);
+      }
     }
 
     // Mark transcription as modified
@@ -2620,9 +2669,20 @@ export default function TextEditor({
       sessionStorage.setItem('currentTranscriptionBlocks', JSON.stringify(allBlocks));
 
       setActiveBlockId(newBlock.id);
-      // For continuation blocks or when initialText is provided, focus on text field
-      // Otherwise focus on speaker field
-      setActiveArea(isContinuation || (initialText && initialText.length > 0) ? 'text' : 'speaker');
+      // Determine which field to focus on:
+      // - Continuation blocks always focus on text field
+      // - Text split from Enter (cursorPos === 0 with initial text, not continuation) focuses on speaker field
+      // - Other cases with initial text focus on text field
+      // - Empty blocks focus on speaker field
+      setActiveArea(
+        isContinuation
+          ? 'text'  // Continuation blocks always focus on text
+          : (initialText && initialText.length > 0 && cursorPos === 0)
+            ? 'speaker'  // Text split from regular Enter - focus on speaker
+            : (initialText && initialText.length > 0)
+              ? 'text'  // Has initial text but cursor not at 0 - focus on text
+              : 'speaker'  // No initial text - focus on speaker
+      );
       const newBlocks = [...blockManagerRef.current.getBlocks()];
       setBlocks(newBlocks);
 
@@ -2641,7 +2701,8 @@ export default function TextEditor({
       backupService.markChanges();
 
       // If cursor position was provided and we're focusing on text, set it
-      if ((initialText || isContinuation) && cursorPos !== undefined) {
+      // Only do this for continuation blocks or when we're actually focusing on text field
+      if (isContinuation && cursorPos !== undefined) {
         setTimeout(() => {
           const textareas = document.querySelectorAll('textarea');
           const newBlockTextarea = Array.from(textareas).find((ta: any) => {
@@ -2814,7 +2875,7 @@ export default function TextEditor({
   }, [saveToHistory]);
 
   // Handle joining current block with previous block (opposite of Enter split)
-  const handleJoinBlock = useCallback((id: string): { joinPosition: number; previousBlockId: string } | null => {
+  const handleJoinBlock = useCallback((id: string): { joinPosition: number; previousBlockId: string; joinedText: string } | null => {
     const result = blockManagerRef.current.joinWithPreviousBlock(id);
     if (!result) return null;
 
@@ -3008,12 +3069,16 @@ export default function TextEditor({
         speaker: block.speaker || '',
         text: block.text || '',
         // Handle both direct speakerTime (as number) and timestamp (as formatted string)
-        speakerTime: block.speakerTime !== undefined 
+        speakerTime: block.speakerTime !== undefined
           ? (typeof block.speakerTime === 'number' ? block.speakerTime : parseTime(block.speakerTime))
           : (block.timestamp ? parseTime(block.timestamp) : undefined),
         timestamp: block.timestamp,
         duration: block.duration,
-        isEdited: block.isEdited
+        isEdited: block.isEdited,
+        // Preserve continuation block properties
+        isContinuation: block.isContinuation,
+        parentSpeaker: block.parentSpeaker,
+        isSpecialTag: block.isSpecialTag
       }));
       
       // Debug: Log blocks with timestamps
@@ -3610,6 +3675,11 @@ export default function TextEditor({
   // Set the ref after the function is defined
   saveProjectDataRef.current = saveProjectData;
 
+  // Also set the onSaveRef if provided (allows parent to call save directly)
+  if (onSaveRef) {
+    onSaveRef.current = saveProjectData;
+  }
+
   // Handle creating a manual backup
   const handleCreateBackup = async () => {
     if (!currentProjectId || !currentMediaId) {
@@ -3972,9 +4042,16 @@ export default function TextEditor({
         console.log('[TextEditor] Checking blocks for updates...');
         // Update ALL blocks that EXACTLY match the updateFrom value
         blocks.forEach(block => {
+          // Update regular blocks with matching speaker
           if (block.speaker === updateFrom) {
             console.log('[TextEditor] Updating block ' + block.id + ' speaker from "' + updateFrom + '" to "' + updateTo + '"');
             blockManagerRef.current.updateBlock(block.id, 'speaker', updateTo);
+            hasUpdates = true;
+          }
+          // Update continuation blocks with matching parentSpeaker
+          if (block.isContinuation && block.parentSpeaker === updateFrom) {
+            console.log('[TextEditor] Updating continuation block ' + block.id + ' parentSpeaker from "' + updateFrom + '" to "' + updateTo + '"');
+            block.parentSpeaker = updateTo;
             hasUpdates = true;
           }
         });
@@ -4174,7 +4251,11 @@ export default function TextEditor({
           id: 'block-' + Date.now() + '-' + index,
           speaker: block.speaker || '',
           text: block.text || '',
-          speakerTime: block.timestamp || block.speakerTime || 0
+          speakerTime: block.timestamp || block.speakerTime || 0,
+          // Preserve continuation block properties
+          isContinuation: block.isContinuation,
+          parentSpeaker: block.parentSpeaker,
+          isSpecialTag: block.isSpecialTag
         }));
         
         blockManagerRef.current.setBlocks(importedBlocks);
@@ -4452,7 +4533,7 @@ export default function TextEditor({
           </div>
           
           {/* Blocks Container */}
-          <div className="blocks-container" key={editorRefreshKey}>
+          <div ref={blocksContainerRef} className="blocks-container" key={editorRefreshKey}>
             {console.log('[TextEditor] Rendering blocks:', { 
               blockCount: blocks.length, 
               virtualizationEnabled,
@@ -4484,6 +4565,7 @@ export default function TextEditor({
                 onUpdate={handleBlockUpdate}
                 onNewBlock={handleNewBlock}
                 onRemoveBlock={handleRemoveBlock}
+                onJoinBlock={handleJoinBlock}
                 onSpeakerTransform={handleSpeakerTransform}
                 onDeleteAcrossBlocks={handleDeleteAcrossBlocks}
                 onProcessShortcuts={processShortcuts}
@@ -4498,7 +4580,7 @@ export default function TextEditor({
                              searchHighlights[currentSearchIndex]?.startIndex === h.startIndex
                   }));
                 }}
-                containerHeight={window.innerHeight - 300}
+                containerHeight={containerHeight}
               />
             ) : (
               blocks.map((block, index) => {
@@ -4671,9 +4753,13 @@ export default function TextEditor({
                   speaker: block.speaker || '',
                   text: block.text || '',
                   // Handle both direct speakerTime (as number) and timestamp (as formatted string)
-                  speakerTime: block.speakerTime !== undefined 
+                  speakerTime: block.speakerTime !== undefined
                     ? (typeof block.speakerTime === 'number' ? block.speakerTime : parseTime(block.speakerTime))
-                    : (block.timestamp ? parseTime(block.timestamp) : undefined)
+                    : (block.timestamp ? parseTime(block.timestamp) : undefined),
+                  // Preserve continuation block properties
+                  isContinuation: block.isContinuation,
+                  parentSpeaker: block.parentSpeaker,
+                  isSpecialTag: block.isSpecialTag
                 }));
                 
                 // Update blockManagerRef AND state like in loadProjectData
