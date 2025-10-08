@@ -272,6 +272,18 @@ export default function SlidingWindowTextEditor({
             </div>
           );
         })}
+
+        {/* Render blank blocks for smooth bottom scrolling */}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={`blank-${i}`}
+            style={{
+              height: BLOCK_HEIGHT + 'px',
+              width: '100%',
+              background: 'transparent'
+            }}
+          />
+        ))}
         </div>
       </div>
     </div>
